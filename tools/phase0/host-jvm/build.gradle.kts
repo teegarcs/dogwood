@@ -38,3 +38,14 @@ tasks.named<JavaExec>("run") {
   workingDir = rootProject.projectDir
   dependsOn(":guest:jsBrowserProductionWebpackZipline")
 }
+
+/** Prints the bytes that actually cross the boundary. See DumpWire.kt. */
+tasks.register<JavaExec>("dumpWire") {
+  group = "verification"
+  description = "Capture and analyse the real wire payload"
+  mainClass.set("dev.dogwood.host.DumpWireKt")
+  classpath = sourceSets["main"].runtimeClasspath
+  jvmArgs("-Xss8m")
+  workingDir = rootProject.projectDir
+  dependsOn(":guest:jsBrowserProductionWebpackZipline")
+}

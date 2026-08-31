@@ -1,8 +1,9 @@
 # ADR-006: The Batch Crossing Is Guest-Side Encoding, Not Transport
 
 **Date:** 2026-08-31
-**Status:** Proposed — the decisions in §2.1 and §2.2 are actionable now; §2.3 and §2.4 need a
-human ruling, and none of it is settled until the gate device is measured.
+**Status:** Accepted for §2.1, §2.2, and §2.4 (ruled 2026-08-31); §2.3's v1 encoding candidates
+remain open pending the measurement described there. No leg is settled against the *named* gate
+device, which has not been run.
 
 ## 1. Context & Problem Statement
 
@@ -95,11 +96,16 @@ bytes. The real candidates are therefore, in order of evidence:
 3. **Patch or extend Zipline's channel** to carry bytes. Real, but it forks a dependency and
    must be costed as such rather than assumed.
 
-**2.4 The gate leg's reading is escalated, not renegotiated.** The leg is reported **FAILED**
-as written, because roadmap.md says thresholds "may be renegotiated *before* the experiments
-run — never after seeing the numbers," and that rule is worth more than this result. But the
-specification is genuinely ambiguous about which cost the 4 ms bounds, and the ambiguity must
-be resolved by a person, not by the harness:
+**2.4 The gate leg's reading was escalated rather than renegotiated, and has now been ruled.**
+The leg was reported **FAILED** as written, because roadmap.md says thresholds "may be
+renegotiated *before* the experiments run — never after seeing the numbers," and that rule is
+worth more than this result. The specification was genuinely ambiguous about which cost the
+4 ms bounds, so both readings were measured and the ruling was left to a person.
+
+**Ruling (2026-08-31): the 4 ms bounds the per-tap crossing.** That leg measures 0.12 ms on the
+development host and 0.17 ms on a Pixel 10 Pro, and passes. The whole-screen initial batch is a
+once-per-screen cost carried by the cold-start budget, and is to be driven down as far as it
+will go under §2.3 rather than treated as satisfied. The two readings were:
 
 - Read as **per-frame**, the leg belongs to steady-state recomposition batches, which measure
   **0.124 ms** and pass with three orders of magnitude to spare.
@@ -109,16 +115,15 @@ be resolved by a person, not by the harness:
   moment the host holds the whole tree (module load, `main()`, first composition, and the
   initial crossing) is **154.8 ms** at p50 and 161.7 ms at p95, against a 500 ms budget.
 
-The harness reports every one of those numbers, and evaluates the 0.3 leg under both readings,
-so the ruling can be made on evidence rather than on which number someone saw first. Until it
-is made, the project should treat 0.3 as failed.
+The harness reports every one of those numbers and evaluates the 0.3 leg under both readings,
+so the ruling was made on evidence rather than on which number someone saw first.
 
-Note the shape of the honesty risk here, since the author of this ADR is also the holder of the
-failing number: the per-frame reading is the one that makes the phase pass, and it is therefore
-the reading that deserves the most scepticism. What keeps it from being a free pass is the
-`coldStartToFirstBatchDelivered` leg — adopting the per-frame reading obliges the project to
-carry the initial batch in the cold-start budget, and that budget is now instrumented so the
-cost cannot quietly go unwatched.
+Note the shape of the honesty risk, since the author of this ADR is also the holder of the
+failing number: the per-frame reading is the one that makes the phase pass, and it was therefore
+the reading that deserved the most scepticism. What keeps it from being a free pass is the
+`coldStartToFirstBatchDelivered` leg — the ruling obliges the project to carry the initial batch
+in the cold-start budget, and that budget is now instrumented so the cost cannot quietly go
+unwatched.
 
 ## 3. Rationale & Research
 

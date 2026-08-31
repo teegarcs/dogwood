@@ -68,8 +68,8 @@ host:
 | Gate leg | Budget | Measured | Reading |
 |---|---:|---:|---|
 | 0.2 recomposition, p95 | 8 ms | **1.67 ms** | within budget |
-| 0.3 crossing, per-frame reading (steady-state batch) | 4 ms | **0.12 ms** | within budget |
-| 0.3 crossing, per-screen reading (whole initial batch) | 4 ms | **24.34 ms** | **over budget, by 6×** |
+| 0.3 crossing — **the leg as ruled**: steady-state per-tap batch | 4 ms | **0.12 ms** | within budget |
+| 0.3 whole-screen initial batch (not this leg; a cold-start cost) | — | 24.34 ms | to be driven down |
 | 0.4 maximum collection pause, p99 | 16.7 ms | **1.45 ms** | within budget |
 | 0.4 maximum collection pause, worst single sample (Pixel 10 Pro) | 16.7 ms | **22.1 ms** | outside a 60 Hz frame |
 | 0.1 cold start to first composition | 500 ms | **128 ms** | within budget |
@@ -131,14 +131,13 @@ the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-cros
 1. **Acquire and run the named gate device.** Nothing above opens or closes the gate, and the
    hardware-independence result above makes this the highest-value remaining task rather than a
    formality: the leg most likely to fail there is 0.2, the one with no engineering remedy.
-2. **Rule on what the 0.3 leg bounds** — a per-frame cost or the initial batch. This gate
-   paragraph frames a tap-to-repaint path and gives the crossing 4 ms, then sizes that leg as
-   "the 150-node batch crossing"; a tap never produces 150 nodes. The leg is reported failed as
-   written, because thresholds may not be renegotiated after seeing numbers, and both readings
-   are measured so a person can resolve it on evidence. Under the per-frame reading the initial
-   batch's cost does not vanish — it belongs to the cold-start budget, where it is now measured
-   at 155 ms of 500 ms. See
-   [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.4.
+2. ~~**Rule on what the 0.3 leg bounds.**~~ **Ruled.** The 4 ms bounds the **per-tap** crossing —
+   the steady-state recomposition batch — which measures **0.17 ms** on a Pixel 10 Pro and
+   passes. The whole-screen initial batch is a once-per-screen cost and belongs to the
+   cold-start budget, where it is measured at 191 ms of 500 ms on the same device. The initial
+   batch is nevertheless to be driven down as far as it will go; see the wire analysis in
+   [`tools/phase0/results/wire-format.md`](tools/phase0/results/wire-format.md) and
+   [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.3.
 3. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
    iOS organisation's written yes — neither of which is engineering work.
 

@@ -8,6 +8,7 @@
  */
 package dev.dogwood.host
 
+import app.cash.zipline.EventListener
 import app.cash.zipline.Zipline
 import app.cash.zipline.loader.ZiplineFile
 import dev.dogwood.protocol.CompositionResult
@@ -18,6 +19,7 @@ import okio.Buffer
 import okio.ByteString.Companion.toByteString
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 
@@ -201,8 +203,11 @@ class Phase0Driver(
    * interpreted code, shape, or atom is carried over from a previous run.
    */
   @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
-  fun load(gcThresholdBytes: Long? = null): LoadedGuest {
-    val zipline = Zipline.create(dispatcher)
+  fun load(
+    gcThresholdBytes: Long? = null,
+    eventListener: EventListener = EventListener.NONE,
+  ): LoadedGuest {
+    val zipline = Zipline.create(dispatcher, EmptySerializersModule(), eventListener)
     if (gcThresholdBytes != null) zipline.quickJs.gcThreshold = gcThresholdBytes
 
     val loadStart = System.nanoTime()
