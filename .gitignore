@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# Local agent tooling (machine-specific; keep shared config in AGENTS.md)
+.claude/settings.local.json
+.claude/*.local.json
+
+# Build output (for when the reference implementation lands)
+build/
+out/
+dist/
+*.wasm
+*.klib
+local.properties
+.gradle/
