@@ -1,7 +1,7 @@
 # ADR-003: Binding Surface Model — Opaque Host Handles and a Published Dictionary Artifact
 
 **Date:** 2026-08-30
-**Status:** Proposed — **superseded in part** by [Layer 4 ADR-002](../layer-4/ADR-002-adopt-zipline-quickjs-substrate.md). The measured API-surface analysis and the opaque-handle model stand. The `i32`-into-linear-memory mechanics are replaced by protocol identifiers over Zipline.
+**Status:** Proposed — **superseded in part**, twice. The `i32`-into-linear-memory mechanics are replaced by protocol identifiers over Zipline ([Layer 4 ADR-002](../layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)). **The coverage figures in section 3 (450 / 81.1% / 12.9% / 6.0%) are withdrawn by [ADR-005](ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)** — this second measurement was itself found optimistically wrong (annotation-name capture, an optimistic unknown-type default, and an unmeasured lowercase surface); the corrected figures are 445 / 67.6% / 25.2% / 7.2%. The opaque-handle model and the published-dictionary decision stand. The tables below are retained as history; do not quote them.
 
 ## 1. Context & Problem Statement
 
@@ -43,7 +43,7 @@ The measurement was redone with a committed, re-runnable classifier at [`tools/m
 
 Parameter-level distribution across all 450: deferred expression 29.5%, composition-time slot or discrete event 23.0%, value class 14.3%, primitive 12.7%, `Modifier` 10.7%, live state 6.8%, `String` 1.4%, remainder excluded.
 
-**Overload pressure is real and confirmed.** Deterministic disambiguation is mandatory — an independent re-derivation reproduced 88 of 244 distinct names carrying more than one overload, with a maximum of 7 for `AnimatedVisibility`. Note that the original rationale for this requirement ("WebAssembly imports cannot share a name") is void under the Zipline substrate; the requirement survives because the protocol addresses widgets by integer tag and a tag must identify exactly one signature.
+**Overload pressure is real and confirmed.** Deterministic disambiguation is mandatory — an independent re-derivation at the time reproduced 88 of 244 distinct names carrying more than one overload (superseded with the rest of this measurement: the corrected classifier reports **106 of 256**, maximum 8 for `Icon` — see [ADR-005](ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)). Note that the original rationale for this requirement ("WebAssembly imports cannot share a name") is void under the Zipline substrate; the requirement survives because the protocol addresses widgets by integer tag and a tag must identify exactly one signature.
 
 **Why a published artifact beats independent recomputation.** Section 5 argues that a shared algorithm "guarantees that both sides generate perfectly matching strings without ever communicating." That holds only if both sides also see an identical input API surface. They do not: the client runner is compiled into an application binary shipped months earlier, while the server compiles payloads later against whatever Compose version the build server resolves. Publishing the client's generated dictionary as a versioned artifact makes the surface itself the contract, which is also what makes the section 7 version-skew routing strategy implementable — the server can hold one dictionary per shipped client version and route accordingly. Zipline solves the analogous problem with `SignatureHash.kt`, and Redwood generates both ends from one schema in one build step ([ADR-002](ADR-002-standalone-codegen-tool-not-ksp.md)).
 

@@ -8,21 +8,57 @@ Durations assume **one engineer** on the critical path and are rough. They are s
 
 ---
 
+## Adoption Path and Platform Order
+
+Two sequencing decisions, recorded in [Layer 5 ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md), reshape the phases below for a company deployment:
+
+**Design-system-first.** The first shippable surface is built from **registered design-system components plus the layout primitives**, not the generated Material tier. Registered components absorb the hardest bespoke subsystems for the screens that matter (a design-system button owns its own animation; a design-system `AsyncImage(url)` solves images; a registered chart delivers what `Canvas` cannot), and curated signatures are systematically more bindable than raw Material. Generator v1 therefore targets **registered modules plus `foundation-layout` only** — first-party sources, no metalava, few exotic defaults — and the full Material tier with its defaults-expression complexity becomes **generator v2**. This pulls the first production screen from roughly a year to roughly four to five months, and it mirrors the architecture Redwood actually shipped while keeping the generated full-surface tier as the upgrade that ends the treadmill.
+
+**Platform order: Android → Web → iOS, with iOS measured first and built last.**
+
+- **Android first.** The host is Android's runtime, Zipline's most exercised target, and native Compose. All of Phases 1–4 land here.
+- **The Compose Multiplatform desktop host is the development loop, not a shipping target.** It runs stable Compose Multiplatform on the Java Virtual Machine (JVM), where Zipline also runs, giving second-scale iteration without emulators. Build it alongside the Android host in Phase 1; it costs little because the host layer is common Kotlin.
+- **Web second.** It avoids the Kotlin/Native toolchain, Apple review risk, and the iOS organisational dependency. Three things are different on Web and must be treated as a distinct **web profile**, not a port: the guest loads into the browser's JavaScript engine directly (no QuickJS, no `.zipline` bytecode), delivery and integrity ride ordinary web deployment rather than `ZiplineLoader` and Ed25519 manifests, and the render target is Compose Multiplatform for Web — **Beta**, with `material3-wasm-js` trailing at alpha and a multi-megabyte Skiko payload ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). The protocol, applier, generator, and dictionary are unchanged; the substrate and delivery layers fork. Budget the profile as real design work.
+- **iOS last in code, first in lead time.** The three iOS risks all have long lead times and none needs iOS code to start: the **Phase 0 measurements include an iOS device** (Zipline and the Treehouse samples both run there — deferring iOS numbers until after everything is built risks discovering an iOS-specific performance wall late), the **Apple Guideline 4.7 inquiry** files in Phase 0, and the **iOS organisation's written yes** is a Phase 0 conversation. Building iOS last is a velocity decision; measuring it last would be a mistake.
+
+---
+
 ## Phase 0 — Falsify It Cheaply
 
 **Goal:** find out whether the architecture is viable before building anything. Every experiment here is designed to produce a number that could stop the project.
 
 | # | Experiment | Effort | What it settles |
 |---|---|---|---|
-| 0.1 | Compile the authoring slice to Kotlin/JavaScript with `androidx.compose.runtime:runtime-js`, `runtime-saveable-js`, `kotlinx-coroutines-core-js`, and `kotlinx-serialization-json-js` linked in production configuration. Package as `.zipline` bytecode. Measure minified bytes, gzipped bytes, bytecode bytes, on-device module-load time, and `QuickJs.memoryUsage` after load. | ~1 day | Cold-start cost. `runtime-js` alone is 1,777,599 bytes of klib. Cash App's published baseline for a real Kotlin/JavaScript application is 360 ms of QuickJS module loading. |
-| 0.2 | Run a real Compose composition inside Zipline's QuickJS with a trivial custom `Applier`. Measure initial composition and, separately, recomposition after a single state change, for a realistic screen. | ~3 days | **The central unknown.** Nobody has run Compose composition in a JavaScript interpreter. Initial composition being slow is maskable; recomposition being slow is fatal to interactivity. |
-| 0.3 | Encode a realistic change batch (roughly 150 nodes) through Zipline's `CallChannel`, end to end. Report guest encode, `JSON.stringify`, Java Native Interface transcode, host parse, and total bytes, at batch sizes 1 / 10 / 100 / 1,000. | ~2 days | Protocol cost per frame. Every crossing is one JSON string; the cost that matters is per byte. |
-| 0.4 | Measure guest garbage-collection behaviour under 0.2 with `gcThreshold` at Zipline's default 256 KiB and at 8–16 MB. Record collection count, total pause, and maximum pause. | ~1 day | Whether garbage collection, rather than interpretation, is the source of any jank. |
+| 0.1 | Compile the **Phase 0 probe program** (defined in the harness appendix below — the reference screen plus its state and event handlers; the Phase 1 slice does not exist yet) to Kotlin/JavaScript with `androidx.compose.runtime:runtime-js`, `runtime-saveable-js`, `kotlinx-coroutines-core-js`, and `kotlinx-serialization-json-js` linked in production configuration. Package as `.zipline` bytecode. Measure minified bytes, gzipped bytes, bytecode bytes, on-device module-load time, and `QuickJs.memoryUsage` after load. | ~1 day | Cold-start cost. `runtime-js` alone is 1,777,599 bytes of klib. Cash App's published baseline for a real Kotlin/JavaScript application is 360 ms of QuickJS module loading. |
+| 0.2 | **Start by instrumenting Redwood Treehouse's runnable samples** (`counter`, `emoji-search`) — they already run the real Compose runtime inside Zipline's QuickJS on device ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)); measuring them is hours, not days, and produces the first number anyone has published. Then run a real composition with a trivial Dogwood `Applier` and **Dogwood-shaped stubs** (deferred-expression recording included — a bare `Applier` understates recording cost). Measure initial composition and, separately, recomposition after a single state change, for the **reference screen defined in the harness appendix below**, on the two named devices, warm and cold per the appendix protocol. | ~3 days | **The central unknown is the number, not the existence.** Redwood Treehouse proves Compose composition runs in a JavaScript interpreter; nobody has published a measurement of it. Initial composition being slow is maskable; recomposition being slow is fatal to interactivity. |
+| 0.3 | Encode the reference screen's initial batch (~150 nodes) **in the provisional v0 wire format of [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md)** through Zipline's `CallChannel`, end to end. Report guest encode, `JSON.stringify`, Java Native Interface (JNI) transcode, host parse, and total bytes, at batch sizes 1 / 10 / 100 / 1,000. The five-pass breakdown requires timing inside Zipline's internal `CallChannel`, so budget a locally patched Zipline build; if that slips, report end-to-end plus total bytes only. | ~2 days | Protocol cost per frame. Every crossing is one JSON string; the cost that matters is per byte. |
+| 0.4 | Measure guest garbage-collection behaviour under 0.2 with `gcThreshold` at Zipline's default 256 KiB and at 8–16 MB. Record collection count, total pause, and maximum pause — via the patched-QuickJS timing hook defined in the harness appendix (Zipline's public Application Programming Interface (API) exposes no garbage-collection hooks). | ~1 day | Whether garbage collection, rather than interpretation, is the source of any jank. |
 
-**Gate.** Proceed only if a tap-to-repaint round trip is comfortably within human-perceptible latency and cold start is within product tolerance. If recomposition inside QuickJS cannot meet that, the substrate decision in [Layer 4 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md) must be reopened before anything else is built.
+**Gate — stated as a computable budget, because Phase 0 has no host renderer.** The end-to-end tap-to-repaint path is: event decode + guest recomposition (0.2) + batch encode/transcode/parse (0.3) + two vertical-sync intervals + host apply-and-render (built in Phase 1, estimated here as one frame). Proceed only if, on the low-end devices measured:
+
+- guest **recomposition** of the reference screen is ≤ 8 ms at the 95th percentile (0.2),
+- the 150-node **batch crossing** is ≤ 4 ms end to end (0.3),
+- maximum garbage-collection pause under load is ≤ one frame **at 60 Hz (16.7 ms)** at the 99th percentile (0.4) — the guest is capped at 60 Hz by design, so 60 Hz defines the frame, and
+- **cold start** (0.1): module load plus first composition adds ≤ **500 ms** to screen-open on the named low-end Android device (provisional product number — replace it with a signed-off figure before running, not after).
+
+These thresholds are provisional and may be renegotiated *before* the experiments run — never after seeing the numbers. If recomposition inside QuickJS cannot meet the budget, the substrate decision in [Layer 4 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md) must be reopened before anything else is built (the strongest known alternative to evaluate at that point is Meta's Hermes — ahead-of-time bytecode, active maintenance, mobile pedigree — noting Kotlin/JavaScript-on-Hermes is itself unproven; see [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)).
+
+### Phase 0 Harness Appendix — the decisions the experiments depend on
+
+Fixed here so two teams running Phase 0 produce comparable numbers, and so no instrumentation choice is invented after seeing results.
+
+**Pinned toolchain.** Zipline **1.27.0**, Kotlin **2.3.x** (whatever 1.27.0 was built against — Zipline pins its Kotlin), `androidx.compose.runtime:runtime-js` **1.12.0** (latest stable per [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)), matching `runtime-saveable-js`, current stable `kotlinx-coroutines-core-js` and `kotlinx-serialization-json-js`. Record exact versions in the results file; do not float any of them mid-phase.
+
+**Named devices.** One low-end Android device of roughly 2022 entry tier (target: a Samsung Galaxy A14 or the nearest device the team owns — name the actual model in the results) and one iPhone SE (3rd generation). The Android device is the gate device; the iPhone provides the early iOS datapoint per the platform-order section.
+
+**Timing mechanism (0.2).** The pinned QuickJS has no `performance.now` and `Date.now` is millisecond-granular, so: the host injects a **monotonic clock Zipline service** backed by `System.nanoTime` / `CLOCK_MONOTONIC`. Its own crossing cost is measured first (call it in a tight loop of 1,000; report the median) and subtracted. Timers wrap the recomposition body inside the guest — start after event dispatch, stop when the change batch is handed to `sendChanges` — so bridge cost is excluded from the recomposition number and measured separately in 0.3. Per measurement: **200 iterations after 20 warm-up iterations**; report p50/p95/p99. "Cold" = first composition after fresh `Zipline` instantiation; "warm" = steady-state recomposition thereafter.
+
+**Garbage-collection hook (0.4).** Zipline's public Application Programming Interface (API) exposes no garbage-collection hooks, so 0.4 uses a **locally patched Zipline native build**: wrap `JS_RunGC` in the vendored QuickJS with monotonic timestamps and a counter, exported through a debug method. This is measurement scaffolding only — nothing patched ships. If the native build proves slow to stand up, `gc()`-forced pauses timed from the host bound the answer from above; say which method produced the reported numbers.
+
+**The reference screen.** One committed Kotlin file, used by 0.1 (payload), 0.2 (composition), and 0.3 (batch): a product-detail-like screen of **~160 nodes** — a header block (image placeholder box, title, subtitle, price row), a plain `Column` of **50 rows** (each row: `Row(image-box, Column(Text, Text), Text)` — `LazyColumn` does not exist in the guest), a footer with two buttons and a selectable chip row of 8, **24 `mutableStateOf` holders** (row selection ×20, quantity, promo visibility, total, loading flag), modifier chains of 2–4 elements on every container, and one event handler per row plus three on the footer. Recomposition measurement mutates exactly one row-selection state (small diff) and, separately, the total (two-node diff). The file is written once in 0.1 and reused verbatim thereafter; commit it under `tools/`.
 
 **In parallel, costing nothing on the critical path:**
-- Open a paid Apple Developer Technical Support incident on Guideline 2.5.2 as it applies to signed, first-party interpreted payloads. Lead time is long; the answer is needed before Layer 3 ships, not after.
+- Open a paid Apple Developer Technical Support incident on downloaded, signed, first-party interpreted payloads — framed around **Guideline 4.7** (which now governs downloaded scripting; the old 2.5.2 JavaScriptCore-exception sentence no longer exists — see [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). Lead time is long; the answer is needed before Layer 3 ships, not after.
 - Confirm with the iOS team that the host application will be a Compose Multiplatform application ([Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md)).
 
 ---
@@ -33,15 +69,19 @@ Durations assume **one engineer** on the critical path and are rough. They are s
 
 **Approximately 4–6 weeks.**
 
-1. Hand-write recording stubs and host bindings for ten composables — `Text`, `Column`, `Row`, `Box`, `Spacer`, `Button`, `Card`, `Icon`, `Surface`, `Divider`.
-2. Implement `DogwoodApplier` over `AbstractApplier`, with `WidgetNode` and `ChildrenNode`.
-3. Implement the batched `Change` protocol and the `Event` return path, including the lambda slot table and its depth-first reclamation.
-4. Wire the frame clock, including `requestFrame()` so idle experiences produce no traffic.
-5. Implement the threading contract explicitly, with dispatcher assertions on both sides.
-6. **Decide host rendering strategy by measurement:** the snapshot mirror specified in [Layer 5](specs/layer-5-host.md) against an imperative applier that mutates retained nodes, which is what Redwood does. Compare apply-to-pixel latency at batch sizes 1 / 10 / 100 / 1,000.
-7. Deliver through Zipline properly — signed manifest, Ed25519 verification, disk cache.
+1. Hand-write recording stubs and host bindings for ten composables — five layout primitives (`Text`, `Column`, `Row`, `Box`, `Spacer`) **and five registered design-system components** (for example `PrimaryButton`, `AsyncImage`, `Card`-equivalent, badge, divider), per the design-system-first path above, using the segment/tag assignments in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1 (segment 0 = layout primitives, segment 1 = design system). This exercises both dictionary segments from day one and lands a surface a product team recognises. (`Icon` is deliberately excluded — its required `Painter` is asset-gated; the design-system image component covers the need.)
 
-**Gate.** A tap-driven screen updates correctly and feels responsive on a mid-range device. Node identity survives list reordering.
+   **Selecting the five design-system components** — a half-day audit, done before the sprint: list the ten most-used components in the company design system by call-site count; hand-apply the bindability rule ([Layer 5](specs/layer-5-host.md), "Bindability: The Real Rule") to each signature — every lambda must be a content slot or a discrete event; no live-state, callback-object, or asset parameters except a `String` image Uniform Resource Locator (URL). Expected failure classes and their fixes: a component taking `Painter` → wrap with a URL-taking variant; one taking `interactionSource` or a scroll state → expose a wrapper without it; one taking a styles object → either register the style type as a deferred-expression factory or fix the style in the wrapper. Pick the five highest-usage components that pass (or pass after a thin wrapper); record the audit table in the results file — it seeds the Phase 3 registration list.
+2. Stand up the **Compose Multiplatform desktop host** alongside the Android host as the development loop; the host layer is common Kotlin, so the cost is small and the iteration payoff is immediate.
+3. Implement `DogwoodApplier` over `AbstractApplier`, with `WidgetNode` and `ChildrenNode`.
+4. Implement the **v0 `Change`/`Event` protocol exactly as specified in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md)** — `ChangeBatch` envelope with sequence numbers, the six change kinds, absence-as-default — including the lambda slot table and its depth-first reclamation. Protocol deltas discovered while building feed the ADR's v1 revision; do not fork the wire format silently.
+5. Wire the frame clock, including `requestFrame()` so idle experiences produce no traffic.
+6. Implement the threading contract explicitly, with dispatcher assertions on both sides.
+7. **Decide host rendering strategy by measurement:** the snapshot mirror specified in [Layer 5](specs/layer-5-host.md) against an imperative applier that mutates retained nodes, which is what Redwood does. Compare apply-to-pixel latency at batch sizes 1 / 10 / 100 / 1,000.
+8. Implement the **minimal entry-point contract** of [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.5: the manifest names the entry composable, `start(...)` carries serializable launch parameters, and outcome callbacks are host services — no host-directed lambdas in Phase 1.
+9. Deliver through Zipline properly — signed manifest, Ed25519 verification, disk cache.
+
+**Gate.** A tap-driven screen updates correctly and feels responsive on a mid-range device. Node identity survives list reordering. A state change three guest-defined wrapper layers deep crosses as a single `PropertyChange` (the wrapper-scoping test in [Layer 4](specs/layer-4-sandbox.md) Milestone 4).
 
 ---
 
@@ -51,14 +91,16 @@ Durations assume **one engineer** on the critical path and are rough. They are s
 
 **Approximately 4–6 weeks.**
 
-Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines its own tagged, serializable modifier type. This phase unlocks **73.8% of the measured surface** — no other single piece comes close.
+Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines its own tagged, serializable modifier type. Under the design-system-first path its near-term justification is concrete: the Phase 1 slice's call sites need layout modifiers (`padding`, `weight`, `fillMaxWidth`) on both registered and generated components, and the generator's output shape depends on the modifier representation. Long-term it remains the single highest-leverage shared subsystem — 62.2% of the measured widget surface (the generator-v2 Material tier) depends on it and on nothing else bespoke ([corrected measurement](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)).
 
-1. Write the ADR: tag space, `then()` semantics, scope-awareness, ordering guarantees.
+**Sequencing dependency found in review:** modifier arguments are themselves deferred expressions — `clip(RoundedCornerShape(8.dp))` and `background(brush)` carry `Shape` and `Brush` values that only the deferred-expression protocol can represent. Phase 2's implementation is therefore **scoped to modifiers whose arguments are primitives and value classes** (`padding`, `fillMaxWidth`, `weight`, `alpha`, `size`), and the **deferred-expression grammar ADR is written in this phase**, jointly with the `Modifier` ADR, so the Phase 3 generator consumes a settled pair.
+
+1. Write the two ADRs together: the `Modifier` tag space, `then()` semantics, scope-awareness, and ordering guarantees; and the deferred-expression grammar it depends on.
 2. Implement the guest-side modifier type and chain builder.
 3. Implement host-side reconstruction into real Compose modifiers.
 4. Handle scoped modifiers — `RowScope.weight`, `BoxScope.align` are interface methods, so generated dispatch for a children slot must be emitted *inside* the parent's scope, and out-of-scope use must be a build error rather than a silent drop.
 
-**Gate.** Arbitrary modifier chains over the Phase 1 composables produce pixel-identical output to the same chain written statically.
+**Gate.** Arbitrary chains of the **in-scope (value-class-argument) modifiers** over the Phase 1 composables produce pixel-identical output to the same chain written statically. Expression-argument modifiers (`clip`, `background(brush)`, `border`) gate Phase 3 instead, where the deferred-expression evaluator exists.
 
 ---
 
@@ -66,11 +108,11 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 **Goal:** replace hand-written bindings with generated ones, and stop the registry from ever being hand-maintained again.
 
-**Approximately 6–8 weeks.**
+**Approximately 6–8 weeks — for generator v1.** Per the design-system-first path above, v1 targets **registered modules plus `foundation-layout`**: first-party Kotlin sources, no metalava, curated signatures, few `@Composable` defaults. The full Material tier — the defaults-expression problem in its general form — is **generator v2**, scheduled after the first production screen ships, and its 6–8 week estimate should be treated as a floor (see the effort-realism note at the end of this document). The multi-segment dictionary (namespaced tag spaces, per-segment versions — [ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)) is a v1 requirement, not a later refinement, because the vertical slice already spans two segments.
 
 1. Build the surface parser on the Kotlin frontend. Metalava dumps carry no default expressions and 73.9% of parameters are optional, so they cannot be the source of truth — see [Layer 5 ADR-002](adrs/layer-5/ADR-002-standalone-codegen-tool-not-ksp.md).
 2. Emit four artifacts from one parsed model: guest stubs, **guest-side value-type stand-ins** (`Dp`, `Color`, `TextStyle` — Google publishes no Kotlin/JavaScript artifact for these), host bindings, and the versioned binding dictionary.
-3. Implement the deferred-expression protocol, evaluated **inside the host composition** and memoized against the composition-local snapshot, with a bounded cache. Write its ADR first.
+3. Implement the deferred-expression protocol **per the grammar ADR written in Phase 2**, evaluated **inside the host composition** and memoized against the composition-local snapshot, with a bounded cache.
 4. Implement the "use host default" sentinel for parameters whose defaults are `@Composable`.
 5. Implement the build-time dictionary checker in Layer 1, and per-dictionary-version builds in Layer 2.
 
@@ -86,40 +128,46 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 | Subsystem | Notes |
 |---|---|
-| Host environment | `DogwoodConfiguration` flow: density, layout direction, dark mode, safe-area insets, viewport size. Cheapest, and everything else assumes it. |
-| Live-state holders | 12.9% of the surface. Start with `LazyListState` and `FocusRequester`. |
+| Host environment | `DogwoodConfiguration` flow: density, layout direction, dark mode, safe-area insets, viewport size, **locale**. Cheapest, and everything else assumes it. |
+| Resources & assets | Blocks the first real screen **on the generated-tier path**; under design-system-first, a registered `AsyncImage(url)` covers images day one and this subsystem generalises it later ([ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)). Uniform Resource Locator (URL)-keyed host image loading with placeholder/error slots (Redwood's `Image(url)` shape), icon dictionary, fonts, localized strings. See [ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md). |
+| Host services & entry points | Launch contract (serializable parameters, named entry point in the manifest), versioned service surface (network, auth, analytics, logging, feature flags, clock), and the host-registered-component mechanism (run the generator over the host's own design-system modules, each landing in its own namespaced dictionary segment — [ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)). The Phase 1 entry-point contract ([Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.5) is the seed this subsystem grows from. |
+| Live-state holders | 25.2% of the widget surface needs some bespoke protocol; ~30 holder types plus 76 `remember*` factories. Start with `LazyListState` and `FocusRequester`. |
 | Lazy layouts | Guest-side windowing, placeholder pool, throttled viewport callbacks. Redwood needed ten modules for this alone — budget accordingly. |
-| Text input | Version vector plus optimistic host state. Do not attempt a naive controlled `TextField`. |
+| Text input | Version vector plus optimistic host state. Do not attempt a naive controlled `TextField`. Scope must also cover declarative masks/formatting (card numbers) and host-computed counters — per-keystroke guest round trips are forbidden by the Layer 4 invariant. |
+| Animation | The largest addition from re-review. Less urgent under design-system-first — registered components own their internal transitions — but required for any guest-authored motion. Declarative targets, springs/easings, interruption semantics, completion events, time-varying `Modifier` values. Until it ships, Layer 1 rejects the `animate*` Application Programming Interfaces — the product promise "animation without a release" is **not true on day one**. |
 | Node reuse | Key stability across list mutation. |
 | Leak detection | Adopt `redwood-leak-detector`. **Before iOS, not after** — cross-language reference cycles span Kotlin/Native garbage collection and Swift reference counting. |
 
 ---
 
-## Phase 5 — iOS Parity and Hardening
+## Phase 5 — Web Host (Second Shipping Target)
 
-**Approximately 4–6 weeks.**
+**Approximately 4–6 weeks**, dominated by the web-profile design rather than the host itself. Per the platform order above, Web precedes iOS.
 
-1. Bring the full path up on iOS. Confirm VoiceOver, the input method editor, and text selection work with no Dogwood-specific code — they should, because Compose Multiplatform owns the layout tree.
-2. Run the leak suite across the language boundary.
-3. Key rotation drill: ship a manifest with two signatures, roll clients forward, retire the old key.
-4. Skew containment drill: build a guest against a newer dictionary and confirm the three requirements in section 6 of the [specification](high-level-tech-spec-final.md) — placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback.
-5. Guest state preservation across code update, backgrounding, and process death.
+1. **Design the web profile as an ADR first.** The guest loads into the browser's JavaScript engine directly — no QuickJS, no `.zipline` bytecode — and delivery and integrity ride ordinary web deployment (same-origin scripts over Hypertext Transfer Protocol Secure (HTTPS)) rather than `ZiplineLoader` and Ed25519 manifests. The dictionary check must still gate loading; specify where it runs.
+2. Bring up the Compose Multiplatform Web host with the unchanged protocol, applier, generated bindings, and registered design-system segments. Constraints verified in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md): **Compose Multiplatform for Web is Beta**, `material3-wasm-js` trails at `1.12.0-alpha03` (less limiting under the design-system-first path, which leans on registered components rather than Material), and community-measured Skiko WebAssembly payloads run ~8 MB uncompressed / ~3 MB compressed — page-weight viability is **unproven** and gates this phase.
+3. Hardening drills that need no new platform: key rotation (ship a manifest with two signatures, roll clients forward, retire the old key), the skew containment drill (build a guest against a newer dictionary; confirm placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback — section 6 of the [specification](high-level-tech-spec-final.md)), and guest state preservation across code update, backgrounding, and process death.
 
 ---
 
-## Phase 6 — Web (Optional)
+## Phase 6 — iOS Parity
 
-Compose Multiplatform publishes `ui-wasm-js`, `foundation-wasm-js`, and `material3-wasm-js`, so the host runs on the Web unchanged. Two things differ and neither is designed yet: the guest would load directly into the browser's just-in-time JavaScript engine rather than QuickJS, and Skiko's WebAssembly module is roughly 8.6 MB, so payload viability is **unproven**.
+**Approximately 4–6 weeks**, entered only with the iOS organisation's written yes and the Apple Guideline 4.7 answer in hand (both sought in Phase 0 — see the platform order above).
+
+1. Bring the full path up on iOS. Confirm VoiceOver, the input method editor, and text selection work with no Dogwood-specific code — they should, because Compose Multiplatform owns the layout tree.
+2. Run the leak suite across the language boundary — cross-language reference cycles span Kotlin/Native garbage collection and Swift reference counting, which is why the leak-detection milestone in Phase 4 lands **before** this phase.
+3. Re-run the Phase 0 performance suite on current iOS hardware against the numbers captured in Phase 0, so any drift is caught against a baseline rather than discovered by users.
 
 ---
 
 ## Decision Backlog
 
-Nine decisions are already reflected in the specifications but owe an Architecture Decision Record, per `AGENTS.md` section 3. They are listed in [`adrs/README.md`](adrs/README.md). Three block work directly:
+Decisions already reflected in the specifications but owing an Architecture Decision Record, per `AGENTS.md` section 3, are listed in [`adrs/README.md`](adrs/README.md). Four block work directly:
 
-- **No per-frame state in the guest** — blocks Phase 1 step 4.
+- **No per-frame state in the guest** — blocks Phase 1 step 5.
 - **The `Modifier` representation** — blocks Phase 2 entirely.
-- **The deferred-expression grammar** — blocks Phase 3 step 3.
+- **The deferred-expression grammar** — now blocks Phase 2 as well (modifier arguments are expressions); written jointly with the `Modifier` ADR.
+- **The animation protocol** and **the resources protocol** — block the first production screen on the generated-tier path (under design-system-first, registered components cover both initially — [ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)); added by [ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md).
 
 ---
 
@@ -129,5 +177,10 @@ Nine decisions are already reflected in the specifications but owe an Architectu
 2. Cold start unacceptable with the Compose runtime linked (Phase 0.1).
 3. Apple ruling against downloaded interpreted payloads for this use (parallel track).
 4. A requirement to render into UIKit or Android Views directly, which reintroduces the per-platform multiplier and invalidates [Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md).
+5. **The iOS organisation declining to adopt Compose Multiplatform.** This is the reported killer of Redwood's adoption, and Dogwood asks strictly more of an iOS team than Redwood did (see the costs recorded in [Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md)). It is a Phase 0 conversation, not a Phase 6 discovery.
 
 Everything else is engineering with known shape.
+
+## A Note on Effort Realism
+
+Durations above assume one engineer and are sequencing guidance. Two honesty checks from review: **Phase 3 is the least certain estimate** — parsing the full Compose surface with the embedded Kotlin frontend *including default-value expressions*, classifying each default as guest-resolvable or host-sentinel, and re-emitting four artifacts is well beyond Redwood's schema parser (which handled small, hand-annotated schemas); treat 6–8 weeks as a floor, not a midpoint. And the time to the first production screen depends on the path: under **design-system-first** (the recommended path above), registered components cover images and motion, and the first shippable screen lands around **four to five months** in — Phases 0–3 plus the host-environment and entry-point work. On the **generated-tier path** — or for screens needing lazy lists, text input, or guest-authored animation — the figure is on the order of **a year of one engineer's critical path**, because several Phase 4 subsystems must land first. Staff accordingly or parallelise Phase 4.

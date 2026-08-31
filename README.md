@@ -15,7 +15,7 @@ generates the declarative portion — the part that grows without bound as Compo
 from the Compose Application Programming Interface (API) surface itself, for both server
 and client, from one source of truth.
 
-**Target platforms:** Android (Application Programming Interface (API) 26+) and iOS (iOS 15+).
+**Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 
 > **Status: specification, not an implementation.** This repository contains design
 > documents only. No engine code has been written. Several load-bearing assumptions are
@@ -32,22 +32,25 @@ Traditional SDUI hits a **component mapper treadmill**:
 3. **The registry never stops growing**, and it is maintained by hand.
 
 Dogwood's thesis is that generating the binding from the Compose API surface removes the
-unbounded part of that work. A bounded, enumerable set of hard subsystems — `Modifier`,
-lazy layouts, text input, live state holders, the host environment, and node identity —
-must still be engineered once. **The registry stops being a treadmill; it does not stop
-existing.**
+unbounded part of that work. A bounded, enumerable set of hard subsystems — nine of them:
+`Modifier`, lazy layouts, text input, live state holders, the host environment, node
+identity, animation, resources and assets, and host services with a component-extension
+mechanism ([Layer 5 ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)) —
+must still be engineered once, and they are the larger half of the work. **The registry
+stops being a treadmill; it does not stop existing.**
 
 Dogwood renders exclusively through **Compose Multiplatform**, which is what makes the
 generation approach pay off. Cash App's Redwood — the closest prior art — maps guest widgets
 onto each platform's *native* widget system and consequently ships four host implementations
 per widget set (`composeui`, `dom`, `uiview`, `view`). Every widget costs four hand-written
 bindings. Targeting Compose Multiplatform instead means **one** binding implementation that
-reaches Android, iOS, and Web:
+reaches all three targets, delivered Android first, Web second (Compose Multiplatform for
+Web is Beta), iOS after — see the [roadmap's platform order](roadmap.md):
 
 | | Cost per widget | Platforms reached |
 | --- | --- | --- |
 | Native-widget mapping | 1 schema + **4 hand-written bindings** | Android Views, UIKit, Compose UI, DOM |
-| Compose Multiplatform | **1 generated binding** | Android, iOS, Web |
+| Compose Multiplatform | **1 generated binding** | Android, then Web (Beta), then iOS |
 
 The trade is that the host application must itself be a Compose Multiplatform application —
 see [Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md).
@@ -84,14 +87,22 @@ and Layer 5's bindings from one parsed API surface; it is specified in Layer 5.
 
 ## Measured Coverage
 
-Of **450** public `@Composable` User Interface functions across ten Compose modules, pinned
-to a commit hash and measured by [`tools/measure-compose-surface.py`](tools/measure-compose-surface.py):
+Of **445** public widget-shaped `@Composable` User Interface functions across ten Compose
+modules, pinned to a commit hash and measured by
+[`tools/measure-compose-surface.py`](tools/measure-compose-surface.py) (third revision of
+the measurement — the first two were each found optimistically wrong under adversarial
+review; see [Layer 5 ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)):
 
 | Verdict | Count | Share |
 | --- | ---: | ---: |
-| Generable once the `Modifier` subsystem exists | 365 | 81.1% |
-| Requires a per-holder live-state protocol | 58 | 12.9% |
-| Structurally unreachable | 27 | 6.0% |
+| Generable once the `Modifier` subsystem exists | 301 | 67.6% |
+| Requires a bespoke subsystem (live state, callbacks, assets, text input) | 112 | 25.2% |
+| Structurally unreachable | 32 | 7.2% |
+
+Two caveats travel with these numbers: 76.4% of the generable tier also requires the
+deferred-expression protocol, and the lowercase `@Composable` surface (defaults factories,
+`remember*` state factories, animation functions — 458 functions, about the same size
+again) sits outside the denominator and maps onto the bespoke subsystems.
 
 Run the classifier yourself: `python3 tools/measure-compose-surface.py`.
 

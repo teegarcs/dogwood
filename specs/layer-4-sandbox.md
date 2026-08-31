@@ -43,7 +43,7 @@ flowchart TD
     Applier --> Tree["Node tree: WidgetNode / ChildrenNode"]
 
     Tree --> Recorder["ChangeRecorder"]
-    Recorder --> Batch["Batched List&lt;Change&gt;"]
+    Recorder --> Batch["ChangeBatch (ADR-004): sequence + List&lt;Change&gt;"]
     Batch --> Egress["DogwoodGuestService.sendChanges()"]
     Egress --> L5["To Layer 5"]
 
@@ -68,12 +68,12 @@ flowchart TD
 * **`DogwoodApplier` (`AbstractApplier`):** The heart of the layer. Compose calls `insertTopDown`, `insertBottomUp`, `remove`, `move`, and `clear` on it as the tree changes. Instead of manipulating UI objects, it manipulates protocol nodes. Redwood demonstrates the exact pattern, including the subtlety that widgets are attached to their parent on the *bottom-up* pass so that a node's initial properties are set before it is attached.
 * **Node tree (`WidgetNode` / `ChildrenNode`):** The guest's mirror of the tree the host will build. `WidgetNode` represents one bound Compose call; `ChildrenNode` represents one slot within it, such as a `Column`'s `content`.
 * **`ChangeRecorder`:** Translates node-tree mutations into protocol `Change` values — node creation, property updates, children insertions and removals, and modifier updates.
-* **Batched `List<Change>`:** All changes from one composition pass, accumulated and sent as one message. **Batching is architecturally load-bearing.** Per-crossing cost is only acceptable because there are very few crossings; a design that crossed per node would not meet frame budget. Every working comparable system — Redwood, Zellij, WASM-4 — converges on this shape.
+* **`ChangeBatch`:** All changes from one composition pass, accumulated and sent as one message with a monotonic sequence number ([ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md)). **Batching is architecturally load-bearing.** Per-crossing cost is only acceptable because there are very few crossings; a design that crossed per node would not meet frame budget. Every working comparable system — Redwood, Zellij, WASM-4 — converges on this shape.
 * **`DogwoodGuestService.sendChanges()`:** A `ZiplineService` method — the single egress point.
 * **`EventDispatcher`:** Receives an inbound `Event(id, tag, args)` and resolves it to a guest lambda.
 * **Lambda slot table:** Maps an `(id, EventTag)` pair to the actual Kotlin lambda captured during composition. When a developer writes `Button(onClick = { count++ })`, the lambda is stored here and the protocol carries only its tag.
 * **Guest state mutation:** The lambda runs, mutating snapshot state, which invalidates recomposition scopes.
-* **Host dictionary version / `LocalDictionaryVersion`:** The host's binding-dictionary version, supplied into the composition as a `CompositionLocal` so guest code can branch on client capability. Redwood's `LocalWidgetVersion` is the proven equivalent.
+* **Host dictionary version / `LocalDictionaryVersion`:** The host's binding-dictionary state — a map of segment name to version ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)) — supplied into the composition as a `CompositionLocal` so guest code can branch on client capability per segment. Redwood's `LocalWidgetVersion` is the proven (scalar) equivalent.
 
 ### The Frame Loop
 
@@ -102,6 +102,11 @@ Because the host's UI thread cannot call the guest during a frame traversal, **n
 
 A consequence worth stating: **the guest frame rate should be capped** — 30 Hz or 60 Hz — regardless of display refresh. Once animation and gesture are host-owned, nothing in the guest needs 120 Hz, and the question closes by construction rather than by hope.
 
+Two further consequences the invariant carries, stated so they are chosen rather than discovered:
+
+- **The declarative animation target is a whole subsystem, not a table row.** "Animate `alpha` to 1.0 over 300 ms" implies a protocol with springs, easings, interruption semantics, completion events, and time-varying `Modifier` values, and Compose's own `animate*AsState` surface must be *rejected* by [Layer 1](layer-1-authoring.md) until it exists — otherwise guest animations compile and silently tick the boundary per frame. See [Layer 5](layer-5-host.md) subsystem 7 and [ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md).
+- **Scroll-linked and drag-linked UI is forbidden by construction.** Any element whose per-frame value derives from scroll or drag position — parallax, custom collapsing headers, drag-progress indicators — has no representation, unless both ends of the linkage are host-side objects wired by a live-state holder (`TopAppBarScrollBehavior` collapsing a `TopAppBar`). The live-state Architecture Decision Record must define which linkages are expressible; anything beyond that would require a worklet-style binding language, which is deliberately **not** planned.
+
 ### Guest Memory Management
 
 Zipline's QuickJS defaults are not tuned for a long-lived composition, and Layer 4 must set them deliberately. Measured from `QuickJs.kt`: `gcThreshold = 256 KiB`, `memoryLimit = -1` (unbounded), `maxStackSize = 512 KiB`.
@@ -119,7 +124,12 @@ This is Dogwood's real cross-process boundary: a Zipline service boundary serial
 **Implemented by the guest, called by the host:**
 ```kotlin
 interface DogwoodGuestUi : ZiplineService {          // ZiplineService extends AutoCloseable
-  fun start(host: DogwoodHost, configuration: DogwoodConfiguration)
+  fun start(
+    host: DogwoodHost,
+    configuration: Flow<DogwoodConfiguration>,  // a flow, not a one-shot -- see below
+    launchParams: JsonElement,                  // serializable entry parameters, ADR-004 §2.5
+    segmentVersions: Map<String, Int>,          // per-segment dictionary versions, ADR-006
+  )
   fun sendEvent(event: Event)
   fun frame(timeNanos: Long)
   fun snapshotState(): StateSnapshot
@@ -130,7 +140,7 @@ interface DogwoodGuestUi : ZiplineService {          // ZiplineService extends A
 **Implemented by the host, called by the guest:**
 ```kotlin
 interface DogwoodHost : ZiplineService {
-  fun sendChanges(changes: List<Change>)
+  fun sendChanges(batch: ChangeBatch)   // envelope with sequence number, ADR-004 §2.3
   fun requestFrame()
   fun onUnknownEvent(widgetTag: WidgetTag, tag: EventTag)
   fun onUnknownEventNode(id: Id, tag: EventTag)
@@ -145,9 +155,9 @@ interface DogwoodHost : ZiplineService {
 
 **Lifecycle.** Every service is closed through a `ZiplineScope`; teardown order is guest services first, then the `Zipline` instance. Zipline services that are not closed leak the guest-side proxy and its host reference.
 
-**Configuration is a flow, not a one-shot value.** Density, layout direction, dark mode, safe-area insets, and viewport size all change at runtime, so `DogwoodConfiguration` is delivered as a `StateFlow` and exposed to guest code as a `CompositionLocal`. The dictionary version, by contrast, is fixed for a composition's lifetime and is passed at construction as a `staticCompositionLocalOf`.
+**Configuration is a flow, not a one-shot value.** Density, layout direction, dark mode, safe-area insets, viewport size, and **locale** all change at runtime, so `DogwoodConfiguration` is delivered as a `StateFlow` and exposed to guest code as a `CompositionLocal`. Locale is required twice over: for the resources subsystem ([Layer 5](layer-5-host.md), subsystem 8) and because the pinned QuickJS ships no ECMA-402 `Intl`, so guest-side locale-aware formatting has no built-in primitive. The dictionary state, by contrast, is fixed for a composition's lifetime and is passed at construction as a `staticCompositionLocalOf` — **a map of segment name to version** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)), not a scalar, so guest capability branching is per segment: `if (DogwoodSegments["acme.designsystem"] >= 3) ...`.
 
-**Protocol value types.** Every tag is an `Int`-backed value class and every dynamic value is a `JsonElement`:
+**Protocol value types.** The full field-by-field schema — the `Change` hierarchy, the `ChangeBatch` envelope, `Event`, sequence numbers, absence-as-default, and a worked wire example — is [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) (provisional v0, binding for Phase 1). Every tag is an `Int`-backed value class and every dynamic value is a `JsonElement`; `WidgetTag` and `ModifierTag` carry their dictionary segment in the top 8 bits (ADR-004 §2.1):
 
 | Type | Meaning |
 |---|---|
@@ -158,7 +168,9 @@ interface DogwoodHost : ZiplineService {
 | `EventTag(Int)` | Which lambda parameter an event targets. |
 | `ModifierTag(Int)` | Which modifier is applied. Scope-aware. |
 
-**Stale events are expected and must be handled.** The user can tap a node that the guest removed on a frame the host has not yet rendered. The guest must route unresolved events to `onUnknownEventNode` telemetry rather than crashing or silently ignoring them, and each `Event` should carry the change-batch sequence number it was rendered against so the guest can drop stale ones — a double-tapped "Pay" button across a frame boundary is a correctness problem, not a cosmetic one. Redwood handles the unknown-node case but has no sequence number; this is an opportunity to improve on the prior art.
+**Guest failure must not tear the host tree, and it must be attributable.** Three rules. First, a `ChangeBatch` is emitted only after a composition pass completes — an exception mid-composition produces telemetry, never a partial batch, so the host tree is always a consistent frame. Second, on `handleUncaughtException` the host's recovery path is declared, not improvised: report with the payload version and manifest identifiers, tear down the experience, and either reload it or show the host's fallback surface. Third, **symbolication is an open item with real cost**: guest stack traces come from minified Kotlin/JavaScript inside QuickJS, and no source-map story exists yet — Layer 2 must retain the mapping artifacts per build, and a stack-trace translation step belongs in the telemetry pipeline before any dogfood. Until it exists, every guest crash report is line noise.
+
+**Stale events are expected and must be handled.** The user can tap a node that the guest removed on a frame the host has not yet rendered. The guest must route unresolved events to `onUnknownEventNode` telemetry rather than crashing or silently ignoring them, and each `Event` should carry the change-batch sequence number it was rendered against so the guest can drop stale ones — a double-tapped "Pay" button across a frame boundary is a correctness problem, not a cosmetic one. Redwood handles the unknown-node case but has no sequence number; this is an opportunity to improve on the prior art. The sequence field is `Event.q` in [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md).
 
 **Lifecycle events with no design yet.** Code update while a screen is live is the *normal* case, since `ZiplineLoader.load()` returns a `Flow`. Backgrounding, process death, and memory pressure are equally unaddressed. Guest state must survive these through `SaveableStateRegistry` plus a host-side state store, as Redwood does with `snapshotState()`/`StateStore`. **Until that exists, any code update loses scroll position, expanded rows, and half-typed text.**
 
@@ -171,6 +183,6 @@ interface DogwoodHost : ZiplineService {
 1. **Milestone 1 — Compose runtime in QuickJS.** Prove that `androidx.compose.runtime` compiled to Kotlin/JS runs inside Zipline's QuickJS at all, by driving a trivial composition that mutates a counter and observing recomposition. **This is the single highest-risk unknown in the layer and must be done first.**
 2. **Milestone 2 — Applier and node tree.** Implement `DogwoodApplier` over `AbstractApplier`, with `WidgetNode` and `ChildrenNode`. Validate insert, remove, move, and clear against the hand-written stub slice from Layer 1.
 3. **Milestone 3 — Change recording and batching.** Emit `Change` values, batch per composition pass, and assert that an idle composition produces no traffic.
-4. **Milestone 4 — Event round trip.** Implement the lambda slot table and inbound `Event` dispatch. Prove an `onClick` mutates guest state and produces a minimal diff.
+4. **Milestone 4 — Event round trip.** Implement the lambda slot table and inbound `Event` dispatch. Prove an `onClick` mutates guest state and produces a minimal diff. **Include the wrapper-scoping test** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)): a state change three guest-defined wrapper layers deep must cross the boundary as a single `PropertyChange`, not a re-emit of the wrappers — this is the property that makes developer-defined composables free, and it must be demonstrated, not assumed.
 5. **Milestone 5 — Frame clock integration.** Drive the guest `MonotonicFrameClock` from the host's display link or `Choreographer`.
 6. **Milestone 6 — Performance measurement.** Measure, on-device: per-crossing `sendChanges` latency for realistic batch sizes, composition and recomposition cost inside QuickJS, and total frame cost against budget. **These numbers are currently unproven and are the gating evidence for the whole architecture.** Explicitly probe the QuickJS rope-string defect by confirming generated guest code performs no `StringBuilder`-heavy work on the hot path.

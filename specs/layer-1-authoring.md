@@ -75,9 +75,20 @@ The stubs are generated to match the Compose functions they mirror as closely as
 
 The practical consequence is that **moving a screen between the dynamic and static worlds is a port, not a re-import.** Most of the body carries over unchanged; modifiers and any bespoke component need adjustment. That is a real cost and it should be planned for, not discovered.
 
+### Developer-Defined Composables Are Just Compose — No Registration
+
+A `@Composable` a developer writes is a plain function. It executes inside the guest composition; only the leaf stub calls it makes (generated-tier or registered design-system components) emit protocol nodes. A feature team's reusable `OrderSummaryCard` that wraps five components therefore needs **no dictionary entry, no tag, and no host release**: it ships inside the payload, updates Over-The-Air (OTA), gets full Compose semantics — parameters, `remember` state, its own recomposition scope — and has no version-skew surface, because it versions atomically with the payload. The line between "bridged" and "just Compose" is specified in [Layer 5](layer-5-host.md), "What Deserves a Dictionary Entry," and [ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md).
+
+Shared guest component libraries (a `feature-common` module used by several experiences) compile as ordinary Kotlin Multiplatform modules against the Dogwood stubs, and ride [Layer 2](layer-2-compiler.md)'s multi-module manifest so unchanged shared modules are cached once across experiences rather than duplicated per payload.
+
 ### Some Compose Values Are Not Readable in the Guest
 
 `MaterialTheme.colorScheme.primary`, `LocalDensity.current`, and the other Compose-provided composition locals live in Compose UI, which does not run in the guest. A developer may *name* a theme value so the host resolves it, but cannot compute from it — `MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)` has no representation. The dictionary checker rejects these at build time.
+
+The checker carries two further **hard rejection obligations**, added after adversarial review ([Layer 5 ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)):
+
+- **Animation-state APIs** (`animateFloatAsState`, `Animatable`, `updateTransition`, `rememberInfiniteTransition`, and relatives) until the host-side animation subsystem ships. The failure mode of *not* rejecting them is the dangerous one: the guest has a working frame clock, so these APIs would compile and run — silently ticking the boundary every frame, which is exactly what the Layer 4 invariant forbids.
+- **Resource-loader APIs** (`painterResource`, `stringResource`, `imageResource`, and relatives), which have no meaning in a sandbox with no resources; images are named by Uniform Resource Locator (URL) through the resources subsystem instead.
 
 Developer-declared `CompositionLocal`s, by contrast, work normally, because they live entirely in the guest's own composition.
 
@@ -92,8 +103,8 @@ This layer has no Foreign Function Interface (FFI) boundary. It runs entirely on
 ## 5. Implementation Roadmap
 
 1. **Milestone 1 — Multiplatform module skeleton.** Create a KMP module with `js(IR)` and `jvm` targets sharing one `commonMain`, with the Compose compiler plugin applied. Prove that a trivial `@Composable` compiles for both.
-2. **Milestone 2 — Hand-written stub vertical slice.** Before any generator exists, hand-write stubs for roughly ten composables (`Text`, `Column`, `Row`, `Box`, `Button`, `Spacer`, and a few Modifiers). This de-risks the recording mechanism against Layer 4 without waiting on `dogwood-codegen`.
-3. **Milestone 3 — Preview path decision and implementation.** Choose between an `androidTarget()` driving the standard Android Studio pane and the Compose Multiplatform desktop preview. Implement the preview `actual`s for the same ten composables. Note this is **not** a straight delegation: because Dogwood declares its own value types and `Modifier`, the preview path needs a type-conversion layer between Dogwood types and androidx types. Budget for it as a third generated surface.
+2. **Milestone 2 — Hand-written stub vertical slice.** Before any generator exists, hand-write stubs for the roadmap Phase 1 slice — five layout primitives (`Text`, `Column`, `Row`, `Box`, `Spacer`) plus five registered design-system components, with a few value-class modifiers — matching the segment/tag assignments in [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1. This de-risks the recording mechanism against Layer 4 without waiting on `dogwood-codegen`.
+3. **Milestone 3 — Preview path decision and implementation.** Choose between an `androidTarget()` driving the standard Android Studio pane and the Compose Multiplatform desktop preview. Implement the preview `actual`s for the same ten composables. Note this is **not** a straight delegation: because Dogwood declares its own value types and `Modifier`, the preview path needs a type-conversion layer between Dogwood types and androidx types. Budget for it as a third generated surface. Registered design-system components preview by delegating to the real design-system module — which the host build already depends on — so their preview `actual`s are generated alongside the stubs from the same registration.
 4. **Milestone 4 — Generated stubs.** Replace the hand-written slice with `dogwood-compose` emitted by `dogwood-codegen`, and confirm the vertical slice still behaves identically.
 5. **Milestone 5 — Dictionary checker.** Implement the best-effort build-time check, with error messages naming the API, the client versions that lack it, and the earliest version that has it. Document explicitly what it cannot see.
 6. **Milestone 6 — Build ordering.** The dictionary flows *backwards* from Layer 5 to Layers 1 and 2. Establish the publish ordering: the client build must complete and publish its dictionary before any server build can resolve against it, and a client-side Compose upgrade invalidates every server payload built against the previous dictionary.

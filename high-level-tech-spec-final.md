@@ -2,7 +2,7 @@
 
 **Document Version:** 4.0 (Substrate corrected; architecture grounded in verified prior art)
 **Supersedes:** v3.0, archived at [`archive/high-level-tech-spec-wasm-v3.md`](archive/high-level-tech-spec-wasm-v3.md)
-**Target Platforms:** Android (Application Programming Interface (API) 26+) & iOS (iOS 15+)
+**Target Platforms:** Android (Application Programming Interface (API) 26+), then Web (Compose Multiplatform Web, currently Beta), then iOS (iOS 15+) — delivery order per the [roadmap's platform-order decision](roadmap.md); iOS risk items (Apple inquiry, organisational adoption, device measurements) start in Phase 0 even though iOS code lands last
 
 **Core Thesis:** Developers write ordinary Jetpack Compose code. It is compiled on a build server, delivered Over-The-Air (OTA), and executed on-device inside a sandboxed interpreter that runs the **real Compose runtime**. Composition produces a stream of tree changes that a **generated, whole-API-surface binding layer** replays against native Compose Multiplatform. The host application does not need a release when a developer uses a new component — only when the underlying Compose version changes.
 
@@ -26,23 +26,26 @@ An earlier version of this specification (v3.0) pursued a "zero-bridge" design i
 
 Dogwood generates the *declarative* portion of the binding layer mechanically from the Compose Application Programming Interface (API) surface, for both server and client, from one source of truth. That is the portion that grows without bound as Compose grows, and it is the portion that makes a hand-written registry unmaintainable.
 
-**It is not the whole bridge, and this specification does not claim otherwise.** Adversarial review established that a fixed set of subsystems cannot be derived from a Compose function signature and must be designed and hand-written once. Cash App's Redwood, which shipped this architecture, needed six of them. Dogwood needs at least the same six:
+**It is not the whole bridge, and this specification does not claim otherwise.** Adversarial review established that a fixed set of subsystems cannot be derived from a Compose function signature and must be designed and hand-written once. Cash App's Redwood, which shipped this architecture, needed six of them for its curated catalog. A second adversarial pass over Dogwood's own measured surface found that Dogwood needs **nine** — the three additions were invisible to the earlier measurement because the entire lowercase `@Composable` surface (the `animate*`, `remember*`, and `*Resource` functions) went unmeasured; see [Layer 5 ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md):
 
 | Hand-written subsystem | Why generation cannot produce it |
 |---|---|
 | `Modifier` representation | Compose's `Modifier.Element` implementations are `internal`; a guest cannot name or serialize them |
 | Lazy layouts (`LazyColumn` and relatives) | Item content is invoked by the host per visible index during layout; requires guest-side windowing and placeholders |
 | Text input | A controlled `TextField` round-trips its value across a latent boundary; requires a version vector and optimistic host state |
-| Focus, scroll, and other live state holders | `LazyListState`, `FocusRequester`, `SnackbarHostState` expose members the guest must read and call |
-| Host environment | `LocalDensity`, `LocalLayoutDirection`, `MaterialTheme` live in Compose UI, not the runtime, so they must be mirrored as protocol |
+| Focus, scroll, and other live state holders | `LazyListState`, `FocusRequester`, `SnackbarHostState` — roughly 30 holder types in the measured surface — expose members the guest must read and call |
+| Host environment | `LocalDensity`, `LocalLayoutDirection`, `MaterialTheme`, and locale live in Compose UI, not the runtime, so they must be mirrored as protocol |
 | Node identity and reuse | Positional identity and list recycling require explicit keying |
+| Animation | Per-frame animation state cannot live in the guest (item 1, section 7); the promised "declare a target, the host runs it" replacement is a full protocol — targets, springs and easings, interruption semantics, completion events, time-varying `Modifier` values — that must be designed and hand-written |
+| Resources and assets | `Image`/`Icon` require a `Painter` the sandboxed guest cannot produce; images, icons, fonts, and localized strings all need a host-mediated protocol (Redwood's shape: the guest passes a Uniform Resource Locator (URL), the host loads it) |
+| Host services, entry points, and host-registered components | How an experience launches with parameters, which versioned services (network, authentication, analytics) the host exposes, and how a host registers its own design-system components into the dictionary |
 
-**One rendering target is what makes generation worth doing.** Dogwood renders exclusively through Compose Multiplatform, so there is exactly one host binding implementation and it reaches Android, iOS, and Web. The contrast with the closest prior art is a multiplier, not a constant: Cash App's Redwood renders into each platform's native widget system, and ships **four** host implementations per widget set — `composeui`, `dom`, `uiview`, and `view` — so every widget costs four hand-written bindings with four sets of layout semantics to reconcile. That cost is why its supported catalog stayed small.
+**One rendering target is what makes generation worth doing.** Dogwood renders exclusively through Compose Multiplatform, so there is exactly one host binding implementation reaching all three targets, delivered in the [roadmap's platform order](roadmap.md): Android first, Web second (Compose Multiplatform for Web is Beta — [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)), iOS after. The contrast with the closest prior art is a multiplier, not a constant: Cash App's Redwood renders into each platform's native widget system, and ships **four** host implementations per widget set — `composeui`, `dom`, `uiview`, and `view` — so every widget costs four hand-written bindings with four sets of layout semantics to reconcile. That cost is why its supported catalog stayed small.
 
 | | Cost per widget | Platforms reached |
 |---|---|---|
 | Native-widget mapping (Redwood) | 1 schema declaration + **4 hand-written bindings** | Android Views, UIKit, Compose UI, DOM |
-| Compose Multiplatform (Dogwood) | **1 generated binding** | Android, iOS, Web |
+| Compose Multiplatform (Dogwood) | **1 generated binding** | Android, then Web (Beta), then iOS |
 
 Under a per-platform model, generation would have to emit four divergent implementations and reconcile them — multiplying the maintenance surface rather than reducing it. Under a single target, the generated binding is a direct call to the function the guest named. See [Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md), which also records the constraint this creates: **the host application must itself be a Compose Multiplatform application.**
 
@@ -55,7 +58,7 @@ Under a per-platform model, generation would have to emit four divergent impleme
 | New screen, new layout, restructured UI | **No** |
 | New business logic, state, navigation | **No** |
 | Any combination of already-bound Compose APIs | **No** |
-| Animation | **No**, but the animation *target* is declared and run host-side (section 7) |
+| Animation | **No once the bespoke animation subsystem exists** — the animation *target* is declared and run host-side (section 7). Until that subsystem ships, animation APIs are rejected at build time; they are not available on day one |
 | Uses an API added in a *newer Compose version* than the client was built against | **Yes** — periodic, tied to Compose releases |
 | Uses a composable requiring a bespoke subsystem not yet built | **Yes** — bounded and enumerable, not open-ended |
 | Bug fixes to the host, runtime, or bindings | **Yes** — periodic |
@@ -116,7 +119,7 @@ flowchart TD
     Build --> CDN["Signed .zipline payload on a Content Delivery Network (CDN)"]
     CDN --> Loader["ZiplineLoader: verify Ed25519, cache (Layer 3)"]
     Loader --> Guest["QuickJS guest: Compose runtime + NodeApplier (Layer 4)"]
-    Guest -- "sendChanges(List&lt;Change&gt;), one batch per frame" --> Host["Generated binding layer (Layer 5)"]
+    Guest -- "sendChanges(ChangeBatch), one batch per frame" --> Host["Generated binding layer (Layer 5)"]
     Host --> CMP["Compose Multiplatform renders natively"]
     Host -- "sendEvent(Event) for onClick and friends" --> Guest
     Dict["Binding dictionary artifact"] -.->|"published by the client build"| Build
@@ -131,7 +134,7 @@ flowchart TD
 * **Signed `.zipline` payload on a CDN:** The deliverable artifact plus a JSON manifest carrying SHA-256 module hashes and Ed25519 signatures.
 * **ZiplineLoader:** Cash App's loader, used unmodified. Verifies the manifest signature against a public key compiled into the app, then caches to SQLDelight and Okio. See [Layer 3](specs/layer-3-delivery.md).
 * **QuickJS guest:** The sandboxed interpreter. Inside it run the developer's code, the `dogwood-compose` stubs, and `androidx.compose.runtime`. See [Layer 4](specs/layer-4-sandbox.md).
-* **`sendChanges(List<Change>)`:** The single batched boundary crossing per frame, carrying a list of tree mutations. Batching is what makes the substrate choice performance-neutral; see [Layer 4 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md).
+* **`sendChanges(ChangeBatch)`:** The single batched boundary crossing per frame, carrying a sequence-numbered list of tree mutations — field-by-field schema in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md). Batching is what makes the substrate choice performance-neutral; see [Layer 4 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md).
 * **Generated binding layer:** Host-side Kotlin that maps integer widget tags to real `@Composable` calls. See [Layer 5](specs/layer-5-host.md).
 * **Compose Multiplatform renders natively:** Layout, measure, draw, Skia, accessibility, and text input all run natively at full speed. See [Layer 5 ADR-001](adrs/layer-5/ADR-001-host-native-compose-owns-semantics-and-input.md).
 * **`sendEvent(Event)`:** The return path. A tap on a host-rendered button becomes an `Event(id, tag, args)` delivered to the guest, which mutates state and triggers recomposition.
@@ -171,7 +174,7 @@ Steps 9 through 12 are the steady-state loop. Only changed nodes cross the bound
 
 ### The Problem This Solves
 
-Compose has hundreds of public composables and many overloads. Measured across five modules (`foundation`, `material3`, `ui`, `runtime`, `animation`) there are **381 public `@Composable` User Interface (UI) functions**, of which **89 of 247 distinct names carry more than one overload**, up to seven for `AnimatedVisibility`. A hand-written registry for this is not maintainable, which is the entire motivation for Dogwood.
+Compose has hundreds of public composables and many overloads. Measured across ten modules pinned to a commit hash ([`tools/measure-compose-surface.py`](tools/measure-compose-surface.py)) there are **445 public widget-shaped `@Composable` User Interface (UI) functions**, plus a lowercase surface of **458** defaults factories, state factories, and animation functions; **106 of 256 distinct widget names carry more than one overload**, up to eight for `Icon` (the classifier prints this figure directly). A hand-written registry for this is not maintainable, which is the entire motivation for Dogwood.
 
 ### The Solution: One Generator, Two Outputs
 
@@ -189,10 +192,10 @@ Both come from one tool and one parsed surface, so a given dictionary version's 
 Values cross the boundary as `JsonElement` inside `PropertyChange`. Types are handled in three classes, established by measurement in [Layer 5 ADR-003](adrs/layer-5/ADR-003-opaque-handle-binding-surface.md):
 
 1. **By value** — primitives, `String`, and Kotlin inline value classes over primitives (`Dp`, `Color`, `TextUnit`, `IntSize`). Roughly 37% of all parameters.
-2. **By handle** — every other object type (`Shape`, `PaddingValues`, `ButtonColors`, `TextStyle`, `WindowInsets`). The guest holds an opaque identifier it never inspects, obtained from a generated factory binding. This covers **76.6% of composables** and **186 distinct types**.
+2. **By handle** — every other object type (`Shape`, `PaddingValues`, `ButtonColors`, `TextStyle`, `WindowInsets`). The guest holds an opaque identifier it never inspects, obtained from a generated factory binding. Deferred-expression parameters are the single largest parameter class — **25.2% of all parameters**, appearing on **76.4% of the generable composables** ([corrected measurement](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)).
 3. **By slot** — lambdas. `content` blocks become child nodes in the tree; event lambdas such as `onClick` become an `EventTag`, invoked by an inbound `Event`.
 
-**Nulls** are `JsonNull`. **Defaults** are resolved by the Kotlin compiler in the guest before the value is recorded, so the host never guesses.
+**Nulls** are `JsonNull`. **Defaults are host-resolved in the majority case**: most Material defaults are `@Composable` expressions the guest cannot evaluate (section 7, item 4), so an unset parameter simply sends nothing — absence *is* the "use host default" sentinel, per the wire rules in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md). Only compile-time-constant defaults may be resolved guest-side, and the dictionary records which case each parameter is.
 
 ---
 
@@ -235,7 +238,7 @@ Every item is either tracked by an Architecture Decision Record (ADR) or explici
 
 1. **No per-frame state may live in the guest.** *Status: design invariant, ADR required.* The boundary is asynchronous and cross-thread in both directions — the host's UI thread cannot call the guest during a frame traversal. Measured against Redwood's dispatchers, the round trip is at minimum two vertical sync intervals with an unbounded tail. That is acceptable for a tap and unacceptable for drag, fling, scroll, and typing. Therefore: **animation targets, scroll offset, gesture recognition, and text-field edit state live host-side.** The guest declares intent ("animate alpha to 1.0 over 300 ms") and receives throttled semantic events (`onViewportChanged(first, last)`, `dragEnded(velocity)`), never per-pixel or per-keystroke updates. This is the same conclusion React Native reached when it moved animation onto the UI thread.
 
-2. **Coverage has been re-measured, and the earlier figure was wrong.** *Status: resolved; classifier committed.* An initial measurement concluded ~1.3% of Compose was unbindable. It omitted `foundation-layout` — so `Column`, `Row`, `Box`, and `padding` were never counted — classified by parameter type rather than bindability, and shipped no reproducible script. The corrected measurement, over ten modules pinned to a commit hash with the classifier committed at [`tools/measure-compose-surface.py`](tools/measure-compose-surface.py): of **450** composables in scope, **81.1% are generable once the `Modifier` subsystem exists**, **12.9%** require a per-holder live-state protocol, and **6.0%** are structurally unreachable (in-frame lambdas such as `LazyColumn` and `Canvas`, layout-engine types, and generics). Note that function coverage overstates parameter coverage.
+2. **Coverage has now been re-measured twice, and both earlier figures were wrong in the optimistic direction.** *Status: resolved for the third time; classifier committed; fail-closed triage rule adopted in [Layer 5 ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md).* The first measurement (~1.3% unbindable) omitted `foundation-layout` and had no script. The second (81.1% generable) captured annotation names as function names, defaulted every unknown object type to "generable" — miscounting `Icon`, `Image`, `DatePicker`, `TimePicker`, the `String`-overload text fields, and roughly 30 live-state holder types — and silently dropped the entire lowercase `@Composable` surface (458 functions, including all of `animation-core`'s authoring API). The corrected measurement over the same pinned dumps: of **445** widget-shaped composables in scope, **67.6% are generable once the `Modifier` subsystem exists** (and 76.4% of those also require the deferred-expression protocol), **25.2%** require a bespoke subsystem, and **7.2%** are structurally unreachable. Function coverage still overstates parameter coverage.
 
 3. **Live state holders are read by guest logic and cannot be opaque.** *Status: open, ADR required.* The most frequent non-primitive parameter type across the measured surface is `MutableInteractionSource` (126 occurrences), which exists solely to be observed. `LazyListState.firstVisibleItemIndex`, `SnackbarHostState.showSnackbar()`, `FocusRequester.requestFocus()`, and `PagerState.currentPage` are all read or called by ordinary application code. An opaque identifier the guest never inspects cannot serve them. These require a mirrored-state protocol with a stated conflict rule, hand-written per holder.
 
@@ -247,7 +250,7 @@ Every item is either tracked by an Architecture Decision Record (ADR) or explici
 
 6. **Protocol marshalling cost per frame.** *Status: open, blocking.* Every crossing is `CallChannel.call(callJson: String): String` — five passes over the payload. A 150-node screen plausibly produces a six-figure byte count of JSON. The cost that matters is per byte, and it is unmeasured.
 
-7. **Compose composition performance inside QuickJS.** *Status: open, blocking.* Never measured by anyone. Layout, measure, and draw run natively, so only composition pays the interpreter tax.
+7. **Compose composition performance inside QuickJS.** *Status: open, blocking.* Cash App's Redwood Treehouse proves it *runs* — Google's real `androidx.compose.runtime` (Kotlin/JavaScript target) executed inside Zipline's QuickJS in runnable samples and a limited production rollout ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)) — but **no performance measurement has ever been published by anyone**. Layout, measure, and draw run natively, so only composition pays the interpreter tax. The cheapest falsification is to instrument Treehouse's existing samples before building anything.
 
 8. **QuickJS runtime configuration.** *Status: open.* Zipline sets `gcThreshold` to 256 KiB with `memoryLimit = -1` and a 512 KiB stack. Stop-the-world collections scale with the live set — which here is the Compose slot table — and nothing bounds guest heap growth. Redwood found 8 MB of stack necessary for its guest programs.
 
@@ -255,9 +258,9 @@ Every item is either tracked by an Architecture Decision Record (ADR) or explici
 
 ### External and process
 
-10. **Redwood is discontinued and the reason is unknown.** *Status: open, material.* The closest prior art is no longer developed, with no published rationale. Given how much of this design rests on it, understanding why is the single highest-value open action, and it requires a conversation rather than a search.
+10. **Redwood is discontinued; the reason is now publicly characterised as non-technical.** *Status: downgraded, residual.* Redwood's final release (0.19.0, 2025-11-06) was announced with maintainer Jake Wharton stating "The decision wasn't technical. Redwood works/worked great for its intended use cases" ([redwood discussion #2894](https://github.com/cashapp/redwood/discussions/2894); [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). That removes the silent-technical-verdict scenario. What remains material is the *organisational* lesson — the reported iOS-adoption reluctance — because [Layer 5 ADR-004](adrs/layer-5/ADR-004-compose-multiplatform-sole-host-target.md) asks even more of an iOS team than Redwood did. A direct conversation with Cash App is still worthwhile but no longer blocking.
 
-11. **Apple App Store Guideline 2.5.2.** *Status: open.* Guideline 2.5.2 and the Developer Program License Agreement §3.3.1(B) conflict. Zipline's JavaScript precedent is strong — it ships to millions of iOS users — but a written Apple ruling should be obtained before [Layer 3](specs/layer-3-delivery.md) is built.
+11. **Apple App Store review of downloaded interpreted payloads.** *Status: open; guideline text refreshed.* The current guidelines no longer carry 2.5.2's explicit WebKit/JavaScriptCore exception sentence; downloaded scripting is now addressed under **Guideline 4.7** (mini apps and plug-ins, conditions 4.7.1–4.7.5) alongside 2.5.2's self-contained-bundle language — verified against the [current guidelines](https://developer.apple.com/app-store/review/guidelines/) and recorded in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md). Zipline's precedent is strong — it ships to millions of iOS users — but a written Apple ruling, framed around 4.7, should be obtained before [Layer 3](specs/layer-3-delivery.md) is built.
 
 12. **Guest state is lost on code update, backgrounding, and process death.** *Status: open.* `ZiplineLoader.load()` returns a `Flow`, so updates while a screen is live are the normal case. Redwood solved this with `SaveableStateRegistry` plus a host-side state store; Dogwood has no `rememberSaveable` story yet.
 

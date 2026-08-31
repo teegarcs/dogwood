@@ -28,3 +28,4 @@ local.properties
 # at the commit pinned in tools/api-dumps/SOURCE.txt. Not vendored (~2.9 MB).
 tools/api-dumps/*.txt
 !tools/api-dumps/SOURCE.txt
+__pycache__/
