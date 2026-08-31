@@ -47,11 +47,11 @@ These thresholds are provisional and may be renegotiated *before* the experiment
 
 The harness is committed at [`tools/phase0/`](tools/phase0/) and its results at
 [`tools/phase0/results/`](tools/phase0/results/). It implements 0.1 through 0.4 exactly as
-this appendix specifies, evaluates the gate mechanically, and has produced numbers on two
-hosts — an Apple silicon development machine and an Android emulator. **Neither is
-gate-valid**, because the gate is defined on a low-end 2022-tier Android phone and no such
-device was available; both hosts are faster than that device, so every figure below is a
-lower bound on what the gate device will show.
+this appendix specifies, evaluates the gate mechanically, and has produced numbers on three
+hosts — an Apple silicon development machine, an Android emulator, and a **physical Pixel 10
+Pro** (Tensor G5, Android 17). **None is gate-valid**, because the gate is defined on a low-end
+2022-tier Android phone and no such device was available; all three hosts are faster than that
+device, so every figure below is a lower bound on what the gate device will show.
 
 The first and largest unknown is settled: **`androidx.compose.runtime` compiled to
 Kotlin/JavaScript composes and recomposes inside Zipline's QuickJS**, driving a Dogwood
@@ -71,12 +71,53 @@ host:
 | 0.3 crossing, per-frame reading (steady-state batch) | 4 ms | **0.12 ms** | within budget |
 | 0.3 crossing, per-screen reading (whole initial batch) | 4 ms | **24.34 ms** | **over budget, by 6×** |
 | 0.4 maximum collection pause, p99 | 16.7 ms | **1.45 ms** | within budget |
+| 0.4 maximum collection pause, worst single sample (Pixel 10 Pro) | 16.7 ms | **22.1 ms** | outside a 60 Hz frame |
 | 0.1 cold start to first composition | 500 ms | **128 ms** | within budget |
 | 0.1 + 0.3 cold start until the host holds the tree | 500 ms | **155 ms** | within budget |
 
 Payload: 1,089,616 bytes of QuickJS bytecode, 2,430,996 bytes of minified JavaScript
 (316,439 gzipped); QuickJS heap 4.2 MB after module load and 5.7 MB after the first
 composition. Module load is 14.4 ms.
+
+### What the physical device changed
+
+Running on real silicon produced a result worth more than the gate table: **the interpreted
+guest work is effectively hardware-independent across the two high-end hosts.** Against the
+Apple silicon development machine, the Pixel 10 Pro measured:
+
+| Measure | Ratio, Pixel ÷ development host |
+|---|---:|
+| Initial composition, 160 nodes | **1.00×** |
+| Recomposition, one-node diff | **0.92×** (the phone is *faster*) |
+| Guest-side encoding of the initial batch, native path | **1.04×** |
+| Module load | 1.94× |
+| Transport of a pre-built 20 KB string across the Java Native Interface (JNI) | 3.42× |
+
+Everything that runs *inside* QuickJS matches; everything that crosses into the platform is
+slower on Android. That tells us the guest workload is **bound by single-core instruction
+throughput**, not by memory bandwidth, platform, or input/output. Which has a sharp consequence
+for the gate: **the gate device's numbers will track its single-core performance close to
+linearly**, and a low-end 2022 entry phone is several times slower per core than either host
+measured here. The multiplier must be measured rather than guessed — but the direction is not
+in doubt.
+
+**That reprioritises which leg is actually at risk.** The 0.3 crossing looks worst today, and
+it has an obvious lever: cost is linear in bytes, so trimming the payload buys time
+proportionally. The **0.2 recomposition leg has no such lever.** It measures 1.58 ms at p95
+against an 8 ms budget — comfortable here, and comfortable at a 3× slower core (~4.7 ms), and
+*at the edge* at 5× (~7.9 ms). If the gate device is slower than that, the only remedies are a
+faster substrate — which means reopening [ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)
+for Hermes — or a smaller reference screen, and the roadmap already names slow recomposition as
+fatal rather than maskable. **Acquiring the named gate device is therefore the highest-value
+remaining task in Phase 0**, and it is a hundred-and-fifty-dollar purchase, not an engineering
+problem.
+
+One more thing the physical device showed that neither the Mac nor the emulator did: the
+**tails are noisier**. At `gcThreshold` 16 MB a forced collection reached 22.1 ms — beyond a
+60 Hz frame — and at 8 MB a single recomposition reached 12.2 ms against a p99 of 1.70 ms. The
+harness cannot currently tell a collection pause from scheduler preemption, which is precisely
+what the patched-QuickJS `JS_RunGC` hook this appendix specifies would settle. That hook is now
+worth building rather than deferring.
 
 **The 0.3 failure is the finding of Phase 0, and it is not where anyone expected it.**
 99.4% of the crossing is guest-side JavaScript Object Notation (JSON) encoding; `CallChannel`
@@ -87,7 +128,9 @@ the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-cros
 
 **Three things are outstanding before Phase 0 can be called complete:**
 
-1. **Run the harness on the named gate device.** Nothing above opens or closes the gate.
+1. **Acquire and run the named gate device.** Nothing above opens or closes the gate, and the
+   hardware-independence result above makes this the highest-value remaining task rather than a
+   formality: the leg most likely to fail there is 0.2, the one with no engineering remedy.
 2. **Rule on what the 0.3 leg bounds** — a per-frame cost or the initial batch. This gate
    paragraph frames a tap-to-repaint path and gives the crossing 4 ms, then sizes that leg as
    "the 150-node batch crossing"; a tap never produces 150 nodes. The leg is reported failed as
@@ -100,7 +143,9 @@ the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-cros
    iOS organisation's written yes — neither of which is engineering work.
 
 The patched-QuickJS `JS_RunGC` hook was not built; 0.4 used the forced-`gc()` fallback this
-appendix permits, and reports which method produced its numbers.
+appendix permits, and reports which method produced its numbers. The Pixel's tail behaviour
+above is the argument for building it: without the hook, a 22 ms outlier cannot be attributed
+to garbage collection rather than to the scheduler.
 
 ### Phase 0 Harness Appendix — the decisions the experiments depend on
 

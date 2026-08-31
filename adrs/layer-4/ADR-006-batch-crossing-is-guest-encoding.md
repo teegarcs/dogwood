@@ -145,10 +145,14 @@ retires, with a number, the worry that the Java Native Interface (JNI) transcode
 
 ## 4. Unstated Assumptions
 
-- **Assumes the ratio between encoding and transport holds on the gate device.** The two legs
-  are interpreted work and native work respectively, and they need not scale together on a
-  slower processor. The Android host reports the same decomposition, so this is checkable
-  rather than assumed.
+- ~~**Assumes the ratio between encoding and transport holds on the gate device.**~~ **Checked
+  on a physical Pixel 10 Pro (Tensor G5, Android 17), and the two legs do *not* scale together.**
+  Guest-side encoding is essentially identical to the development host (1.04×), while transport
+  of the same pre-built string across the Java Native Interface (JNI) is 3.42× slower. Encoding
+  still dominates — 24.98 ms of a 27.92 ms crossing, 89% — but the split moves with the
+  platform, so it must be re-measured on the gate device rather than carried over. The wider
+  finding is recorded in [roadmap.md](../../roadmap.md): interpreted guest work is bound by
+  single-core instruction throughput and is otherwise hardware-independent across these hosts.
 - **Assumes `encodeToDynamic` remains Zipline's Kotlin/JavaScript path.** Zipline's own source
   marks it `@OptIn(ExperimentalSerializationApi::class)` with a note that Zipline must track
   changes to it. A `kotlinx.serialization` change could take the 47% back.
