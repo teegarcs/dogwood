@@ -1,0 +1,37 @@
+# Pinned toolchain for Project Dogwood Phase 0 (roadmap.md, "Phase 0 Harness Appendix").
+# Nothing here floats mid-phase. Every version is recorded verbatim in RESULTS.md.
+[versions]
+# Zipline 1.27.0 is the latest release on Maven Central as of 2026-08-31, and it pins
+# Kotlin 2.3.20 / coroutines 1.10.2 / serialization 1.10.0 (read from its Gradle module
+# metadata: app/cash/zipline/zipline/1.27.0/zipline-1.27.0.module).
+zipline = "1.27.0"
+kotlin = "2.3.20"
+coroutines = "1.10.2"
+serialization = "1.10.0"
+# androidx.compose.runtime:runtime-js -- latest STABLE on Google Maven
+# (1.13.0-alpha02 exists but is an alpha; the appendix pins stable).
+composeRuntime = "1.12.0"
+agp = "8.13.2"
+okio = "3.17.0"
+compileSdk = "36"
+minSdk = "26"
+
+[libraries]
+zipline = { module = "app.cash.zipline:zipline", version.ref = "zipline" }
+zipline-loader = { module = "app.cash.zipline:zipline-loader", version.ref = "zipline" }
+compose-runtime-js = { module = "androidx.compose.runtime:runtime-js", version.ref = "composeRuntime" }
+compose-runtime-saveable-js = { module = "androidx.compose.runtime:runtime-saveable-js", version.ref = "composeRuntime" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+androidx-activity = { module = "androidx.activity:activity", version = "1.11.0" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+zipline = { id = "app.cash.zipline", version.ref = "zipline" }
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }

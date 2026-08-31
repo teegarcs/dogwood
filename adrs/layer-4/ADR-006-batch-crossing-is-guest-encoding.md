@@ -1,0 +1,160 @@
+# ADR-006: The Batch Crossing Is Guest-Side Encoding, Not Transport
+
+**Date:** 2026-08-31
+**Status:** Proposed — the decisions in §2.1 and §2.2 are actionable now; §2.3 and §2.4 need a
+human ruling, and none of it is settled until the gate device is measured.
+
+## 1. Context & Problem Statement
+
+Experiment 0.3 was specified to answer "protocol cost per frame," with the note that "every
+crossing is one JavaScript Object Notation (JSON) string; the cost that matters is per byte."
+It has now been run. The measurement says something sharper than the specification
+anticipated, and it changes where optimisation effort belongs.
+
+All figures below are the **development host** (Apple silicon MacBook Pro, Java Development
+Kit (JDK) 21, Zipline 1.27.0, `androidx.compose.runtime:runtime-js` 1.12.0), for the 23-row
+reference screen's initial batch: **572 changes, 19,795 bytes**. This machine is substantially
+faster than the gate device named in the Phase 0 harness appendix, so these numbers are a
+**lower bound** on what a low-end Android phone will show. They are not gate-valid and they do
+not close the gate; they are alarming enough to record before anyone builds Phase 1 on the
+current shape.
+
+| Leg | p50 | Share of the crossing |
+| --- | ---: | ---: |
+| `sendChanges(batch)` end to end — the real call | **24.06 ms** | 100% |
+| Guest-side encoding alone, via Zipline's own path | **23.92 ms** | **99.4%** |
+| Transport alone — sending an already-built string of the same size | **0.25 ms** | 1.0% |
+| Building the `List<Change>` | 0.22 ms | 0.9% |
+
+The 0.3 gate leg is "the 150-node **batch crossing** is ≤ 4 ms end to end." Measured: 24.06 ms
+at p50, 26.98 ms at p95, 29.85 ms at p99. **The leg fails by a factor of six, on hardware
+faster than the device the gate is defined on.**
+
+Three further measurements bear on what to do about it.
+
+**Encoder choice matters more than schema choice.** The same batch, three ways:
+
+| Encoding | p50 | Bytes |
+| --- | ---: | ---: |
+| `kotlinx.serialization` pure-Kotlin encoder, ADR-004's class discriminator | 45.00 ms | 20,939 |
+| `kotlinx.serialization` pure-Kotlin encoder, array polymorphism | 43.66 ms | 19,795 |
+| `encodeToDynamic` plus QuickJS's native `JSON.stringify`, array polymorphism | **23.92 ms** | 19,795 |
+
+Array polymorphism buys 3.0% of time and 5.5% of bytes. Reaching the interpreter's **native**
+`JSON.stringify` buys **47%**. That is not a Dogwood invention; it is what Zipline already
+does. `Endpoint.json` sets `useArrayPolymorphism = true`, and on Kotlin/JavaScript
+`encodeToStringFast` is literally `JSON.stringify(encodeToDynamic(serializer, value))`
+([`jsonJs.kt`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/jsMain/kotlin/app/cash/zipline/internal/jsonJs.kt)).
+The measured native-encode figure and the measured end-to-end figure agree to within 0.6%,
+which is what confirms the decomposition rather than assuming it.
+
+**Cost is linear in bytes, and the constant is large.** 1.21 microseconds per byte at 572
+changes, 1.24 at 1,000. Halving the bytes halves the time; nothing else about the schema
+matters at this granularity.
+
+**Steady state is not the problem.** A one-change batch — the shape a real recomposition
+produces — crosses in **0.144 ms** at p50. The reference screen's *recomposition* batches are
+one and two changes. What costs 24 ms is the **initial** batch, produced once when a screen
+opens.
+
+## 2. Decision
+
+**2.1 The guest crosses batches as typed service arguments, never as pre-encoded strings.**
+`DogwoodHost.sendChanges(batch: ChangeBatch)` stays exactly as
+[ADR-004](ADR-004-change-event-protocol-v0.md) §2.3 defines it, and guest code must not call
+`Json.encodeToString` on the hot path and hand over a `String`. Doing so would cost 45 ms
+where Zipline's own path costs 24 ms, for identical bytes. This inverts the intuition that
+"encode it yourself and send bytes" is the cheaper route: on Kotlin/JavaScript the
+interpreter's C implementation of `JSON.stringify` is the fast path, and only Zipline's
+encoder reaches it.
+
+The harness's `sendChangesEncoded(json: String)` method exists **only** to isolate transport
+for this measurement and is not part of the Layer 4 boundary.
+
+**2.2 ADR-004 §2.4's worked example is documentation of the schema, not of the wire.** The
+bytes that actually cross are array-polymorphic — `["c",{"i":1,"w":1}]` rather than
+`{"k":"c","i":1,"w":1}` — because Zipline's `CallChannel` re-encodes with
+`useArrayPolymorphism = true` regardless of what `DogwoodJson` is configured to do. ADR-004
+is amended to say so, so that nobody debugs against a rendering that never appears on the
+boundary and nobody attributes the class discriminator's cost to Dogwood's design.
+
+**2.3 A binary wire format is not available without patching Zipline, and must stop being
+listed as a cheap escape hatch.** ADR-004 §4 assumed "if 0.3's byte counts blow the ≤ 4 ms
+gate leg, the v1 revision considers a binary encoding." Zipline's boundary is
+`CallChannel.call(callJson: String): String` — a string in, a string out. A binary payload
+would have to be text-encoded to cross it, which *adds* bytes to a cost that is linear in
+bytes. The real candidates are therefore, in order of evidence:
+
+1. **Send fewer bytes.** At 1.2 microseconds per byte this is the only lever with leverage.
+   Concretely: shorter property encodings, omitting modifier chains that repeat verbatim
+   across siblings, and per-element modifier diffing instead of whole-chain replacement —
+   which ADR-004 §4 already lists as a v1 optimisation "to be justified by 0.3's numbers."
+   These are those numbers.
+2. **Send fewer changes in the first crossing** — slice the initial batch, so a screen's first
+   paint does not wait on all 572 changes.
+3. **Patch or extend Zipline's channel** to carry bytes. Real, but it forks a dependency and
+   must be costed as such rather than assumed.
+
+**2.4 The gate leg's reading is escalated, not renegotiated.** The leg is reported **FAILED**
+as written, because roadmap.md says thresholds "may be renegotiated *before* the experiments
+run — never after seeing the numbers," and that rule is worth more than this result. But the
+specification is genuinely ambiguous about which cost the 4 ms bounds, and the ambiguity must
+be resolved by a person, not by the harness:
+
+- Read as **per-frame**, the leg belongs to steady-state recomposition batches, which measure
+  **0.144 ms** and pass with three orders of magnitude to spare.
+- Read as **the initial batch**, the leg measures **24.06 ms**, fails, and describes a cost
+  paid once per screen open — which the cold-start budget (≤ 500 ms, currently measuring
+  127 ms) already covers with room.
+
+The harness reports both numbers so the ruling can be made on evidence. Until it is made, the
+project should treat 0.3 as failed.
+
+## 3. Rationale & Research
+
+The decomposition is measured, not inferred. `crossPreEncoded` sends a string of exactly the
+size the batch encodes to and does nothing else, isolating `CallChannel` transport at 0.25 ms;
+`stringifyNative` performs, inside the guest, the same `encodeToDynamic` plus `JSON.stringify`
+that Zipline performs, timed by the same monotonic clock. Their sum reproduces the end-to-end
+figure. Each series is 200 samples after 20 warm-ups, with the clock's own round-trip cost
+(p50 0.040 ms) subtracted, per the Phase 0 harness appendix.
+
+The Zipline internals cited are read from the pinned 1.27.0 tag:
+[`Endpoint.kt`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/commonMain/kotlin/app/cash/zipline/internal/bridge/Endpoint.kt)
+for `useArrayPolymorphism = true`,
+[`jsonJs.kt`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/jsMain/kotlin/app/cash/zipline/internal/jsonJs.kt)
+for `encodeToStringFast`, and
+[`CallCodec.kt`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/commonMain/kotlin/app/cash/zipline/internal/bridge/CallCodec.kt)
+for where the call is encoded.
+
+The finding is consistent with [ADR-002](ADR-002-adopt-zipline-quickjs-substrate.md)'s
+conclusion that "batching, not the engine, is what matters," and sharpens it: batching matters
+because **the per-crossing cost is the encoding, and the encoding is per byte**. It also
+retires, with a number, the worry that the Java Native Interface (JNI) transcode or the
+`CallChannel` hop would dominate. They do not; together they are one percent.
+
+## 4. Unstated Assumptions
+
+- **Assumes the ratio between encoding and transport holds on the gate device.** The two legs
+  are interpreted work and native work respectively, and they need not scale together on a
+  slower processor. The Android host reports the same decomposition, so this is checkable
+  rather than assumed.
+- **Assumes `encodeToDynamic` remains Zipline's Kotlin/JavaScript path.** Zipline's own source
+  marks it `@OptIn(ExperimentalSerializationApi::class)` with a note that Zipline must track
+  changes to it. A `kotlinx.serialization` change could take the 47% back.
+- **Assumes compression is not available on this path.** The initial batch compresses
+  7.5-fold (19,795 bytes to 2,647), but `CallChannel` carries an uncompressed string, and
+  compressing in the guest would add interpreted work to a leg already dominated by
+  interpreted work.
+- **Assumes the initial batch must be one crossing.** Slicing it is candidate 2 above and is
+  untested.
+
+## 5. Updated Documents
+
+- [adrs/layer-4/ADR-004-change-event-protocol-v0.md](ADR-004-change-event-protocol-v0.md) —
+  §2.4 relabelled as schema documentation; §4's binary-encoding assumption corrected
+- [specs/layer-4-sandbox.md](../../specs/layer-4-sandbox.md) — Interfaces & Boundary: what the
+  boundary actually encodes, and where the cost is
+- [roadmap.md](../../roadmap.md) — Phase 0 gate: the 0.3 leg's two readings and the escalation
+- [tools/phase0/README.md](../../tools/phase0/README.md) — the harness that produced this
+- [tools/phase0/results/](../../tools/phase0/results/) — the raw measurements

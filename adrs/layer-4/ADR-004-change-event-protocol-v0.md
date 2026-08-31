@@ -82,6 +82,13 @@ data class Event(
 
 ### 2.4 Worked wire example
 
+> **What follows renders the schema, not the bytes.** Measured in Phase 0.3 and recorded in
+> [ADR-006](ADR-006-batch-crossing-is-guest-encoding.md): Zipline's `CallChannel` re-encodes
+> every call with `useArrayPolymorphism = true`, so a change crosses the boundary as
+> `["c",{"i":1,"w":1}]`, not as the class-discriminator form drawn below. The field names and
+> the hierarchy are exactly as shown; the polymorphic rendering is not. Debug against the
+> array form.
+
 Guest composes `Column { Text("Total"); Text("$8.00"); PrimaryButton("Pay", onClick=…) }`. Segment 0 local tags: `Column=1` (children slot `content=1`), `Text=2` (property `text=1`). Segment 1: `PrimaryButton=1` (property `label=1`, event `onClick=1`). Root is `Id(0)` with slot `1`. First batch:
 
 ```json
@@ -111,12 +118,14 @@ The shape is Redwood's protocol, adapted: Redwood's `Change` sealed hierarchy (`
 
 ## 4. Unstated Assumptions
 
-- **Assumes JSON via `CallChannel` for v0.** If 0.3's byte counts blow the ≤ 4 ms gate leg, the v1 revision considers a binary encoding — the hierarchy is transport-agnostic; only §2.4's rendering changes.
-- **Assumes whole-chain `ModifierSet` replacement is acceptable at v0.** Per-element diffing is a v1 optimization to be justified by 0.3's numbers, not assumed.
+- **Assumes JSON via `CallChannel` for v0.** ~~If 0.3's byte counts blow the ≤ 4 ms gate leg, the v1 revision considers a binary encoding.~~ **Corrected by [ADR-006](ADR-006-batch-crossing-is-guest-encoding.md) after measurement.** They did blow it, and a binary encoding is not the available answer: Zipline's boundary is `CallChannel.call(callJson: String): String`, so binary must be text-encoded to cross and would *add* bytes to a cost that is linear in bytes. The hierarchy remains transport-agnostic, but the v1 levers are fewer bytes, fewer changes per crossing, or a forked Zipline channel.
+- **Assumes whole-chain `ModifierSet` replacement is acceptable at v0.** Per-element diffing is a v1 optimization to be justified by 0.3's numbers, not assumed. **0.3 has now run** ([ADR-006](ADR-006-batch-crossing-is-guest-encoding.md)): crossing cost is 1.2 microseconds per byte, so any reduction in modifier bytes converts directly into time. This is now a justified optimization rather than a speculative one.
 - **Assumes 8/24 tag packing is generous enough**: 255 registered segments and ~16.7 million local tags per segment exceed any plausible catalog.
 - **Assumes `q` fits `Int`**: 2³¹ batches at 60 Hz is over a year of continuous recomposition; compositions do not live that long.
 
 ## 5. Updated Documents
+
+*Amended after Phase 0.3 by [ADR-006](ADR-006-batch-crossing-is-guest-encoding.md); see §2.4's note and §4's first two assumptions.*
 
 - [specs/layer-4-sandbox.md](../../specs/layer-4-sandbox.md) — §4 interfaces reference this schema; envelope/sequence semantics; entry-point paragraph
 - [specs/layer-5-host.md](../../specs/layer-5-host.md) — segment/tag encoding under subsystem 9; `HostChangeApplier` applies this hierarchy

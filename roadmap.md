@@ -43,6 +43,59 @@ Two sequencing decisions, recorded in [Layer 5 ADR-006](adrs/layer-5/ADR-006-gue
 
 These thresholds are provisional and may be renegotiated *before* the experiments run — never after seeing the numbers. If recomposition inside QuickJS cannot meet the budget, the substrate decision in [Layer 4 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md) must be reopened before anything else is built (the strongest known alternative to evaluate at that point is Meta's Hermes — ahead-of-time bytecode, active maintenance, mobile pedigree — noting Kotlin/JavaScript-on-Hermes is itself unproven; see [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)).
 
+### Phase 0 status — the harness exists and has been run
+
+The harness is committed at [`tools/phase0/`](tools/phase0/) and its results at
+[`tools/phase0/results/`](tools/phase0/results/). It implements 0.1 through 0.4 exactly as
+this appendix specifies, evaluates the gate mechanically, and has produced numbers on two
+hosts — an Apple silicon development machine and an Android emulator. **Neither is
+gate-valid**, because the gate is defined on a low-end 2022-tier Android phone and no such
+device was available; both hosts are faster than that device, so every figure below is a
+lower bound on what the gate device will show.
+
+The first and largest unknown is settled: **`androidx.compose.runtime` compiled to
+Kotlin/JavaScript composes and recomposes inside Zipline's QuickJS**, driving a Dogwood
+`Applier` with a change recorder and a lambda slot table. [Layer 4](specs/layer-4-sandbox.md)
+Milestone 1 is done. The Redwood Treehouse instrumentation that 0.2 proposed as a cheap start
+was **not** performed: its purpose was to get a first number quickly, and the harness measures
+Dogwood's own reference screen through a Dogwood applier, which is the number the project
+actually needs. The samples remain available in Cash App's repository if a cross-check against
+an independent guest is later wanted.
+
+Provisional readings, reference screen at 23 rows (160 widget nodes, 572 changes), development
+host:
+
+| Gate leg | Budget | Measured | Reading |
+|---|---:|---:|---|
+| 0.2 recomposition, p95 | 8 ms | **1.67 ms** | within budget |
+| 0.3 initial batch crossing | 4 ms | **24.06 ms** | **over budget, by 6×** |
+| 0.4 maximum collection pause, p99 | 16.7 ms | **1.45 ms** | within budget |
+| 0.1 cold start to first composition | 500 ms | **127 ms** | within budget |
+
+Payload: 1,089,616 bytes of QuickJS bytecode, 2,430,996 bytes of minified JavaScript
+(316,439 gzipped); QuickJS heap 4.2 MB after module load and 5.7 MB after the first
+composition. Module load is 14.4 ms.
+
+**The 0.3 failure is the finding of Phase 0, and it is not where anyone expected it.**
+99.4% of the crossing is guest-side JavaScript Object Notation (JSON) encoding; `CallChannel`
+transport is 1.0%. Cost is linear in bytes at roughly 1.2 microseconds per byte. Steady-state
+recomposition batches — one or two changes — cross in 0.144 ms; the 24 ms is the *initial*
+batch, paid once per screen open. The full analysis, including why a binary wire format is not
+the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md).
+
+**Three things are outstanding before Phase 0 can be called complete:**
+
+1. **Run the harness on the named gate device.** Nothing above opens or closes the gate.
+2. **Rule on what the 0.3 leg bounds** — a per-frame cost or the initial batch. The leg is
+   reported failed as written, because thresholds may not be renegotiated after seeing
+   numbers; but the specification is ambiguous and a person must resolve it. See
+   [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.4.
+3. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
+   iOS organisation's written yes — neither of which is engineering work.
+
+The patched-QuickJS `JS_RunGC` hook was not built; 0.4 used the forced-`gc()` fallback this
+appendix permits, and reports which method produced its numbers.
+
 ### Phase 0 Harness Appendix — the decisions the experiments depend on
 
 Fixed here so two teams running Phase 0 produce comparable numbers, and so no instrumentation choice is invented after seeing results.
@@ -55,7 +108,9 @@ Fixed here so two teams running Phase 0 produce comparable numbers, and so no in
 
 **Garbage-collection hook (0.4).** Zipline's public Application Programming Interface (API) exposes no garbage-collection hooks, so 0.4 uses a **locally patched Zipline native build**: wrap `JS_RunGC` in the vendored QuickJS with monotonic timestamps and a counter, exported through a debug method. This is measurement scaffolding only — nothing patched ships. If the native build proves slow to stand up, `gc()`-forced pauses timed from the host bound the answer from above; say which method produced the reported numbers.
 
-**The reference screen.** One committed Kotlin file, used by 0.1 (payload), 0.2 (composition), and 0.3 (batch): a product-detail-like screen of **~160 nodes** — a header block (image placeholder box, title, subtitle, price row), a plain `Column` of **50 rows** (each row: `Row(image-box, Column(Text, Text), Text)` — `LazyColumn` does not exist in the guest), a footer with two buttons and a selectable chip row of 8, **24 `mutableStateOf` holders** (row selection ×20, quantity, promo visibility, total, loading flag), modifier chains of 2–4 elements on every container, and one event handler per row plus three on the footer. Recomposition measurement mutates exactly one row-selection state (small diff) and, separately, the total (two-node diff). The file is written once in 0.1 and reused verbatim thereafter; commit it under `tools/`.
+**The reference screen.** One committed Kotlin file, used by 0.1 (payload), 0.2 (composition), and 0.3 (batch): a product-detail-like screen of **~160 nodes** — a header block (image placeholder box, title, subtitle, price row), a plain `Column` of rows (each row: `Row(image-box, Column(Text, Text), Text)` — `LazyColumn` does not exist in the guest), a footer with three buttons and a selectable chip row of 8, **24 `mutableStateOf` holders** (row selection ×20, quantity, promo visibility, total, loading flag), modifier chains of 2–4 elements on every container, and one event handler per row plus three on the footer. Recomposition measurement mutates exactly one row-selection state (small diff) and, separately, the total (two-node diff). The file is written once in 0.1 and reused verbatim thereafter; it is committed at [`tools/phase0/guest/src/jsMain/kotlin/dev/dogwood/guest/ReferenceScreen.kt`](tools/phase0/guest/src/jsMain/kotlin/dev/dogwood/guest/ReferenceScreen.kt).
+
+**The row count is 23, and 50 is measured as a second point.** An earlier draft of this appendix said "50 rows" and "~160 nodes" in the same sentence; those cannot both hold, because the specified row is six nodes (`Row`, `Box`, `Column`, and three `Text`) and the screen totals `22 + 6 × rows` widget nodes. At **23 rows** the screen is **exactly 160 widget nodes**, which is what "~160 nodes" and the gate's "150-node batch" describe, so 23 rows is the primary point and every gate leg is read against it. **50 rows** (322 widget nodes) is measured alongside, so the discrepancy costs a data point rather than an argument. Two further resolutions travel with it: chip selection derives from the `quantity` holder so the holder count stays at exactly 24, and the per-row event handler is a direct `onClick` parameter standing in for `Modifier.clickable`, whose lambda argument needs the Phase 2 modifier grammar. All three are recorded in [Layer 4 ADR-005](adrs/layer-4/ADR-005-phase-0-harness-resolutions.md).
 
 **In parallel, costing nothing on the critical path:**
 - Open a paid Apple Developer Technical Support incident on downloaded, signed, first-party interpreted payloads — framed around **Guideline 4.7** (which now governs downloaded scripting; the old 2.5.2 JavaScriptCore-exception sentence no longer exists — see [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). Lead time is long; the answer is needed before Layer 3 ships, not after.
