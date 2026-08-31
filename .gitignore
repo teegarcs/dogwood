@@ -23,3 +23,9 @@ dist/
 *.klib
 local.properties
 .gradle/
+
+# Third-party Compose API dumps, fetched on demand by tools/measure-compose-surface.py
+# at the commit pinned in tools/api-dumps/SOURCE.txt. Not vendored (~2.9 MB).
+tools/api-dumps/*.txt
+!tools/api-dumps/SOURCE.txt
+__pycache__/

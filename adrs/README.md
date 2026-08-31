@@ -34,4 +34,43 @@ Assumptions, and Updated Documents.
 
 ## Index
 
-_No ADRs recorded yet._
+### Layer 2 — Server Compiler
+- [ADR-001: Kotlin/Wasm Requires WebAssembly Garbage Collection (WasmGC) on Every Target](layer-2/ADR-001-kotlin-wasm-requires-wasmgc.md) — **Accepted.** `wasmWasi` is not a linear-memory target; there is no opt-out and no fallback. Removes Wasm3 from consideration.
+- [ADR-002: Replace Compose Call Interception with a Generated Stub API](layer-2/ADR-002-generated-stub-api-replaces-ir-interception.md) — **Proposed.** `@Composable` and `external` are mutually exclusive and the core layouts are `inline`. Guests compile against generated stubs instead.
+
+### Layer 4 — Sandbox Engine
+- [ADR-001: Reject WebAssembly Dynamic Linking (`dylink.0`)](layer-4/ADR-001-reject-dylink-dynamic-linking.md) — **Accepted, now moot.** Linking Wasm against native ARM code is a category error.
+- [ADR-002: Adopt Kotlin/JS on QuickJS (Zipline); Reject WebAssembly](layer-4/ADR-002-adopt-zipline-quickjs-substrate.md) — **Accepted.** The boundary costs 0.2-0.5% of a frame either way; WasmGC forces the slowest interpreter; `@WasmImport` cannot express the bridge. Batching, not the engine, is what matters.
+- [ADR-003: Redwood Treehouse Is the Existence Proof; External Evidence Refresh](layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md) — **Accepted.** Compose composition verifiably ran in Zipline's QuickJS (Treehouse samples + limited production); Phase 0.2 becomes a measurement question with a cheaper start. Redwood's shutdown publicly characterised as non-technical. App Store analysis re-anchored on Guideline 4.7. Compose Multiplatform: iOS Stable, Web Beta. Hermes recorded as the fallback substrate.
+- [ADR-004: The `Change`/`Event` Protocol Shape (Provisional v0)](layer-4/ADR-004-change-event-protocol-v0.md) — **Proposed.** Field-by-field schema, 8-bit-segment tag encoding, batch/event sequence numbers, absence-as-default sentinel, a worked wire example, and the minimal Phase 1 entry-point contract. Binding for Phase 0.3 and Phase 1.
+
+### Layer 5 — Native Host
+- [ADR-001: Compose Runs Natively on the Host](layer-5/ADR-001-host-native-compose-owns-semantics-and-input.md) — **Accepted, corrected.** Resolves the contradiction between section 1 and section 8.3 of the overview. Accessibility is inherited from Compose Multiplatform; the text-input half of the original conclusion was withdrawn after review — text input is bespoke subsystem 3.
+- [ADR-002: Standalone FIR Codegen Tool, Not KSP](layer-5/ADR-002-standalone-codegen-tool-not-ksp.md) — **Proposed.** Neither Zipline nor Redwood uses KSP for its bridge. Adopts Redwood's embedded-frontend + KotlinPoet pipeline generating both ends from one source.
+- [ADR-004: Compose Multiplatform Is the Sole Host Rendering Target](layer-5/ADR-004-compose-multiplatform-sole-host-target.md) — **Accepted.** Redwood ships 4 host implementations per widget set; one Compose Multiplatform target reaches Android, Web (Beta), and iOS with one generated binding, in the roadmap's platform order. Requires the host app to be a Compose Multiplatform app, and records the costs: ~9 MB on iOS, Skia rendering rather than native widgets, and an organisational ask that amplifies Redwood's reported adoption failure.
+- [ADR-003: Opaque Handle Binding Surface](layer-5/ADR-003-opaque-handle-binding-surface.md) — **Proposed; measurement superseded by ADR-005.** The opaque-handle model and the published-dictionary decision stand; its coverage figures are withdrawn.
+- [ADR-005: Corrected Coverage Measurement (Third Revision) and the Re-Enumerated Bespoke Subsystem List](layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md) — **Accepted.** 445 widget-shaped composables: 67.6% generable after `Modifier` (76.4% of those also need the deferred-expression protocol), 25.2% bespoke, 7.2% unreachable; a 458-function lowercase surface reported separately. The bespoke list grows from six to **nine**: animation, resources & assets, and host services/entry points/host-registered components are added.
+- [ADR-006: Guest-Composed vs Host-Registered Components, Multi-Design-System Registration, and the Design-System-First Adoption Path](layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md) — **Accepted.** Developer-defined composables are plain Compose: no dictionary entry, no host release, no skew surface. A component is bridged only if its implementation must live host-side. The dictionary is segmented so any number of design systems register independently; registered components absorb bespoke subsystems; generator v1 targets registered modules + `foundation-layout`, Material tier is v2. Sets the roadmap's design-system-first sequencing and Android → Web → iOS platform order.
+
+### Open — no ADR yet
+
+Decisions already reflected in the specifications that require an ADR before implementation, per `AGENTS.md` section 3:
+
+- **No per-frame state in the guest.** Animation targets, scroll offset, gesture recognition, and text-field edit state live host-side. Determines which Compose APIs are bindable at all; blocks Layer 4 Milestone 5.
+- **The deferred-expression grammar.** A peer protocol to `Change`, with its own tag space and skew rules. Blocks Layer 5 Milestone 6.
+- **The `Modifier` representation.** Dogwood's tagged type, `then()` semantics, and scope-aware tags. Highest-leverage deliverable — 62.2% of the widget surface depends on it. Written jointly with the deferred-expression grammar, whose values modifier arguments carry.
+- **The animation protocol.** Declarative targets, springs and easings, interruption semantics, completion events, time-varying `Modifier` values. Added by ADR-005; blocks the first animated production screen.
+- **The resources and assets protocol.** Uniform Resource Locator (URL)-keyed images with placeholder/error slots, icon dictionary, fonts, localized strings. Added by ADR-005; blocks the first production screen on the generated-tier path (a registered `AsyncImage` covers it under design-system-first — ADR-006).
+- **Host services, entry points, and host-registered components.** Launch contract, versioned service surface, per-module dictionary segments for registered components (ADR-006). Added by ADR-005; its Phase 1 seed is ADR-004 §2.5.
+- **The live-state mirroring protocol.** Per holder, with a conflict rule.
+- ~~The `Change`/`Event` protocol shape~~ — **now proposed as [Layer 4 ADR-004](layer-4/ADR-004-change-event-protocol-v0.md)** (provisional v0, binding for Phase 1; v1 revision fed by Phase 1 measurements).
+- **Host composition versus imperative applier.** Redwood mutates widgets imperatively and does not recompose; Layer 5 currently specifies a snapshot mirror. Benchmark before Layer 5 Milestone 3 commits.
+- **Dropping the ZiplineLoader fork**, and Layer 3 owning interpreter instantiation.
+- **Surface source: Kotlin frontend over metalava**, forced by metalava carrying no default expressions.
+- **Policy on binding `@Deprecated` APIs** — 6.1% of the measured surface.
+
+### Open questions — not yet decisions
+
+- **Why Cash App discontinued Redwood.** Now publicly characterised: maintainer Jake Wharton, announcing the final release, wrote "The decision wasn't technical" ([discussion #2894](https://github.com/cashapp/redwood/discussions/2894); [Layer 4 ADR-003](layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). The specifics of the reported iOS-adoption reluctance remain worth confirming, because [Layer 5 ADR-004](layer-5/ADR-004-compose-multiplatform-sole-host-target.md) asks more of an iOS team than Redwood did. **No longer blocking.**
+- **Apple App Store review of downloaded interpreted payloads.** Now governed by Guideline 4.7 rather than a 2.5.2 JavaScriptCore exception ([Layer 4 ADR-003](layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). Obtain a written ruling before Layer 3 ships.
+- **Payload size and module-load time** with the Compose runtime linked — Layer 2 Milestone 1, roughly one day, and the cheapest way to falsify the architecture.

@@ -1,0 +1,11 @@
+androidx-main SHA: 5bd169266a7ea9b28c5caf2c040e021677a7adc0
+compose/foundation/foundation
+compose/foundation/foundation-layout
+compose/material3/material3
+compose/material/material
+compose/ui/ui
+compose/ui/ui-text
+compose/ui/ui-graphics
+compose/runtime/runtime
+compose/animation/animation
+compose/animation/animation-core

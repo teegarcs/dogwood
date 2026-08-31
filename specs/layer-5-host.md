@@ -1,0 +1,209 @@
+# Layer 5: The Native Host & Generated Binding Layer
+
+## 1. Responsibilities & Scope
+
+Layer 5 is the client-side half of the bridge and the home of `dogwood-codegen`, the tool that generates both halves. It receives batched changes from [Layer 4](layer-4-sandbox.md), maintains a mirror of the node tree, renders that tree with **real Compose Multiplatform**, and routes user events back to the guest.
+
+This layer is what makes the product promise true: because its bindings are generated across the Compose surface rather than hand-written per component, the host already knows the generated majority of what a developer might call — about two-thirds of the widget surface, with the enumerated bespoke subsystems below covering most of the rest ([ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)).
+
+**What it does:**
+- Generates, at client build time, the host binding layer, the guest stub library, and the binding dictionary — all from one parsed description of the Compose Application Programming Interface (API) surface.
+- Applies inbound `Change` batches to a host-side node tree.
+- Renders that tree by dispatching each node's `WidgetTag` to the real Compose function it names.
+- Evaluates deferred constructor expressions for non-primitive parameter types.
+- Emits `Event` values back to the guest when the user interacts.
+- Handles unknown tags by skipping and reporting, never by crashing.
+
+**What it does NOT do:**
+- It does **not** hold application state or logic. All of that lives in the guest.
+- It does **not** interpret intent. It applies tags mechanically.
+- It does **not** implement accessibility. That is inherited from Compose Multiplatform ([ADR-001](../adrs/layer-5/ADR-001-host-native-compose-owns-semantics-and-input.md)). **Text input is not inherited** — ADR-001's own correction withdrew that half of its conclusion; text input is bespoke subsystem 3 below.
+
+## 2. Technical Stack & Dependencies
+
+- **Language:** Kotlin Multiplatform (KMP), Android and iOS.
+- **Rendering:** [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform), running natively. On iOS this is Skiko over Metal; accessibility has been on by default since Compose Multiplatform 1.8.0.
+- **Code generation:** KotlinPoet, driven by a standalone tool. **Not Kotlin Symbol Processing (KSP)** — see [ADR-002](../adrs/layer-5/ADR-002-standalone-codegen-tool-not-ksp.md).
+- **API surface source:** **The embedded Kotlin frontend, not metalava dumps alone.** Metalava signature files are useful for enumerating the surface but **cannot supply default values** — the format emits only the keyword `optional`, with no expression, and 73.9% of parameters across the measured surface are optional. Since the generator must reproduce defaults, it needs a source that carries them: the Kotlin frontend over Compose sources or klibs. Redwood uses `kotlin-compiler-embeddable` with a `schemaParserFir.kt` for exactly this reason. Milestone 1 confirms the approach; it no longer chooses between two equals.
+- **Transport:** Zipline services, as defined in [Layer 4](layer-4-sandbox.md).
+
+## 3. Internal Architecture
+
+```mermaid
+flowchart TD
+    subgraph BuildTime ["Client build time"]
+        Surface["Compose API surface (metalava dumps or FIR)"] --> Parser["dogwood-codegen: surface parser"]
+        Parser --> Model["Parsed surface model (serializable)"]
+        Model --> GenGuest["Guest stub generator"]
+        Model --> GenHost["Host binding generator"]
+        Model --> GenDict["Dictionary emitter"]
+        GenGuest --> Stubs["dogwood-compose (to Layer 1)"]
+        GenHost --> Bindings["Generated host bindings"]
+        GenDict --> Dict["Versioned dictionary artifact (to Layer 2)"]
+    end
+
+    subgraph Runtime ["Device runtime"]
+        In["sendChanges(ChangeBatch) from Layer 4 (ADR-004)"] --> Applier["HostChangeApplier"]
+        Applier --> Mirror["Host node tree (snapshot state)"]
+        Applier --> Unknown{"Tag in dictionary?"}
+        Unknown -- "No" --> Mismatch["MismatchHandler: report and skip"]
+        Unknown -- "Yes" --> Mirror
+
+        Mirror --> Render["Generated RenderNode composable"]
+        Bindings -.-> Render
+        Render --> Handles["Deferred expression evaluator"]
+        Render --> CMP["Real Compose Multiplatform"]
+        CMP --> Screen["Rendered UI, natively"]
+
+        Screen --> Touch["User interaction"]
+        Touch --> Events["EventEmitter"]
+        Events --> Out["sendEvent(Event) to Layer 4"]
+    end
+```
+
+### Diagram Node Definitions
+
+* **Compose API surface:** The machine-readable description of what Compose offers. androidx publishes metalava signature dumps at `<module>/api/current.txt`; these parse cleanly and were used to produce the coverage measurements in [ADR-003](../adrs/layer-5/ADR-003-opaque-handle-binding-surface.md).
+* **`dogwood-codegen`: surface parser:** Reads that surface and produces a normalised model — every bindable function, its parameters, their types, defaults, and its overload group.
+* **Parsed surface model:** A serializable intermediate representation. Making it serializable matters: it is the single source of truth from which all three outputs are generated, and it can be diffed between Compose versions to see exactly what changed.
+* **Guest stub generator:** Emits `dogwood-compose` — recording functions with signatures identical to the real ones.
+* **Host binding generator:** Emits the host dispatch layer that maps a `WidgetTag` to a real Compose call.
+* **Dictionary emitter:** Emits the versioned artifact naming every API this client build understands, consumed by [Layer 2](layer-2-compiler.md) and by Layer 1's checker. **Format (v0):** one JSON file per client build containing `formatVersion`; a `segments` list — each with `name` (`dogwood.core`, `acme.designsystem`), `segmentId` (the 8-bit tag prefix from [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1), and `version`; and per segment its `widgets` — each with `localTag`, fully-qualified `name`, overload discriminator, and `params`, where every parameter carries `propertyTag` (or `childrenTag`/`eventTag`/`modifier` role), type class (value / deferred-expression / slot / event), `optional`, `defaultResolution` (`guest-const` or `host` — the sentinel rule from overview §7 item 4), and `safetyRelevant` (the overview §6 flag: `enabled`, `checked`, and relatives). This is the minimum field set three layers already depend on; the schema gets its own Architecture Decision Record when the generator lands, but Phase 1's hand-written dictionary uses exactly these fields.
+* **`HostChangeApplier`:** Applies an inbound batch to the mirror tree. Creates nodes, sets properties, inserts and removes children, updates modifiers.
+* **Host node tree (snapshot state):** The mirror of the guest's tree, held in Compose snapshot state so that mutating it triggers host-side recomposition naturally.
+* **Tag in dictionary? / `MismatchHandler`:** The containment gate, not a feature. Its contract is specified in section 6 of the [overview](../high-level-tech-spec-final.md) and is binding here.
+
+  Two corrections to an earlier draft. First, **skipping an unrecognised `Create` is not safe**: Redwood's `HostProtocolAdapter` does `protocol.widget(change.tag) ?: continue`, which registers no node, so any later change on that identifier reaches `checkNotNull(nodes[id.value])` and throws — Redwood's own tests assert this. Dogwood must insert a **placeholder node** instead, so index arithmetic in the rest of the batch stays consistent. Second, `ProtocolMismatchHandler.Throwing` is not test-only in Redwood; it is the **default parameter value** of `HostProtocol.Factory.create`. Dogwood must supply a reporting handler explicitly.
+* **Generated `RenderNode` composable:** A generated `@Composable` that dispatches on `WidgetTag` to the real Compose function, recursing into children slots. This is, structurally, the large dispatch table the project set out to eliminate — the point is that **no human writes or maintains it**.
+* **Deferred expression evaluator:** Resolves non-primitive parameters. See below.
+* **Real Compose Multiplatform:** Layout, measure, draw, animation, accessibility, and text input, all native and full speed.
+* **`EventEmitter`:** Converts a host-side callback into an `Event(id, tag, args)`.
+
+### Parameter Marshalling
+
+Parameters fall into four classes. The first three are generated; the fourth is not.
+
+**1. By value.** Primitives, `String`, and Kotlin inline value classes over primitives (`Dp`, `Color`, `TextUnit`, `IntSize`) travel as `JsonElement` inside `PropertyChange`.
+
+Note an obligation this creates: those value classes live in `compose-ui`, `ui-unit`, and `ui-graphics`, **none of which Google publishes as a Kotlin/JavaScript artifact** — only `androidx.compose.runtime:runtime-js` and `runtime-saveable-js` exist. Depending on JetBrains' `ui-js` instead would drag layout, measure, and draw into a layer that must not contain them. Therefore **`dogwood-codegen` must also generate guest-side stand-ins for every value type it marshals.** This is a first-class generator output, not an incidental detail.
+
+**2. By deferred expression, evaluated inside the host composition.** Non-primitive parameters — `Shape`, `PaddingValues`, `TextStyle`, `ButtonColors` — are recorded by the guest as a serialized *constructor expression* ("`RoundedCornerShape` with `8.dp`") and evaluated host-side. This avoids a synchronous guest-to-host round trip, which the asynchronous boundary makes impossible.
+
+Three constraints are binding, and an earlier draft of this specification violated all three:
+
+- **Evaluation happens inside the host composition, not in `HostChangeApplier`.** Many factories are `@Composable` — `ButtonDefaults.buttonColors()` is annotated `@Composable`, as is `MaterialTheme.colorScheme`. A composable function cannot be called from an applier.
+- **The memo cache is keyed on the composition-local snapshot as well as the expression.** Keying on the expression alone means a dark-mode toggle never re-evaluates `buttonColors()` and every button keeps its light-theme colours.
+- **Mixed guest/host expressions are unsupported.** `MaterialTheme.colorScheme.primary` is readable only inside a host composition, so the guest cannot compute from it — `.copy(alpha = 0.5f)`, `luminance()`, or `lerp()` over a theme value have no representation. [Layer 1](layer-1-authoring.md)'s checker must reject them.
+
+The expression form is a second protocol in its own right, with a grammar, a tag space, dictionary entries, and version-skew rules. **It requires its own Architecture Decision Record before Milestone 6**, and it must be specified as a peer of `Change`, not as a footnote.
+
+**3. By slot — but only composition-time slots.** A lambda is generable **only** if it is materialised once at composition time (a `content` block, becoming a `ChildrenTag`) or is a discrete fire-and-forget event (`onClick`, becoming an `EventTag`).
+
+**4. By bespoke protocol — hand-written.** Everything else. See below.
+
+### Bindability: The Real Rule
+
+A composable is generable if and only if **every** lambda parameter is a composition-time slot or a discrete event, and no parameter is a live object the guest must read or call.
+
+This rule, and not parameter-type marshallability, is what determines coverage. It excludes:
+
+| Excluded | Why |
+|---|---|
+| `LazyColumn`, `LazyRow`, `LazyVerticalGrid` | `LazyListScope.() -> Unit` is invoked by the host per visible index during layout; `key` and `contentType` are `Any?` |
+| `Canvas`, `Modifier.drawBehind`, `drawWithContent` | `DrawScope.() -> Unit` runs every draw pass |
+| `Modifier.pointerInput` | A suspending `PointerInputScope` coroutine awaiting pointer events |
+| `BasicTextField`, `TextField`, `OutlinedTextField` | Controlled components; the edit buffer is host-side and the value is guest-side. Excluded **by name** — the `String value` + `onValueChange` overloads are exactly this controlled component, and a type-based check alone misses them |
+| `BoxWithConstraints` | `maxWidth` is a host-measured value that guest logic reads |
+| `SubcomposeLayout`, `Layout` | Custom measure policy |
+| `HorizontalPager`, `AnimatedContent` | Host-owned live state and per-frame invocation |
+| `Image`, `Icon` | The required `Painter`/`ImageBitmap`/`ImageVector` is asset-backed; no deferred expression can produce it. Needs the resources subsystem (item 8 below) |
+| `DatePicker`, `TimePicker`, `Slider(SliderState)`, `Carousel` | Required live-state holder the guest must read (`selectedDateMillis`, `hour`/`minute`, `value`, `currentItem`) |
+| Objects carrying host-invoked callbacks | `KeyboardActions`, `VisualTransformation` (`filter()` runs per text change), `InputTransformation`, `PopupPositionProvider` (invoked at layout time), `ColorProducer` (invoked per draw frame). The guest may *name* a stock implementation via a deferred expression but can never supply its own behaviour |
+
+An earlier revision of this table listed `DropdownMenu` as excluded; that was wrong. Its public parameters are a `Boolean`, a dismiss event, an offset, an optional `ScrollState`, and `PopupProperties`, which makes it plausibly generable — see [ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md).
+
+**Measured coverage — third revision.** The classifier is committed at [`tools/measure-compose-surface.py`](../tools/measure-compose-surface.py) and runs over ten modules pinned to `androidx-main` commit `5bd169266a7ea9b28c5caf2c040e021677a7adc0`. Of **445** public uppercase (widget-shaped) `@Composable` User Interface functions in scope — after excluding 26 composition-control constructs that execute in the guest and 4 Android-only functions:
+
+| Verdict | Count | Share |
+|---|---:|---:|
+| Generable with no bespoke dependency | 24 | 5.4% |
+| Generable once the `Modifier` subsystem exists | 277 | 62.2% |
+| **Total generable after `Modifier`** | **301** | **67.6%** |
+| Requires a bespoke subsystem (live state, callback object, asset, or text input) | 112 | 25.2% |
+| Structurally unreachable | 32 | 7.2% |
+
+Four cautions on reading this, and they are binding on every quotation of these numbers:
+
+1. **"After `Modifier`" is not a single gate.** 230 of the 301 generable composables (76.4%) carry at least one deferred-expression parameter, so their full use also requires the deferred-expression protocol — a second unbuilt subsystem. `Modifier` remains the highest-leverage single deliverable, but it does not stand alone.
+2. **Function coverage overstates parameter coverage.** Many of the 67.6% carry an *optional* live-state, callback-object, or asset parameter (`interactionSource`, `keyboardActions`, `visualTransformation`) that guest code cannot pass until the corresponding bespoke subsystem exists.
+3. **The denominator is the uppercase widget surface only.** The lowercase `@Composable` surface at the same commit is **458 functions — roughly the same size again** — and is reported by the classifier, not classified: ~305 defaults factories (deferred-expression protocol), 76 `remember*` state factories and 4 live-state reads (live-state protocol), 34 animation-state functions (animation subsystem, item 7 below), 14 `*Resource` loaders (resources subsystem, item 8 below), and 25 guest-runtime functions that work as-is.
+4. 27 of the 445 (6.1%) are `@Deprecated`, with no policy yet on whether they are bound.
+
+Two earlier figures are **withdrawn**: the 1.3%-unbindable figure from the first measurement (omitted `foundation-layout`, classified by parameter type, no script) and the 81.1%-generable figure from the second (captured annotation names as function names, and defaulted every unknown object type to "generable," miscounting live-state holders, callback-carrying objects, asset-backed types, and the `String`-overload text fields). Both corrections are recorded in [ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md); the measurement has now been wrong twice in the optimistic direction, and the fail-closed triage rule in that record exists to prevent a third.
+
+### The Bespoke Subsystems
+
+The excluded set is not open-ended; it is a bounded list of subsystems that must be designed once and hand-written. Redwood needed six for its curated catalog. **Adversarial re-measurement of Dogwood's own target surface found nine** — the three additions (animation, resources, host services) were invisible to the earlier measurement because the entire lowercase `@Composable` surface was unmeasured; see [ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md). Each is a named, schedulable deliverable with its own Architecture Decision Record.
+
+1. **`Modifier`.** Compose's `Modifier.Element` implementations are `internal` — `PaddingElement` does not appear in any public signature dump. A guest cannot name, cast, or serialize them. Dogwood must define its own tagged, serializable `Modifier` type, as Redwood did with `ModifierElement(tag, value)`. **Consequence: guest signatures differ from Compose signatures, and the "identical signatures" claim is withdrawn** (see [Layer 1](layer-1-authoring.md)). Scoped modifiers (`RowScope.weight`, `BoxScope.align`) are interface methods on scopes, so the tag space must be scope-aware and the generator must emit each children slot's dispatch *inside* its parent's scope.
+2. **Lazy layouts.** A cut-down `LazyListScope` with guest-side windowing, a placeholder pool, and throttled `onViewportChanged(first, last)` callbacks. Redwood needed ten modules and a hand-tuned loading strategy for this one case.
+3. **Text input.** A version-vector protocol with optimistic host-side state. Redwood's `TextFieldState` carries a `userEditCount` and its host binding discards stale guest updates outright.
+4. **Live state holders.** `LazyListState`, `FocusRequester`, `SnackbarHostState`, `PagerState`, `DrawerState` — each needs mirrored state and a conflict rule. The corrected measurement enumerates roughly **30 holder types** in the widget surface (including `DatePickerState`, `TimePickerState`, `SliderState`, `CarouselState`, `PullToRefreshState`, `SwipeToDismissBoxState`, `MutableTransitionState`) plus **76 lowercase `remember*` factories** that construct them, so this subsystem's per-holder cost recurs far more often than the five examples suggest.
+5. **Host environment.** `LocalDensity`, `LocalLayoutDirection`, `MaterialTheme`, safe-area insets, dark mode, viewport size, **and locale** — delivered to the guest as a `StateFlow` of a serializable configuration, as Redwood's `UiConfiguration` does. Locale matters doubly: the pinned QuickJS ships no ECMA-402 `Intl`, so locale-aware formatting needs either a host service or guest-bundled data.
+6. **Node identity and reuse.** See below.
+7. **Animation.** The design invariant in [Layer 4](layer-4-sandbox.md) forbids per-frame state in the guest, and the whole `animate*AsState` / `updateTransition` / `Animatable` / `rememberInfiniteTransition` surface (34 lowercase functions, previously unmeasured) is exactly that. The promised replacement — "declare a target, the host runs it" — is a protocol that does not yet exist anywhere in this specification: it needs a grammar for targets, durations, springs and easings, interruption and retargeting semantics, completion events, dictionary entries, skew rules, and **time-varying `Modifier` values** (an `alpha` animation is a modifier argument, so the `Modifier` protocol must accept host-side animated values, not just constants). Sizing reference: this is at least as large as text input, and React Native's equivalent (moving animation onto the native thread) was among the largest subsystems that ecosystem built. Until this ships, [Layer 1](layer-1-authoring.md)'s checker **must reject** animation APIs — the failure mode of *not* rejecting them is silent, compiling guest code that ticks the boundary every frame.
+8. **Resources and assets.** `Image` and `Icon` take a required `Painter`, `ImageBitmap`, or `ImageVector` that no deferred expression can produce: the sandboxed guest has no filesystem, no network, and no stable host resource identifiers (integer resource identifiers change across host builds, and the guest ships months apart from the host). The subsystem comprises: a Uniform Resource Locator (URL)-keyed host image-loading protocol with placeholder and error slots (Redwood's proven shape — its `Image` widget takes `url: String` and each host binding loads it: [`RedwoodUiBasic.kt`](https://github.com/cashapp/redwood/blob/trunk/redwood-ui-basic-schema/src/main/kotlin/app/cash/redwood/ui/basic/RedwoodUiBasic.kt)); an icon dictionary for the enumerable `Icons.*` `val` properties; a font story (payload-carried or host-resolved); and a localized-strings story (server-resolved or payload string tables). The 14 lowercase `*Resource` loaders are unavailable in the guest by construction.
+9. **Host services, entry points, and host-registered components.** Three things every real deployment needs that Zipline makes *mechanically* easy and this specification had not designed: (a) the **entry-point contract** — how the host launches an experience and passes parameters (the host cannot construct guest types; the boundary needs a serializable launch payload and a named entry point in the manifest); (b) the **standard service surface** — network, authentication tokens, analytics, logging, feature flags, and clock, exposed as versioned Zipline services whose signatures live in the dictionary so they skew-check like everything else; and (c) the **registration mechanism** — running `dogwood-codegen`'s parser over the host application's own modules (design-system components, video players, maps, charts) and merging the result into the dictionary. Without (c) a guest can emit only raw Material 3, which no product team ships; Redwood's entire model was app-defined schemas, and deleting the schema must not delete the escape hatch.
+
+   **Registration is multi-tenant by design** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)). The dictionary is partitioned into **namespaced segments** — the generated androidx tier plus one segment per registered module (`dogwood.material3`, `acme.designsystem`, `acme.checkout-kit`) — with tag spaces partitioned by segment so registrations cannot collide, and a version per segment so one design system evolves without re-versioning the others. Registering a module is a Gradle declaration, after which the same pipeline runs for it as for the androidx tier: guest stubs, host bindings, dictionary segment, and the Layer 1 checker all derive from one parsed model. The bindability rule applies to registered signatures unchanged, and the build fails a registration whose signature violates it, naming the offending parameter. The manifest records every segment version the payload compiled against, and skew checking and containment operate per segment. A company with several design systems registers each with the same one-line operation.
+
+   **Registered components absorb bespoke subsystems.** What a registered component does internally never crosses the boundary: a `PrimaryButton` owning its press animation needs none of the animation subsystem to deliver it; a registered `AsyncImage(url, placeholder)` delivers images without the general resources subsystem; a registered chart delivers what the `Canvas` exclusion forbids. The general subsystems above remain the long-term answer for the generated tier; registration is the short-term answer for a curated catalog.
+
+### What Deserves a Dictionary Entry
+
+The dictionary is the vocabulary; guest code is prose written in it, and the dictionary should essentially never grow because a feature team composed something. The rule ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)):
+
+**A component is bridged if and only if its implementation must live host-side** — because it needs real rendering behaviour (canvas, custom layout, internally-owned animation), platform integration (video, maps, native text input), asset loading, or a deliberate decision to pin its behaviour to the app release. Everything else — wrappers, screen sections, feature-team component libraries, whole screens — is guest code: it executes in the guest composition, emits nothing itself, ships in the payload, updates Over-The-Air (OTA), and has **zero version-skew surface** because it versions atomically with the payload.
+
+A purely compositional component can live on either side, and the choice is a design decision: host-registered means one node crosses and internals run natively, but its signature joins the forever-backward-compatible dictionary surface; guest-compiled (the component library published as a Kotlin Multiplatform module that also compiles against the Dogwood stubs) means its internals cross as several nodes, but it updates OTA and adds no dictionary surface. **Default: behavioural components host-side; compositional components guest-side.**
+
+### Host Composition, Identity, and Reuse
+
+The host renders the mirror tree with a generated `@Composable RenderNode`. **Compose identity is positional**, so a generated `RenderNode` that does not wrap each child in `key(node.id)` will destroy and recreate a subtree on any reorder — losing host-side scroll position, animation state, focus, and the input method editor connection. Wrapping every child in `key(node.id)` is a **generator requirement with a test**, not a note.
+
+Two consequences follow:
+
+- `Id` values must be monotonic and never reused within a composition's lifetime, so a stale event cannot be delivered to a different node that inherited its identifier.
+- Reuse must be expressed as *key stability*, not object pooling. Redwood pools because platform views are expensive to allocate; Dogwood's host nodes are composables whose state is positional, so the failure mode is lost state rather than lost allocations.
+
+**An alternative worth benchmarking before Milestone 3 commits:** Redwood's host does not recompose at all. `HostProtocolAdapter` mutates widget objects imperatively and then calls `onEndChanges()`. Composing the mirror instead adds a second full composition and a guaranteed extra frame of latency. Both designs must be measured — apply-to-pixel latency and per-node cost at batch sizes of 1, 10, 100, and 1,000 — before this specification commits to the snapshot mirror.
+
+## 4. Interfaces & Boundary
+
+- **Inputs:** Batched `List<Change>` from Layer 4; user interaction from the platform.
+- **Outputs:** Rendered native UI; `Event` values sent to Layer 4; the dictionary artifact produced at build time.
+- **Memory ownership:** The host owns the mirror tree, the memoized expression cache, and all Compose objects. The guest owns its own heap. Nothing is shared by reference; every protocol message is a serialized copy.
+
+  **The memo cache must be bounded.** Expressions with animated arguments — `PaddingValues(animatedDp)`, `TextStyle(fontSize = animatedSp)` — produce a structurally distinct key every frame, which at 60 Hz is 3,600 retained entries per minute. Specify a least-recently-used cache with a hard entry cap and byte budget, and a bypass so an expression derived from an animated property is evaluated without being cached. Redwood's analogous pool is capped at 16 entries with an explicit comment about balancing hit rate against memory.
+
+  **Cross-boundary reference cycles are a known hazard and must be tested for, not asserted away.** Generated host bindings hold `@Composable` lambdas capturing event tags; the emitter holds the Zipline service; the service holds a reference into the guest. On iOS that cycle spans Kotlin/Native garbage collection and Swift automatic reference counting. Redwood ships `redwood-leak-detector` (Apache 2.0) and calls `leakDetector.watchReference(...)` on every detached node, with an explicit comment about mixing garbage-collected Kotlin objects with reference-counted Swift objects. Dogwood should adopt that module rather than reinvent it.
+
+## 5. Implementation Roadmap
+
+Milestones 1 to 5 build the generated path. Milestones 6 onward build the bespoke subsystems, which are the larger half of the work.
+
+1. **Milestone 1 — Surface parser spike.** Evaluate metalava dumps against the embedded Kotlin frontend. Budget for the frontend being expensive: Redwood's equivalent module sets `maxHeapSize = '3g'` and `forkEvery = 1`. For generator v1 the parser targets the registered design-system modules and `foundation-layout` — first-party sources — so the spike should exercise a design-system module, not only androidx.
+2. **Milestone 2 — Re-derive bindability. ✅ Complete.** Done as the third-revision measurement in [ADR-005](../adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md); the committed classifier is the artifact. Re-run it when the pinned commit moves, under ADR-005's fail-closed triage rule.
+3. **Milestone 3 — Hand-written vertical slice.** Bind the roadmap Phase 1 slice by hand — five layout primitives plus five registered design-system components, spanning **two dictionary segments** with the [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) tag encoding — and render a guest-driven tree end to end on Android. Before committing to the snapshot mirror, benchmark it against an imperative host applier (Redwood's design) for apply-to-pixel latency at batch sizes 1, 10, 100, 1,000.
+4. **Milestone 4 — Change application, keying, and events.** Implement `HostChangeApplier` over the [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) hierarchy, `key(node.id)` in generated `RenderNode`, monotonic non-reused `Id`s, and the event path including `onUnknownEvent` and `onUnknownEventNode` telemetry. Add the placeholder-node behaviour for unrecognised `Create` required by section 6 of the [overview](../high-level-tech-spec-final.md).
+5. **Milestone 5 — `Modifier`.** Dogwood's tagged modifier type, `then()` semantics, scope-aware tags, and per-scope generated dispatch. Ordered **before** the generator, matching roadmap Phase 2: the generator's output shape depends on the modifier representation, and its ADR is written jointly with the deferred-expression grammar ADR.
+6. **Milestone 6 — The generator, v1.** Build `dogwood-codegen` scoped to **registered modules plus `foundation-layout`** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)), emitting guest stubs, guest-side value-type stand-ins, host bindings, and the segmented dictionary from one model, replacing the hand-written slice. **Generator v2** — the full Material tier and its `@Composable`-defaults analysis — is scheduled after the first production screen ships.
+7. **Milestone 7 — Deferred expressions.** Implement evaluation *inside the host composition*, with a bounded cache keyed on the composition-local snapshot, per the grammar ADR written in Milestone 5's phase.
+8. **Milestone 8 — Host environment.** A `DogwoodConfiguration` `StateFlow` carrying density, layout direction, dark mode, safe-area insets, and viewport size.
+9. **Milestone 9 — Live state holders.** Mirrored-state protocols, starting with `LazyListState` and `FocusRequester`.
+10. **Milestone 10 — Lazy layouts.** Cut-down `LazyListScope`, guest-side windowing, placeholders, throttled viewport callbacks.
+11. **Milestone 11 — Text input.** Version vector plus optimistic host state.
+12. **Milestone 12 — Leak detection.** Adopt `redwood-leak-detector`; port its leak test. Bind, unbind, and assert every node, widget, and lambda is collected. **Before iOS, not after.**
+13. **Milestone 13 — Skew containment drill.** Build a guest against a newer dictionary and confirm the three requirements in overview section 6 hold: placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback rather than rendering wrong.
+14. **Milestone 14 — Web host profile.** Bring the binding layer up on Compose Multiplatform for Web per roadmap Phase 5 — protocol, applier, and generated bindings unchanged; the substrate and delivery differences are the web profile's ADR, owned by Layers 3 and 4.
+15. **Milestone 15 — iOS parity.** Confirm VoiceOver, the input method editor, and text selection work, and that no cross-language reference cycles leak. Entered only with the iOS organisation's yes and the Apple ruling in hand (roadmap Phase 6).
