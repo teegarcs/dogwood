@@ -47,7 +47,7 @@ class LayoutScope(
 
 /** Where a binding sends the events its widget produces. */
 fun interface EventSink {
-  fun send(node: HostNode, tag: EventTag)
+  fun send(node: WidgetView, tag: EventTag)
 }
 
 /** The single content slot every container in this slice declares. */
@@ -94,7 +94,8 @@ object DogwoodDictionary {
  * on placeholder nodes keeping that arithmetic consistent.
  */
 @Composable
-fun RenderNode(node: HostNode, scope: LayoutScope, events: EventSink) {
+fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
+  LocalRenderCounter.current?.record()
   val modifier = node.composeModifier(scope)
   when (node.tag.value) {
     DogwoodDictionary.Text.value -> Text(
@@ -184,8 +185,8 @@ fun RenderNode(node: HostNode, scope: LayoutScope, events: EventSink) {
  * wholesale rewrite of every node after the move.
  */
 @Composable
-fun RenderChildren(node: HostNode, slot: Int, scope: LayoutScope, events: EventSink) {
-  for (child in node.slot(slot)) {
+fun RenderChildren(node: WidgetView, slot: Int, scope: LayoutScope, events: EventSink) {
+  for (child in node.children(slot)) {
     key(child.id.value) {
       RenderNode(child, scope, events)
     }

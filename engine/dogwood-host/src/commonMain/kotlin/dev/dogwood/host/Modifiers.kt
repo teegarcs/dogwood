@@ -39,7 +39,7 @@ private const val ALPHA = 5
  * a build error at the call site rather than a silent drop at runtime.
  */
 @Composable
-fun HostNode.composeModifier(scope: LayoutScope): Modifier {
+fun WidgetView.composeModifier(scope: LayoutScope): Modifier {
   var modifier: Modifier = Modifier
   for (element in modifiers) {
     val value = element.v.jsonPrimitive

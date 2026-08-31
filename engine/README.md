@@ -151,14 +151,25 @@ and completely wrong here: an update published to the server did not reach a res
 all. The default is now [`REVALIDATE_EVERY_LAUNCH`](dogwood-host/src/jvmAndroidMain/kotlin/dev/dogwood/host/Delivery.kt).
 A longer window remains available, but it has to be chosen.
 
+## Rendering strategy
+
+Both candidate strategies are implemented behind the shared `WidgetView` interface — `HostTree`
+(snapshot mirror) and `PlainTree` (imperative, Redwood's design) — and were measured against each
+other. The snapshot mirror is kept; `PlainTree` stays in the tree as the measured alternative, so
+the decision is reproducible rather than asserted. See
+[Layer 5 ADR-007](../adrs/layer-5/ADR-007-keep-the-snapshot-mirror.md) and
+[the results](../tools/phase0/results/render-strategy.md).
+
+```bash
+adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity
+adb pull /sdcard/Android/data/dev.dogwood.slice.android/files/render-strategy.md
+```
+
 ## What is not done
 
 Named Phase 1 deliverables that this does **not** yet satisfy, so nobody mistakes a working
 screen for a finished phase:
 
-- **The host rendering strategy has not been compared.** The snapshot mirror is implemented;
-  the imperative applier that Redwood uses has not been built, so the apply-to-pixel comparison
-  at batch sizes 1 / 10 / 100 / 1000 that roadmap step 7 calls for has not been run.
 - **The design-system component audit has not happened.** The five segment-1 components here
   are plausible stand-ins, not the five highest-usage components of a real design system
   measured by call-site count.

@@ -130,7 +130,7 @@ class DogwoodExperience(
   }
 
   /** Delivers one interaction, stamped with the batch the host had applied when it happened. */
-  fun send(node: HostNode, tag: EventTag) {
+  fun send(node: WidgetView, tag: EventTag) {
     val sequence = tree.appliedSequence
     uiScope.launch(ziplineDispatcher) {
       threads.checkZipline()

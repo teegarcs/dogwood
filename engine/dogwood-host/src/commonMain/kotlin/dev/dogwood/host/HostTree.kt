@@ -35,13 +35,17 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /** One node in the host's mirror. Every mutable field is snapshot state. */
 class HostNode(
-  val id: Id,
-  val tag: WidgetTag,
-) {
+  override val id: Id,
+  override val tag: WidgetTag,
+) : WidgetView {
   val properties = mutableStateMapOf<Int, JsonElement>()
 
-  var modifiers by mutableStateOf<List<ModifierElem>>(emptyList())
+  override var modifiers by mutableStateOf<List<ModifierElem>>(emptyList())
     internal set
+
+  override fun property(tag: Int): JsonElement? = properties[tag]
+
+  override fun children(slot: Int): List<WidgetView> = this.slot(slot)
 
   private val slots = mutableMapOf<Int, SnapshotStateList<HostNode>>()
 
@@ -50,21 +54,7 @@ class HostNode(
   /** All slots, for the depth-first purge on removal. */
   internal fun allSlots(): Collection<SnapshotStateList<HostNode>> = slots.values
 
-  // Typed reads. Absence is the "use host default" sentinel, so every one takes a default.
-  fun string(tag: Int, default: String = ""): String =
-    properties[tag]?.jsonPrimitive?.contentOrNullSafe() ?: default
-
-  fun int(tag: Int, default: Int): Int = properties[tag]?.jsonPrimitive?.intOrNull ?: default
-
-  fun float(tag: Int, default: Float): Float = properties[tag]?.jsonPrimitive?.floatOrNull ?: default
-
-  fun boolean(tag: Int, default: Boolean): Boolean =
-    properties[tag]?.jsonPrimitive?.booleanOrNull ?: default
-
-  fun has(tag: Int): Boolean = properties.containsKey(tag)
 }
-
-private fun JsonPrimitive.contentOrNullSafe(): String? = if (this is JsonPrimitive) content else null
 
 /**
  * Applies protocol batches to the mirror.

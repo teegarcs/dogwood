@@ -18,5 +18,12 @@
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+
+    <!-- roadmap.md Phase 1 step 7. Launch with:
+         adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity -->
+    <activity
+        android:name=".RenderBenchActivity"
+        android:exported="true"
+        android:theme="@style/Theme.Dogwood" />
   </application>
 </manifest>
