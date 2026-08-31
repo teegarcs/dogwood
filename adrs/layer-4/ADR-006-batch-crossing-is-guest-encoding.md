@@ -102,13 +102,23 @@ specification is genuinely ambiguous about which cost the 4 ms bounds, and the a
 be resolved by a person, not by the harness:
 
 - Read as **per-frame**, the leg belongs to steady-state recomposition batches, which measure
-  **0.144 ms** and pass with three orders of magnitude to spare.
-- Read as **the initial batch**, the leg measures **24.06 ms**, fails, and describes a cost
-  paid once per screen open — which the cold-start budget (≤ 500 ms, currently measuring
-  127 ms) already covers with room.
+  **0.124 ms** and pass with three orders of magnitude to spare.
+- Read as **the initial batch**, the leg measures **24.34 ms** and fails. That cost is paid
+  once per screen open, so under the per-frame reading it does not disappear — it moves to the
+  cold-start budget, where it is now **measured rather than assumed**: cold start through the
+  moment the host holds the whole tree (module load, `main()`, first composition, and the
+  initial crossing) is **154.8 ms** at p50 and 161.7 ms at p95, against a 500 ms budget.
 
-The harness reports both numbers so the ruling can be made on evidence. Until it is made, the
-project should treat 0.3 as failed.
+The harness reports every one of those numbers, and evaluates the 0.3 leg under both readings,
+so the ruling can be made on evidence rather than on which number someone saw first. Until it
+is made, the project should treat 0.3 as failed.
+
+Note the shape of the honesty risk here, since the author of this ADR is also the holder of the
+failing number: the per-frame reading is the one that makes the phase pass, and it is therefore
+the reading that deserves the most scepticism. What keeps it from being a free pass is the
+`coldStartToFirstBatchDelivered` leg — adopting the per-frame reading obliges the project to
+carry the initial batch in the cold-start budget, and that budget is now instrumented so the
+cost cannot quietly go unwatched.
 
 ## 3. Rationale & Research
 

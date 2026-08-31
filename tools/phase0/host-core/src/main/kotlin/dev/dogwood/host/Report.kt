@@ -25,7 +25,13 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
       "0.2",
     ),
     GateLeg(
-      "Initial batch crossing, end to end",
+      "Batch crossing, per-frame reading: a steady-state recomposition batch",
+      4.0,
+      r.experiment03.points.first().crossZiplineSerialized.p50Ms,
+      "0.3",
+    ),
+    GateLeg(
+      "Batch crossing, per-screen reading: the whole initial batch",
       4.0,
       r.experiment03.initialBatch.crossZiplineSerialized.p50Ms,
       "0.3",
@@ -41,6 +47,12 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
       500.0,
       r.experiment01.coldStartToFirstComposition.p50Ms,
       "0.1",
+    ),
+    GateLeg(
+      "Cold start through the host holding the tree (composition plus initial crossing)",
+      500.0,
+      r.experiment01.coldStartToFirstBatchDelivered.p50Ms,
+      "0.1 + 0.3",
     ),
   )
 
@@ -69,6 +81,12 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
 
   appendLine("## Gate")
   appendLine()
+  appendLine("The 0.3 leg is evaluated **both** ways, because roadmap.md sizes a per-tap budget")
+  appendLine("with a per-screen quantity: it gives the crossing 4 ms inside a tap-to-repaint path,")
+  appendLine("then writes the leg as \"the 150-node batch crossing\" -- and a tap never produces 150")
+  appendLine("nodes. Which reading was intended is a human ruling, so both are reported rather than")
+  appendLine("one being chosen here. See ADR-006 section 2.4.")
+  appendLine()
   appendLine("| Leg | Budget | Measured | Verdict |")
   appendLine("| --- | ---: | ---: | --- |")
   for (leg in legs) {
@@ -94,6 +112,7 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
       r.experiment01.moduleLoad,
       r.experiment01.mainFunction,
       r.experiment01.coldStartToFirstComposition,
+      r.experiment01.coldStartToFirstBatchDelivered,
     ),
   )
   appendLine()

@@ -143,8 +143,10 @@ interface Phase0Guest : ZiplineService {
    *
    * @param encoded true to call [DogwoodHost.sendChangesEncoded] with a guest-encoded
    *   string, false to call [DogwoodHost.sendChanges] and let Zipline serialize.
+   * @param warmups crossings to perform and discard first. Experiment 0.3 wants these;
+   *   experiment 0.1 must pass zero, because a cold screen open gets no warm-up.
    */
-  fun crossBatch(changeCount: Int, iterations: Int, encoded: Boolean): Samples
+  fun crossBatch(changeCount: Int, iterations: Int, encoded: Boolean, warmups: Int): Samples
 
   /** Experiment 0.4: allocation churn under a repeated recomposition load. */
   fun churn(rows: Int, iterations: Int)

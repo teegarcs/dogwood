@@ -66,6 +66,13 @@ data class Experiment01(
   val moduleLoad: Stat,
   val mainFunction: Stat,
   val coldStartToFirstComposition: Stat,
+  /**
+   * Cold start through the moment the host holds the tree: module load, `main()`, first
+   * composition, AND the initial batch crossing. This is the figure a user actually waits
+   * for when a screen opens, and it is the budget the initial batch's cost belongs to if
+   * the 0.3 gate leg is read as a per-frame budget rather than a per-screen one.
+   */
+  val coldStartToFirstBatchDelivered: Stat,
   val memoryAfterLoad: MemorySnapshot,
   val memoryAfterFirstComposition: MemorySnapshot,
 )
@@ -242,6 +249,7 @@ class Phase0Driver(
     val moduleLoad = ArrayList<Long>(coldRuns)
     val mainFunction = ArrayList<Long>(coldRuns)
     val coldToFirstComposition = ArrayList<Long>(coldRuns)
+    val coldToFirstBatch = ArrayList<Long>(coldRuns)
     var memoryAfterLoad: MemorySnapshot? = null
     var memoryAfterCompose: MemorySnapshot? = null
 
@@ -254,8 +262,12 @@ class Phase0Driver(
         if (run == 0) memoryAfterLoad = memory(loaded.zipline)
         // One composition, no warm-up: this is the screen-open path a user actually pays.
         loaded.guest.measureClockOverhead(200)
-        loaded.guest.composeReferenceScreen(rows, warmups = 0, iterations = 1)
+        val composition = loaded.guest.composeReferenceScreen(rows, warmups = 0, iterations = 1)
         coldToFirstComposition += System.nanoTime() - start
+        // Then the one crossing that hands the host the whole tree. No warm-up, one
+        // iteration: a cold screen open gets neither.
+        loaded.guest.crossBatch(composition.changes, iterations = 1, encoded = false, warmups = 0)
+        coldToFirstBatch += System.nanoTime() - start
         if (run == 0) memoryAfterCompose = memory(loaded.zipline)
       } finally {
         loaded.zipline.close()
@@ -274,6 +286,7 @@ class Phase0Driver(
       moduleLoad = stat("module-load", moduleLoad),
       mainFunction = stat("main-function", mainFunction),
       coldStartToFirstComposition = stat("cold-start-to-first-composition", coldToFirstComposition),
+      coldStartToFirstBatchDelivered = stat("cold-start-to-first-batch-delivered", coldToFirstBatch),
       memoryAfterLoad = memoryAfterLoad!!,
       memoryAfterFirstComposition = memoryAfterCompose!!,
     )
@@ -332,8 +345,8 @@ class Phase0Driver(
 
   private fun batchPoint(loaded: LoadedGuest, size: Int): BatchPoint {
     val encode: EncodeResult = loaded.guest.measureEncode(size, warmups, iterations)
-    val preEncoded = loaded.guest.crossBatch(size, iterations, encoded = true)
-    val ziplineSerialized = loaded.guest.crossBatch(size, iterations, encoded = false)
+    val preEncoded = loaded.guest.crossBatch(size, iterations, encoded = true, warmups = warmups)
+    val ziplineSerialized = loaded.guest.crossBatch(size, iterations, encoded = false, warmups = warmups)
     return BatchPoint(
       changes = encode.changeCount,
       bytes = encode.bytes,

@@ -248,7 +248,7 @@ class Phase0GuestImpl : Phase0Guest {
     )
   }
 
-  override fun crossBatch(changeCount: Int, iterations: Int, encoded: Boolean): Samples {
+  override fun crossBatch(changeCount: Int, iterations: Int, encoded: Boolean, warmups: Int): Samples {
     val c = clock()
     val h = host()
     val composition = live(if (liveRows > 0) liveRows else REFERENCE_ROWS)
@@ -256,9 +256,12 @@ class Phase0GuestImpl : Phase0Guest {
     val changes = ArrayList<Change>(changeCount)
     for (n in 0 until changeCount) changes.add(source[n % source.size])
     val batch = ChangeBatch(1, changes)
-    val json = DogwoodJson.encodeToString(ChangeBatch.serializer(), batch)
+    // Encoded only when the caller asked for the pre-encoded path. Building it
+    // unconditionally would charge a caller measuring a cold screen open for an encode that
+    // a real screen open never performs.
+    val json = if (encoded) DogwoodJson.encodeToString(ChangeBatch.serializer(), batch) else ""
     val nanos = ArrayList<Long>(iterations)
-    repeat(20) { if (encoded) h.sendChangesEncoded(json) else h.sendChanges(batch) }
+    repeat(warmups) { if (encoded) h.sendChangesEncoded(json) else h.sendChanges(batch) }
     repeat(iterations) {
       val t0 = c.nowNanos()
       if (encoded) h.sendChangesEncoded(json) else h.sendChanges(batch)

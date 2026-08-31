@@ -68,9 +68,11 @@ host:
 | Gate leg | Budget | Measured | Reading |
 |---|---:|---:|---|
 | 0.2 recomposition, p95 | 8 ms | **1.67 ms** | within budget |
-| 0.3 initial batch crossing | 4 ms | **24.06 ms** | **over budget, by 6×** |
+| 0.3 crossing, per-frame reading (steady-state batch) | 4 ms | **0.12 ms** | within budget |
+| 0.3 crossing, per-screen reading (whole initial batch) | 4 ms | **24.34 ms** | **over budget, by 6×** |
 | 0.4 maximum collection pause, p99 | 16.7 ms | **1.45 ms** | within budget |
-| 0.1 cold start to first composition | 500 ms | **127 ms** | within budget |
+| 0.1 cold start to first composition | 500 ms | **128 ms** | within budget |
+| 0.1 + 0.3 cold start until the host holds the tree | 500 ms | **155 ms** | within budget |
 
 Payload: 1,089,616 bytes of QuickJS bytecode, 2,430,996 bytes of minified JavaScript
 (316,439 gzipped); QuickJS heap 4.2 MB after module load and 5.7 MB after the first
@@ -86,9 +88,13 @@ the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-cros
 **Three things are outstanding before Phase 0 can be called complete:**
 
 1. **Run the harness on the named gate device.** Nothing above opens or closes the gate.
-2. **Rule on what the 0.3 leg bounds** — a per-frame cost or the initial batch. The leg is
-   reported failed as written, because thresholds may not be renegotiated after seeing
-   numbers; but the specification is ambiguous and a person must resolve it. See
+2. **Rule on what the 0.3 leg bounds** — a per-frame cost or the initial batch. This gate
+   paragraph frames a tap-to-repaint path and gives the crossing 4 ms, then sizes that leg as
+   "the 150-node batch crossing"; a tap never produces 150 nodes. The leg is reported failed as
+   written, because thresholds may not be renegotiated after seeing numbers, and both readings
+   are measured so a person can resolve it on evidence. Under the per-frame reading the initial
+   batch's cost does not vanish — it belongs to the cold-start budget, where it is now measured
+   at 155 ms of 500 ms. See
    [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.4.
 3. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
    iOS organisation's written yes — neither of which is engineering work.
