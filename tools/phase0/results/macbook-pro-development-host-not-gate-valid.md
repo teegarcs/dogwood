@@ -29,58 +29,58 @@ one being chosen here. See ADR-006 section 2.4.
 
 | Leg | Budget | Measured | Verdict |
 | --- | ---: | ---: | --- |
-| Guest recomposition of the reference screen, 95th percentile (0.2) | 8.00 ms | 1.723 ms | within budget |
-| Batch crossing, per-frame reading: a steady-state recomposition batch (0.3) | 4.00 ms | 0.124 ms | within budget |
-| Batch crossing, per-screen reading: the whole initial batch (0.3) | 4.00 ms | 24.338 ms | **over budget** |
-| Maximum garbage-collection pause under load, 99th percentile (0.4) | 16.70 ms | 1.470 ms | within budget |
-| Cold start: module load plus first composition (0.1) | 500.00 ms | 128.111 ms | within budget |
-| Cold start through the host holding the tree (composition plus initial crossing) (0.1 + 0.3) | 500.00 ms | 154.834 ms | within budget |
+| Guest recomposition of the reference screen, 95th percentile (0.2) | 8.00 ms | 1.670 ms | within budget |
+| Batch crossing, per-frame reading: a steady-state recomposition batch (0.3) | 4.00 ms | 0.126 ms | within budget |
+| Batch crossing, per-screen reading: the whole initial batch (0.3) | 4.00 ms | 23.737 ms | **over budget** |
+| Maximum garbage-collection pause under load, 99th percentile (0.4) | 16.70 ms | 1.702 ms | within budget |
+| Cold start: module load plus first composition (0.1) | 500.00 ms | 125.005 ms | within budget |
+| Cold start through the host holding the tree (composition plus initial crossing) (0.1 + 0.3) | 500.00 ms | 151.082 ms | within budget |
 
 ## 0.1 -- Cold-start cost
 
 | Measure | Value |
 | --- | ---: |
-| Minified JavaScript | 2431092 bytes |
-| Gzipped JavaScript | 316495 bytes |
-| QuickJS bytecode | 1089695 bytes |
-| `.zipline` file as delivered | 1089715 bytes |
+| Minified JavaScript | 2550018 bytes |
+| Gzipped JavaScript | 334365 bytes |
+| QuickJS bytecode | 1149235 bytes |
+| `.zipline` file as delivered | 1149255 bytes |
 
 | Measurement | n | p50 | p95 | p99 | min | max | mean |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `module-load` | 10 | 14.4213 ms | 14.5188 ms | 14.5188 ms | 13.4195 ms | 15.4047 ms | 14.3860 ms |
-| `main-function` | 10 | 0.0499 ms | 0.0552 ms | 0.0552 ms | 0.0481 ms | 1.9971 ms | 0.2447 ms |
-| `cold-start-to-first-composition` | 10 | 128.1108 ms | 132.9029 ms | 132.9029 ms | 127.6057 ms | 331.7830 ms | 149.1178 ms |
-| `cold-start-to-first-batch-delivered` | 10 | 154.8340 ms | 161.7054 ms | 161.7054 ms | 154.2116 ms | 366.8254 ms | 177.0478 ms |
+| `module-load` | 10 | 14.9671 ms | 15.0935 ms | 15.0935 ms | 14.9424 ms | 18.8279 ms | 15.3729 ms |
+| `main-function` | 10 | 0.0680 ms | 0.0692 ms | 0.0692 ms | 0.0669 ms | 2.4008 ms | 0.3014 ms |
+| `cold-start-to-first-composition` | 10 | 125.0054 ms | 130.7268 ms | 130.7268 ms | 124.4517 ms | 362.1581 ms | 149.5186 ms |
+| `cold-start-to-first-batch-delivered` | 10 | 151.0818 ms | 158.3077 ms | 158.3077 ms | 150.3369 ms | 396.7115 ms | 176.7001 ms |
 
 `QuickJs.memoryUsage` after module load:
 
 | Field | Value |
 | --- | ---: |
-| `memoryUsedSize` | 4205539 bytes |
-| `memoryAllocatedSize` | 5066416 bytes |
-| `objectsCount` | 12061 |
-| `objectsSize` | 868392 bytes |
+| `memoryUsedSize` | 4458076 bytes |
+| `memoryAllocatedSize` | 5370144 bytes |
+| `objectsCount` | 12661 |
+| `objectsSize` | 911592 bytes |
 | `stringsCount` | 32 |
 | `stringsSize` | 1422 bytes |
-| `jsFunctionsCount` | 8024 |
-| `jsFunctionsCodeSize` | 457641 bytes |
-| `propertiesSize` | 710192 bytes |
-| `arraysCount` | 485 |
+| `jsFunctionsCount` | 8413 |
+| `jsFunctionsCodeSize` | 482249 bytes |
+| `propertiesSize` | 745424 bytes |
+| `arraysCount` | 511 |
 
 `QuickJs.memoryUsage` after the first composition:
 
 | Field | Value |
 | --- | ---: |
-| `memoryUsedSize` | 5284877 bytes |
-| `memoryAllocatedSize` | 6292272 bytes |
-| `objectsCount` | 19207 |
-| `objectsSize` | 1382904 bytes |
+| `memoryUsedSize` | 5447887 bytes |
+| `memoryAllocatedSize` | 6496496 bytes |
+| `objectsCount` | 19394 |
+| `objectsSize` | 1396368 bytes |
 | `stringsCount` | 391 |
 | `stringsSize` | 8762 bytes |
-| `jsFunctionsCount` | 8010 |
-| `jsFunctionsCodeSize` | 457388 bytes |
-| `propertiesSize` | 1122144 bytes |
-| `arraysCount` | 1875 |
+| `jsFunctionsCount` | 8397 |
+| `jsFunctionsCodeSize` | 481966 bytes |
+| `propertiesSize` | 1098112 bytes |
+| `arraysCount` | 1901 |
 
 ## 0.2 -- Composition and recomposition
 
@@ -96,10 +96,10 @@ one being chosen here. See ADR-006 section 2.4.
 
 | Measurement | n | p50 | p95 | p99 | min | max | mean |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `clock-overhead` | 1000 | 0.0403 ms | 0.0427 ms | 0.0444 ms | 0.0375 ms | 0.0746 ms | 0.0404 ms |
-| `initial-composition-rows-23` | 50 | 38.8674 ms | 41.2483 ms | 41.5863 ms | 38.4754 ms | 41.7006 ms | 39.1854 ms |
-| `recompose-row` | 200 | 1.6522 ms | 1.7227 ms | 2.0091 ms | 1.5073 ms | 9.3205 ms | 1.7059 ms |
-| `recompose-total` | 200 | 1.8828 ms | 2.0589 ms | 3.4932 ms | 1.6879 ms | 4.9257 ms | 1.9471 ms |
+| `clock-overhead` | 1000 | 0.0406 ms | 0.0428 ms | 0.0460 ms | 0.0383 ms | 0.0854 ms | 0.0409 ms |
+| `initial-composition-rows-23` | 50 | 38.2763 ms | 40.4361 ms | 40.6730 ms | 38.0264 ms | 40.6913 ms | 38.4990 ms |
+| `recompose-row` | 200 | 1.6332 ms | 1.6701 ms | 1.7239 ms | 1.5994 ms | 4.2396 ms | 1.6476 ms |
+| `recompose-total` | 200 | 1.8113 ms | 1.8560 ms | 1.9049 ms | 1.7703 ms | 1.9179 ms | 1.8148 ms |
 
 ### Reference screen at 50 rows
 
@@ -113,10 +113,10 @@ one being chosen here. See ADR-006 section 2.4.
 
 | Measurement | n | p50 | p95 | p99 | min | max | mean |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `clock-overhead` | 1000 | 0.0405 ms | 0.0433 ms | 0.0466 ms | 0.0380 ms | 0.0560 ms | 0.0407 ms |
-| `initial-composition-rows-50` | 50 | 79.1145 ms | 81.2489 ms | 82.5718 ms | 77.8891 ms | 82.5786 ms | 79.4052 ms |
-| `recompose-row` | 200 | 2.9661 ms | 3.1285 ms | 3.2874 ms | 2.7941 ms | 3.3414 ms | 2.9864 ms |
-| `recompose-total` | 200 | 2.4893 ms | 2.5652 ms | 2.6132 ms | 2.4369 ms | 5.7168 ms | 2.5134 ms |
+| `clock-overhead` | 1000 | 0.0382 ms | 0.0401 ms | 0.0421 ms | 0.0366 ms | 0.0508 ms | 0.0383 ms |
+| `initial-composition-rows-50` | 50 | 78.6292 ms | 81.5146 ms | 81.6764 ms | 77.4647 ms | 82.1361 ms | 78.9153 ms |
+| `recompose-row` | 200 | 2.8793 ms | 2.9520 ms | 2.9828 ms | 2.8349 ms | 3.0427 ms | 2.8877 ms |
+| `recompose-total` | 200 | 2.4287 ms | 2.5071 ms | 2.5307 ms | 2.3876 ms | 2.5602 ms | 2.4343 ms |
 
 ## 0.3 -- Protocol cost per frame
 
@@ -137,11 +137,34 @@ Three encodings of the same batch are measured:
 
 | Changes | Bytes | Bytes (array) | Build p50 | Encode (kotlinx) p50 | Encode (array) p50 | Encode (native) p50 | Cross (pre-encoded) p50 | Cross (Zipline-serialized) p50 |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 35 | 33 | 0.0453 ms | 0.1095 ms | 0.1108 ms | 0.0752 ms | 0.0960 ms | 0.1241 ms |
-| 10 | 442 | 422 | 0.0489 ms | 1.0074 ms | 0.9855 ms | 0.6676 ms | 0.0989 ms | 0.7243 ms |
-| 100 | 3657 | 3457 | 0.0769 ms | 7.8247 ms | 7.5783 ms | 4.5961 ms | 0.1172 ms | 4.6643 ms |
-| 1000 | 36510 | 34510 | 0.3517 ms | 87.1678 ms | 83.5000 ms | 43.1442 ms | 0.3850 ms | 43.1151 ms |
-| 572 | 20939 | 19795 | 0.2214 ms | 45.6141 ms | 43.9545 ms | 24.1149 ms | 0.2631 ms | 24.3376 ms |
+| 1 | 35 | 33 | 0.0437 ms | 0.1059 ms | 0.1068 ms | 0.0728 ms | 0.0943 ms | 0.1258 ms |
+| 10 | 442 | 422 | 0.0474 ms | 0.9761 ms | 0.9583 ms | 0.6512 ms | 0.0935 ms | 0.7066 ms |
+| 100 | 3657 | 3457 | 0.0760 ms | 7.5856 ms | 7.3775 ms | 4.5078 ms | 0.1163 ms | 4.5751 ms |
+| 1000 | 36510 | 34510 | 0.3502 ms | 85.3075 ms | 80.4627 ms | 41.9353 ms | 0.3650 ms | 42.5533 ms |
+| 572 | 20939 | 19795 | 0.2195 ms | 44.8274 ms | 43.4080 ms | 23.8477 ms | 0.2503 ms | 23.7365 ms |
+
+### Encoding bake-off
+
+Every candidate encodes the **same** batch of 572
+changes. `Wire bytes` is what crosses `CallChannel`, which is a string channel -- so a
+binary encoding pays a Base64 surcharge here and a textual one does not. `Encode` is
+guest-side production cost; `Cross` is encode plus transport, end to end.
+
+| Encoding | Payload bytes | Wire bytes | vs. today | Encode p50 | Cross p50 | vs. today |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `json-positional` | 9091 | 9091 | -54% | 1.14 ms | 1.23 ms | -95% |
+| `json-positional-interned` | 7636 | 7636 | -61% | 1.52 ms | 1.61 ms | -93% |
+| `json-v0-native` | 19795 | 19795 | +0% | 23.84 ms | 24.02 ms | +0% |
+| `protobuf-base64` | 9561 | 12748 | -36% | 34.57 ms | 34.76 ms | +45% |
+| `json-v0-kotlinx` | 20939 | 20939 | +6% | 44.23 ms | 44.49 ms | +85% |
+| `cbor-base64` | 13905 | 18540 | -6% | 242.65 ms | 242.26 ms | +908% |
+
+- **`json-v0-kotlinx`** -- ADR-004 section 2.2 as documented, through kotlinx.serialization's pure-Kotlin encoder. Not what ships; included as the baseline the schema was written against.
+- **`json-v0-native`** -- What ships today: array polymorphism through encodeToDynamic plus QuickJS's native JSON.stringify, which is the path Zipline's CallChannel takes.
+- **`json-positional`** -- Every change becomes a positional array, so no field names cross. Built as native JavaScript values and handed straight to JSON.stringify.
+- **`json-positional-interned`** -- Positional, plus a modifier-chain table: each distinct chain crosses once and is referenced by index thereafter.
+- **`protobuf-base64`** -- Protocol buffers over a schema mirror, because ADR-004's JsonElement values have no protocol-buffer representation. Base64 because CallChannel carries a string.
+- **`cbor-base64`** -- Concise Binary Object Representation over the same schema mirror, same Base64 surcharge. Included so the answer covers binary formats generally, not just one.
 
 ## 0.4 -- Garbage-collection behaviour
 
@@ -149,9 +172,9 @@ Method: Host-forced QuickJs.gc() pauses (upper bound) plus the recomposition tai
 
 | `gcThreshold` | Recompose p50 | Recompose p99 | Recompose max | Forced pause p99 | Forced pause max | Heap used after churn |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 256 KiB | 1.619 ms | 1.680 ms | 1.720 ms | 1.345 ms | 2.291 ms | 4964598 bytes |
-| 8192 KiB | 1.642 ms | 1.766 ms | 4.480 ms | 1.470 ms | 1.491 ms | 4964462 bytes |
-| 16384 KiB | 1.621 ms | 1.673 ms | 1.728 ms | 1.466 ms | 6.337 ms | 4964990 bytes |
+| 256 KiB | 1.607 ms | 1.672 ms | 1.697 ms | 1.702 ms | 2.112 ms | 5216016 bytes |
+| 8192 KiB | 1.645 ms | 1.736 ms | 4.683 ms | 1.492 ms | 1.543 ms | 5215632 bytes |
+| 16384 KiB | 1.622 ms | 1.693 ms | 1.732 ms | 1.555 ms | 4.940 ms | 5215200 bytes |
 
 ## Notes and caveats
 

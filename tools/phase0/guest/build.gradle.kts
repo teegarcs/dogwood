@@ -24,6 +24,10 @@ kotlin {
         implementation(libs.compose.runtime.saveable.js)
         implementation(libs.coroutines.core)
         implementation(libs.serialization.json)
+        // Candidate binary encodings for the 0.3 bake-off. Measurement only; whether either
+        // ships is what the bake-off decides.
+        implementation(libs.serialization.protobuf)
+        implementation(libs.serialization.cbor)
       }
     }
   }

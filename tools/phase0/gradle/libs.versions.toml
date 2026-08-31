@@ -23,6 +23,8 @@ compose-runtime-js = { module = "androidx.compose.runtime:runtime-js", version.r
 compose-runtime-saveable-js = { module = "androidx.compose.runtime:runtime-saveable-js", version.ref = "composeRuntime" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "serialization" }
+serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "serialization" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 androidx-activity = { module = "androidx.activity:activity", version = "1.11.0" }
 

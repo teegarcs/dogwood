@@ -69,7 +69,7 @@ host:
 |---|---:|---:|---|
 | 0.2 recomposition, p95 | 8 ms | **1.67 ms** | within budget |
 | 0.3 crossing — **the leg as ruled**: steady-state per-tap batch | 4 ms | **0.12 ms** | within budget |
-| 0.3 whole-screen initial batch (not this leg; a cold-start cost) | — | 24.34 ms | to be driven down |
+| 0.3 whole-screen initial batch (not this leg; a cold-start cost) | — | 24.34 ms → **1.23 ms** with the v1 encoding | driven down 95% |
 | 0.4 maximum collection pause, p99 | 16.7 ms | **1.45 ms** | within budget |
 | 0.4 maximum collection pause, worst single sample (Pixel 10 Pro) | 16.7 ms | **22.1 ms** | outside a 60 Hz frame |
 | 0.1 cold start to first composition | 500 ms | **128 ms** | within budget |
@@ -119,14 +119,22 @@ harness cannot currently tell a collection pause from scheduler preemption, whic
 what the patched-QuickJS `JS_RunGC` hook this appendix specifies would settle. That hook is now
 worth building rather than deferring.
 
-**The 0.3 failure is the finding of Phase 0, and it is not where anyone expected it.**
-99.4% of the crossing is guest-side JavaScript Object Notation (JSON) encoding; `CallChannel`
-transport is 1.0%. Cost is linear in bytes at roughly 1.2 microseconds per byte. Steady-state
-recomposition batches — one or two changes — cross in 0.144 ms; the 24 ms is the *initial*
-batch, paid once per screen open. The full analysis, including why a binary wire format is not
-the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md).
+**The 0.3 finding, and the fix that came out of it.** 99.4% of a crossing is guest-side
+JavaScript Object Notation (JSON) encoding; `CallChannel` transport is 1.0%
+([ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md)). An encoding bake-off over
+six candidate wire formats then found the lever
+([ADR-007](adrs/layer-4/ADR-007-v1-wire-format-positional-json.md)): **positional JSON built as
+native JavaScript values and handed to QuickJS's own `JSON.stringify` crosses the whole initial
+batch in 1.23 ms instead of 24.02 ms — a 95% reduction**, confirmed at roughly seventeen-fold on
+the Pixel. The governing variable is not byte count but **how much interpreted Kotlin runs while
+encoding**; an earlier "cost is linear in bytes" reading was measured and withdrawn.
 
-**Three things are outstanding before Phase 0 can be called complete:**
+Protocol buffers and Concise Binary Object Representation (CBOR) were measured and **rejected**:
+both are slower than the JSON they would replace, because their encoders are pure Kotlin and run
+interpreted, and both must be Base64-encoded to cross a string channel — which leaves protocol
+buffers *larger* on the wire than positional JSON as well as 45% slower.
+
+**Four things are outstanding before Phase 0 can be called complete:**
 
 1. **Acquire and run the named gate device.** Nothing above opens or closes the gate, and the
    hardware-independence result above makes this the highest-value remaining task rather than a
@@ -138,7 +146,12 @@ the available escape hatch, is [Layer 4 ADR-006](adrs/layer-4/ADR-006-batch-cros
    batch is nevertheless to be driven down as far as it will go; see the wire analysis in
    [`tools/phase0/results/wire-format.md`](tools/phase0/results/wire-format.md) and
    [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.3.
-3. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
+3. **Measure host-side decode of the v1 positional format.** Every encoding figure is guest
+   encode plus transport; the host must still parse what crosses, and that leg is unmeasured for
+   every candidate. It runs on the Java Virtual Machine rather than in the interpreter so it is
+   expected to be small, but "expected to be small" is the kind of claim this project requires a
+   number for. See [ADR-007](adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) §2.5.
+4. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
    iOS organisation's written yes — neither of which is engineering work.
 
 The patched-QuickJS `JS_RunGC` hook was not built; 0.4 used the forced-`gc()` fallback this

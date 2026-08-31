@@ -1,9 +1,10 @@
 # ADR-006: The Batch Crossing Is Guest-Side Encoding, Not Transport
 
 **Date:** 2026-08-31
-**Status:** Accepted for §2.1, §2.2, and §2.4 (ruled 2026-08-31); §2.3's v1 encoding candidates
-remain open pending the measurement described there. No leg is settled against the *named* gate
-device, which has not been run.
+**Status:** Accepted for §2.1, §2.2, and §2.4 (ruled 2026-08-31). §2.3's v1 encoding question is
+**resolved by [ADR-007](ADR-007-v1-wire-format-positional-json.md)**, which also **withdraws this
+document's "linear in bytes" claim** — see §1. No leg is settled against the *named* gate device,
+which has not been run.
 
 ## 1. Context & Problem Statement
 
@@ -49,9 +50,15 @@ does. `Endpoint.json` sets `useArrayPolymorphism = true`, and on Kotlin/JavaScri
 The measured native-encode figure and the measured end-to-end figure agree to within 0.6%,
 which is what confirms the decomposition rather than assuming it.
 
-**Cost is linear in bytes, and the constant is large.** 1.21 microseconds per byte at 572
-changes, 1.24 at 1,000. Halving the bytes halves the time; nothing else about the schema
-matters at this granularity.
+**Cost tracked bytes across the encodings compared here.** 1.21 microseconds per byte at 572
+changes, 1.24 at 1,000.
+
+> **Withdrawn by [ADR-007](ADR-007-v1-wire-format-positional-json.md).** Read as a causal law —
+> "halve the bytes, halve the time" — this is wrong, and the bake-off in ADR-007 falsifies it
+> directly: one candidate produces 7% fewer bytes and takes 31% longer, another 36% fewer wire
+> bytes and 45% longer. Bytes and time correlated here only because every encoding compared in
+> this ADR walked `kotlinx.serialization`'s pure-Kotlin serializers. **The governing variable is
+> how much interpreted Kotlin runs during encoding.**
 
 **Steady state is not the problem.** A one-change batch — the shape a real recomposition
 produces — crosses in **0.144 ms** at p50. The reference screen's *recomposition* batches are
@@ -86,15 +93,19 @@ gate leg, the v1 revision considers a binary encoding." Zipline's boundary is
 would have to be text-encoded to cross it, which *adds* bytes to a cost that is linear in
 bytes. The real candidates are therefore, in order of evidence:
 
-1. **Send fewer bytes.** At 1.2 microseconds per byte this is the only lever with leverage.
-   Concretely: shorter property encodings, omitting modifier chains that repeat verbatim
-   across siblings, and per-element modifier diffing instead of whole-chain replacement —
-   which ADR-004 §4 already lists as a v1 optimisation "to be justified by 0.3's numbers."
-   These are those numbers.
+1. ~~**Send fewer bytes.**~~ **Superseded by [ADR-007](ADR-007-v1-wire-format-positional-json.md).**
+   The winning lever turned out to be getting encoding work out of the interpreter, not shaving
+   the schema. Positional JSON built as native JavaScript values and handed to QuickJS's own
+   `JSON.stringify` measured **1.23 ms against 24.02 ms**, a 95% reduction, of which the 54%
+   byte reduction is the smaller half of the story. Chain interning — listed here as an obvious
+   win — was measured and **rejected**: it costs more interpreted work than the repetition it
+   removes.
 2. **Send fewer changes in the first crossing** — slice the initial batch, so a screen's first
-   paint does not wait on all 572 changes.
-3. **Patch or extend Zipline's channel** to carry bytes. Real, but it forks a dependency and
-   must be costed as such rather than assumed.
+   paint does not wait on all 572 changes. Still available; no longer needed at these numbers.
+3. ~~**Patch or extend Zipline's channel** to carry bytes.~~ **Closed.** ADR-007 measured
+   protocol buffers and Concise Binary Object Representation (CBOR) and both are *slower* than
+   the JSON they would replace, because their encoders are pure Kotlin and run interpreted. A
+   byte channel would remove the Base64 surcharge but not the encoder cost that dominates.
 
 **2.4 The gate leg's reading was escalated rather than renegotiated, and has now been ruled.**
 The leg was reported **FAILED** as written, because roadmap.md says thresholds "may be

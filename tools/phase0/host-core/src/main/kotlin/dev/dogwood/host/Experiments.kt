@@ -113,6 +113,22 @@ data class Experiment03(
   val points: List<BatchPoint>,
   val initialBatch: BatchPoint,
   val method: String,
+  /** The encoding bake-off: candidate wire formats for the same batch. */
+  val encodings: List<VariantResult> = emptyList(),
+)
+
+/** One candidate encoding, measured on the reference screen's initial batch. */
+@Serializable
+data class VariantResult(
+  val name: String,
+  /** The encoding's own size, before any text-encoding needed to cross a string channel. */
+  val payloadBytes: Int,
+  /** What actually crosses. For a binary encoding this is the Base64 length. */
+  val wireBytes: Int,
+  val encode: Stat,
+  /** Encode plus transport, end to end. */
+  val cross: Stat,
+  val note: String,
 )
 
 @Serializable
@@ -337,7 +353,9 @@ class Phase0Driver(
       bytes = initialBytes.size,
       gzippedBytes = gzippedSize(initialBytes),
     )
+    val encodings = measureEncodings(loaded, initialCount)
     return Experiment03(
+      encodings = encodings,
       points = points,
       initialBatch = initialPoint,
       method = "End-to-end plus total bytes. The five-pass internal breakdown (guest encode, " +
@@ -346,6 +364,27 @@ class Phase0Driver(
         "roadmap.md permits reporting end-to-end plus bytes when that slips. Guest encode " +
         "and stringify ARE separated here, because the guest can time those itself.",
     )
+  }
+
+  /**
+   * Runs every candidate encoding over the reference screen's initial batch.
+   *
+   * Encode and crossing are reported separately because they answer different questions: the
+   * encode column says which format is cheapest to produce, and the cross column says whether
+   * the size it saved was worth what it cost to produce.
+   */
+  private fun measureEncodings(loaded: LoadedGuest, changeCount: Int): List<VariantResult> {
+    return loaded.guest.measureEncodingVariants(changeCount, warmups, iterations).map { variant ->
+      val cross = loaded.guest.crossVariant(variant.name, changeCount, iterations, warmups)
+      VariantResult(
+        name = variant.name,
+        payloadBytes = variant.payloadBytes,
+        wireBytes = variant.wireBytes,
+        encode = variant.encode.stat(),
+        cross = cross.stat(),
+        note = variant.note,
+      )
+    }
   }
 
   private fun batchPoint(loaded: LoadedGuest, size: Int): BatchPoint {

@@ -25,6 +25,7 @@ import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.DogwoodJsonArrayPolymorphic
 import dev.dogwood.protocol.EncodeResult
+import dev.dogwood.protocol.EncodingVariant
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.MonotonicClock
 import dev.dogwood.protocol.Phase0Guest
@@ -269,6 +270,129 @@ class Phase0GuestImpl : Phase0Guest {
       nanos.add(t1 - t0 - clockOverheadNanos)
     }
     return Samples("cross-$changeCount-${if (encoded) "preencoded" else "zipline"}", nanos)
+  }
+
+  /**
+   * The candidate encodings, all of the same batch. Named so the host can cross a chosen one.
+   *
+   * Each variant is timed end to end from the in-memory `List<Change>` to the string that
+   * would cross, which is the only comparison that means anything: an encoding that produces
+   * fewer bytes but takes longer to produce them is not a win on a boundary whose cost is
+   * dominated by guest-side work.
+   */
+  private fun buildVariant(name: String, batch: ChangeBatch): Pair<String, Int> = when (name) {
+    // Today's real cost: array polymorphism through Zipline's own native path.
+    "json-v0-native" -> {
+      val json = encodeViaNativeStringify(batch)
+      json to json.length
+    }
+    // ADR-004's documented rendering, through kotlinx's pure-Kotlin encoder.
+    "json-v0-kotlinx" -> {
+      val json = DogwoodJson.encodeToString(ChangeBatch.serializer(), batch)
+      json to json.length
+    }
+    "json-positional" -> {
+      val json = encodePositional(batch)
+      json to json.length
+    }
+    "json-positional-interned" -> {
+      val json = encodePositionalInterned(batch)
+      json to json.length
+    }
+    "protobuf-base64" -> {
+      val bytes = encodeProtobufBytes(batch)
+      toWireString(bytes) to bytes.size
+    }
+    "cbor-base64" -> {
+      val bytes = encodeCborBytes(batch)
+      toWireString(bytes) to bytes.size
+    }
+    else -> error("unknown encoding variant: ${'$'}name")
+  }
+
+  private val variantNames = listOf(
+    "json-v0-kotlinx",
+    "json-v0-native",
+    "json-positional",
+    "json-positional-interned",
+    "protobuf-base64",
+    "cbor-base64",
+  )
+
+  private val variantNotes = mapOf(
+    "json-v0-kotlinx" to "ADR-004 section 2.2 as documented, through kotlinx.serialization's " +
+      "pure-Kotlin encoder. Not what ships; included as the baseline the schema was written against.",
+    "json-v0-native" to "What ships today: array polymorphism through encodeToDynamic plus " +
+      "QuickJS's native JSON.stringify, which is the path Zipline's CallChannel takes.",
+    "json-positional" to "Every change becomes a positional array, so no field names cross. " +
+      "Built as native JavaScript values and handed straight to JSON.stringify.",
+    "json-positional-interned" to "Positional, plus a modifier-chain table: each distinct chain " +
+      "crosses once and is referenced by index thereafter.",
+    "protobuf-base64" to "Protocol buffers over a schema mirror, because ADR-004's JsonElement " +
+      "values have no protocol-buffer representation. Base64 because CallChannel carries a string.",
+    "cbor-base64" to "Concise Binary Object Representation over the same schema mirror, same " +
+      "Base64 surcharge. Included so the answer covers binary formats generally, not just one.",
+  )
+
+  private fun sourceBatch(changeCount: Int): ChangeBatch {
+    val composition = live(if (liveRows > 0) liveRows else REFERENCE_ROWS)
+    val source = composition.initialBatch.g
+    val changes = ArrayList<Change>(changeCount)
+    for (n in 0 until changeCount) changes.add(source[n % source.size])
+    return ChangeBatch(1, changes)
+  }
+
+  override fun measureEncodingVariants(
+    changeCount: Int,
+    warmups: Int,
+    iterations: Int,
+  ): List<EncodingVariant> {
+    val c = clock()
+    val batch = sourceBatch(changeCount)
+    return variantNames.map { name ->
+      val nanos = ArrayList<Long>(iterations)
+      var wire = 0
+      var payload = 0
+      repeat(warmups + iterations) { i ->
+        val t0 = c.nowNanos()
+        val (text, payloadBytes) = buildVariant(name, batch)
+        val t1 = c.nowNanos()
+        if (i >= warmups) nanos.add(t1 - t0 - clockOverheadNanos)
+        wire = text.encodeToByteArray().size
+        payload = payloadBytes
+      }
+      EncodingVariant(
+        name = name,
+        payloadBytes = payload,
+        wireBytes = wire,
+        encode = Samples("encode-${'$'}name-${'$'}changeCount", nanos),
+        note = variantNotes.getValue(name),
+      )
+    }
+  }
+
+  override fun crossVariant(
+    variant: String,
+    changeCount: Int,
+    iterations: Int,
+    warmups: Int,
+  ): Samples {
+    val c = clock()
+    val h = host()
+    val batch = sourceBatch(changeCount)
+    val nanos = ArrayList<Long>(iterations)
+    repeat(warmups) {
+      val (text, _) = buildVariant(variant, batch)
+      h.sendChangesEncoded(text)
+    }
+    repeat(iterations) {
+      val t0 = c.nowNanos()
+      val (text, _) = buildVariant(variant, batch)
+      h.sendChangesEncoded(text)
+      val t1 = c.nowNanos()
+      nanos.add(t1 - t0 - clockOverheadNanos)
+    }
+    return Samples("cross-${'$'}variant-${'$'}changeCount", nanos)
   }
 
   override fun churn(rows: Int, iterations: Int) {

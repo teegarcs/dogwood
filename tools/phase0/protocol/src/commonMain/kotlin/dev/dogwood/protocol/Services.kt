@@ -104,6 +104,23 @@ data class EncodeResult(
 )
 
 /**
+ * One candidate encoding of the same change batch.
+ *
+ * [payloadBytes] is the encoding's own size. [wireBytes] is what would actually cross
+ * `CallChannel`, which is a string channel -- so a binary encoding pays a text-encoding
+ * surcharge here and a textual one does not.
+ */
+@Serializable
+data class EncodingVariant(
+  val name: String,
+  val payloadBytes: Int,
+  val wireBytes: Int,
+  /** Cost of producing [wireBytes] from the in-memory `List<Change>`, inside the guest. */
+  val encode: Samples,
+  val note: String,
+)
+
+/**
  * Implemented by the guest, called by the host. Every method is measurement scaffolding.
  *
  * All methods are non-suspending so that each call is one synchronous crossing and the
@@ -147,6 +164,18 @@ interface Phase0Guest : ZiplineService {
    *   experiment 0.1 must pass zero, because a cold screen open gets no warm-up.
    */
   fun crossBatch(changeCount: Int, iterations: Int, encoded: Boolean, warmups: Int): Samples
+
+  /**
+   * Encoding bake-off: every candidate encoding of the same batch, measured in the guest.
+   *
+   * The candidates are named in [dev.dogwood.protocol.EncodingVariant.name] and documented
+   * in the guest implementation. Cost is linear in bytes on this boundary, so this is the
+   * experiment that decides the v1 wire format.
+   */
+  fun measureEncodingVariants(changeCount: Int, warmups: Int, iterations: Int): List<EncodingVariant>
+
+  /** Crosses one named variant's payload end to end, so transport is included. */
+  fun crossVariant(variant: String, changeCount: Int, iterations: Int, warmups: Int): Samples
 
   /** Experiment 0.4: allocation churn under a repeated recomposition load. */
   fun churn(rows: Int, iterations: Int)

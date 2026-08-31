@@ -179,6 +179,32 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
   }
   appendLine()
 
+  if (r.experiment03.encodings.isNotEmpty()) {
+    val baseline = r.experiment03.encodings.firstOrNull { it.name == "json-v0-native" }
+    appendLine("### Encoding bake-off")
+    appendLine()
+    appendLine("Every candidate encodes the **same** batch of ${r.experiment03.initialBatch.changes}")
+    appendLine("changes. `Wire bytes` is what crosses `CallChannel`, which is a string channel -- so a")
+    appendLine("binary encoding pays a Base64 surcharge here and a textual one does not. `Encode` is")
+    appendLine("guest-side production cost; `Cross` is encode plus transport, end to end.")
+    appendLine()
+    appendLine("| Encoding | Payload bytes | Wire bytes | vs. today | Encode p50 | Cross p50 | vs. today |")
+    appendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for (v in r.experiment03.encodings.sortedBy { it.cross.p50Ms }) {
+      val sizeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.wireBytes / it.wireBytes - 100)}%" } ?: "--"
+      val timeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.cross.p50Ms / it.cross.p50Ms - 100)}%" } ?: "--"
+      appendLine(
+        "| `${v.name}` | ${v.payloadBytes} | ${v.wireBytes} | $sizeDelta | " +
+          "${"%.2f".format(v.encode.p50Ms)} ms | ${"%.2f".format(v.cross.p50Ms)} ms | $timeDelta |",
+      )
+    }
+    appendLine()
+    for (v in r.experiment03.encodings) {
+      appendLine("- **`${v.name}`** -- ${v.note}")
+    }
+    appendLine()
+  }
+
   appendLine("## 0.4 -- Garbage-collection behaviour")
   appendLine()
   appendLine("Method: ${r.experiment04.method}")
