@@ -131,6 +131,9 @@ class DogwoodComposition(
     Snapshot.sendApplyNotifications()
   }
 
+  /** How many event closures are currently retained. Reclamation is not automatic. */
+  val lambdaSlotCount: Int get() = lambdas.size
+
   fun dispose() {
     composition.dispose()
     recomposer.cancel()

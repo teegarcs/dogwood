@@ -79,6 +79,28 @@ sequenceDiagram
 - **Snapshot mirror** — the host's tree, whose every property is snapshot state, so applying a
   change invalidates exactly the composables that read it.
 
+## Tests
+
+```bash
+./gradlew :dogwood-compose:jsNodeTest    # guest: composition and applier behaviour
+./gradlew :dogwood-host:jvmTest          # host: decoding and the apply path
+```
+
+Both named Phase 1 gate conditions are covered, and they are covered where they actually live —
+the guest tests decode the payload that crossed rather than inspecting the recorder, so a test
+cannot pass while the bytes are wrong:
+
+| Gate condition | Test |
+| --- | --- |
+| A state change three guest-defined wrapper layers deep crosses as a single property change | `WrapperScopingTest.stateChangeThreeWrappersDeepCrossesAsOnePropertyChange` |
+| Node identity survives list reordering | `NodeIdentityTest.reorderingAListMovesNodesRatherThanRecreatingThem`, `HostTreeApplyTest.aMoveKeepsTheSameNodeInstances` |
+
+Alongside them: an idle composition produces no traffic at all, removing rows purges their
+closures depth-first, sequence numbers are monotonic, a node is attached only after its initial
+properties are set, modifier chains keep their order, an unknown widget tag becomes a
+placeholder so sibling indices survive a dictionary-version skew, and an absent property falls
+back to the host default rather than to an empty value.
+
 ## What is not done
 
 Named Phase 1 deliverables that this does **not** yet satisfy, so nobody mistakes a working
@@ -93,8 +115,4 @@ screen for a finished phase:
   are plausible stand-ins, not the five highest-usage components of a real design system
   measured by call-site count.
 - **`AsyncImage` draws a placeholder.** Real image loading is the resources subsystem, Phase 4.
-- **Two gate conditions are unverified**: that node identity survives list reordering, and the
-  wrapper-scoping test — a state change three guest-defined wrapper layers deep crossing as a
-  single property change. `key()` and the applier's move handling are written for both; neither
-  has a test.
 - **Responsiveness is unmeasured on a real device.** Verified on an emulator only.

@@ -50,6 +50,11 @@ kotlin {
         implementation(libs.coroutines.android)
       }
     }
+    jvmTest {
+      dependencies {
+        implementation(kotlin("test"))
+      }
+    }
   }
 }
 
