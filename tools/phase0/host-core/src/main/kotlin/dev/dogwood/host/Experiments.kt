@@ -11,7 +11,9 @@ package dev.dogwood.host
 import app.cash.zipline.EventListener
 import app.cash.zipline.Zipline
 import app.cash.zipline.loader.ZiplineFile
+import dev.dogwood.protocol.ChangeBatch
 import dev.dogwood.protocol.CompositionResult
+import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.EncodeResult
 import dev.dogwood.protocol.Phase0Guest
 import java.io.File
@@ -128,6 +130,8 @@ data class VariantResult(
   val encode: Stat,
   /** Encode plus transport, end to end. */
   val cross: Stat,
+  /** Host-side parse of the payload back into a `ChangeBatch`. Null where not applicable. */
+  val hostDecode: Stat? = null,
   val note: String,
 )
 
@@ -376,15 +380,47 @@ class Phase0Driver(
   private fun measureEncodings(loaded: LoadedGuest, changeCount: Int): List<VariantResult> {
     return loaded.guest.measureEncodingVariants(changeCount, warmups, iterations).map { variant ->
       val cross = loaded.guest.crossVariant(variant.name, changeCount, iterations, warmups)
+      val hostDecode = decodeStat(loaded, variant.name, changeCount)
       VariantResult(
         name = variant.name,
         payloadBytes = variant.payloadBytes,
         wireBytes = variant.wireBytes,
         encode = variant.encode.stat(),
         cross = cross.stat(),
+        hostDecode = hostDecode,
         note = variant.note,
       )
     }
+  }
+
+  /**
+   * Host-side decode of one variant's payload.
+   *
+   * Measured on the host rather than in the guest, because that is where it happens: this is
+   * Java Virtual Machine work, compiled rather than interpreted, and the whole question ADR-007
+   * left open is whether it is small enough to ignore beside the guest's encoding cost.
+   *
+   * Only the JavaScript Object Notation (JSON) variants are decoded. The binary candidates are
+   * rejected on encode cost alone, and building host decoders for formats nobody will ship
+   * would be work spent to make a foregone conclusion look more thorough.
+   */
+  private fun decodeStat(loaded: LoadedGuest, variant: String, changeCount: Int): Stat? {
+    val decode: (String) -> ChangeBatch = when (variant) {
+      "json-positional" -> ::decodePositional
+      "json-positional-interned" -> ::decodePositionalInterned
+      "json-v0-native" -> { s -> ZiplineWireJson.decodeFromString(ChangeBatch.serializer(), s) }
+      "json-v0-kotlinx" -> { s -> DogwoodJson.decodeFromString(ChangeBatch.serializer(), s) }
+      else -> return null
+    }
+    val payload = loaded.guest.variantPayload(variant, changeCount)
+    val nanos = ArrayList<Long>(iterations)
+    repeat(warmups) { decode(payload) }
+    repeat(iterations) {
+      val t0 = System.nanoTime()
+      decode(payload)
+      nanos.add(System.nanoTime() - t0)
+    }
+    return stat("host-decode-$variant", nanos)
   }
 
   private fun batchPoint(loaded: LoadedGuest, size: Int): BatchPoint {

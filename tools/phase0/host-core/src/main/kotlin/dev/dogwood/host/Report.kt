@@ -188,14 +188,15 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
     appendLine("binary encoding pays a Base64 surcharge here and a textual one does not. `Encode` is")
     appendLine("guest-side production cost; `Cross` is encode plus transport, end to end.")
     appendLine()
-    appendLine("| Encoding | Payload bytes | Wire bytes | vs. today | Encode p50 | Cross p50 | vs. today |")
-    appendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    appendLine("| Encoding | Payload bytes | Wire bytes | vs. today | Encode p50 | Cross p50 | vs. today | Host decode p50 |")
+    appendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     for (v in r.experiment03.encodings.sortedBy { it.cross.p50Ms }) {
       val sizeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.wireBytes / it.wireBytes - 100)}%" } ?: "--"
       val timeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.cross.p50Ms / it.cross.p50Ms - 100)}%" } ?: "--"
       appendLine(
         "| `${v.name}` | ${v.payloadBytes} | ${v.wireBytes} | $sizeDelta | " +
-          "${"%.2f".format(v.encode.p50Ms)} ms | ${"%.2f".format(v.cross.p50Ms)} ms | $timeDelta |",
+          "${"%.2f".format(v.encode.p50Ms)} ms | ${"%.2f".format(v.cross.p50Ms)} ms | $timeDelta | " +
+          "${v.hostDecode?.let { "%.2f ms".format(it.p50Ms) } ?: "not measured"} |",
       )
     }
     appendLine()

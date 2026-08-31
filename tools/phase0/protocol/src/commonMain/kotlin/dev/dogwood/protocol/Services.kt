@@ -174,6 +174,9 @@ interface Phase0Guest : ZiplineService {
    */
   fun measureEncodingVariants(changeCount: Int, warmups: Int, iterations: Int): List<EncodingVariant>
 
+  /** Returns one named variant's payload, so the host can measure decoding it. */
+  fun variantPayload(variant: String, changeCount: Int): String
+
   /** Crosses one named variant's payload end to end, so transport is included. */
   fun crossVariant(variant: String, changeCount: Int, iterations: Int, warmups: Int): Samples
 

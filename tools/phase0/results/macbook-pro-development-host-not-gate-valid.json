@@ -12,77 +12,77 @@
     "referenceRows": 23,
     "experiment01": {
         "sizes": {
-            "minifiedJsBytes": 2550018,
-            "gzippedJsBytes": 334365,
-            "ziplineBytecodeBytes": 1149235,
-            "ziplineFileBytes": 1149255,
+            "minifiedJsBytes": 2550994,
+            "gzippedJsBytes": 334393,
+            "ziplineBytecodeBytes": 1149892,
+            "ziplineFileBytes": 1149912,
             "perModule": {
-                "./guest.js": 1149235
+                "./guest.js": 1149892
             }
         },
         "moduleLoad": {
             "label": "module-load",
             "count": 10,
-            "p50Ms": 14.967083,
-            "p95Ms": 15.0935,
-            "p99Ms": 15.0935,
-            "minMs": 14.942375,
-            "maxMs": 18.827917,
-            "meanMs": 15.372879
+            "p50Ms": 15.204375,
+            "p95Ms": 15.43925,
+            "p99Ms": 15.43925,
+            "minMs": 15.070875,
+            "maxMs": 16.426417,
+            "meanMs": 15.324487
         },
         "mainFunction": {
             "label": "main-function",
             "count": 10,
-            "p50Ms": 0.068041,
-            "p95Ms": 0.069167,
-            "p99Ms": 0.069167,
-            "minMs": 0.066916,
-            "maxMs": 2.40075,
-            "meanMs": 0.301404
+            "p50Ms": 0.071125,
+            "p95Ms": 0.07925,
+            "p99Ms": 0.07925,
+            "minMs": 0.066375,
+            "maxMs": 2.402167,
+            "meanMs": 0.304341
         },
         "coldStartToFirstComposition": {
             "label": "cold-start-to-first-composition",
             "count": 10,
-            "p50Ms": 125.005375,
-            "p95Ms": 130.726833,
-            "p99Ms": 130.726833,
-            "minMs": 124.451708,
-            "maxMs": 362.158125,
-            "meanMs": 149.518645
+            "p50Ms": 127.300916,
+            "p95Ms": 132.3965,
+            "p99Ms": 132.3965,
+            "minMs": 126.01675,
+            "maxMs": 353.064417,
+            "meanMs": 150.207408
         },
         "coldStartToFirstBatchDelivered": {
             "label": "cold-start-to-first-batch-delivered",
             "count": 10,
-            "p50Ms": 151.081792,
-            "p95Ms": 158.307667,
-            "p99Ms": 158.307667,
-            "minMs": 150.336916,
-            "maxMs": 396.711541,
-            "meanMs": 176.700137
+            "p50Ms": 153.893791,
+            "p95Ms": 160.309959,
+            "p99Ms": 160.309959,
+            "minMs": 152.133,
+            "maxMs": 388.86925,
+            "meanMs": 177.874045
         },
         "memoryAfterLoad": {
-            "memoryUsedSize": 4458076,
-            "memoryAllocatedSize": 5370144,
-            "objectsCount": 12661,
-            "objectsSize": 911592,
+            "memoryUsedSize": 4464660,
+            "memoryAllocatedSize": 5377744,
+            "objectsCount": 12696,
+            "objectsSize": 914112,
             "stringsCount": 32,
             "stringsSize": 1422,
-            "jsFunctionsCount": 8413,
-            "jsFunctionsCodeSize": 482249,
-            "propertiesSize": 745424,
-            "arraysCount": 511
+            "jsFunctionsCount": 8418,
+            "jsFunctionsCodeSize": 482477,
+            "propertiesSize": 747216,
+            "arraysCount": 520
         },
         "memoryAfterFirstComposition": {
-            "memoryUsedSize": 5447887,
-            "memoryAllocatedSize": 6496496,
-            "objectsCount": 19394,
-            "objectsSize": 1396368,
+            "memoryUsedSize": 5457423,
+            "memoryAllocatedSize": 6507472,
+            "objectsCount": 19445,
+            "objectsSize": 1400040,
             "stringsCount": 391,
             "stringsSize": 8762,
-            "jsFunctionsCount": 8397,
-            "jsFunctionsCodeSize": 481966,
-            "propertiesSize": 1098112,
-            "arraysCount": 1901
+            "jsFunctionsCount": 8402,
+            "jsFunctionsCodeSize": 482194,
+            "propertiesSize": 1102016,
+            "arraysCount": 1910
         }
     },
     "experiment02": [
@@ -96,42 +96,42 @@
             "clockOverhead": {
                 "label": "clock-overhead",
                 "count": 1000,
-                "p50Ms": 0.040625,
-                "p95Ms": 0.042791,
-                "p99Ms": 0.045959,
-                "minMs": 0.038291,
-                "maxMs": 0.085417,
-                "meanMs": 0.040851
+                "p50Ms": 0.040958,
+                "p95Ms": 0.043583,
+                "p99Ms": 0.047167,
+                "minMs": 0.039042,
+                "maxMs": 0.070208,
+                "meanMs": 0.041212
             },
             "initialComposition": {
                 "label": "initial-composition-rows-23",
                 "count": 50,
-                "p50Ms": 38.276333,
-                "p95Ms": 40.436125,
-                "p99Ms": 40.673042,
-                "minMs": 38.026416,
-                "maxMs": 40.691334,
-                "meanMs": 38.499003
+                "p50Ms": 38.746958,
+                "p95Ms": 40.938667,
+                "p99Ms": 41.696667,
+                "minMs": 38.249584,
+                "maxMs": 41.7355,
+                "meanMs": 39.020037
             },
             "recomposeOneNodeDiff": {
                 "label": "recompose-row",
                 "count": 200,
-                "p50Ms": 1.633166,
-                "p95Ms": 1.670083,
-                "p99Ms": 1.723917,
-                "minMs": 1.599375,
-                "maxMs": 4.239625,
-                "meanMs": 1.647567
+                "p50Ms": 1.6515,
+                "p95Ms": 1.7815,
+                "p99Ms": 1.826375,
+                "minMs": 1.586292,
+                "maxMs": 4.718875,
+                "meanMs": 1.678134
             },
             "recomposeTwoNodeDiff": {
                 "label": "recompose-total",
                 "count": 200,
-                "p50Ms": 1.811334,
-                "p95Ms": 1.855959,
-                "p99Ms": 1.904917,
-                "minMs": 1.770292,
-                "maxMs": 1.917875,
-                "meanMs": 1.814799
+                "p50Ms": 1.819459,
+                "p95Ms": 1.877667,
+                "p99Ms": 1.909709,
+                "minMs": 1.782792,
+                "maxMs": 1.936792,
+                "meanMs": 1.824452
             }
         },
         {
@@ -144,42 +144,42 @@
             "clockOverhead": {
                 "label": "clock-overhead",
                 "count": 1000,
-                "p50Ms": 0.038167,
-                "p95Ms": 0.040125,
-                "p99Ms": 0.042125,
-                "minMs": 0.036625,
-                "maxMs": 0.050792,
-                "meanMs": 0.038331
+                "p50Ms": 0.038667,
+                "p95Ms": 0.042708,
+                "p99Ms": 0.0475,
+                "minMs": 0.036583,
+                "maxMs": 0.141959,
+                "meanMs": 0.039364
             },
             "initialComposition": {
                 "label": "initial-composition-rows-50",
                 "count": 50,
-                "p50Ms": 78.629208,
-                "p95Ms": 81.514625,
-                "p99Ms": 81.676375,
-                "minMs": 77.464666,
-                "maxMs": 82.136083,
-                "meanMs": 78.915348
+                "p50Ms": 79.868083,
+                "p95Ms": 82.106375,
+                "p99Ms": 82.8805,
+                "minMs": 78.600208,
+                "maxMs": 82.995791,
+                "meanMs": 80.056343
             },
             "recomposeOneNodeDiff": {
                 "label": "recompose-row",
                 "count": 200,
-                "p50Ms": 2.879291,
-                "p95Ms": 2.951958,
-                "p99Ms": 2.98275,
-                "minMs": 2.834916,
-                "maxMs": 3.042667,
-                "meanMs": 2.887693
+                "p50Ms": 2.9215,
+                "p95Ms": 2.974958,
+                "p99Ms": 3.033541,
+                "minMs": 2.866291,
+                "maxMs": 3.19125,
+                "meanMs": 2.925913
             },
             "recomposeTwoNodeDiff": {
                 "label": "recompose-total",
                 "count": 200,
-                "p50Ms": 2.428749,
-                "p95Ms": 2.507083,
-                "p99Ms": 2.530666,
-                "minMs": 2.387583,
-                "maxMs": 2.560166,
-                "meanMs": 2.43426
+                "p50Ms": 2.480583,
+                "p95Ms": 2.555791,
+                "p99Ms": 2.592,
+                "minMs": 2.434291,
+                "maxMs": 2.641875,
+                "meanMs": 2.486311
             }
         }
     ],
@@ -194,62 +194,62 @@
                 "build": {
                     "label": "build-1",
                     "count": 200,
-                    "p50Ms": 0.043708,
-                    "p95Ms": 0.046083,
-                    "p99Ms": 0.04925,
-                    "minMs": 0.04225,
-                    "maxMs": 0.052584,
-                    "meanMs": 0.044022
+                    "p50Ms": 0.043792,
+                    "p95Ms": 0.047416,
+                    "p99Ms": 0.05175,
+                    "minMs": 0.042542,
+                    "maxMs": 0.055042,
+                    "meanMs": 0.044299
                 },
                 "stringify": {
                     "label": "stringify-discriminator-1",
                     "count": 200,
-                    "p50Ms": 0.105917,
-                    "p95Ms": 0.109958,
-                    "p99Ms": 0.117042,
-                    "minMs": 0.104125,
-                    "maxMs": 0.124125,
-                    "meanMs": 0.10648
+                    "p50Ms": 0.106167,
+                    "p95Ms": 0.11225,
+                    "p99Ms": 0.115041,
+                    "minMs": 0.103833,
+                    "maxMs": 0.11625,
+                    "meanMs": 0.107124
                 },
                 "stringifyArrayPolymorphic": {
                     "label": "stringify-arraypolymorphic-1",
                     "count": 200,
-                    "p50Ms": 0.106834,
-                    "p95Ms": 0.110291,
-                    "p99Ms": 0.114292,
-                    "minMs": 0.105208,
-                    "maxMs": 0.120292,
-                    "meanMs": 0.107284
+                    "p50Ms": 0.107416,
+                    "p95Ms": 0.113333,
+                    "p99Ms": 0.116834,
+                    "minMs": 0.105917,
+                    "maxMs": 1.955625,
+                    "meanMs": 0.117324
                 },
                 "stringifyNative": {
                     "label": "stringify-native-1",
                     "count": 200,
-                    "p50Ms": 0.07275,
-                    "p95Ms": 0.077167,
-                    "p99Ms": 0.079167,
-                    "minMs": 0.071166,
-                    "maxMs": 1.823083,
-                    "meanMs": 0.081952
+                    "p50Ms": 0.072625,
+                    "p95Ms": 0.077166,
+                    "p99Ms": 0.079834,
+                    "minMs": 0.071167,
+                    "maxMs": 0.082667,
+                    "meanMs": 0.073168
                 },
                 "crossPreEncoded": {
                     "label": "cross-1-preencoded",
                     "count": 200,
-                    "p50Ms": 0.094333,
-                    "p95Ms": 0.106791,
-                    "p99Ms": 0.11525,
-                    "minMs": 0.089959,
-                    "maxMs": 0.130625,
-                    "meanMs": 0.096127
+                    "p50Ms": 0.094292,
+                    "p95Ms": 0.10475,
+                    "p99Ms": 0.120542,
+                    "minMs": 0.09,
+                    "maxMs": 0.127542,
+                    "meanMs": 0.095621
                 },
                 "crossZiplineSerialized": {
                     "label": "cross-1-zipline",
                     "count": 200,
-                    "p50Ms": 0.125792,
-                    "p95Ms": 0.132917,
-                    "p99Ms": 0.137,
-                    "minMs": 0.121,
-                    "maxMs": 0.142708,
-                    "meanMs": 0.126357
+                    "p50Ms": 0.127333,
+                    "p95Ms": 0.135167,
+                    "p99Ms": 0.140666,
+                    "minMs": 0.124292,
+                    "maxMs": 0.191458,
+                    "meanMs": 0.128707
                 }
             },
             {
@@ -261,62 +261,62 @@
                 "build": {
                     "label": "build-10",
                     "count": 200,
-                    "p50Ms": 0.047417,
-                    "p95Ms": 0.05,
-                    "p99Ms": 0.055458,
-                    "minMs": 0.046416,
-                    "maxMs": 2.485292,
-                    "meanMs": 0.05994
+                    "p50Ms": 0.049,
+                    "p95Ms": 0.0825,
+                    "p99Ms": 0.146333,
+                    "minMs": 0.046209,
+                    "maxMs": 0.202792,
+                    "meanMs": 0.054223
                 },
                 "stringify": {
                     "label": "stringify-discriminator-10",
                     "count": 200,
-                    "p50Ms": 0.976125,
-                    "p95Ms": 0.993333,
-                    "p99Ms": 1.0015,
-                    "minMs": 0.964834,
-                    "maxMs": 3.41625,
-                    "meanMs": 0.990096
+                    "p50Ms": 1.006583,
+                    "p95Ms": 1.825208,
+                    "p99Ms": 3.115875,
+                    "minMs": 0.965083,
+                    "maxMs": 6.698375,
+                    "meanMs": 1.142963
                 },
                 "stringifyArrayPolymorphic": {
                     "label": "stringify-arraypolymorphic-10",
                     "count": 200,
-                    "p50Ms": 0.95825,
-                    "p95Ms": 0.978042,
-                    "p99Ms": 0.995167,
-                    "minMs": 0.946666,
-                    "maxMs": 1.001416,
-                    "meanMs": 0.961036
+                    "p50Ms": 0.988417,
+                    "p95Ms": 1.809708,
+                    "p99Ms": 2.652959,
+                    "minMs": 0.953917,
+                    "maxMs": 3.740416,
+                    "meanMs": 1.109514
                 },
                 "stringifyNative": {
                     "label": "stringify-native-10",
                     "count": 200,
-                    "p50Ms": 0.651167,
-                    "p95Ms": 0.66375,
-                    "p99Ms": 0.674,
-                    "minMs": 0.643042,
-                    "maxMs": 0.6775,
-                    "meanMs": 0.652694
+                    "p50Ms": 0.663875,
+                    "p95Ms": 1.199209,
+                    "p99Ms": 1.744208,
+                    "minMs": 0.64125,
+                    "maxMs": 1.900458,
+                    "meanMs": 0.730053
                 },
                 "crossPreEncoded": {
                     "label": "cross-10-preencoded",
                     "count": 200,
-                    "p50Ms": 0.0935,
-                    "p95Ms": 0.106292,
-                    "p99Ms": 0.117083,
-                    "minMs": 0.087375,
-                    "maxMs": 2.640583,
-                    "meanMs": 0.107433
+                    "p50Ms": 0.099583,
+                    "p95Ms": 0.108958,
+                    "p99Ms": 0.127042,
+                    "minMs": 0.089708,
+                    "maxMs": 2.814709,
+                    "meanMs": 0.11379
                 },
                 "crossZiplineSerialized": {
                     "label": "cross-10-zipline",
                     "count": 200,
-                    "p50Ms": 0.706625,
-                    "p95Ms": 0.734084,
-                    "p99Ms": 0.786333,
-                    "minMs": 0.693083,
-                    "maxMs": 3.317667,
-                    "meanMs": 0.724112
+                    "p50Ms": 0.727,
+                    "p95Ms": 0.74625,
+                    "p99Ms": 0.755459,
+                    "minMs": 0.712084,
+                    "maxMs": 3.354292,
+                    "meanMs": 0.7408
                 }
             },
             {
@@ -328,62 +328,62 @@
                 "build": {
                     "label": "build-100",
                     "count": 200,
-                    "p50Ms": 0.076,
-                    "p95Ms": 0.082625,
-                    "p99Ms": 0.093,
-                    "minMs": 0.069875,
-                    "maxMs": 0.097,
-                    "meanMs": 0.076544
+                    "p50Ms": 0.076125,
+                    "p95Ms": 0.083958,
+                    "p99Ms": 0.097583,
+                    "minMs": 0.073458,
+                    "maxMs": 0.100334,
+                    "meanMs": 0.077486
                 },
                 "stringify": {
                     "label": "stringify-discriminator-100",
                     "count": 200,
-                    "p50Ms": 7.585625,
-                    "p95Ms": 7.743375,
-                    "p99Ms": 10.128625,
-                    "minMs": 7.464583,
-                    "maxMs": 10.219458,
-                    "meanMs": 7.662711
+                    "p50Ms": 7.678417,
+                    "p95Ms": 7.950583,
+                    "p99Ms": 10.292958,
+                    "minMs": 7.588541,
+                    "maxMs": 10.843417,
+                    "meanMs": 7.776226
                 },
                 "stringifyArrayPolymorphic": {
                     "label": "stringify-arraypolymorphic-100",
                     "count": 200,
-                    "p50Ms": 7.377542,
-                    "p95Ms": 7.523333,
-                    "p99Ms": 9.769458,
-                    "minMs": 7.233833,
-                    "maxMs": 10.051208,
-                    "meanMs": 7.444568
+                    "p50Ms": 7.438958,
+                    "p95Ms": 7.780916,
+                    "p99Ms": 9.9635,
+                    "minMs": 7.350083,
+                    "maxMs": 10.80025,
+                    "meanMs": 7.576016
                 },
                 "stringifyNative": {
                     "label": "stringify-native-100",
                     "count": 200,
-                    "p50Ms": 4.50775,
-                    "p95Ms": 6.853875,
-                    "p99Ms": 7.041166,
-                    "minMs": 4.387208,
-                    "maxMs": 7.087,
-                    "meanMs": 4.635342
+                    "p50Ms": 4.517583,
+                    "p95Ms": 4.69975,
+                    "p99Ms": 7.016334,
+                    "minMs": 4.456959,
+                    "maxMs": 7.138709,
+                    "meanMs": 4.628037
                 },
                 "crossPreEncoded": {
                     "label": "cross-100-preencoded",
                     "count": 200,
-                    "p50Ms": 0.11625,
-                    "p95Ms": 0.125333,
-                    "p99Ms": 0.133292,
-                    "minMs": 0.112083,
-                    "maxMs": 0.234959,
-                    "meanMs": 0.11772
+                    "p50Ms": 0.115917,
+                    "p95Ms": 0.124334,
+                    "p99Ms": 0.132,
+                    "minMs": 0.111333,
+                    "maxMs": 2.784375,
+                    "meanMs": 0.130381
                 },
                 "crossZiplineSerialized": {
                     "label": "cross-100-zipline",
                     "count": 200,
-                    "p50Ms": 4.575125,
-                    "p95Ms": 4.78525,
-                    "p99Ms": 7.199167,
-                    "minMs": 4.498917,
-                    "maxMs": 7.276125,
-                    "meanMs": 4.686006
+                    "p50Ms": 4.61875,
+                    "p95Ms": 4.779,
+                    "p99Ms": 7.338834,
+                    "minMs": 4.534875,
+                    "maxMs": 7.504292,
+                    "meanMs": 4.730078
                 }
             },
             {
@@ -395,62 +395,62 @@
                 "build": {
                     "label": "build-1000",
                     "count": 200,
-                    "p50Ms": 0.350167,
-                    "p95Ms": 0.365083,
-                    "p99Ms": 0.377167,
-                    "minMs": 0.336167,
-                    "maxMs": 0.386125,
-                    "meanMs": 0.351588
+                    "p50Ms": 0.355583,
+                    "p95Ms": 0.377375,
+                    "p99Ms": 0.402583,
+                    "minMs": 0.33975,
+                    "maxMs": 0.411667,
+                    "meanMs": 0.358584
                 },
                 "stringify": {
                     "label": "stringify-discriminator-1000",
                     "count": 200,
-                    "p50Ms": 85.307541,
-                    "p95Ms": 88.801708,
-                    "p99Ms": 89.244417,
-                    "minMs": 82.927708,
-                    "maxMs": 91.462833,
-                    "meanMs": 85.200822
+                    "p50Ms": 86.840291,
+                    "p95Ms": 89.685584,
+                    "p99Ms": 90.471417,
+                    "minMs": 83.770166,
+                    "maxMs": 97.311584,
+                    "meanMs": 86.710127
                 },
                 "stringifyArrayPolymorphic": {
                     "label": "stringify-arraypolymorphic-1000",
                     "count": 200,
-                    "p50Ms": 80.462708,
-                    "p95Ms": 82.903583,
-                    "p99Ms": 90.901833,
-                    "minMs": 79.340042,
-                    "maxMs": 91.158209,
-                    "meanMs": 81.141664
+                    "p50Ms": 83.053125,
+                    "p95Ms": 84.28625,
+                    "p99Ms": 87.035333,
+                    "minMs": 80.536959,
+                    "maxMs": 93.280583,
+                    "meanMs": 82.767456
                 },
                 "stringifyNative": {
                     "label": "stringify-native-1000",
                     "count": 200,
-                    "p50Ms": 41.935292,
-                    "p95Ms": 44.501541,
-                    "p99Ms": 45.731541,
-                    "minMs": 41.189084,
-                    "maxMs": 79.073667,
-                    "meanMs": 42.3445
+                    "p50Ms": 42.353208,
+                    "p95Ms": 44.733042,
+                    "p99Ms": 45.3445,
+                    "minMs": 41.410375,
+                    "maxMs": 47.489708,
+                    "meanMs": 42.505039
                 },
                 "crossPreEncoded": {
                     "label": "cross-1000-preencoded",
                     "count": 200,
-                    "p50Ms": 0.365042,
-                    "p95Ms": 0.379625,
-                    "p99Ms": 0.385959,
-                    "minMs": 0.348334,
-                    "maxMs": 0.418708,
-                    "meanMs": 0.364271
+                    "p50Ms": 0.380417,
+                    "p95Ms": 0.408834,
+                    "p99Ms": 0.540959,
+                    "minMs": 0.351541,
+                    "maxMs": 0.640791,
+                    "meanMs": 0.38254
                 },
                 "crossZiplineSerialized": {
                     "label": "cross-1000-zipline",
                     "count": 200,
-                    "p50Ms": 42.553334,
-                    "p95Ms": 45.213875,
-                    "p99Ms": 45.508042,
-                    "minMs": 41.418833,
-                    "maxMs": 45.809083,
-                    "meanMs": 43.199801
+                    "p50Ms": 42.657959,
+                    "p95Ms": 45.378375,
+                    "p99Ms": 45.763792,
+                    "minMs": 41.674625,
+                    "maxMs": 48.207667,
+                    "meanMs": 43.234375
                 }
             }
         ],
@@ -463,62 +463,62 @@
             "build": {
                 "label": "build-572",
                 "count": 200,
-                "p50Ms": 0.2195,
-                "p95Ms": 0.231708,
-                "p99Ms": 0.239917,
-                "minMs": 0.214084,
-                "maxMs": 0.272709,
-                "meanMs": 0.221262
+                "p50Ms": 0.220209,
+                "p95Ms": 0.238042,
+                "p99Ms": 0.270667,
+                "minMs": 0.21425,
+                "maxMs": 0.300625,
+                "meanMs": 0.223065
             },
             "stringify": {
                 "label": "stringify-discriminator-572",
                 "count": 200,
-                "p50Ms": 44.827417,
-                "p95Ms": 46.935834,
-                "p99Ms": 47.944208,
-                "minMs": 43.792833,
-                "maxMs": 50.564791,
-                "meanMs": 44.889275
+                "p50Ms": 44.685083,
+                "p95Ms": 48.255125,
+                "p99Ms": 48.999042,
+                "minMs": 44.24025,
+                "maxMs": 50.276375,
+                "meanMs": 45.304811
             },
             "stringifyArrayPolymorphic": {
                 "label": "stringify-arraypolymorphic-572",
                 "count": 200,
-                "p50Ms": 43.408042,
-                "p95Ms": 46.209167,
-                "p99Ms": 46.779875,
-                "minMs": 42.266,
-                "maxMs": 47.76275,
-                "meanMs": 43.760076
+                "p50Ms": 43.17025,
+                "p95Ms": 46.519167,
+                "p99Ms": 47.019375,
+                "minMs": 42.660625,
+                "maxMs": 48.229458,
+                "meanMs": 43.852657
             },
             "stringifyNative": {
                 "label": "stringify-native-572",
                 "count": 200,
-                "p50Ms": 23.847708,
-                "p95Ms": 26.388042,
-                "p99Ms": 26.480458,
-                "minMs": 23.395083,
-                "maxMs": 29.846541,
-                "meanMs": 24.294879
+                "p50Ms": 23.747292,
+                "p95Ms": 26.506916,
+                "p99Ms": 27.281583,
+                "minMs": 23.44025,
+                "maxMs": 29.341417,
+                "meanMs": 24.33638
             },
             "crossPreEncoded": {
                 "label": "cross-572-preencoded",
                 "count": 200,
-                "p50Ms": 0.250334,
-                "p95Ms": 0.258375,
-                "p99Ms": 0.263625,
-                "minMs": 0.239959,
-                "maxMs": 0.269958,
-                "meanMs": 0.250103
+                "p50Ms": 0.260834,
+                "p95Ms": 0.385041,
+                "p99Ms": 0.497958,
+                "minMs": 0.238042,
+                "maxMs": 2.810834,
+                "meanMs": 0.282792
             },
             "crossZiplineSerialized": {
                 "label": "cross-572-zipline",
                 "count": 200,
-                "p50Ms": 23.736541,
-                "p95Ms": 26.199458,
-                "p99Ms": 26.427875,
-                "minMs": 23.532125,
-                "maxMs": 26.517916,
-                "meanMs": 24.201343
+                "p50Ms": 24.082625,
+                "p95Ms": 26.770333,
+                "p99Ms": 27.112041,
+                "minMs": 23.577375,
+                "maxMs": 27.564292,
+                "meanMs": 24.570365
             }
         },
         "method": "End-to-end plus total bytes. The five-pass internal breakdown (guest encode, JSON.stringify, Java Native Interface transcode, host parse) needs timing inside Zipline's internal CallChannel, which needs a locally patched Zipline build; roadmap.md permits reporting end-to-end plus bytes when that slips. Guest encode and stringify ARE separated here, because the guest can time those itself.",
@@ -530,22 +530,32 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 44.228459,
-                    "p95Ms": 47.03675,
-                    "p99Ms": 47.507958,
-                    "minMs": 43.557708,
-                    "maxMs": 48.124125,
-                    "meanMs": 44.658022
+                    "p50Ms": 45.673333,
+                    "p95Ms": 48.096167,
+                    "p99Ms": 48.292709,
+                    "minMs": 44.4505,
+                    "maxMs": 48.346041,
+                    "meanMs": 45.833594
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 44.490666,
-                    "p95Ms": 46.921709,
-                    "p99Ms": 47.515375,
-                    "minMs": 43.829167,
-                    "maxMs": 47.597958,
-                    "meanMs": 44.922018
+                    "p50Ms": 45.657125,
+                    "p95Ms": 48.346375,
+                    "p99Ms": 48.758167,
+                    "minMs": 44.5415,
+                    "maxMs": 51.031041,
+                    "meanMs": 45.976394
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-v0-kotlinx",
+                    "count": 200,
+                    "p50Ms": 0.203708,
+                    "p95Ms": 0.352792,
+                    "p99Ms": 0.416583,
+                    "minMs": 0.18825,
+                    "maxMs": 0.481708,
+                    "meanMs": 0.242584
                 },
                 "note": "ADR-004 section 2.2 as documented, through kotlinx.serialization's pure-Kotlin encoder. Not what ships; included as the baseline the schema was written against."
             },
@@ -556,22 +566,32 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 23.842125,
-                    "p95Ms": 26.422958,
-                    "p99Ms": 26.539125,
-                    "minMs": 23.278167,
-                    "maxMs": 27.049291,
-                    "meanMs": 24.132292
+                    "p50Ms": 24.038,
+                    "p95Ms": 26.692917,
+                    "p99Ms": 26.885334,
+                    "minMs": 23.574708,
+                    "maxMs": 27.700292,
+                    "meanMs": 24.447377
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 24.023208,
-                    "p95Ms": 26.532917,
-                    "p99Ms": 26.683042,
-                    "minMs": 23.729,
-                    "maxMs": 26.863583,
-                    "meanMs": 24.494224
+                    "p50Ms": 24.058958,
+                    "p95Ms": 26.883541,
+                    "p99Ms": 27.421667,
+                    "minMs": 23.568334,
+                    "maxMs": 34.248875,
+                    "meanMs": 24.576784
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-v0-native",
+                    "count": 200,
+                    "p50Ms": 0.151417,
+                    "p95Ms": 0.160209,
+                    "p99Ms": 0.164167,
+                    "minMs": 0.148709,
+                    "maxMs": 0.974625,
+                    "meanMs": 0.156936
                 },
                 "note": "What ships today: array polymorphism through encodeToDynamic plus QuickJS's native JSON.stringify, which is the path Zipline's CallChannel takes."
             },
@@ -582,22 +602,32 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 1.140917,
-                    "p95Ms": 1.161875,
-                    "p99Ms": 1.18675,
-                    "minMs": 1.129208,
-                    "maxMs": 3.648583,
-                    "meanMs": 1.155423
+                    "p50Ms": 1.141833,
+                    "p95Ms": 1.160584,
+                    "p99Ms": 1.17675,
+                    "minMs": 1.122083,
+                    "maxMs": 1.180958,
+                    "meanMs": 1.143018
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 1.230417,
-                    "p95Ms": 1.248958,
-                    "p99Ms": 1.266334,
-                    "minMs": 1.218708,
-                    "maxMs": 3.530375,
-                    "meanMs": 1.244096
+                    "p50Ms": 1.231125,
+                    "p95Ms": 1.261375,
+                    "p99Ms": 1.274792,
+                    "minMs": 1.215791,
+                    "maxMs": 3.219167,
+                    "meanMs": 1.244457
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-positional",
+                    "count": 200,
+                    "p50Ms": 0.170166,
+                    "p95Ms": 0.357792,
+                    "p99Ms": 0.389959,
+                    "minMs": 0.128292,
+                    "maxMs": 1.169458,
+                    "meanMs": 0.215109
                 },
                 "note": "Every change becomes a positional array, so no field names cross. Built as native JavaScript values and handed straight to JSON.stringify."
             },
@@ -608,22 +638,32 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 1.523291,
-                    "p95Ms": 1.545416,
-                    "p99Ms": 1.569666,
-                    "minMs": 1.493834,
-                    "maxMs": 1.607417,
-                    "meanMs": 1.52406
+                    "p50Ms": 1.523416,
+                    "p95Ms": 1.554875,
+                    "p99Ms": 1.56925,
+                    "minMs": 1.509125,
+                    "maxMs": 1.574,
+                    "meanMs": 1.52656
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 1.613959,
-                    "p95Ms": 1.636625,
-                    "p99Ms": 1.665583,
-                    "minMs": 1.600875,
-                    "maxMs": 3.273333,
-                    "meanMs": 1.624643
+                    "p50Ms": 1.617333,
+                    "p95Ms": 1.648917,
+                    "p99Ms": 1.663792,
+                    "minMs": 1.599292,
+                    "maxMs": 1.685083,
+                    "meanMs": 1.621376
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-positional-interned",
+                    "count": 200,
+                    "p50Ms": 0.109458,
+                    "p95Ms": 0.173791,
+                    "p99Ms": 0.183375,
+                    "minMs": 0.097458,
+                    "maxMs": 1.106208,
+                    "meanMs": 0.137507
                 },
                 "note": "Positional, plus a modifier-chain table: each distinct chain crosses once and is referenced by index thereafter."
             },
@@ -634,22 +674,22 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 34.567875,
-                    "p95Ms": 35.077,
-                    "p99Ms": 35.166583,
-                    "minMs": 34.2955,
-                    "maxMs": 35.42,
-                    "meanMs": 34.627262
+                    "p50Ms": 35.055541,
+                    "p95Ms": 35.543333,
+                    "p99Ms": 35.814292,
+                    "minMs": 34.579625,
+                    "maxMs": 36.676709,
+                    "meanMs": 35.090631
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 34.763916,
-                    "p95Ms": 35.242542,
-                    "p99Ms": 35.39775,
-                    "minMs": 34.249791,
-                    "maxMs": 36.01825,
-                    "meanMs": 34.763307
+                    "p50Ms": 35.2415,
+                    "p95Ms": 36.269125,
+                    "p99Ms": 37.327708,
+                    "minMs": 34.646041,
+                    "maxMs": 40.4515,
+                    "meanMs": 35.349713
                 },
                 "note": "Protocol buffers over a schema mirror, because ADR-004's JsonElement values have no protocol-buffer representation. Base64 because CallChannel carries a string."
             },
@@ -660,22 +700,22 @@
                 "encode": {
                     "label": "encode-$name-$changeCount",
                     "count": 200,
-                    "p50Ms": 242.648208,
-                    "p95Ms": 245.981625,
-                    "p99Ms": 247.802208,
-                    "minMs": 239.060458,
-                    "maxMs": 258.641125,
-                    "meanMs": 242.898008
+                    "p50Ms": 243.802583,
+                    "p95Ms": 247.825459,
+                    "p99Ms": 250.005,
+                    "minMs": 241.260292,
+                    "maxMs": 253.556916,
+                    "meanMs": 244.361069
                 },
                 "cross": {
                     "label": "cross-$variant-$changeCount",
                     "count": 200,
-                    "p50Ms": 242.263042,
-                    "p95Ms": 246.0985,
-                    "p99Ms": 247.765459,
-                    "minMs": 239.65525,
-                    "maxMs": 250.101416,
-                    "meanMs": 242.646306
+                    "p50Ms": 244.236459,
+                    "p95Ms": 248.56175,
+                    "p99Ms": 262.562667,
+                    "minMs": 240.656333,
+                    "maxMs": 270.584542,
+                    "meanMs": 244.913444
                 },
                 "note": "Concise Binary Object Representation over the same schema mirror, same Base64 surcharge. Included so the answer covers binary formats generally, not just one."
             }
@@ -689,35 +729,35 @@
                 "recomposeUnderLoad": {
                     "label": "recompose-row",
                     "count": 200,
-                    "p50Ms": 1.607,
-                    "p95Ms": 1.633499,
-                    "p99Ms": 1.671625,
-                    "minMs": 1.578458,
-                    "maxMs": 1.696791,
-                    "meanMs": 1.60856
+                    "p50Ms": 1.635084,
+                    "p95Ms": 1.677042,
+                    "p99Ms": 1.726167,
+                    "minMs": 1.597958,
+                    "maxMs": 1.796042,
+                    "meanMs": 1.63933
                 },
                 "forcedCollections": 10,
                 "forcedPause": {
                     "label": "forced-gc-pause",
                     "count": 10,
-                    "p50Ms": 1.415041,
-                    "p95Ms": 1.702166,
-                    "p99Ms": 1.702166,
-                    "minMs": 1.371084,
-                    "maxMs": 2.111666,
-                    "meanMs": 1.511866
+                    "p50Ms": 1.462,
+                    "p95Ms": 1.517042,
+                    "p99Ms": 1.517042,
+                    "minMs": 1.37,
+                    "maxMs": 2.291209,
+                    "meanMs": 1.543637
                 },
                 "memoryAfterChurn": {
-                    "memoryUsedSize": 5216016,
-                    "memoryAllocatedSize": 6245056,
-                    "objectsCount": 17947,
-                    "objectsSize": 1292184,
+                    "memoryUsedSize": 5222216,
+                    "memoryAllocatedSize": 6252336,
+                    "objectsCount": 17982,
+                    "objectsSize": 1294704,
                     "stringsCount": 561,
                     "stringsSize": 11835,
-                    "jsFunctionsCount": 8397,
-                    "jsFunctionsCodeSize": 481966,
-                    "propertiesSize": 994512,
-                    "arraysCount": 1285
+                    "jsFunctionsCount": 8402,
+                    "jsFunctionsCodeSize": 482194,
+                    "propertiesSize": 996240,
+                    "arraysCount": 1294
                 }
             },
             {
@@ -725,35 +765,35 @@
                 "recomposeUnderLoad": {
                     "label": "recompose-row",
                     "count": 200,
-                    "p50Ms": 1.644708,
-                    "p95Ms": 1.686958,
-                    "p99Ms": 1.735708,
-                    "minMs": 1.611958,
-                    "maxMs": 4.682999,
-                    "meanMs": 1.662497
+                    "p50Ms": 1.657667,
+                    "p95Ms": 1.688583,
+                    "p99Ms": 1.749875,
+                    "minMs": 1.621375,
+                    "maxMs": 4.721583,
+                    "meanMs": 1.67358
                 },
                 "forcedCollections": 10,
                 "forcedPause": {
                     "label": "forced-gc-pause",
                     "count": 10,
-                    "p50Ms": 1.402875,
-                    "p95Ms": 1.491625,
-                    "p99Ms": 1.491625,
-                    "minMs": 1.319167,
-                    "maxMs": 1.542875,
-                    "meanMs": 1.415816
+                    "p50Ms": 1.487083,
+                    "p95Ms": 1.62,
+                    "p99Ms": 1.62,
+                    "minMs": 1.330458,
+                    "maxMs": 1.703417,
+                    "meanMs": 1.504358
                 },
                 "memoryAfterChurn": {
-                    "memoryUsedSize": 5215632,
-                    "memoryAllocatedSize": 6244752,
-                    "objectsCount": 17948,
-                    "objectsSize": 1292256,
+                    "memoryUsedSize": 5222608,
+                    "memoryAllocatedSize": 6252672,
+                    "objectsCount": 17982,
+                    "objectsSize": 1294704,
                     "stringsCount": 561,
                     "stringsSize": 11835,
-                    "jsFunctionsCount": 8397,
-                    "jsFunctionsCodeSize": 481966,
-                    "propertiesSize": 994448,
-                    "arraysCount": 1285
+                    "jsFunctionsCount": 8402,
+                    "jsFunctionsCodeSize": 482194,
+                    "propertiesSize": 996320,
+                    "arraysCount": 1294
                 }
             },
             {
@@ -761,35 +801,35 @@
                 "recomposeUnderLoad": {
                     "label": "recompose-row",
                     "count": 200,
-                    "p50Ms": 1.621666,
-                    "p95Ms": 1.664666,
-                    "p99Ms": 1.693416,
-                    "minMs": 1.593124,
-                    "maxMs": 1.732416,
-                    "meanMs": 1.624092
+                    "p50Ms": 1.612542,
+                    "p95Ms": 1.660084,
+                    "p99Ms": 1.698126,
+                    "minMs": 1.580417,
+                    "maxMs": 1.703209,
+                    "meanMs": 1.616516
                 },
                 "forcedCollections": 10,
                 "forcedPause": {
                     "label": "forced-gc-pause",
                     "count": 10,
-                    "p50Ms": 1.414416,
-                    "p95Ms": 1.555292,
-                    "p99Ms": 1.555292,
-                    "minMs": 1.331125,
-                    "maxMs": 4.940417,
-                    "meanMs": 1.767108
+                    "p50Ms": 1.515375,
+                    "p95Ms": 1.820042,
+                    "p99Ms": 1.820042,
+                    "minMs": 1.449291,
+                    "maxMs": 5.10475,
+                    "meanMs": 1.923512
                 },
                 "memoryAfterChurn": {
-                    "memoryUsedSize": 5215200,
-                    "memoryAllocatedSize": 6244352,
-                    "objectsCount": 17947,
-                    "objectsSize": 1292184,
+                    "memoryUsedSize": 5222384,
+                    "memoryAllocatedSize": 6252464,
+                    "objectsCount": 17982,
+                    "objectsSize": 1294704,
                     "stringsCount": 561,
                     "stringsSize": 11835,
-                    "jsFunctionsCount": 8397,
-                    "jsFunctionsCodeSize": 481966,
-                    "propertiesSize": 994192,
-                    "arraysCount": 1285
+                    "jsFunctionsCount": 8402,
+                    "jsFunctionsCodeSize": 482194,
+                    "propertiesSize": 996176,
+                    "arraysCount": 1294
                 }
             }
         ]

@@ -134,7 +134,7 @@ both are slower than the JSON they would replace, because their encoders are pur
 interpreted, and both must be Base64-encoded to cross a string channel — which leaves protocol
 buffers *larger* on the wire than positional JSON as well as 45% slower.
 
-**Four things are outstanding before Phase 0 can be called complete:**
+**Three things are outstanding before Phase 0 can be called complete:**
 
 1. **Acquire and run the named gate device.** Nothing above opens or closes the gate, and the
    hardware-independence result above makes this the highest-value remaining task rather than a
@@ -146,11 +146,9 @@ buffers *larger* on the wire than positional JSON as well as 45% slower.
    batch is nevertheless to be driven down as far as it will go; see the wire analysis in
    [`tools/phase0/results/wire-format.md`](tools/phase0/results/wire-format.md) and
    [ADR-006](adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md) §2.3.
-3. **Measure host-side decode of the v1 positional format.** Every encoding figure is guest
-   encode plus transport; the host must still parse what crosses, and that leg is unmeasured for
-   every candidate. It runs on the Java Virtual Machine rather than in the interpreter so it is
-   expected to be small, but "expected to be small" is the kind of claim this project requires a
-   number for. See [ADR-007](adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) §2.5.
+3. ~~**Measure host-side decode of the v1 positional format.**~~ **Done: 0.17 ms**, against
+   1.14 ms of guest encode. The complete positional path is ≈ 1.4 ms where today's is ≈ 24.2 ms.
+   [ADR-007](adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) is Accepted.
 4. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
    iOS organisation's written yes — neither of which is engineering work.
 

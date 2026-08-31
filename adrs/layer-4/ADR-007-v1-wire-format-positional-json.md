@@ -1,8 +1,8 @@
 # ADR-007: The v1 Wire Format Is Positional JSON Built as Native JavaScript Values; Binary Encodings Are Rejected
 
 **Date:** 2026-08-31
-**Status:** Proposed — the measurement is done and the direction is clear; §2.4's open item
-(host-side decode) must be measured before this is Accepted.
+**Status:** Accepted. The open item (host-side decode, §2.5) has been measured and is
+negligible: 0.17 ms against 1.14 ms of encoding.
 
 ## 1. Context & Problem Statement
 
@@ -67,13 +67,26 @@ crossing is dominated by the amount of interpreted Kotlin executed while encodin
 count matters only insofar as it tracks that. Optimisation effort belongs on getting work out
 of the interpreter and into QuickJS's C implementations, not on shaving the schema.
 
-**2.5 Open before this is Accepted: host-side decode is unmeasured.** Every figure below is
-guest encode plus transport. The host must still parse whatever crosses, and positional arrays
-are cheaper to produce but not obviously cheaper to consume than a named-field structure. That
-work runs on the Java Virtual Machine rather than in the interpreter, so it is expected to be
-small — the full `sendChanges` path measured 24.06 ms against 23.92 ms of encoding, leaving
-little room for it — but "expected to be small" is exactly the kind of claim this project
-requires a number for.
+**2.5 Host-side decode has been measured, and it is negligible.** The concern was that
+positional arrays might be cheaper to produce and dearer to consume. They are not. Parsing the
+whole 572-change batch back into a `ChangeBatch` on the Java Virtual Machine:
+
+| Encoding | Host decode p50 |
+| --- | ---: |
+| `json-positional` | **0.17 ms** |
+| `json-positional-interned` | 0.11 ms |
+| `json-v0-native` | 0.15 ms |
+| `json-v0-kotlinx` | 0.20 ms |
+
+Every candidate decodes in well under a fifth of a millisecond, because this is compiled Java
+Virtual Machine work rather than interpreted guest work — the same asymmetry that makes guest
+encoding expensive makes host decoding cheap. The complete positional path is therefore
+**1.14 ms of guest encode plus 0.09 ms of transport plus 0.17 ms of host decode ≈ 1.4 ms**,
+against ≈ 24.2 ms for what ships today.
+
+The binary candidates were not given host decoders. They are rejected on encode cost alone, and
+building decoders for formats nobody will ship would be work spent making a foregone conclusion
+look more thorough.
 
 ## 3. Rationale & Research
 

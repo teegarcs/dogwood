@@ -371,6 +371,9 @@ class Phase0GuestImpl : Phase0Guest {
     }
   }
 
+  override fun variantPayload(variant: String, changeCount: Int): String =
+    buildVariant(variant, sourceBatch(changeCount)).first
+
   override fun crossVariant(
     variant: String,
     changeCount: Int,

@@ -95,6 +95,16 @@ data class ModuleMirror(
 
 val LenientJson = Json { ignoreUnknownKeys = true }
 
+/**
+ * Reads the encoding Zipline's `CallChannel` actually emits: array polymorphism, not the class
+ * discriminator ADR-004 section 2.4 draws. Used to decode the v0 candidates in the bake-off.
+ */
+val ZiplineWireJson: Json = Json {
+  useArrayPolymorphism = true
+  encodeDefaults = false
+  ignoreUnknownKeys = true
+}
+
 /** Depth-first topological order, so a module is loaded after everything it requires. */
 fun ManifestMirror.loadOrder(): List<String> {
   val ordered = LinkedHashSet<String>()
