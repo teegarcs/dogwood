@@ -17,10 +17,15 @@ and client, from one source of truth.
 
 **Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 
-> **Status: specification, not an implementation.** This repository contains design
-> documents only. No engine code has been written. Several load-bearing assumptions are
-> unmeasured — see [section 7 of the technical specification](high-level-tech-spec-final.md)
-> for the full risk register. Treat every performance number as a goal to be validated.
+> **Status: specification, plus a Phase 0 harness and a Phase 1 vertical slice.** The design
+> documents remain the substance of this repository, but the load-bearing assumptions are no
+> longer unmeasured. [`tools/phase0/`](tools/phase0/) measures the architecture and
+> [`engine/`](engine/) implements it: a real screen, authored as ordinary Kotlin Compose,
+> executed inside QuickJS, rendered by native Compose Multiplatform, responding to taps.
+> **The Phase 0 gate has not been closed**, because it is defined on a low-end Android device
+> that was not available — every number was taken on faster hardware and is a lower bound. See
+> [the roadmap's Phase 0 status](roadmap.md) and [section 7 of the technical
+> specification](high-level-tech-spec-final.md) for the risk register.
 
 ## Why
 
@@ -68,7 +73,8 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`developer-experience.md`](developer-experience.md) | What this is like to use, with worked example code. |
 | [`specs/`](specs/) | One deep-dive specification per layer. |
 | [`adrs/`](adrs/) | Architecture Decision Records, by layer. See [`adrs/README.md`](adrs/README.md). |
-| [`tools/`](tools/) | The committed Compose API-surface classifier and its pinned dumps. |
+| [`engine/`](engine/) | **The implementation.** Guest runtime, host binding layer, and the Phase 1 vertical slice. |
+| [`tools/`](tools/) | The Compose API-surface classifier, and the Phase 0 measurement harness with its results. |
 | [`archive/`](archive/) | Superseded drafts (v1.0 Zipline, v2.0 and v3.0 Wasm), kept for decision history. |
 | [`AGENTS.md`](AGENTS.md) | Authoring rules governing every document here. |
 
