@@ -8,13 +8,8 @@ plugins {
   alias(libs.plugins.composeMultiplatform)
 }
 
-/** Stages the compiled guest into assets. Not Layer 3 delivery; see GuestBundle's note. */
-val stageGuest by tasks.registering(Copy::class) {
-  dependsOn(":samples:slice-guest:jsBrowserProductionWebpackZipline")
-  from(project(":samples:slice-guest").layout.buildDirectory.dir("zipline/ProductionWebpack"))
-  into(layout.buildDirectory.dir("generated/ziplineAssets/zipline"))
-}
-
+// The guest is no longer bundled into the application. It arrives over the network, verified
+// against a signing key, which is what Layer 3 is for.
 android {
   namespace = "dev.dogwood.slice.android"
   compileSdk = libs.versions.compileSdk.get().toInt()
@@ -31,12 +26,6 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
-
-  sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/ziplineAssets"))
-}
-
-tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
-  dependsOn(stageGuest)
 }
 
 kotlin {

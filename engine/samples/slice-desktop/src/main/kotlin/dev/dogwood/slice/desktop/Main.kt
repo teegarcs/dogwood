@@ -25,16 +25,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import app.cash.zipline.Zipline
+import app.cash.zipline.loader.ZiplineCache
 import dev.dogwood.host.DogwoodExperience
 import dev.dogwood.host.DogwoodSurface
-import dev.dogwood.host.GuestBundle
+import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.cachePath
 import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import okio.FileSystem
 
-private const val GUEST_DIR = "samples/slice-guest/build/zipline/ProductionWebpack"
+/**
+ * The public half of the key that signs the guest. Serve the guest with
+ * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
+ */
+private val TRUSTED_KEYS = mapOf(
+  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
+)
+
+private const val MANIFEST_URL = "http://localhost:8080/manifest.zipline.json"
 
 fun main() = application {
   Window(
@@ -54,6 +64,7 @@ fun main() = application {
 private fun SliceHost() {
   val uiScope = rememberCoroutineScope()
   var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
+  var failure by remember { mutableStateOf<String?>(null) }
 
   // The Zipline dispatcher is a single thread, and it is the only thread that may touch the
   // guest. Eight megabytes of stack because interpreted composition is deeply recursive.
@@ -64,25 +75,35 @@ private fun SliceHost() {
   }
 
   LaunchedEffect(Unit) {
-    val dir = File(GUEST_DIR)
-    require(dir.isDirectory) {
-      "no compiled guest at $dir — run `./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline`"
+    try {
+      // Layer 3: fetch, verify the Ed25519 signature, cache, load. The desktop host runs the
+      // same delivery path as Android; only the cache factory differs, because the Android one
+      // needs a Context for its SQLite driver.
+      val delivered = withContext(dispatcher) {
+        DogwoodDelivery(
+          dispatcher = dispatcher,
+          trustedPublicKeys = TRUSTED_KEYS,
+          cache = ZiplineCache(
+            fileSystem = FileSystem.SYSTEM,
+            directory = cachePath(File(System.getProperty("java.io.tmpdir"), "dogwood-cache").absolutePath),
+            maxSizeInBytes = 32L * 1024 * 1024,
+          ),
+        ).load(applicationName = "dogwood-slice", manifestUrl = MANIFEST_URL)
+      }
+      println("loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
+      // Constructed here, on the user-interface thread, because that is the thread it binds.
+      val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
+      withContext(dispatcher) { created.start() }
+      experience = created
+    } catch (e: Throwable) {
+      failure = "could not load the guest: ${e.message}\n\n" +
+        "Is the development server running?\n" +
+        "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline"
+      e.printStackTrace()
     }
-    val bundle = GuestBundle(
-      manifestText = File(dir, "manifest.zipline.json").readText(),
-      files = dir.listFiles()!!.filter { it.extension == "zipline" }.associate { it.name to it.readBytes() },
-    )
-    // The Zipline instance is created and loaded on its own thread; the experience is
-    // constructed here, on the user-interface thread, because that is the thread it binds; and
-    // start() goes back to Zipline's thread, because that is where guest work runs.
-    val zipline = withContext(dispatcher) {
-      Zipline.create(dispatcher).also { bundle.loadInto(it) }
-    }
-    val created = DogwoodExperience(zipline, dispatcher, uiScope)
-    withContext(dispatcher) { created.start() }
-    experience = created
   }
 
+  failure?.let { androidx.compose.material3.Text(it, Modifier.fillMaxSize()) }
   experience?.let {
     DogwoodSurface(it, Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
   }

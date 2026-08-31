@@ -20,7 +20,28 @@ kotlin {
   }
 }
 
+/*
+ * The manifest is signed, and Layer 3 will not load an unsigned one.
+ *
+ * The default below is a THROWAWAY DEVELOPMENT KEY, committed on purpose so the slice builds
+ * for anyone who clones this. It signs nothing anyone should trust. A real signing key never
+ * lives in a repository: pass `-PdogwoodSigningKey=<hex>` or set it in `~/.gradle/gradle.properties`,
+ * and rotate the public key in `SliceActivity` to match. Layer 3's key-rotation drill --
+ * ship a manifest with two signatures, roll clients forward, retire the old key -- is a Phase 5
+ * hardening item and is not exercised here.
+ */
+val developmentSigningKey = "0ca845610dac5a568230ae0b4468004a787b5a541603554a0d3903535dd1f742"
+
 zipline {
   mainFunction.set("dev.dogwood.slice.main")
   optimizeForSmallArtifactSize()
+  version.set("1.0.0")
+  signingKeys {
+    create("dogwood-development") {
+      privateKeyHex.set(
+        providers.gradleProperty("dogwoodSigningKey").getOrElse(developmentSigningKey),
+      )
+      algorithmId.set(app.cash.zipline.loader.SignatureAlgorithmId.Ed25519)
+    }
+  }
 }

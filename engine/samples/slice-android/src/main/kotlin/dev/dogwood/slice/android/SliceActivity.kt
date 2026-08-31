@@ -27,16 +27,36 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import app.cash.zipline.Zipline
+import app.cash.zipline.loader.ZiplineCache
 import dev.dogwood.host.DogwoodExperience
 import dev.dogwood.host.DogwoodSurface
-import dev.dogwood.host.GuestBundle
+import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.cachePath
 import dev.dogwood.protocol.DogwoodConfiguration
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import okio.FileSystem
 
 private const val TAG = "DogwoodSlice"
+
+/**
+ * The public half of the key that signs the guest, compiled into the host.
+ *
+ * A public key is meant to be public; this is the anchor the whole delivery path trusts.
+ * Changing the signing key in `samples/slice-guest/build.gradle.kts` requires changing this with
+ * it, and that coupling is what makes key rotation a deliberate operation rather than an
+ * accident.
+ */
+private val TRUSTED_KEYS = mapOf(
+  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
+)
+
+/**
+ * On the Android emulator, 10.0.2.2 is the development machine. Serve the guest with
+ * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
+ */
+private const val MANIFEST_URL = "http://10.0.2.2:8080/manifest.zipline.json"
 
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,19 +92,29 @@ class SliceActivity : ComponentActivity() {
 
     LaunchedEffect(Unit) {
       try {
-        val names = assets.list("zipline").orEmpty()
-        val bundle = GuestBundle(
-          manifestText = assets.open("zipline/manifest.zipline.json").bufferedReader().readText(),
-          files = names.filter { it.endsWith(".zipline") }
-            .associateWith { assets.open("zipline/$it").use { input -> input.readBytes() } },
-        )
-        // The Zipline instance is created and loaded on its own thread; the experience is
-        // constructed here, on the user-interface thread, because that is the thread it binds;
-        // and start() goes back to Zipline's thread, because that is where guest work runs.
-        val zipline = withContext(dispatcher) {
-          Zipline.create(dispatcher).also { bundle.loadInto(it) }
+        // Layer 3: fetch over the network, verify the manifest's Ed25519 signature against a key
+        // compiled into this application, cache the modules on disk, then load. All on the
+        // Zipline dispatcher, because that thread owns the interpreter.
+        val delivered = withContext(dispatcher) {
+          DogwoodDelivery(
+            dispatcher = dispatcher,
+            trustedPublicKeys = TRUSTED_KEYS,
+            cache = ZiplineCache(
+              context = applicationContext,
+              fileSystem = FileSystem.SYSTEM,
+              directory = cachePath(cacheDir.resolve("zipline").absolutePath),
+              maxSizeInBytes = 32L * 1024 * 1024,
+            ),
+          ).load(applicationName = "dogwood-slice", manifestUrl = MANIFEST_URL)
         }
-        val created = DogwoodExperience(zipline, dispatcher, uiScope)
+        Log.i(
+          TAG,
+          "loaded version ${delivered.manifest.version}, " +
+            "signature verified by ${delivered.verifiedByKey}",
+        )
+        // The experience is constructed here, on the user-interface thread, because that is the
+        // thread it binds; start() goes back to Zipline's thread, where guest work runs.
+        val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
         withContext(dispatcher) { created.start(configuration = configuration) }
         experience = created
         Log.i(TAG, "guest started")

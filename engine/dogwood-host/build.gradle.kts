@@ -26,7 +26,15 @@ kotlin {
     // Both current host targets run on a Java Virtual Machine, and the threading assertions
     // need thread identity, which common Kotlin does not expose. When the iOS and Web hosts
     // arrive they supply their own actuals rather than inheriting this.
-    val jvmAndroidMain by creating { dependsOn(commonMain.get()) }
+    val jvmAndroidMain by creating {
+      dependsOn(commonMain.get())
+      dependencies {
+        // ZiplineLoader's Java-Virtual-Machine bindings take an OkHttp client and an Okio file
+        // system; both are host-side concerns the guest never sees.
+        api(libs.okhttp)
+      }
+    }
+
     jvmMain.get().dependsOn(jvmAndroidMain)
     androidMain.get().dependsOn(jvmAndroidMain)
 
@@ -56,6 +64,12 @@ kotlin {
       }
     }
   }
+}
+
+// SignatureTest asserts on the manifest the build actually produces, not on a fixture, so a
+// change that silently stopped signing would fail rather than pass quietly.
+tasks.named("jvmTest") {
+  dependsOn(":samples:slice-guest:jsBrowserProductionWebpackZipline")
 }
 
 android {
