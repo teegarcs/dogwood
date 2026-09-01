@@ -35,10 +35,17 @@ class SkewReport {
   /** Enter/exit transition names this client does not implement. Rendered as a fade. */
   val unknownTransitions = mutableSetOf<String>()
 
+  /** Number patterns the payload supplied that this platform would not accept. */
+  val rejectedNumberPatterns = mutableSetOf<String>()
+
+  /** Plural categories this locale uses that the payload carried no template for. */
+  val untranslatedPlurals = mutableSetOf<String>()
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
-      unknownTransitions.isEmpty()
+      unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
+      untranslatedPlurals.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -47,7 +54,9 @@ class SkewReport {
     if (unknownColorTokens.isNotEmpty()) append("colours=$unknownColorTokens ")
     if (unknownTextStyles.isNotEmpty()) append("styles=$unknownTextStyles ")
     if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons ")
-    if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions")
+    if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions ")
+    if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
+    if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals")
     append(")")
   }
 }

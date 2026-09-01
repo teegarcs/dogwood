@@ -17,8 +17,31 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.intl.Locale
 
-/** Formats [value] for [locale], with the locale deciding the fraction digits when null. */
-expect fun formatNumber(value: Double, locale: String, maximumFractionDigits: Int?): String
+/**
+ * Formats [value] for [locale], with the locale deciding the fraction digits when null.
+ *
+ * @param pattern a guest-supplied `DecimalFormat` pattern, applied with the **device's** symbols so
+ *   one payload renders correctly everywhere. Untrusted input: a malformed pattern must not throw
+ *   through a render, so the implementation falls back to the unpatterned form.
+ * @return the formatted value, and whether [pattern] was rejected — the caller records that as skew.
+ */
+expect fun formatNumber(
+  value: Double,
+  locale: String,
+  maximumFractionDigits: Int?,
+  pattern: String? = null,
+): FormattedNumber
+
+/** A formatted number, and whether the guest's pattern was usable. */
+data class FormattedNumber(val text: String, val patternRejected: Boolean = false)
+
+/**
+ * Which Unicode plural category [count] falls into for [locale].
+ *
+ * The only part of a plural the sandbox cannot do: English has two forms, Arabic has six, and the
+ * rules are locale data. The *words* stay the payload's.
+ */
+expect fun pluralCategory(count: Int, locale: String): String
 
 /**
  * Formats an amount in a currency's smallest unit.

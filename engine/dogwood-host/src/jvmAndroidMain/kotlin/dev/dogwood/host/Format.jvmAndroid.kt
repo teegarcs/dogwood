@@ -22,7 +22,26 @@ private fun locale(tag: String): Locale = Locale.forLanguageTag(tag).takeIf {
   it.language.isNotEmpty()
 } ?: Locale.US
 
-actual fun formatNumber(value: Double, locale: String, maximumFractionDigits: Int?): String =
+actual fun formatNumber(
+  value: Double,
+  locale: String,
+  maximumFractionDigits: Int?,
+  pattern: String?,
+): FormattedNumber {
+  if (pattern != null) {
+    // The guest's pattern, the device's symbols. `DecimalFormat` throws on a malformed pattern at
+    // construction, which is where it is caught: a payload can be replaced over the air, so a
+    // pattern is untrusted input and must degrade like any other skew rather than crash a screen.
+    val formatted = runCatching {
+      java.text.DecimalFormat(pattern, java.text.DecimalFormatSymbols(locale(locale))).format(value)
+    }.getOrNull()
+    if (formatted != null) return FormattedNumber(formatted)
+    return FormattedNumber(plainNumber(value, locale, maximumFractionDigits), patternRejected = true)
+  }
+  return FormattedNumber(plainNumber(value, locale, maximumFractionDigits))
+}
+
+private fun plainNumber(value: Double, locale: String, maximumFractionDigits: Int?): String =
   NumberFormat.getNumberInstance(locale(locale)).apply {
     if (maximumFractionDigits != null) {
       this.maximumFractionDigits = maximumFractionDigits
@@ -30,11 +49,32 @@ actual fun formatNumber(value: Double, locale: String, maximumFractionDigits: In
     }
   }.format(value)
 
+/**
+ * The Unicode plural category, from the platform where it exists.
+ *
+ * Android carries the International Components for Unicode, so the real rules are available and are
+ * used. A desktop Java Virtual Machine does not, and rather than vendor the whole library for one
+ * lookup this falls back to the English rule — which is *wrong for most languages* and is said out
+ * loud here and in the record, because a silent wrong plural is exactly the kind of thing that
+ * ships. A product shipping desktop in many languages supplies its own implementation.
+ */
+actual fun pluralCategory(count: Int, locale: String): String {
+  val icu = runCatching {
+    val rulesClass = Class.forName("android.icu.text.PluralRules")
+    val forLocale = rulesClass.getMethod("forLocale", Locale::class.java)
+    val rules = forLocale.invoke(null, locale(locale))
+    rulesClass.getMethod("select", Double::class.javaPrimitiveType)
+      .invoke(rules, count.toDouble()) as String
+  }.getOrNull()
+  if (icu != null) return icu
+  return if (count == 1) "one" else "other"
+}
+
 actual fun formatCurrency(minorUnits: Long, currencyCode: String, locale: String): String {
   val resolved = runCatching { Currency.getInstance(currencyCode) }.getOrNull()
     // An unknown currency code is skew, not a crash: a payload may know about a currency this
     // client's runtime does not. Show the number and the code rather than nothing.
-    ?: return "${formatNumber(minorUnits.toDouble(), locale, 0)} $currencyCode"
+    ?: return "${plainNumber(minorUnits.toDouble(), locale, 0)} $currencyCode"
 
   val digits = resolved.defaultFractionDigits.coerceAtLeast(0)
   val amount = minorUnits.toDouble() / 10.0.pow(digits)

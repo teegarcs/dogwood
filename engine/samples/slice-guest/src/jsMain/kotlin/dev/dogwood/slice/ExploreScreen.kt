@@ -142,6 +142,8 @@ private val exploreStrings = StringTable(
       "perNight" to "per night",
       "staysIn" to "Stays in",
       "filterStays" to "Filter stays",
+      "propertyOne" to "# property",
+      "propertyOther" to "# properties",
     ),
     "ja" to mapOf(
       "exploreTitle" to "航空券と宿泊",
@@ -149,6 +151,9 @@ private val exploreStrings = StringTable(
       "perNight" to "1泊あたり",
       "staysIn" to "宿泊先:",
       "filterStays" to "宿泊先を絞り込む",
+      // Japanese has one plural form; the same recipe picks it without the payload knowing.
+      "propertyOne" to "#件の宿泊先",
+      "propertyOther" to "#件の宿泊先",
     ),
   ),
 )
@@ -282,12 +287,17 @@ private fun ExploreContent(params: ExploreParams) {
         Divider(modifier = Modifier.fillMaxWidth())
 
         SectionHeader(
-          title = "${strings("staysIn")} ${params.city}",
-          description = if (savedStays == 0) {
-            "${matches.size} properties"
-          } else {
-            "${matches.size} properties · $savedStays saved"
-          },
+          title = TextValue("${strings("staysIn")} ${params.city}"),
+          // The count's grammar is the host's; the words are the payload's. "1 property" and
+          // "6 properties" used to be an English assumption baked into a screen that ships
+          // everywhere.
+          description = Formats.plural(
+            matches.size,
+            mapOf(
+              "one" to strings("propertyOne"),
+              "other" to strings("propertyOther"),
+            ),
+          ),
         )
 
         TextField(
