@@ -105,6 +105,7 @@ private fun SliceHost() {
 
   failure?.let { androidx.compose.material3.Text(it, Modifier.fillMaxSize()) }
   experience?.let {
-    DogwoodSurface(it, Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+    // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
+    DogwoodSurface(it, Modifier.fillMaxSize())
   }
 }

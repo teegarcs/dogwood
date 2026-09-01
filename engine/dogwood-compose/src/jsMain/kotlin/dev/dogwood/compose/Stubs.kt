@@ -41,6 +41,12 @@ object Tags {
   val Card = widgetTag(Segments.DESIGN_SYSTEM, 3)
   val Badge = widgetTag(Segments.DESIGN_SYSTEM, 4)
   val Divider = widgetTag(Segments.DESIGN_SYSTEM, 5)
+  val Chip = widgetTag(Segments.DESIGN_SYSTEM, 6)
+  val Price = widgetTag(Segments.DESIGN_SYSTEM, 7)
+  val StarRating = widgetTag(Segments.DESIGN_SYSTEM, 8)
+  val SectionHeader = widgetTag(Segments.DESIGN_SYSTEM, 9)
+  val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
+  val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
   /** The single content slot every container in this slice declares. */
   val Content = ChildrenTag(1)
@@ -48,6 +54,8 @@ object Tags {
   /** Property tags are parameter-declaration order, widget-scoped. */
   val P1 = PropertyTag(1)
   val P2 = PropertyTag(2)
+  val P3 = PropertyTag(3)
+  val P4 = PropertyTag(4)
 
   /** Event tags are parameter-declaration order, widget-scoped. */
   val OnClick = EventTag(1)
@@ -79,6 +87,10 @@ fun DogwoodModifier.fillMaxWidth(): DogwoodModifier = then(2, JsonPrimitive(1.0f
 fun DogwoodModifier.weight(weight: Float): DogwoodModifier = then(3, JsonPrimitive(weight))
 fun DogwoodModifier.size(dp: Int): DogwoodModifier = then(4, JsonPrimitive(dp))
 fun DogwoodModifier.alpha(alpha: Float): DogwoodModifier = then(5, JsonPrimitive(alpha))
+
+/** `size` sets both dimensions; these set one, which is usually what a card wants. */
+fun DogwoodModifier.width(dp: Int): DogwoodModifier = then(6, JsonPrimitive(dp))
+fun DogwoodModifier.height(dp: Int): DogwoodModifier = then(7, JsonPrimitive(dp))
 
 /**
  * The composition-scoped recording context. It is a plain object threaded through a
@@ -212,7 +224,12 @@ fun PrimaryButton(label: String, modifier: DogwoodModifier = DogwoodModifier.Emp
 }
 
 @Composable
-fun AsyncImage(url: String, contentDescription: String?, modifier: DogwoodModifier = DogwoodModifier.Empty) {
+fun AsyncImage(
+  url: String,
+  contentDescription: String?,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  cornerRadiusDp: Int = 8,
+) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.AsyncImage) },
     update = {
@@ -220,8 +237,140 @@ fun AsyncImage(url: String, contentDescription: String?, modifier: DogwoodModifi
       set(contentDescription) {
         recording.recorder.property(id, Tags.P2, if (it == null) JsonNull else JsonPrimitive(it))
       }
+      set(cornerRadiusDp) { recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
     },
+  )
+}
+
+/**
+ * A selectable chip.
+ *
+ * Bindable as its design system declares it: a string, a boolean, and one discrete event.
+ */
+@Composable
+fun Chip(
+  text: String,
+  selected: Boolean,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  onClick: () -> Unit,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Chip) },
+    update = {
+      set(text) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(selected) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      set(onClick) { handler -> recording.lambdas.set(id, Tags.OnClick) { handler() } }
+    },
+  )
+}
+
+/** A price, with optional leading, struck-through previous, and trailing text. */
+@Composable
+fun Price(
+  price: String,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  leadingText: String? = null,
+  previousPrice: String? = null,
+  trailingText: String? = null,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Price) },
+    update = {
+      set(price) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(leadingText) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(previousPrice) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(trailingText) { if (it != null) recording.recorder.property(id, Tags.P4, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+    },
+  )
+}
+
+/**
+ * A star rating.
+ *
+ * The design system's own signature takes `contentDescription` as a lambda the host invokes to
+ * build a string. That is neither a content slot nor a discrete event, so it cannot cross; this
+ * takes the finished string instead. The wrapper is the whole fix.
+ */
+@Composable
+fun StarRating(
+  rating: Float,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  label: String? = null,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.StarRating) },
+    update = {
+      set(rating) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(label) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+    },
+  )
+}
+
+/** A section title with an optional description beneath it. */
+@Composable
+fun SectionHeader(
+  title: String,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  description: String? = null,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.SectionHeader) },
+    update = {
+      set(title) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(description) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+    },
+  )
+}
+
+/**
+ * A vertically scrolling list.
+ *
+ * The host renders only the visible children, which is the expensive half of laziness. The guest
+ * still composes and sends every child: guest-side windowing is a Phase 4 subsystem and this is
+ * not it. A list of ten thousand rows would still cross ten thousand rows.
+ */
+@Composable
+fun VerticalList(
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  spacingDp: Int = 0,
+  contentPaddingDp: Int = 0,
+  content: @Composable () -> Unit,
+) {
+  ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp, content)
+}
+
+/** A horizontally scrolling list. Same laziness caveat as [VerticalList]. */
+@Composable
+fun HorizontalList(
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  spacingDp: Int = 0,
+  contentPaddingDp: Int = 0,
+  content: @Composable () -> Unit,
+) {
+  ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp, content)
+}
+
+@Composable
+private fun ListContainer(
+  tag: WidgetTag,
+  modifier: DogwoodModifier,
+  spacingDp: Int,
+  contentPaddingDp: Int,
+  content: @Composable () -> Unit,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(tag) },
+    update = {
+      set(spacingDp) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(contentPaddingDp) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+    },
+    content = { Children(Tags.Content, content) },
   )
 }
 

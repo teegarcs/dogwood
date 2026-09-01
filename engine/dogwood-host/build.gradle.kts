@@ -51,6 +51,8 @@ kotlin {
         api(compose.ui)
         implementation(libs.coroutines.core)
         implementation(libs.okio)
+        api(libs.coil.compose)
+        api(libs.coil.network)
       }
     }
     androidMain {

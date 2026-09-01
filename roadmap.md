@@ -136,9 +136,13 @@ buffers *larger* on the wire than positional JSON as well as 45% slower.
 
 **Three things are outstanding before Phase 0 can be called complete:**
 
-1. **Acquire and run the named gate device.** Nothing above opens or closes the gate, and the
-   hardware-independence result above makes this the highest-value remaining task rather than a
-   formality: the leg most likely to fail there is 0.2, the one with no engineering remedy.
+1. ~~**Acquire and run the named gate device.**~~ **Decided: the device will not be acquired, and
+   the gate is formally not closed** ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)).
+   Work proceeds with the shortfall carried as a standing risk rather than discharged. The
+   specific risk is **0.2, recomposition** — 1.58 ms at p95 against 8 ms, comfortable at a
+   three-times-slower core and at the edge at five times, with the multiplier unmeasured. The
+   harness runs on any Android device and writes a results file, so the first low-end device it
+   ever meets closes or reopens the gate.
 2. ~~**Rule on what the 0.3 leg bounds.**~~ **Ruled.** The 4 ms bounds the **per-tap** crossing —
    the steady-state recomposition batch — which measures **0.17 ms** on a Pixel 10 Pro and
    passes. The whole-screen initial batch is a once-per-screen cost and belongs to the
@@ -187,7 +191,7 @@ Fixed here so two teams running Phase 0 produce comparable numbers, and so no in
 
 1. Hand-write recording stubs and host bindings for ten composables — five layout primitives (`Text`, `Column`, `Row`, `Box`, `Spacer`) **and five registered design-system components** (for example `PrimaryButton`, `AsyncImage`, `Card`-equivalent, badge, divider), per the design-system-first path above, using the segment/tag assignments in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1 (segment 0 = layout primitives, segment 1 = design system). This exercises both dictionary segments from day one and lands a surface a product team recognises. (`Icon` is deliberately excluded — its required `Painter` is asset-gated; the design-system image component covers the need.)
 
-   **Selecting the five design-system components** — a half-day audit, done before the sprint: list the ten most-used components in the company design system by call-site count; hand-apply the bindability rule ([Layer 5](specs/layer-5-host.md), "Bindability: The Real Rule") to each signature — every lambda must be a content slot or a discrete event; no live-state, callback-object, or asset parameters except a `String` image Uniform Resource Locator (URL). Expected failure classes and their fixes: a component taking `Painter` → wrap with a URL-taking variant; one taking `interactionSource` or a scroll state → expose a wrapper without it; one taking a styles object → either register the style type as a deferred-expression factory or fix the style in the wrapper. Pick the five highest-usage components that pass (or pass after a thin wrapper); record the audit table in the results file — it seeds the Phase 3 registration list.
+   **Selecting the five design-system components** — ~~a half-day audit, done before the sprint~~ **done; see [Layer 5 ADR-008](adrs/layer-5/ADR-008-design-system-audit-backpack.md)**, which audits Skyscanner Backpack and finds five of eleven components bindable as declared, all three predicted failure classes, and two the list below did not name. The method below is the one to use with a real design system: list the ten most-used components in the company design system by call-site count; hand-apply the bindability rule ([Layer 5](specs/layer-5-host.md), "Bindability: The Real Rule") to each signature — every lambda must be a content slot or a discrete event; no live-state, callback-object, or asset parameters except a `String` image Uniform Resource Locator (URL). Expected failure classes and their fixes: a component taking `Painter` → wrap with a URL-taking variant; one taking `interactionSource` or a scroll state → expose a wrapper without it; one taking a styles object → either register the style type as a deferred-expression factory or fix the style in the wrapper. Pick the five highest-usage components that pass (or pass after a thin wrapper); record the audit table in the results file — it seeds the Phase 3 registration list.
 2. Stand up the **Compose Multiplatform desktop host** alongside the Android host as the development loop; the host layer is common Kotlin, so the cost is small and the iteration payoff is immediate.
 3. Implement `DogwoodApplier` over `AbstractApplier`, with `WidgetNode` and `ChildrenNode`.
 4. Implement the **v0 `Change`/`Event` protocol exactly as specified in [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md)** — `ChangeBatch` envelope with sequence numbers, the six change kinds, absence-as-default — including the lambda slot table and its depth-first reclamation. Protocol deltas discovered while building feed the ADR's v1 revision; do not fork the wire format silently.

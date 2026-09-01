@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.cash.zipline.loader.ZiplineCache
 import dev.dogwood.host.DogwoodSession
+import dev.dogwood.host.Palette
 import dev.dogwood.host.SessionStatus
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
@@ -64,7 +65,7 @@ class SliceActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     setContent {
       MaterialTheme {
-        Surface(Modifier.fillMaxSize()) { SliceHost() }
+        Surface(Modifier.fillMaxSize(), color = Palette.Canvas) { SliceHost() }
       }
     }
   }
@@ -151,7 +152,9 @@ class SliceActivity : ComponentActivity() {
             "signed by ${status.verifiedByKey} · restored ${status.restoredKeys} keys",
           style = MaterialTheme.typography.labelSmall,
         )
-        DogwoodSurface(live, Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+        // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
+        // Nesting one inside a scrollable parent gives it infinite height and crashes.
+        DogwoodSurface(live, Modifier.fillMaxSize())
       }
     }
   }

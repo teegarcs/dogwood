@@ -12,7 +12,9 @@ package dev.dogwood.host
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -26,6 +28,8 @@ private const val FILL_MAX_WIDTH = 2
 private const val WEIGHT = 3
 private const val SIZE = 4
 private const val ALPHA = 5
+private const val WIDTH = 6
+private const val HEIGHT = 7
 
 /**
  * Rebuilds a node's modifier chain, in order.
@@ -55,6 +59,8 @@ fun WidgetView.composeModifier(scope: LayoutScope): Modifier {
         }
       }
       SIZE -> modifier.size((value.intOrNull ?: 0).dp)
+      WIDTH -> modifier.width((value.intOrNull ?: 0).dp)
+      HEIGHT -> modifier.height((value.intOrNull ?: 0).dp)
       ALPHA -> modifier.alpha(value.floatOrNull ?: 1f)
       else -> modifier
     }

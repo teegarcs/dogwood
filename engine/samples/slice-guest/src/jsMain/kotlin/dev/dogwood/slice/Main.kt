@@ -19,8 +19,7 @@ private val zipline by lazy { Zipline.get() }
 fun main() {
   zipline.bind<DogwoodGuestUi>(
     name = "dogwood.guest",
-    // The state is built inside the composition, by `rememberSliceState`, so that every holder
-    // is saveable and survives a code update.
-    instance = DogwoodGuest { SliceScreen(rememberSliceState()) },
+    // State is declared with `rememberSaveable` inside the screen, so it survives a code update.
+    instance = DogwoodGuest { ExploreScreen() },
   )
 }

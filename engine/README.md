@@ -165,6 +165,23 @@ adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity
 adb pull /sdcard/Android/data/dev.dogwood.slice.android/files/render-strategy.md
 ```
 
+## The registered design system
+
+Segment 1 is modelled on [Skyscanner Backpack](https://github.com/Skyscanner/backpack-android) —
+public, Apache 2.0, built on atomic design, and shipping real Jetpack Compose components, which is
+what makes the bindability audit a measurement rather than an exercise. The audit is
+[Layer 5 ADR-008](../adrs/layer-5/ADR-008-design-system-audit-backpack.md); five of the eleven
+components audited bind as declared.
+
+Dogwood does **not** depend on the Backpack library — that would tie the host layer to Android,
+and the host layer being common Kotlin is the property the architecture rests on. Its spacing and
+corner-radius tokens are used as published; the colours are ours.
+
+The sample screen exercises the result: real photographs loaded from a content delivery network by
+Uniform Resource Locator, a horizontally scrolling carousel, filter chips, star ratings, badges,
+struck-through prices, and a lazily rendered vertical list — all authored as ordinary Kotlin
+Compose in the guest, none of it aware it is running inside an interpreter.
+
 ## Live code update
 
 `DogwoodSession` watches the delivery flow and replaces the running experience when new code is

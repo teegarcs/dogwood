@@ -18,10 +18,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,8 +39,10 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.WidgetTag
@@ -56,6 +65,8 @@ private const val CONTENT = 1
 /** Property tags are parameter-declaration order, widget-scoped. */
 private const val P1 = 1
 private const val P2 = 2
+private const val P3 = 3
+private const val P4 = 4
 
 object DogwoodDictionary {
   // Segment 0 -- layout primitives.
@@ -72,9 +83,21 @@ object DogwoodDictionary {
   val Badge = widgetTag(Segments.DESIGN_SYSTEM, 4)
   val Divider = widgetTag(Segments.DESIGN_SYSTEM, 5)
 
+  // Added after the audit. Tags 1-5 keep their meaning, because the protocol's evolution rule is
+  // additive: a new component appends rather than renumbering, so a client one dictionary version
+  // behind still renders everything it knows.
+  val Chip = widgetTag(Segments.DESIGN_SYSTEM, 6)
+  val Price = widgetTag(Segments.DESIGN_SYSTEM, 7)
+  val StarRating = widgetTag(Segments.DESIGN_SYSTEM, 8)
+  val SectionHeader = widgetTag(Segments.DESIGN_SYSTEM, 9)
+  val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
+  val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
+
   private val known = setOf(
     Text.value, Column.value, Row.value, Box.value, Spacer.value,
     PrimaryButton.value, AsyncImage.value, Card.value, Badge.value, Divider.value,
+    Chip.value, Price.value, StarRating.value, SectionHeader.value,
+    VerticalList.value, HorizontalList.value,
   )
 
   fun knows(tag: WidgetTag): Boolean = tag.value in known
@@ -82,7 +105,9 @@ object DogwoodDictionary {
   /** Per-segment versions, handed to the guest so it can branch on client capability. */
   val segmentVersions: Map<String, Int> = mapOf(
     "androidx.layout" to 1,
-    "dogwood.designsystem" to 1,
+    // Bumped when components were added. Guest code can branch on this to stay compatible with
+    // clients that have not caught up.
+    "dogwood.designsystem" to 2,
   )
 }
 
@@ -103,7 +128,8 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       modifier = modifier,
       maxLines = node.int(P2, Int.MAX_VALUE),
       overflow = TextOverflow.Ellipsis,
-      style = MaterialTheme.typography.bodyMedium,
+      color = Palette.Ink,
+      style = MaterialTheme.typography.bodyLarge,
     )
 
     DogwoodDictionary.Column.value -> Column(modifier) {
@@ -125,7 +151,7 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
     }
 
     DogwoodDictionary.Box.value -> Box(
-      modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)),
+      modifier.background(Palette.CanvasContrast, RoundedCornerShape(Radius.Xs)),
     ) {
       RenderChildren(node, CONTENT, LayoutScope(), events)
     }
@@ -135,43 +161,156 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
     DogwoodDictionary.PrimaryButton.value -> Button(
       onClick = { events.send(node, EventTag(1)) },
       modifier = modifier,
+      shape = RoundedCornerShape(Radius.Sm),
+      colors = ButtonDefaults.buttonColors(
+        containerColor = Palette.Primary,
+        contentColor = Palette.OnPrimary,
+      ),
+      contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Md),
     ) {
-      Text(node.string(P1))
+      Text(node.string(P1), style = MaterialTheme.typography.titleSmall)
     }
 
-    // A placeholder until the resources subsystem exists. It is drawn as a labelled surface
-    // rather than silently blank so that a missing image is visible in the slice rather than
-    // mistaken for a layout bug.
-    DogwoodDictionary.AsyncImage.value -> Box(
-      modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(4.dp)),
-      contentAlignment = Alignment.Center,
-    ) {
-      Text("image", style = MaterialTheme.typography.labelSmall)
-    }
+    // Real image loading. The guest sends a Uniform Resource Locator (URL) and nothing else --
+    // no bitmap, no painter, no asset handle -- which is exactly why this component is bindable
+    // at all, and why Layer 5 ADR-006 says a registered `AsyncImage(url)` solves images long
+    // before the general resources subsystem exists.
+    DogwoodDictionary.AsyncImage.value -> AsyncImage(
+      model = node.string(P1),
+      contentDescription = node.string(P2).ifEmpty { null },
+      contentScale = ContentScale.Crop,
+      modifier = modifier
+        .clip(RoundedCornerShape(node.int(P3, 8).dp))
+        .background(Palette.CanvasContrast),
+      // A picture that silently fails to arrive is indistinguishable from a layout bug, and the
+      // guest cannot see it happen. Say so where somebody will read it.
+      onError = { state ->
+        println("dogwood: image failed for ${node.string(P1)}: ${state.result.throwable}")
+      },
+    )
 
-    DogwoodDictionary.Card.value -> Card(modifier) {
+    DogwoodDictionary.Card.value -> Card(
+      modifier = modifier,
+      shape = RoundedCornerShape(Radius.Md),
+      colors = CardDefaults.cardColors(containerColor = Palette.Canvas),
+      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
       RenderChildren(node, CONTENT, LayoutScope(column = this), events)
     }
 
     DogwoodDictionary.Badge.value -> {
       val selected = node.boolean(P2, false)
       Surface(
-        modifier = modifier.clip(RoundedCornerShape(8.dp)),
-        color = if (selected) {
-          MaterialTheme.colorScheme.primaryContainer
-        } else {
-          MaterialTheme.colorScheme.surfaceVariant
-        },
+        modifier = modifier.clip(RoundedCornerShape(Radius.Xs)),
+        color = if (selected) Palette.SuccessContainer else Palette.CanvasContrast,
       ) {
         Text(
           node.string(P1),
-          modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+          modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
+          color = if (selected) Palette.Success else Palette.InkSecondary,
           style = MaterialTheme.typography.labelMedium,
         )
       }
     }
 
-    DogwoodDictionary.Divider.value -> HorizontalDivider(modifier)
+    DogwoodDictionary.Divider.value -> HorizontalDivider(modifier, color = Palette.Line)
+
+    DogwoodDictionary.Chip.value -> {
+      val selected = node.boolean(P2, false)
+      Surface(
+        modifier = modifier
+          .clip(RoundedCornerShape(Radius.Full))
+          .clickable { events.send(node, EventTag(1)) },
+        color = if (selected) Palette.Primary else Palette.CanvasContrast,
+      ) {
+        Text(
+          node.string(P1),
+          modifier = Modifier.padding(horizontal = Spacing.Base, vertical = Spacing.Md),
+          color = if (selected) Palette.OnPrimary else Palette.Ink,
+          style = MaterialTheme.typography.labelLarge,
+        )
+      }
+    }
+
+    // Bindable exactly as its design system declares it: every parameter is a string or an
+    // enumerated token, and its one lambda is a discrete event. It needed no wrapper at all.
+    DogwoodDictionary.Price.value -> Row(
+      modifier,
+      verticalAlignment = Alignment.Bottom,
+      horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
+    ) {
+      node.string(P2).takeIf { it.isNotEmpty() }?.let {
+        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
+      }
+      node.string(P3).takeIf { it.isNotEmpty() }?.let {
+        Text(
+          it,
+          color = Palette.InkSecondary,
+          style = MaterialTheme.typography.bodySmall.copy(
+            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
+          ),
+        )
+      }
+      Text(
+        node.string(P1),
+        color = Palette.Ink,
+        style = MaterialTheme.typography.titleMedium,
+      )
+      node.string(P4).takeIf { it.isNotEmpty() }?.let {
+        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
+      }
+    }
+
+    DogwoodDictionary.StarRating.value -> Row(
+      modifier,
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
+    ) {
+      val rating = node.float(P1, 0f)
+      Text("★", color = Palette.Star, style = MaterialTheme.typography.bodyMedium)
+      Text(
+        rating.toString(),
+        color = Palette.Ink,
+        style = MaterialTheme.typography.labelLarge,
+      )
+      node.string(P2).takeIf { it.isNotEmpty() }?.let {
+        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
+      }
+    }
+
+    DogwoodDictionary.SectionHeader.value -> Column(
+      modifier,
+      verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
+    ) {
+      Text(node.string(P1), color = Palette.Ink, style = MaterialTheme.typography.titleLarge)
+      node.string(P2).takeIf { it.isNotEmpty() }?.let {
+        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodyMedium)
+      }
+    }
+
+    // Laziness, but only half of it. The host composes and draws only the visible children,
+    // which is the expensive half. The guest still composed and sent every child, so the
+    // protocol traffic is not windowed -- and guest-side windowing, with its placeholder pool
+    // and throttled viewport callbacks, is the Phase 4 subsystem this does not replace.
+    DogwoodDictionary.VerticalList.value -> LazyColumn(
+      modifier = modifier,
+      verticalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
+      contentPadding = PaddingValues(node.int(P2, 0).dp),
+    ) {
+      items(node.children(CONTENT), key = { it.id.value }) { child ->
+        RenderNode(child, LayoutScope(), events)
+      }
+    }
+
+    DogwoodDictionary.HorizontalList.value -> LazyRow(
+      modifier = modifier,
+      horizontalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
+      contentPadding = PaddingValues(horizontal = node.int(P2, 0).dp),
+    ) {
+      items(node.children(CONTENT), key = { it.id.value }) { child ->
+        RenderNode(child, LayoutScope(), events)
+      }
+    }
 
     else -> Box(modifier)
   }

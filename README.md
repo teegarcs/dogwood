@@ -22,8 +22,11 @@ and client, from one source of truth.
 > longer unmeasured. [`tools/phase0/`](tools/phase0/) measures the architecture and
 > [`engine/`](engine/) implements it: a real screen, authored as ordinary Kotlin Compose,
 > executed inside QuickJS, rendered by native Compose Multiplatform, responding to taps.
-> **The Phase 0 gate has not been closed**, because it is defined on a low-end Android device
-> that was not available — every number was taken on faster hardware and is a lower bound. See
+> **The Phase 0 gate is formally not closed**, and that is now a decision rather than a pending
+> task: the low-end device it is defined on is not available and will not be acquired
+> ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)). Every number was taken
+> on faster hardware and is a lower bound. The carried risk is recomposition speed on low-end
+> silicon, and the harness runs on any Android device, so the first one it meets settles it. See
 > [the roadmap's Phase 0 status](roadmap.md) and [section 7 of the technical
 > specification](high-level-tech-spec-final.md) for the risk register.
 

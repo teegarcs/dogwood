@@ -114,6 +114,9 @@ This rule, and not parameter-type marshallability, is what determines coverage. 
 | `Modifier.pointerInput` | A suspending `PointerInputScope` coroutine awaiting pointer events |
 | `BasicTextField`, `TextField`, `OutlinedTextField` | Controlled components; the edit buffer is host-side and the value is guest-side. Excluded **by name** — the `String value` + `onValueChange` overloads are exactly this controlled component, and a type-based check alone misses them |
 | `BoxWithConstraints` | `maxWidth` is a host-measured value that guest logic reads |
+| **A lambda the host invokes to obtain a value** — `contentDescription: (Float, Int) -> String` | The host would have to call into the guest and await an answer *during composition*, which the Layer 4 invariant forbids: the host's frame cannot block on the interpreter. Found in the wild during the [Backpack audit](../adrs/layer-5/ADR-008-design-system-audit-backpack.md); the fix is a wrapper taking the finished value |
+| **A lambda that fires per layout or draw pass** — `onTextLayout: (TextLayoutResult) -> Unit` | Same shape in the other direction: binding it would tick the boundary every frame, which is the invariant again |
+| **An indexed content lambda** — `content: BoxScope.(Int) -> Unit` on a carousel | "Give me page *n* on demand" is the lazy-layout subsystem in miniature. No wrapper fixes it: one that eagerly materialised every page would discard the laziness that is the component's purpose |
 | `SubcomposeLayout`, `Layout` | Custom measure policy |
 | `HorizontalPager`, `AnimatedContent` | Host-owned live state and per-frame invocation |
 | `Image`, `Icon` | The required `Painter`/`ImageBitmap`/`ImageVector` is asset-backed; no deferred expression can produce it. Needs the resources subsystem (item 8 below) |
