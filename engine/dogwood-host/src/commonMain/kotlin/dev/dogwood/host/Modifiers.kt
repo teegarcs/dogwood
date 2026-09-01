@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
@@ -53,6 +54,7 @@ private const val SCALE = 12
  * on. Nothing extra crosses.
  */
 private const val ANIMATED_NUMBER = 12
+private const val OSCILLATE = 15
 private const val ANIMATION_EVENT_BASE = 1000
 
 /**
@@ -116,7 +118,13 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
       }
       // Deferred expressions: the argument is a recipe, not a value, and the host builds it.
       CLIP -> modifier.clip(evaluator.shape(element.v))
-      BACKGROUND -> modifier.background(evaluator.color(element.v, palette))
+      // Through the shared resolver, so `background` accepts an animated colour on exactly the
+      // same terms as `Icon`'s tint does.
+      BACKGROUND -> modifier.background(
+        (element.v as? kotlinx.serialization.json.JsonArray)
+          ?.let { androidx.compose.runtime.key(index, element.t.value) { resolveColor(it) } }
+          ?: evaluator.color(element.v, palette),
+      )
       SIZE -> modifier.size(number(0f).dp)
       WIDTH -> modifier.width(number(0f).dp)
       HEIGHT -> modifier.height(number(0f).dp)
@@ -169,10 +177,13 @@ private fun animatedNumber(
 ): Float {
   val array = raw as? kotlinx.serialization.json.JsonArray
     ?: return raw.jsonPrimitive.floatOrNull ?: fallback
-  if (array.firstOrNull()?.jsonPrimitive?.intOrNull != ANIMATED_NUMBER) return fallback
+
+  val factory = array.firstOrNull()?.jsonPrimitive?.intOrNull
+  if (factory == OSCILLATE) return oscillating(array, index, node, events)
+  if (factory != ANIMATED_NUMBER) return fallback
 
   val target = array.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: fallback
-  val spec = animationSpecOf(array.getOrNull(2))
+  val spec = animationSpecOf<Float>(array.getOrNull(2))
   val notify = array.getOrNull(3)?.jsonPrimitive?.booleanOrNull ?: false
 
   // `rememberUpdatedState` for the same reason the viewport reporter needs it: this listener
@@ -199,9 +210,9 @@ private fun animatedNumber(
  * Named parts, resolved here. A guest sending Compose's own stiffness constants as numbers would
  * be asserting a physical unit it has no way to check; a name is something the host can refuse.
  */
-private fun animationSpecOf(
+internal fun <T> animationSpecOf(
   raw: JsonElement?,
-): androidx.compose.animation.core.FiniteAnimationSpec<Float> {
+): androidx.compose.animation.core.FiniteAnimationSpec<T> {
   val array = raw as? kotlinx.serialization.json.JsonArray
     ?: return androidx.compose.animation.core.tween()
   return when (array.firstOrNull()?.jsonPrimitive?.intOrNull) {
@@ -219,7 +230,7 @@ private fun animationSpecOf(
   }
 }
 
-private fun easingOf(name: String?): androidx.compose.animation.core.Easing = when (name) {
+internal fun easingOf(name: String?): androidx.compose.animation.core.Easing = when (name) {
   "linear" -> androidx.compose.animation.core.LinearEasing
   "fastOutLinearIn" -> androidx.compose.animation.core.FastOutLinearInEasing
   "linearOutSlowIn" -> androidx.compose.animation.core.LinearOutSlowInEasing
@@ -240,4 +251,87 @@ private fun dampingOf(name: String?): Float = when (name) {
   "mediumBouncy" -> androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
   "highBouncy" -> androidx.compose.animation.core.Spring.DampingRatioHighBouncy
   else -> androidx.compose.animation.core.Spring.DampingRatioNoBouncy
+}
+
+/**
+ * A value travelling between two points, repeatedly.
+ *
+ * Two host primitives, split on finiteness, and the split is not cosmetic. A spike established
+ * that `animateFloatAsState` cannot express a repeat at all: it moves only when its *target*
+ * changes, so a pulse toward the value it already holds is a no-op that type-checks. Both branches
+ * below therefore take an explicit range.
+ *
+ *   - **Infinite** uses `rememberInfiniteTransition`, which exists for exactly this and stops when
+ *     it leaves the composition. It never reports a completion, and the guest API refuses to let
+ *     one be asked for.
+ *   - **Finite** drives an `Animatable` from an effect keyed on the recipe, so a changed recipe
+ *     cancels the old run -- which is the interruption rule, inherited rather than invented, as in
+ *     [ADR-020](../../../../../../adrs/layer-5/ADR-020-animation.md).
+ */
+@Composable
+private fun oscillating(
+  array: kotlinx.serialization.json.JsonArray,
+  index: Int,
+  node: WidgetView,
+  events: EventSink,
+): Float {
+  val from = array.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: 0f
+  val to = array.getOrNull(2)?.jsonPrimitive?.floatOrNull ?: from
+  val iterations = array.getOrNull(3)?.jsonPrimitive?.intOrNull ?: 0
+  val reverse = array.getOrNull(4)?.jsonPrimitive?.booleanOrNull ?: true
+  val spec = durationSpecOf(array.getOrNull(5))
+  val notify = array.getOrNull(6)?.jsonPrimitive?.booleanOrNull ?: false
+  val mode = if (reverse) {
+    androidx.compose.animation.core.RepeatMode.Reverse
+  } else {
+    androidx.compose.animation.core.RepeatMode.Restart
+  }
+
+  if (iterations == 0) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(
+      label = "dogwood-oscillate-$index",
+    )
+    val value by transition.animateFloat(
+      initialValue = from,
+      targetValue = to,
+      animationSpec = androidx.compose.animation.core.infiniteRepeatable(spec, mode),
+      label = "dogwood-oscillate-value",
+    )
+    return value
+  }
+
+  val animatable = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(from) }
+  val currentEvents by androidx.compose.runtime.rememberUpdatedState(events)
+  val currentNode by androidx.compose.runtime.rememberUpdatedState(node)
+  androidx.compose.runtime.LaunchedEffect(array) {
+    animatable.snapTo(from)
+    animatable.animateTo(to, androidx.compose.animation.core.repeatable(iterations, spec, mode))
+    if (notify) {
+      currentEvents.send(currentNode, dev.dogwood.protocol.EventTag(ANIMATION_EVENT_BASE + index))
+    }
+  }
+  return animatable.value
+}
+
+/**
+ * A specification that has a duration, which repeating requires.
+ *
+ * A spring does not have one -- it settles when the physics say so -- so a repeating spring is not
+ * expressible and degrades to a tween rather than failing. Said here because the degradation is
+ * silent and somebody will eventually wonder why their bouncy pulse is not bouncy.
+ */
+private fun durationSpecOf(
+  raw: JsonElement?,
+): androidx.compose.animation.core.DurationBasedAnimationSpec<Float> {
+  val array = raw as? kotlinx.serialization.json.JsonArray
+    ?: return androidx.compose.animation.core.tween()
+  return when (array.firstOrNull()?.jsonPrimitive?.intOrNull) {
+    1 -> androidx.compose.animation.core.tween(
+      durationMillis = array.getOrNull(1)?.jsonPrimitive?.intOrNull ?: 300,
+      delayMillis = array.getOrNull(3)?.jsonPrimitive?.intOrNull ?: 0,
+      easing = easingOf(array.getOrNull(2)?.jsonPrimitive?.content),
+    )
+    3 -> androidx.compose.animation.core.snap()
+    else -> androidx.compose.animation.core.tween()
+  }
 }

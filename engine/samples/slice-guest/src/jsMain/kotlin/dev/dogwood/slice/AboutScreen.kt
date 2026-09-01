@@ -33,6 +33,7 @@ import dev.dogwood.compose.Keyboards
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.animate
 import dev.dogwood.compose.animateDp
+import dev.dogwood.compose.oscillate
 import dev.dogwood.compose.alpha
 import dev.dogwood.compose.background
 import dev.dogwood.compose.height
@@ -122,6 +123,16 @@ fun AboutScreen() {
       modifier = Modifier.fillMaxWidth(),
       onClick = { expanded = !expanded },
     )
+    // A skeleton row: an infinite oscillation, declared once. Every frame of it is host work.
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(24)
+        .alpha(oscillate(0.25f, 0.9f, Animations.tween(700, "linear")))
+        .background(Color.token("canvasContrast")),
+    )
+    Text("skeleton: one property crossed, then nothing")
+
     Box(
       modifier = Modifier
         .fillMaxWidth()
@@ -138,7 +149,8 @@ fun AboutScreen() {
             onFinished = { arrivals += 1 },
           ),
         )
-        .background(Color.token("primaryContainer")),
+        // An animated colour. A theme flip mid-flight retargets rather than jumping.
+        .background(Color.token(if (expanded) "primaryContainer" else "canvasContrast").animate()),
     )
     Text("arrived $arrivals times")
 

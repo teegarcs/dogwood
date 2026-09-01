@@ -19,7 +19,10 @@ import androidx.compose.ui.graphics.Shape
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import androidx.compose.runtime.getValue
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 private fun JsonElement.literalOrNull(): String? =
   (this as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
@@ -60,8 +63,35 @@ fun WidgetView.color(tag: Int, default: Color): Color = colorOrNull(tag) ?: defa
 @Composable
 fun WidgetView.colorOrNull(tag: Int): Color? {
   val raw = property(tag) as? JsonArray ?: return null
-  return LocalExpressionEvaluator.current.color(raw, palette())
+  return resolveColor(raw)
 }
+
+/**
+ * Resolves a colour recipe, animating if the recipe says to.
+ *
+ * Shared by the property readers and the `background` modifier, so an animated colour behaves the
+ * same wherever a colour is accepted. The animated form wraps an ordinary colour recipe, so the
+ * *target* is resolved against the palette first -- which means a theme flip mid-flight retargets
+ * rather than jumping, exactly as a changed target does.
+ */
+@Composable
+fun resolveColor(raw: JsonArray): Color {
+  val evaluator = LocalExpressionEvaluator.current
+  val palette = palette()
+  if (raw.firstOrNull()?.jsonPrimitive?.intOrNull != ANIMATED_COLOR) {
+    return evaluator.color(raw, palette)
+  }
+  val target = (raw.getOrNull(1) as? JsonArray)?.let { evaluator.color(it, palette) }
+    ?: palette.ink
+  val animated by androidx.compose.animation.animateColorAsState(
+    targetValue = target,
+    animationSpec = animationSpecOf<Color>(raw.getOrNull(2)),
+    label = "dogwood-colour",
+  )
+  return animated
+}
+
+private const val ANIMATED_COLOR = 14
 
 /** Reads a shape the guest named. Unknown factories degrade, as everywhere else. */
 @Composable

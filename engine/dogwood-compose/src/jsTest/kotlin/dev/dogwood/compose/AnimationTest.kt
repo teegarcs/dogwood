@@ -18,6 +18,7 @@ import dev.dogwood.protocol.ModifierSet
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.dogwood.protocol.PropertySet
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -171,5 +172,88 @@ class AnimatedModifierTest {
       .map { (it.json as JsonArray)[0].jsonPrimitive.intOrNull }
     assertEquals(listOf(1, 2, 3), kinds)
     assertTrue(kinds.toSet().size == kinds.size)
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Colour and repetition, guest side.
+ *
+ * Both are the same rule as a declared target — the guest names what it wants, the host runs the
+ * frames — so the tests are the same shape: what crosses, and how little of it.
+ */
+class AnimatedColourAndRepeatTest {
+
+  @Test
+  fun anAnimatedColourIsStillAColourAndWrapsTheOneItTargets() {
+    // The reason it needs no new type: anything typed `Color` accepts it. Typing `Icon.tint` as a
+    // colour rather than a token name is what made that free.
+    val (host, _) = compose {
+      Text("x", modifier = Modifier.background(Color.token("primary").animate()))
+    }
+    val recipe = host.chains().single().e.single().v as JsonArray
+    assertEquals(14, recipe[0].jsonPrimitive.intOrNull, "the animated-colour factory")
+    val inner = recipe[1].jsonArray
+    assertEquals(4, inner[0].jsonPrimitive.intOrNull, "wrapping an ordinary colour token")
+    assertEquals("primary", inner[1].jsonPrimitive.content)
+  }
+
+  @Test
+  fun anAnimatedColourReachesAGeneratedComponentsParameter() {
+    val (host, _) = compose { Icon(name = "flight", tint = Color.token("primary").animate()) }
+    val value = host.decoded().flatMap { it.g }.filterIsInstance<PropertySet>()
+      .last { it.p.value == 4 }.v as JsonArray
+    assertEquals(14, value[0].jsonPrimitive.intOrNull)
+  }
+
+  @Test
+  fun anOscillationCrossesItsRangeNotItsFrames() {
+    // The whole animation is one property. A pulsing skeleton costs the same as a static one.
+    val (host, composition) = compose {
+      Text("x", modifier = Modifier.alpha(oscillate(0.35f, 1f, Animations.tween(200))))
+    }
+    val before = host.batches.size
+    repeat(60) { composition.frame(16_666_666L * (it + 1)) }
+    assertEquals(before, host.batches.size, "an oscillation must not tick the boundary")
+
+    val recipe = host.chains().single().e.single().v as JsonArray
+    assertEquals(15, recipe[0].jsonPrimitive.intOrNull, "the oscillate factory")
+    assertEquals(0.35f, recipe[1].jsonPrimitive.content.toFloat())
+    assertEquals(1f, recipe[2].jsonPrimitive.content.toFloat())
+    assertEquals(0, recipe[3].jsonPrimitive.intOrNull, "zero iterations means forever")
+    assertEquals(true, recipe[4].jsonPrimitive.content.toBoolean(), "reversing by default")
+  }
+
+  @Test
+  fun anInfiniteOscillationMayNotAskForACompletion() {
+    // It would never arrive, and a callback that never fires is worse than a compile error: the
+    // guest would be waiting on something that cannot happen.
+    val failure = runCatching { oscillate(0f, 1f, onFinished = {}) }.exceptionOrNull()
+    assertTrue(failure != null, "an infinite oscillation with a callback must be refused")
+    assertTrue(failure!!.message!!.contains("never finishes"), failure.message!!)
+  }
+
+  @Test
+  fun aFiniteOscillationMayAskForOne() {
+    val target = oscillate(0f, 1f, iterations = 3, onFinished = {})
+    val recipe = target.toJson(notify = true) as JsonArray
+    assertEquals(3, recipe[3].jsonPrimitive.intOrNull)
+    assertEquals(true, recipe[6].jsonPrimitive.content.toBoolean())
+  }
+
+  @Test
+  fun aNegativeIterationCountIsRefused() {
+    assertTrue(runCatching { oscillate(0f, 1f, iterations = -1) }.isFailure)
+  }
+
+  @Test
+  fun eachAnimatedFormHasItsOwnFactory() {
+    // A declared target, an oscillation and an animated colour must never be mistaken for one
+    // another on a client that implements only some of them.
+    val declared = (animate(1f).toJson(notify = false) as JsonArray)[0].jsonPrimitive.intOrNull
+    val repeated = (oscillate(0f, 1f).toJson(notify = false) as JsonArray)[0].jsonPrimitive.intOrNull
+    assertEquals(12, declared)
+    assertEquals(15, repeated)
   }
 }

@@ -36,6 +36,12 @@ internal object ExpressionFactories {
   const val TEXT_TIME = 9
   const val TEXT_DATE_TIME = 10
   const val TEXT_RELATIVE_TIME = 11
+
+  // Values that change with the host's clock. `ANIMATED_NUMBER` is ADR-020's declared target;
+  // these two extend the same idea to colour and to motion that repeats.
+  const val ANIMATED_NUMBER = 12
+  const val ANIMATED_COLOR = 14
+  const val OSCILLATE = 15
 }
 
 /**
@@ -105,6 +111,26 @@ class Color internal constructor(private val recipe: Recipe) {
     fun token(name: String): Color =
       Color(Recipe(ExpressionFactories.COLOR_TOKEN, listOf(JsonPrimitive(name))))
   }
+
+  /**
+   * A colour the host animates towards.
+   *
+   * Still a `Color`, which is the point: anything that takes one -- a `background` modifier,
+   * `Icon`'s tint, any component parameter typed `Color` -- accepts an animated one with no second
+   * signature and no second type. Typing `tint` as a colour rather than a token name
+   * ([ADR-021](../../../../../../adrs/layer-5/ADR-021-host-resolved-values.md)) is what made that
+   * true for free.
+   *
+   * The target may itself be a token, so **a palette flip mid-flight retargets** rather than
+   * jumping: the resolved target changes and the host animates on from wherever it had reached.
+   *
+   * No completion callback, deliberately. A colour animation is decorative, and a completion needs
+   * an event tag -- which a modifier element has, from its position in the chain, and a component
+   * property does not. Rather than support it in one place and not the other, it is supported in
+   * neither until something needs it.
+   */
+  fun animate(spec: AnimationSpec = Animations.tween()): Color =
+    Color(Recipe(ExpressionFactories.ANIMATED_COLOR, listOf(recipe.toJson(), spec.json)))
 }
 
 /**

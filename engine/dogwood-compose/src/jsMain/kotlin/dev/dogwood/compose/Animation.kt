@@ -93,19 +93,60 @@ class AnimationTarget internal constructor(
   internal val target: JsonElement,
   internal val spec: AnimationSpec,
   internal val onFinished: (() -> Unit)?,
+  private val factory: Int = ExpressionFactories.ANIMATED_NUMBER,
+  private val extra: List<JsonElement> = emptyList(),
 ) {
   internal fun toJson(notify: Boolean): JsonElement = JsonArray(
-    listOf(
-      JsonPrimitive(ANIMATED_NUMBER),
-      target,
-      spec.json,
-      JsonPrimitive(notify),
-    ),
+    listOf(JsonPrimitive(factory), target) + extra + listOf(spec.json, JsonPrimitive(notify)),
   )
 
   internal companion object {
-    const val ANIMATED_NUMBER = 12
+    const val ANIMATED_NUMBER = ExpressionFactories.ANIMATED_NUMBER
   }
+}
+
+/**
+ * A value that travels between two points, repeatedly.
+ *
+ * A separate recipe from [animate], not a variant of its spec, and a spike is why. Handing a
+ * repeating spec to a declared *target* type-checks and silently does nothing: the host resolves a
+ * target with `animateFloatAsState`, which moves only when the target changes, and a pulse's target
+ * is the value it is already at. A repeat needs an explicit range, so it gets one.
+ *
+ * ```
+ * .alpha(oscillate(0.35f, 1f))                                        // a loading skeleton
+ * .rotate(oscillate(0f, 360f, Animations.tween(1000, "linear"), reverse = false))  // a spinner
+ * ```
+ *
+ * @param iterations 0 means forever. A finite oscillation completes once, at the end of its last
+ *   pass; an infinite one never does, which is why it may not ask for a completion callback.
+ * @param reverse travel back rather than snapping to the start between passes.
+ *
+ * Stopping one is an ordinary composition change: replace it with a plain number or an [animate]
+ * target, and the chain change cancels it. Note that an infinite oscillation keeps the *host's*
+ * frame loop awake for as long as it is on screen -- the same cost as any native spinner, and no
+ * boundary traffic at all, but worth knowing before shipping a permanently pulsing badge.
+ */
+fun oscillate(
+  from: Float,
+  to: Float,
+  spec: AnimationSpec = Animations.tween(),
+  iterations: Int = 0,
+  reverse: Boolean = true,
+  onFinished: (() -> Unit)? = null,
+): AnimationTarget {
+  require(iterations >= 0) { "iterations must not be negative; 0 means forever" }
+  require(!(iterations == 0 && onFinished != null)) {
+    "an infinite oscillation never finishes, so it cannot report a completion. Give it a finite " +
+      "iteration count, or drop the callback."
+  }
+  return AnimationTarget(
+    JsonPrimitive(from),
+    spec,
+    onFinished,
+    factory = ExpressionFactories.OSCILLATE,
+    extra = listOf(JsonPrimitive(to), JsonPrimitive(iterations), JsonPrimitive(reverse)),
+  )
 }
 
 /**
