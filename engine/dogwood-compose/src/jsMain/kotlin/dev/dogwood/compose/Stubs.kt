@@ -207,13 +207,51 @@ internal fun Children(tag: ChildrenTag, content: @Composable () -> Unit) {
 // ---------------------------------------------------------------------------
 
 @Composable
-fun Text(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty, maxLines: Int = -1) {
+fun Text(
+  text: String,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  maxLines: Int = -1,
+  /**
+   * A named text style from the host's design system, such as `titleLarge`.
+   *
+   * A token rather than a `TextStyle`, for the same reason colours are tokens: the guest cannot
+   * construct one, and a literal could not follow the host's typography -- including the font
+   * family, which is the design-system-first answer to the font half of the resources subsystem.
+   */
+  style: String? = null,
+) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Text) },
     update = {
       set(text) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
       // Absence IS the "use host default" sentinel, so an unset maxLines sends nothing.
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+    },
+  )
+}
+
+/**
+ * Text the host formats, from a recipe rather than a string.
+ *
+ * For everything the sandbox cannot render itself -- money, dates, decimal separators, relative
+ * times. See [Formats]. The number crosses, not the rendered string, so a device that changes
+ * locale re-renders correctly with no traffic at all.
+ */
+@Composable
+fun Text(
+  value: DogwoodExpression,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  maxLines: Int = -1,
+  style: String? = null,
+) {
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Text) },
+    update = {
+      set(value) { recording.recorder.property(id, Tags.P4, it.toJson()) }
+      set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
     },
   )

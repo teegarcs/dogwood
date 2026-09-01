@@ -45,6 +45,14 @@ class DogwoodExperience(
   val tree = HostTree(leakDetector)
 
   /**
+   * Everything this client failed to recognise while rendering this guest.
+   *
+   * One report per experience, because skew is a property of the pairing between a payload and a
+   * client, not of the client alone. See `Skew.kt`.
+   */
+  val skew = SkewReport()
+
+  /**
    * The threading contract.
    *
    * **This class must be constructed on the user-interface thread.** That is not arbitrary: the
@@ -197,7 +205,7 @@ class DogwoodExperience(
 @Composable
 fun DogwoodSurface(experience: DogwoodExperience, modifier: Modifier = Modifier) {
   val sink = EventSink { node, tag, args -> experience.send(node, tag, args) }
-  DogwoodTree(experience.tree, sink, modifier, evaluatorKey = experience)
+  DogwoodTree(experience.tree, sink, modifier, evaluatorKey = experience, skew = experience.skew)
 }
 
 /**
@@ -217,9 +225,13 @@ fun DogwoodTree(
   events: EventSink,
   modifier: Modifier = Modifier,
   evaluatorKey: Any? = tree,
+  skew: SkewReport = androidx.compose.runtime.remember(evaluatorKey) { SkewReport() },
 ) {
-  val evaluator = androidx.compose.runtime.remember(evaluatorKey) { ExpressionEvaluator() }
-  androidx.compose.runtime.CompositionLocalProvider(LocalExpressionEvaluator provides evaluator) {
+  val evaluator = androidx.compose.runtime.remember(evaluatorKey, skew) { ExpressionEvaluator(skew) }
+  androidx.compose.runtime.CompositionLocalProvider(
+    LocalExpressionEvaluator provides evaluator,
+    LocalSkewReport provides skew,
+  ) {
     androidx.compose.foundation.layout.Column(modifier) {
       RenderChildren(tree.root, slot = 1, scope = LayoutScope(column = this), events = events)
     }

@@ -21,6 +21,7 @@ import dev.dogwood.compose.SectionHeader
 import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
+import dev.dogwood.compose.Formats
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
 import dev.dogwood.protocol.widthClass
@@ -57,6 +58,20 @@ fun AboutScreen() {
     // Date.now(); it has no time zone, because the pinned build ships no Intl.
     Text("host clock ${host.nowEpochMillis() ?: "unavailable"}")
     Text("time zone ${host.clock?.timeZoneId() ?: "unavailable"}")
+
+    Divider(modifier = DogwoodModifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Formatted by the host",
+      description = "The sandbox has no Intl. Every line below crossed as a number.",
+    )
+    val now = host.nowEpochMillis() ?: 0L
+    Text(Formats.currency(61200, "USD"))
+    Text(Formats.currency(61200, "JPY"))
+    Text(Formats.number(1234567.891))
+    Text(Formats.percent(0.075, maximumFractionDigits = 1))
+    Text(Formats.dateTime(now))
+    Text(Formats.relativeTime(now - 3 * 86_400_000L, now))
 
     Divider(modifier = DogwoodModifier.fillMaxWidth())
 

@@ -14,6 +14,7 @@
 package dev.dogwood.slice
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +44,12 @@ import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.Colors
+import dev.dogwood.compose.Formats
+import dev.dogwood.compose.Icon
+import dev.dogwood.compose.LocalStringTable
 import dev.dogwood.compose.Shapes
+import dev.dogwood.compose.StringTable
+import dev.dogwood.compose.strings
 import dev.dogwood.compose.background
 import dev.dogwood.compose.clip
 import dev.dogwood.compose.padding
@@ -60,12 +66,21 @@ import kotlinx.serialization.json.Json
 
 private const val TAG = "explore"
 
+/**
+ * Money arrives as an integer and a currency code, not as a rendered string.
+ *
+ * That is the whole point of the formatting recipes. A server that sent "$612" would have decided
+ * the currency symbol, the decimal separator, the grouping separator and the number of decimal
+ * places on behalf of every device it would ever reach -- and would have got all four wrong for
+ * most of them. The number crosses; the host renders it in the locale it is in.
+ */
 @Serializable
 data class Destination(
   val name: String,
   val country: String,
-  val price: String,
-  val was: String,
+  val priceMinor: Long,
+  val wasMinor: Long,
+  val currency: String,
   val image: String,
 )
 
@@ -75,7 +90,8 @@ data class Stay(
   val area: String,
   val rating: Float,
   val reviews: String,
-  val price: String,
+  val priceMinor: Long,
+  val currency: String,
   val badge: String? = null,
   val image: String,
 )
@@ -107,8 +123,39 @@ private sealed interface FeedState {
   data class Failed(val reason: String) : FeedState
 }
 
+/**
+ * Copy the payload carries, so changing a word does not need a store release.
+ *
+ * Japanese is here to make the mechanism visible rather than because the sample is translated:
+ * switch the device to `ja-JP` and these three strings change with it, alongside the currency
+ * formatting the host does.
+ */
+private val exploreStrings = StringTable(
+  mapOf(
+    "en" to mapOf(
+      "exploreTitle" to "Flights and stays",
+      "returnFlight" to "return",
+      "perNight" to "per night",
+      "staysIn" to "Stays in",
+    ),
+    "ja" to mapOf(
+      "exploreTitle" to "航空券と宿泊",
+      "returnFlight" to "往復",
+      "perNight" to "1泊あたり",
+      "staysIn" to "宿泊先:",
+    ),
+  ),
+)
+
 @Composable
 fun ExploreScreen(params: ExploreParams) {
+  CompositionLocalProvider(LocalStringTable provides exploreStrings) {
+    ExploreContent(params)
+  }
+}
+
+@Composable
+private fun ExploreContent(params: ExploreParams) {
   // Saveable, so a code update published while someone is mid-browse does not reset them.
   var selectedFilter by rememberSaveable(key = "filter", stateSaver = autoSaver()) {
     mutableStateOf(0)
@@ -144,6 +191,14 @@ fun ExploreScreen(params: ExploreParams) {
     contentPaddingDp = 16,
     state = listState,
   ) {
+    Row(modifier = DogwoodModifier.padding(2)) {
+      // An icon by name. The guest has no painter, no asset and no resource identifier; the host
+      // owns the icon set and resolves the name, exactly as it resolves a colour token.
+      Icon(name = "flight", contentDescription = null, sizeDp = 20, tint = "primary")
+      Spacer(modifier = DogwoodModifier.size(8))
+      Text(strings("exploreTitle"), style = "labelLarge")
+    }
+
     SectionHeader(
       title = "Explore ${params.country}",
       // The visible range is a report from the host, not a measurement: it arrives when it
@@ -202,7 +257,7 @@ fun ExploreScreen(params: ExploreParams) {
         Divider(modifier = DogwoodModifier.fillMaxWidth())
 
         SectionHeader(
-          title = "Stays in ${params.city}",
+          title = "${strings("staysIn")} ${params.city}",
           description = if (savedStays == 0) {
             "${feed.stays.size} properties"
           } else {
@@ -324,12 +379,23 @@ private fun DestinationCard(destination: Destination, widthDp: Int, showWasPrice
       Spacer(modifier = DogwoodModifier.size(8))
       Text(destination.name, modifier = DogwoodModifier.padding(2))
       Text(destination.country, modifier = DogwoodModifier.padding(2))
-      Price(
-        price = destination.price,
-        previousPrice = if (showWasPrice) destination.was else null,
-        trailingText = "return",
-        modifier = DogwoodModifier.padding(2),
-      )
+      // Formatted host-side, in the device's locale, from an integer number of cents. Switch the
+      // device to ja-JP and this becomes ￥612 with no traffic and no guest recomposition.
+      Row(modifier = DogwoodModifier.padding(2)) {
+        Text(
+          Formats.currency(destination.priceMinor, destination.currency),
+          style = "titleMedium",
+        )
+        Spacer(modifier = DogwoodModifier.size(6))
+        Text(strings("returnFlight"), style = "bodySmall")
+      }
+      if (showWasPrice) {
+        Text(
+          Formats.currency(destination.wasMinor, destination.currency),
+          modifier = DogwoodModifier.padding(2),
+          style = "bodySmall",
+        )
+      }
     }
   }
 }
@@ -356,11 +422,11 @@ private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
         if (stay.badge != null) {
           Badge(text = stay.badge, selected = true, modifier = DogwoodModifier.padding(1))
         }
-        Price(
-          price = stay.price,
-          trailingText = "per night",
-          modifier = DogwoodModifier.padding(1),
-        )
+        Row(modifier = DogwoodModifier.padding(1)) {
+          Text(Formats.currency(stay.priceMinor, stay.currency), style = "titleMedium")
+          Spacer(modifier = DogwoodModifier.size(6))
+          Text(strings("perNight"), style = "bodySmall")
+        }
       }
     }
   }

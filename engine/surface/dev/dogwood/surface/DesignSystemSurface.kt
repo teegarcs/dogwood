@@ -82,3 +82,23 @@ fun SectionHeader(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   description: String? = null,
 ) {}
+
+/**
+ * An icon from the host's icon dictionary.
+ *
+ * Absent from the first nine components on purpose: Compose's `Icon` takes a required `Painter`,
+ * `ImageBitmap` or `ImageVector`, and the sandbox has no filesystem, no network, and no stable
+ * host resource identifiers. The icon dictionary is what unblocks it -- the guest names an icon
+ * and the host resolves it, exactly as it resolves a colour token. A name this client does not
+ * carry renders the icon set's fallback and is reported as skew.
+ *
+ * @param tint a colour *token* name, not a colour. A literal could not follow dark mode.
+ */
+@Composable
+fun Icon(
+  name: String,
+  contentDescription: String? = null,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  sizeDp: Int = 24,
+  tint: String? = null,
+) {}

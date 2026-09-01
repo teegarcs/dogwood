@@ -17,6 +17,7 @@ package dev.dogwood.compose
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 
 /** Factory identifiers. A closed, versioned set; the host refuses anything it does not know. */
@@ -25,6 +26,16 @@ internal object ExpressionFactories {
   const val CIRCLE = 2
   const val COLOR_ARGB = 3
   const val COLOR_TOKEN = 4
+
+  // Text the guest cannot produce. The pinned QuickJS ships no ECMA-402 `Intl`, so a guest has no
+  // locale-aware number, currency or date formatting at all -- not a slow one, none.
+  const val TEXT_NUMBER = 5
+  const val TEXT_CURRENCY = 6
+  const val TEXT_PERCENT = 7
+  const val TEXT_DATE = 8
+  const val TEXT_TIME = 9
+  const val TEXT_DATE_TIME = 10
+  const val TEXT_RELATIVE_TIME = 11
 }
 
 /**
@@ -70,6 +81,69 @@ object Colors {
    */
   fun token(name: String): DogwoodExpression =
     DogwoodExpression(ExpressionFactories.COLOR_TOKEN, listOf(JsonPrimitive(name)))
+}
+
+/**
+ * Text only the host can produce.
+ *
+ * This is the deferred-expression grammar answering a problem the guest genuinely cannot solve
+ * rather than one it merely should not: the pinned QuickJS (2021-03-27, via Zipline 1.27.0) ships
+ * **no ECMA-402 `Intl`**, so there is no locale-aware number, currency, date or relative-time
+ * formatting inside the sandbox at any price.
+ *
+ * A round-trip service was the obvious alternative and is the wrong one. Formatting is needed
+ * *during composition*, once per value: six prices on a screen would be six suspending crossings
+ * before anything could be drawn, and a guest that rendered placeholders while it waited would be
+ * worse than one that could not format at all. A recipe costs nothing extra -- it rides the
+ * property that was already crossing -- and the host formats at the moment it draws, in the locale
+ * it is actually in.
+ *
+ * The consequence worth knowing: the *number* crosses, not the rendered string. A device that
+ * switches from `en-US` to `ja-JP` re-renders these correctly with no traffic and no
+ * recomposition of the guest at all.
+ */
+object Formats {
+  /** @param maximumFractionDigits null lets the host's locale decide. */
+  fun number(value: Double, maximumFractionDigits: Int? = null): DogwoodExpression =
+    DogwoodExpression(
+      ExpressionFactories.TEXT_NUMBER,
+      listOf(JsonPrimitive(value), maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull),
+    )
+
+  /**
+   * @param minorUnits the amount in the currency's smallest unit -- cents, yen, fils. Integer on
+   *   purpose: a price is not a floating-point quantity, and the host knows how many decimal
+   *   places [currencyCode] actually has, which the guest does not.
+   * @param currencyCode an ISO 4217 code, such as `USD` or `JPY`.
+   */
+  fun currency(minorUnits: Long, currencyCode: String): DogwoodExpression =
+    DogwoodExpression(
+      ExpressionFactories.TEXT_CURRENCY,
+      listOf(JsonPrimitive(minorUnits), JsonPrimitive(currencyCode)),
+    )
+
+  /** @param fraction 0.075 renders as 7.5% in a locale that writes it that way. */
+  fun percent(fraction: Double, maximumFractionDigits: Int? = null): DogwoodExpression =
+    DogwoodExpression(
+      ExpressionFactories.TEXT_PERCENT,
+      listOf(JsonPrimitive(fraction), maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull),
+    )
+
+  fun date(epochMillis: Long): DogwoodExpression =
+    DogwoodExpression(ExpressionFactories.TEXT_DATE, listOf(JsonPrimitive(epochMillis)))
+
+  fun time(epochMillis: Long): DogwoodExpression =
+    DogwoodExpression(ExpressionFactories.TEXT_TIME, listOf(JsonPrimitive(epochMillis)))
+
+  fun dateTime(epochMillis: Long): DogwoodExpression =
+    DogwoodExpression(ExpressionFactories.TEXT_DATE_TIME, listOf(JsonPrimitive(epochMillis)))
+
+  /** "3 days ago", in the host's language. [nowMillis] comes from the host clock service. */
+  fun relativeTime(epochMillis: Long, nowMillis: Long): DogwoodExpression =
+    DogwoodExpression(
+      ExpressionFactories.TEXT_RELATIVE_TIME,
+      listOf(JsonPrimitive(epochMillis), JsonPrimitive(nowMillis)),
+    )
 }
 
 /** Clips to a shape the host builds. */

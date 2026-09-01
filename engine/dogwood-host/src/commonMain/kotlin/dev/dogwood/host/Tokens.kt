@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 
 /** Backpack's spacing scale. */
@@ -150,3 +151,77 @@ val LocalPalette = compositionLocalOf { Palette.Light }
 @Composable
 @ReadOnlyComposable
 fun palette(): Palette = LocalPalette.current
+
+/**
+ * The host's named text styles.
+ *
+ * The same argument as [Palette], one layer up: a guest cannot construct a `TextStyle`, and a
+ * literal one could not follow the host's typography. Naming a style is how a guest asks for
+ * "the title of a section" and lets the host decide what that looks like -- **including the font
+ * family**, which is the design-system-first answer to the font half of the resources subsystem.
+ * A payload that shipped its own font would have to ship the file, and no font file crosses this
+ * boundary.
+ */
+class Typography(
+  val displayLarge: TextStyle,
+  val titleLarge: TextStyle,
+  val titleMedium: TextStyle,
+  val titleSmall: TextStyle,
+  val bodyLarge: TextStyle,
+  val bodyMedium: TextStyle,
+  val bodySmall: TextStyle,
+  val labelLarge: TextStyle,
+  val labelMedium: TextStyle,
+  val labelSmall: TextStyle,
+) {
+  /** Null when this client has never heard of the name. Skew degrades; it does not throw. */
+  fun token(name: String): TextStyle? = when (name) {
+    "displayLarge" -> displayLarge
+    "titleLarge" -> titleLarge
+    "titleMedium" -> titleMedium
+    "titleSmall" -> titleSmall
+    "bodyLarge" -> bodyLarge
+    "bodyMedium" -> bodyMedium
+    "bodySmall" -> bodySmall
+    "labelLarge" -> labelLarge
+    "labelMedium" -> labelMedium
+    "labelSmall" -> labelSmall
+    else -> null
+  }
+}
+
+/**
+ * Material 3's scale, as the default set.
+ *
+ * Ours to replace: a product with its own type ramp provides its own [Typography] and the guest's
+ * token names go on meaning what that product says they mean.
+ */
+@Composable
+@ReadOnlyComposable
+fun materialTypography(): Typography = androidx.compose.material3.MaterialTheme.typography.let {
+  Typography(
+    displayLarge = it.displayLarge,
+    titleLarge = it.titleLarge,
+    titleMedium = it.titleMedium,
+    titleSmall = it.titleSmall,
+    bodyLarge = it.bodyLarge,
+    bodyMedium = it.bodyMedium,
+    bodySmall = it.bodySmall,
+    labelLarge = it.labelLarge,
+    labelMedium = it.labelMedium,
+    labelSmall = it.labelSmall,
+  )
+}
+
+/**
+ * The typography in force.
+ *
+ * `null` means "whatever `MaterialTheme` is providing", resolved at the read site rather than
+ * here, because a composition local's default cannot read another composition local.
+ */
+val LocalTypography = compositionLocalOf<Typography?> { null }
+
+/** The typography in force, falling back to the ambient Material scale. */
+@Composable
+@ReadOnlyComposable
+fun typography(): Typography = LocalTypography.current ?: materialTypography()

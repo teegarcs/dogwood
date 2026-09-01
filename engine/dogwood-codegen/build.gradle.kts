@@ -44,7 +44,10 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       "--source", surface.absolutePath,
       "--segment", "dogwoodDesignSystem",
       "--segment-id", "1",
-      "--version", "2",
+      // VerticalList and HorizontalList are hand-written in this same segment, because the
+      // generator does not model lazy layouts yet. Their tags are not the generator's to give.
+      "--reserved", "10,11",
+      "--version", "3",
       "--guest-package", "dev.dogwood.compose",
       "--host-package", "dev.dogwood.host",
       "--impl-package", "dev.dogwood.host",

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -155,4 +156,40 @@ fun SectionHeaderImpl(title: String, description: String?, modifier: Modifier) {
     Text(title, color = palette().ink, style = MaterialTheme.typography.titleLarge)
     description?.let { Text(it, color = palette().inkSecondary, style = MaterialTheme.typography.bodyMedium) }
   }
+}
+
+/**
+ * The icon dictionary made visible.
+ *
+ * An unknown name is the interesting case and it is handled the same way an unknown widget tag is:
+ * something is drawn, and the name is recorded. A payload built against a design system update
+ * that has reached servers before it reached devices shows a warning glyph rather than a hole, and
+ * the team finds out from telemetry rather than from a screenshot.
+ */
+@Composable
+fun IconImpl(
+  name: String,
+  contentDescription: String?,
+  sizeDp: Int,
+  tint: String?,
+  modifier: Modifier,
+) {
+  val icons = LocalIconSet.current
+  val resolved = icons[name]
+  if (resolved == null) LocalSkewReport.current.unknownIcons += name
+
+  val palette = palette()
+  val color = tint?.let { requested ->
+    palette.token(requested) ?: run {
+      LocalSkewReport.current.unknownColorTokens += requested
+      palette.ink
+    }
+  } ?: palette.ink
+
+  androidx.compose.material3.Icon(
+    imageVector = resolved ?: icons.fallback,
+    contentDescription = contentDescription,
+    modifier = modifier.size(sizeDp.dp),
+    tint = color,
+  )
 }

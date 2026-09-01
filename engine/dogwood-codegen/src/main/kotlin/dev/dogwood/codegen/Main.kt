@@ -27,8 +27,15 @@ fun main(args: Array<String>) {
   val sources = sourceDir.walkTopDown().filter { it.extension == "kt" }.toList()
   require(sources.isNotEmpty()) { "no Kotlin sources under $sourceDir" }
 
+  // Local tags in this segment that hand-written bindings already own. Comma separated.
+  val reserved = options["reserved"]
+    ?.split(",")
+    ?.mapNotNull { it.trim().toIntOrNull() }
+    ?.toSet()
+    .orEmpty()
+
   val components = SurfaceParser().parseFiles(sources)
-  val dictionary = buildDictionary(segmentName, segmentId, version, components)
+  val dictionary = buildDictionary(segmentName, segmentId, version, components, reserved)
 
   // Layer 1's build-time check. A renumbered tag does not fail to render; it renders the wrong
   // widget on a client one dictionary version behind, so this fails the build rather than the

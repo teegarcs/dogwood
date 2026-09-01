@@ -79,6 +79,18 @@ data class Dictionary(
   val segmentId: Int,
   val version: Int,
   val components: List<DictionaryEntry>,
+  /**
+   * Local tags in this segment that the generator does not own.
+   *
+   * A segment is not necessarily all generated. Dogwood's design-system segment also carries two
+   * hand-written lazy containers, because the generator does not model lazy layouts yet
+   * ([ADR-011](../../../../../../adrs/layer-5/ADR-011-generator-emits-the-bridge.md)). Without
+   * this, the generator allocates by position and will eventually hand a new component a tag a
+   * hand-written binding already answers to -- and the collision does not fail to render, it
+   * renders **the wrong widget**, which is the failure this whole locking mechanism exists to
+   * prevent. It happened: adding `Icon` as the tenth component collided with `VerticalList`.
+   */
+  val reservedLocalTags: List<Int> = emptyList(),
 )
 
 @Serializable

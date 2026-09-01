@@ -38,6 +38,22 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
   val problems = mutableListOf<String>()
   val added = mutableListOf<String>()
 
+  // A generated tag landing on a hand-written binding's tag renders the *wrong widget*, silently.
+  // Checked here rather than trusted, because the allocator and the reservation list are edited
+  // by different people at different times.
+  for (entry in dictionary.components) {
+    if (entry.localTag in dictionary.reservedLocalTags) {
+      problems += "${entry.name} was allocated tag ${entry.localTag}, which is reserved for a " +
+        "hand-written binding in this segment"
+    }
+  }
+  for (retired in locked.reservedLocalTags) {
+    if (retired !in dictionary.reservedLocalTags) {
+      problems += "local tag $retired was reserved and no longer is; a reservation may be added " +
+        "but never withdrawn, or the next component added will take a published tag"
+    }
+  }
+
   for (lockedEntry in locked.components) {
     val current = dictionary.components.firstOrNull { it.name == lockedEntry.name }
     if (current == null) {
@@ -65,6 +81,14 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
 
   for (entry in dictionary.components) {
     if (locked.components.none { it.name == entry.name }) added += entry.name
+  }
+
+  // Adding a component that clients cannot detect is worse than not adding it: guest code branches
+  // on `segmentVersions["dogwood.designsystem"]`, and a payload that used a component this
+  // client's version does not promise gets a placeholder with no explanation.
+  if (added.isNotEmpty() && dictionary.version <= locked.version) {
+    problems += "added ${added.sorted()} without raising the segment version past " +
+      "${locked.version}; a client branches on that number to decide what it may use"
   }
 
   return when {

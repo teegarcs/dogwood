@@ -90,36 +90,37 @@ private const val P5 = 5
 private const val P6 = 6
 
 object DogwoodDictionary {
-  // Segment 0 -- layout primitives.
+  // Segment 0 -- layout primitives, hand-written.
   val Text = widgetTag(Segments.LAYOUT, 1)
   val Column = widgetTag(Segments.LAYOUT, 2)
   val Row = widgetTag(Segments.LAYOUT, 3)
   val Box = widgetTag(Segments.LAYOUT, 4)
   val Spacer = widgetTag(Segments.LAYOUT, 5)
 
-  // Segment 1 -- the registered design-system slice.
-  val PrimaryButton = widgetTag(Segments.DESIGN_SYSTEM, 1)
-  val AsyncImage = widgetTag(Segments.DESIGN_SYSTEM, 2)
-  val Card = widgetTag(Segments.DESIGN_SYSTEM, 3)
-  val Badge = widgetTag(Segments.DESIGN_SYSTEM, 4)
-  val Divider = widgetTag(Segments.DESIGN_SYSTEM, 5)
-
-  // Added after the audit. Tags 1-5 keep their meaning, because the protocol's evolution rule is
-  // additive: a new component appends rather than renumbering, so a client one dictionary version
-  // behind still renders everything it knows.
-  val Chip = widgetTag(Segments.DESIGN_SYSTEM, 6)
-  val Price = widgetTag(Segments.DESIGN_SYSTEM, 7)
-  val StarRating = widgetTag(Segments.DESIGN_SYSTEM, 8)
-  val SectionHeader = widgetTag(Segments.DESIGN_SYSTEM, 9)
+  /**
+   * Segment 1's two hand-written members: the lazy containers the generator does not model yet.
+   *
+   * **Their tags are reserved in the dictionary lock**, and that reservation is load-bearing. The
+   * generator allocates by position and knows nothing about this file; without the reservation it
+   * gave `Icon` tag 10 -- the tag `VerticalList` already answers to -- and because the generated
+   * dispatch runs first, every list on every screen would have rendered as an icon. A tag
+   * collision does not fail to render; it renders the wrong widget.
+   */
   val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
   val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
-  private val known = setOf(
-    Text.value, Column.value, Row.value, Box.value, Spacer.value,
-    PrimaryButton.value, AsyncImage.value, Card.value, Badge.value, Divider.value,
-    Chip.value, Price.value, StarRating.value, SectionHeader.value,
-    VerticalList.value, HorizontalList.value,
-  )
+  private val layoutTags = setOf(Text.value, Column.value, Row.value, Box.value, Spacer.value)
+  private val handWrittenDesignSystemTags = setOf(VerticalList.value, HorizontalList.value)
+
+  /**
+   * Everything this client can render.
+   *
+   * The generated half comes from `DogwoodDesignSystemTags`, which the generator emits, rather
+   * than from a hand-maintained copy. A copy would have to be updated every time the surface grew,
+   * and the failure mode of forgetting is a component the client renders correctly while
+   * *reporting* it as unknown.
+   */
+  private val known = layoutTags + handWrittenDesignSystemTags + DogwoodDesignSystemTags
 
   fun knows(tag: WidgetTag): Boolean = tag.value in known
 
@@ -128,7 +129,7 @@ object DogwoodDictionary {
     "androidx.layout" to 1,
     // Bumped when components were added. Guest code can branch on this to stay compatible with
     // clients that have not caught up.
-    "dogwood.designsystem" to 2,
+    "dogwood.designsystem" to 3,
     // The host service surface is versioned through the same channel, because a guest has the
     // same question about it: what does this client know how to do? It matters more here — an
     // unknown widget tag becomes a placeholder, but calling a service method an older host does
@@ -153,14 +154,27 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
   if (bindDogwoodDesignSystem(node, scope, events)) return
   val modifier = node.composeModifier(scope)
   when (node.tag.value) {
-    DogwoodDictionary.Text.value -> Text(
-      text = node.string(P1),
-      modifier = modifier,
-      maxLines = node.int(P2, Int.MAX_VALUE),
-      overflow = TextOverflow.Ellipsis,
-      color = palette().ink,
-      style = MaterialTheme.typography.bodyLarge,
-    )
+    DogwoodDictionary.Text.value -> {
+      // Two ways to say what the text is, and the second is the one the sandbox cannot do for
+      // itself: P4 is a *recipe* -- a number and a currency, an instant, a fraction -- that only
+      // the host can render, because QuickJS ships no ECMA-402 `Intl`. The number crosses, not the
+      // rendered string, so a device that changes locale re-renders correctly with no traffic.
+      val recipe = node.property(P4)
+      val text = if (recipe != null) {
+        val format = formatContext()
+        LocalExpressionEvaluator.current.text(recipe, format.locale, format.timeZoneId)
+      } else {
+        node.string(P1)
+      }
+      Text(
+        text = text,
+        modifier = modifier,
+        maxLines = node.int(P2, Int.MAX_VALUE),
+        overflow = TextOverflow.Ellipsis,
+        color = palette().ink,
+        style = textStyle(node.stringOrNull(P3)),
+      )
+    }
 
     DogwoodDictionary.Column.value -> Column(modifier) {
       RenderChildren(node, CONTENT, LayoutScope(column = this), events)
@@ -325,4 +339,20 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
         }
     }
   }
+}
+
+/**
+ * Resolves a named text style, falling back to body text.
+ *
+ * The same three-part rule as every other named thing the guest can send: the host owns the
+ * meaning, an unknown name degrades to something readable rather than throwing, and the name is
+ * recorded so a team can see that payloads are ahead of devices.
+ */
+@Composable
+private fun textStyle(name: String?): androidx.compose.ui.text.TextStyle {
+  val typography = typography()
+  if (name == null) return typography.bodyLarge
+  val resolved = typography.token(name)
+  if (resolved == null) LocalSkewReport.current.unknownTextStyles += name
+  return resolved ?: typography.bodyLarge
 }

@@ -16,20 +16,36 @@ import kotlinx.serialization.json.Json
 
 private val json = Json { prettyPrint = true }
 
-/** Builds the dictionary. Declaration order in, stable tags out. */
+/**
+ * Builds the dictionary. Declaration order in, stable tags out.
+ *
+ * @param reservedLocalTags tags in this segment that hand-written bindings already answer to. The
+ *   generator allocates around them; see [Dictionary.reservedLocalTags] for why that is not
+ *   optional.
+ */
 fun buildDictionary(
   segmentName: String,
   segmentId: Int,
   version: Int,
   components: List<ParsedComponent>,
-): Dictionary = Dictionary(
+  reservedLocalTags: Set<Int> = emptySet(),
+): Dictionary {
+  val allocated = ArrayList<Int>(components.size)
+  var next = 1
+  repeat(components.size) {
+    while (next in reservedLocalTags) next++
+    allocated += next
+    next++
+  }
+  return Dictionary(
   segmentName = segmentName,
   segmentId = segmentId,
   version = version,
+  reservedLocalTags = reservedLocalTags.sorted(),
   components = components.mapIndexed { index, component ->
     DictionaryEntry(
       name = component.name,
-      localTag = index + 1,
+      localTag = allocated[index],
       properties = component.values.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       events = component.events.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
@@ -38,7 +54,8 @@ fun buildDictionary(
         .associate { it.name to (it.rejection ?: "unsupported") },
     )
   },
-)
+  )
+}
 
 fun Dictionary.encode(): String = json.encodeToString(Dictionary.serializer(), this)
 

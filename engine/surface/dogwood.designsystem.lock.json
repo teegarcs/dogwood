@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 2,
+    "version": 3,
     "components": [
         {
             "name": "PrimaryButton",
@@ -95,6 +95,22 @@
             },
             "slots": {},
             "events": {}
+        },
+        {
+            "name": "Icon",
+            "localTag": 12,
+            "properties": {
+                "name": 1,
+                "contentDescription": 2,
+                "sizeDp": 3,
+                "tint": 4
+            },
+            "slots": {},
+            "events": {}
         }
+    ],
+    "reservedLocalTags": [
+        10,
+        11
     ]
 }
