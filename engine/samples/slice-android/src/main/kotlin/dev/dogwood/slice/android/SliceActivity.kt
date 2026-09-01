@@ -99,7 +99,7 @@ private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
  * The sample offers a toggle, because seeing one payload serve two experiences is the whole point
  * of the entry-point contract.
  */
-private val ENTRY_POINTS = listOf("explore", "about")
+private val ENTRY_POINTS = listOf("explore", "about", "feed")
 
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {

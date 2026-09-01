@@ -59,6 +59,8 @@ fun main() {
     instance = DogwoodGuest(
       "explore" to { params -> ExploreScreen(exploreParams(params)) },
       "about" to { _ -> AboutScreen() },
+      // Ten thousand rows, of which about twenty ever cross the boundary.
+      "feed" to { _ -> FeedScreen() },
     ),
   )
 }

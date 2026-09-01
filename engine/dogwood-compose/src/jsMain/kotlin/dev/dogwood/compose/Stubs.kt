@@ -45,6 +45,9 @@ object Tags {
   /** The single content slot every container in this slice declares. */
   val Content = ChildrenTag(1)
 
+  /** A lazy container's placeholder template: one node, repeated by the host outside the window. */
+  val Placeholder = ChildrenTag(2)
+
   /** Property tags are parameter-declaration order, widget-scoped. */
   val P1 = PropertyTag(1)
   val P2 = PropertyTag(2)
@@ -52,6 +55,8 @@ object Tags {
   val P4 = PropertyTag(4)
   val P5 = PropertyTag(5)
   val P6 = PropertyTag(6)
+  val P7 = PropertyTag(7)
+  val P8 = PropertyTag(8)
 
   /** Event tags are parameter-declaration order, widget-scoped. */
   val OnClick = EventTag(1)
@@ -326,6 +331,7 @@ private fun Container(
   )
 }
 
+
 // ---------------------------------------------------------------------------
 // Segment 1 -- the registered design-system slice
 // ---------------------------------------------------------------------------
@@ -372,6 +378,10 @@ private fun ListContainer(
   spacingDp: Int,
   contentPaddingDp: Int,
   state: DogwoodLazyListState?,
+  /** -1 means "every item is present"; anything else is a window into a longer list. */
+  itemCount: Int = -1,
+  windowStart: Int = 0,
+  placeholder: (@Composable () -> Unit)? = null,
   content: @Composable () -> Unit,
 ) {
   // Read here, in the composable body, not inside `update`. That is what subscribes this call
@@ -394,6 +404,8 @@ private fun ListContainer(
       // would cost a crossing per item boundary on every list on the screen.
       set(observed) { recording.recorder.property(id, Tags.P5, JsonPrimitive(it)) }
       set(targetAnimated) { recording.recorder.property(id, Tags.P6, JsonPrimitive(it)) }
+      set(itemCount) { if (it >= 0) recording.recorder.property(id, Tags.P7, JsonPrimitive(it)) }
+      set(windowStart) { recording.recorder.property(id, Tags.P8, JsonPrimitive(it)) }
       set(state) { holder ->
         if (holder == null) {
           recording.lambdas.clear(id, Tags.OnViewport)
@@ -408,6 +420,37 @@ private fun ListContainer(
         }
       }
     },
-    content = { Children(Tags.Content, content) },
+    content = {
+      Children(Tags.Content, content)
+      // Composed once. The host repeats this one node for every index outside the window, which
+      // is why there is no placeholder *pool*: Compose's lazy item recycling is the pool.
+      if (placeholder != null) Children(Tags.Placeholder, placeholder)
+    },
+  )
+}
+
+/** The windowed form, used by [LazyVerticalList] and [LazyHorizontalList]. */
+@Composable
+internal fun ListContainerWindowed(
+  tag: WidgetTag,
+  modifier: DogwoodModifier,
+  spacingDp: Int,
+  contentPaddingDp: Int,
+  state: DogwoodLazyListState,
+  itemCount: Int,
+  window: IntRange,
+  placeholder: @Composable () -> Unit,
+  content: @Composable () -> Unit,
+) {
+  ListContainer(
+    tag = tag,
+    modifier = modifier,
+    spacingDp = spacingDp,
+    contentPaddingDp = contentPaddingDp,
+    state = state,
+    itemCount = itemCount,
+    windowStart = if (window.isEmpty()) 0 else window.first,
+    placeholder = placeholder,
+    content = content,
   )
 }

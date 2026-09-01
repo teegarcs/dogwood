@@ -81,6 +81,9 @@ fun EventSink.send(node: WidgetView, tag: EventTag) = send(node, tag, emptyList(
 /** The single content slot every container in this slice declares. */
 private const val CONTENT = 1
 
+/** A lazy container's placeholder template. One node, repeated wherever the window has no item. */
+private const val PLACEHOLDER = 2
+
 /** Property tags are parameter-declaration order, widget-scoped. */
 private const val P1 = 1
 private const val P2 = 2
@@ -88,6 +91,8 @@ private const val P3 = 3
 private const val P4 = 4
 private const val P5 = 5
 private const val P6 = 6
+private const val P7 = 7
+private const val P8 = 8
 
 object DogwoodDictionary {
   // Segment 0 -- layout primitives, hand-written.
@@ -214,9 +219,7 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         verticalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
         contentPadding = PaddingValues(node.int(P2, 0).dp),
       ) {
-        items(node.children(CONTENT), key = { it.id.value }) { child ->
-          RenderNode(child, LayoutScope(), events)
-        }
+        lazyItems(node, events)
       }
     }
 
@@ -229,9 +232,7 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         horizontalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
         contentPadding = PaddingValues(horizontal = node.int(P2, 0).dp),
       ) {
-        items(node.children(CONTENT), key = { it.id.value }) { child ->
-          RenderNode(child, LayoutScope(), events)
-        }
+        lazyItems(node, events)
       }
     }
 
@@ -355,4 +356,52 @@ private fun textStyle(name: String?): androidx.compose.ui.text.TextStyle {
   val resolved = typography.token(name)
   if (resolved == null) LocalSkewReport.current.unknownTextStyles += name
   return resolved ?: typography.bodyLarge
+}
+
+/**
+ * Lays out a lazy container's items, windowed or not.
+ *
+ * **Without a window** -- no item count property -- every child the guest sent is an item, keyed by
+ * node identifier, which is what a short list wants and what every list did before windowing
+ * existed.
+ *
+ * **With a window**, the list is as long as the guest says it is and the guest has sent only the
+ * part it expects to be seen. Everything else draws the placeholder template. Two consequences
+ * worth stating:
+ *
+ *   - **The scroll extent is honest.** A list that only knew about its window would have a
+ *     scrollbar the length of a screen and no index to fling to, which is the failure mode of
+ *     naive windowing.
+ *   - **Identity is the index, not the node.** That is a deliberate departure from
+ *     [ADR-015](../../../../../../adrs/layer-5/ADR-015-node-identity-and-reuse.md)'s rule, and it
+ *     is the right one here: item five hundred is item five hundred whichever guest node currently
+ *     represents it, and keying on the node would destroy and rebuild every visible row each time
+ *     the window slid.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.lazyItems(
+  node: WidgetView,
+  events: EventSink,
+) {
+  val children = node.children(CONTENT)
+  val itemCount = node.int(P7, -1)
+  if (itemCount < 0) {
+    items(children, key = { it.id.value }) { child ->
+      RenderNode(child, LayoutScope(), events)
+    }
+    return
+  }
+
+  val windowStart = node.int(P8, 0)
+  val placeholder = node.children(PLACEHOLDER).firstOrNull()
+  items(count = itemCount, key = { it }) { index ->
+    val child = children.getOrNull(index - windowStart)
+    when {
+      child != null -> RenderNode(child, LayoutScope(), events)
+      placeholder != null -> RenderNode(placeholder, LayoutScope(), events)
+      // A guest that declared a window but no placeholder gets nothing rather than a guess: any
+      // height this binding invented would make the scroll extent wrong in a way that looks like
+      // a layout bug rather than a missing parameter.
+      else -> Unit
+    }
+  }
 }
