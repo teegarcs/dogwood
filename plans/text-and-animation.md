@@ -1,7 +1,9 @@
 # Plan: Closing the Text-Formatting and Animation Gaps
 
 **Date:** 2026-09-01
-**Status:** Vetted, not built. Every risky mechanism below was spiked in a scratch test before
+**Status:** Vetted, not built. Revised once: Part 1 was reframed from a text fix to the
+**host-resolved values** architecture after review — the destination-state rule stated in §1.0,
+with text as its first typed member and colour its second. Every risky mechanism below was spiked in a scratch test before
 being planned; the spikes were then deleted. One spike **falsified the first design** for
 repeating animation, and the corrected design is what is planned (see A3).
 
@@ -25,6 +27,7 @@ Each claim was checked mechanically before planning against it.
 | S-3 | Corrected repeat design: explicit `from → to` via `Animatable.animateTo(target, repeatable(n, …))` | Spike test | ✅ Runs through frames, reaches the target, completes exactly once |
 | S-4 | Corrected infinite design: `rememberInfiniteTransition` + `animateFloat(initial, target, infiniteRepeatable(…))` | Spike test | ✅ Oscillates across the full range indefinitely |
 | S-5 | Exit completion is detectable for an `onExited` event | Spike test: `MutableTransitionState`, `snapshotFlow { isIdle && !targetState }` | ✅ Fires exactly once, and not mid-exit |
+| S-6 | A guest-shipped number pattern can render with device-locale symbols | Spike test: `DecimalFormat(pattern, DecimalFormatSymbols(locale))` | ✅ `1.234,6` in `de-DE`, `1,234.6` in `en-US` from one pattern; a malformed pattern throws at construction, where it is caught |
 
 **Summary:** every claim in the conversation held. Two latent generator defects (T-3, T-4) were
 found *by* the vetting, and one planned design (repeating animation) was corrected *by* the
@@ -32,136 +35,166 @@ vetting. Items T-3/T-4 fold into work item **T1**; the S-2 correction defines **
 
 ---
 
-## Part 1 — Text
+## Part 1 — Host-Resolved Values (the destination state)
 
-### T1. `DogwoodText`: formatting recipes reach generated components
+### 1.0 The principle, named
 
-**The problem, restated.** Locale-aware text (money, dates, percentages) crosses as a recipe the
-host renders, because the pinned QuickJS ships no ECMA-402 `Intl`. But every generated component
-parameter is `String`, so a product's own `Price`, `Badge`, `SectionHeader` cannot receive
-correctly formatted money — the sample already had to abandon `Price` and hand-assemble rows.
+The destination state is not a text feature. It is one rule, applied everywhere:
 
-**The design.** One new guest-visible type, one new parameter kind, one composable host accessor.
+> **Any value that depends on the device or its settings crosses the wire as a *recipe*, not a
+> result. The host resolves the recipe at the moment it draws, against the environment in force.
+> When the environment changes, resolution changes — with zero wire traffic and zero guest
+> recomposition.**
 
-**1. The type**, in `dogwood-compose/Expressions.kt`:
+This rule already exists in the architecture — it is the deferred-expression grammar of
+[ADR-010](../adrs/layer-5/ADR-010-deferred-expression-grammar.md) — and it is already load-bearing
+in five places:
+
+| The guest ships | Host input it resolves against | Re-resolves when… | Status |
+|---|---|---|---|
+| `Colors.token("primary")` | the palette in force | **dark mode flips** | ✅ live — this was ADR-012's proof case, verified on the emulator: the accent bar repainted on the theme switch with no traffic |
+| `Text(style = "titleLarge")` | the typography in force | host theme changes | ✅ live |
+| `Icon(name = "flight")` | the icon set | client updates its set | ✅ live |
+| `Formats.currency(61200, "USD")` | locale + time zone + currency data | **device language changes** | ✅ live, but only reaches the bare `Text` |
+| `animate(1f, spec)` | **the host clock** | every frame, host-side | ✅ live — animation is the same rule, where the environment input is time |
+
+So the answer to "what about light mode and dark mode?" is: **dark mode is the case that proved
+the pattern.** A colour never crosses as a literal unless the guest explicitly opts out of
+theming; it crosses as a token name, and the evaluator's memo is keyed on the palette's identity
+precisely so a theme flip re-resolves everything.
+
+What is *missing* is not the capability. It is that the capability stops at the edge of the
+generated surface: the generator types every parameter as a raw Kotlin primitive, so recipes
+cannot flow into a product's own components. `Price(price:)` is a `String`. `Icon(tint:)` is —
+worse — a `String` that happens to hold a token name, invisible to the type system. The work
+below is therefore not a workaround for text; it is **teaching the surface language and the
+generator that host-resolved values are first-class types**, so the rule above holds across the
+whole component surface instead of at three hand-wired spots.
+
+### T1. The `HOST_RESOLVED` parameter family: `DogwoodText` and `DogwoodColor`
+
+One new parameter kind in the generator, with a family of surface types it handles uniformly.
+Text is the first member because it is the one blocking products; colour is the second because it
+already exists *untyped* (`Icon.tint: String`) and typing it closes a real hole.
+
+**The types**, in `dogwood-compose`:
 
 ```kotlin
-/** Text that is either a literal or a recipe the host renders. */
+/** Text that is either a literal or a recipe the host renders against locale + time zone. */
 class DogwoodText private constructor(internal val json: JsonElement) {
   companion object {
     operator fun invoke(literal: String): DogwoodText = DogwoodText(JsonPrimitive(literal))
     internal fun recipe(expression: DogwoodExpression): DogwoodText = DogwoodText(expression.toJson())
   }
-  // Structural equality via JsonElement, so ComposeNode.set() dedupes correctly.
   override fun equals(other: Any?) = other is DogwoodText && other.json == json
   override fun hashCode() = json.hashCode()
 }
-```
 
-**2. `Formats.*` return `DogwoodText`** instead of `DogwoodExpression`. Verified contained: every
-existing call site flows into `Text(value: DogwoodExpression)`, whose overload becomes
-`Text(value: DogwoodText)`. Shape/colour expressions are untouched — they stay `DogwoodExpression`.
-So the common case reads exactly as it should:
-
-```kotlin
-Price(price = Formats.currency(61_200, "USD"))   // recipe
-Price(price = DogwoodText("From $612"))          // literal, explicit form
-Price(price = "From $612")                       // literal, via the compatibility overload (below)
-```
-
-**3. Wire.** No protocol change at all. A literal crosses as `JsonPrimitive`, a recipe as
-`JsonArray` — the same property tag carries either, and the two are unambiguous. This is the same
-dual encoding the modifier channel already uses for animated values.
-
-**4. Parser** (`dogwood-codegen/Parser.kt`):
-- New `ParameterKind.TEXT` for `type.removeSuffix("?") == "DogwoodText"`.
-- **Fix T-4 while here**: the `DogwoodExpression` check also strips `?`.
-- `ParsedComponent.values` already includes `EXPRESSION`; add `TEXT`.
-
-**5. Guest emitter** (`Emitter.kt`): for `TEXT` (and the now-reachable nullable `EXPRESSION`),
-emit `it.json` / `it.toJson()` instead of `JsonPrimitive(it)` — fixing T-3:
-
-```kotlin
-set(price) { recording.recorder.property(id, PropertyTag(1), it.json) }
-set(note)  { if (it != null) recording.recorder.property(id, PropertyTag(2), it.json) }
-```
-
-**6. Host accessor**, new in `dogwood-host` (composable, unlike the readers in `WidgetView.kt`,
-because it reads `LocalExpressionEvaluator` and the format context):
-
-```kotlin
-@Composable fun WidgetView.text(tag: Int, default: String = ""): String {
-  val raw = property(tag) ?: return default
-  return when (raw) {
-    is JsonArray -> { val f = formatContext()
-      LocalExpressionEvaluator.current.text(raw, f.locale, f.timeZoneId, fallback = default) }
-    else -> (raw as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content ?: default
+/** A colour that is always a recipe — a token by preference, a literal ARGB by opt-out. */
+class DogwoodColor private constructor(internal val json: JsonElement) {
+  companion object {
+    fun token(name: String): DogwoodColor = DogwoodColor(Colors.token(name).toJson())
+    fun argb(value: Long): DogwoodColor = DogwoodColor(Colors.argb(value).toJson())
   }
+  // equality as above
 }
-@Composable fun WidgetView.textOrNull(tag: Int): String?   // same, absent → null
 ```
 
-The recipe-resolution mechanics are already proven end to end by the existing test
-`aFormattedTextNodeRendersTheRecipeRatherThanARawValue`.
+`Formats.*` return `DogwoodText` (verified contained: every call site flows into
+`Text(value:)`, whose overload changes with it). `DogwoodColor` has no literal-string form at
+all — a colour is *always* environment-dependent, which the type now says out loud.
 
-**7. Host emitter**: `TEXT` parameters read through `node.text(tag, …)` / `node.textOrNull(tag)`.
-**Implementations stay `String`** — `PriceImpl(price: String, …)` is unchanged, because the
-binding resolves before calling. The taste layer never learns any of this happened.
+**Wire: no protocol change.** One property tag carries `JsonPrimitive` (literal) or `JsonArray`
+(recipe) — the same dual encoding the modifier channel already uses. Distinguishable, and the
+positional codec passes both through untouched today.
 
-**8. Compatibility overload.** Changing `price: String` to `price: DogwoodText` breaks
-`Price(price = "x")` at the guest source level. The generator therefore emits **one** extra
-overload per component that has ≥ 1 `TEXT` parameter, with *all* `TEXT` parameters as `String`,
-delegating via `DogwoodText(...)`. Mixed literal-and-recipe calls use the explicit form. Bounded:
-exactly two overloads per component, never a combinatorial set.
+**Parser** (`Parser.kt`): a `HOST_RESOLVED` kind matched on the type name with `?` stripped —
+which also fixes the two defects vetting found (T-3: `DogwoodText` currently emits non-compiling
+code; T-4: `DogwoodExpression?` misclassifies because `?` is never stripped).
 
-**9. Surface migration**: `Price(price, leadingText, previousPrice, trailingText)`, `Badge(text)`,
-`SectionHeader(title, description)`, `Chip(text)`, `TextInput(label, placeholder)` move to
-`DogwoodText`. Names and declaration order are unchanged ⇒ **property tags are unchanged** ⇒ the
-lock passes without edits. Segment version bumps to 5 (the lock enforces this on any semantic
-addition; a type widening is one).
+**Guest emitter**: `set(x) { recording.recorder.property(id, PropertyTag(t), it.json) }`, with the
+absence-as-sentinel guard for nullables, exactly as every other optional.
 
-**10. Skew.** A new guest sending a recipe to an old host: the old `node.string()` reader sees a
-`JsonArray`, which is not a `JsonPrimitive`, and returns the declared default — the standing
-degrade-don't-crash rule, at the cost of a blank-ish field. A guest that must not degrade checks
-`LocalDogwoodSegments["dogwood.designsystem"] >= 5` before sending recipes into component
-parameters. Documented in the ADR, not enforced.
+**Host accessors**, composable because they read the evaluator and format context:
 
-**Tests** (≈ 10): codegen — `TEXT` classification, nullable-`EXPRESSION` fix, both emitted forms
-compile in the round-trip fixture, overload emission, tag stability across the type change;
-guest — literal crosses as primitive / recipe as array through a generated stub, unset optional
-sends nothing; host — `node.text` resolves both forms, unknown factory degrades to the default and
-lands in `SkewReport`; device — the sample's hand-assembled price rows go back to `Price(...)`,
-verified in `en-US` and `ja-JP`.
+```kotlin
+@Composable fun WidgetView.text(tag: Int, default: String = ""): String        // primitive → content; array → evaluator.text(...)
+@Composable fun WidgetView.textOrNull(tag: Int): String?
+@Composable fun WidgetView.color(tag: Int, default: Color): Color               // array → evaluator.color(recipe, palette)
+@Composable fun WidgetView.colorOrNull(tag: Int): Color?
+```
 
-**Files:** `Expressions.kt`, `Stubs.kt` (Text overload), `Parser.kt`, `Surface.kt`, `Emitter.kt`,
-new `dogwood-host/Text.kt`, `DesignSystemSurface.kt`, sample screens, codegen build (version 5).
-**Estimate:** 1–2 days. **Risk:** low — every mechanism exists; this is plumbing with a lock to
-keep it honest.
+The mechanics behind both are already proven end to end — `evaluator.text` by the existing
+recipe-rendering test, `evaluator.color` by the dark-mode pass.
+
+**Host emitter**: `HOST_RESOLVED` parameters read through the matching accessor.
+**Implementations stay in platform types** — `PriceImpl(price: String)`, `IconImpl(tint: Color?)`
+— because the binding resolves before calling. The taste layer never sees a recipe.
+
+**Surface migration**: `Price(price, leadingText, previousPrice, trailingText)`, `Badge(text)`,
+`SectionHeader(title, description)`, `Chip(text)`, `TextInput(label, placeholder)` →
+`DogwoodText`; `Icon(tint)` → `DogwoodColor?`. Names and order unchanged ⇒ tags unchanged ⇒ the
+lock passes. Segment version → 5.
+
+**Compatibility overload**: one extra generated overload per component with ≥1 `DogwoodText`
+parameter, all-`String`, delegating — so `Price(price = "x")` keeps compiling. Bounded at two
+overloads per component. (`DogwoodColor` gets no string overload: `tint = "primary"` compiling
+was the hole, not a feature to preserve.)
+
+**Skew**: a recipe arriving at an old host's `node.string()` reader is a `JsonArray`, not a
+`JsonPrimitive` → the declared default renders. Degrade-don't-crash holds; a guest that must not
+degrade branches on `segmentVersions["dogwood.designsystem"] >= 5`. Documented, not enforced.
+
+**Tests** (≈ 14): the T1 list from the previous revision, plus: `Icon.tint` token resolves per
+palette and re-resolves on the theme flip through a *generated* binding; an ARGB literal does
+not follow the theme (the opt-out staying an opt-out); `colorOrNull` absence → host default.
+
+**Estimate:** 2–3 days. **Risk:** low — every mechanism exists and was spiked or is already in
+production in this repo; the work is making the generator's type system say what the runtime
+already does.
+
+### T1b. Recipes take guest-shipped parameters — "configurable over the wire", vetted
+
+The factory *set* stays closed — the host must know what a recipe means, and an open set would be
+remote code in a costume. But each factory becomes **parameterizable**, which is the dial that
+ships new formatting behaviour over the air without a host release:
+
+```kotlin
+Formats.number(value, pattern = "#,##0.0")   // pattern is the GUEST's, shipped OTA;
+                                             // separators are the DEVICE's
+```
+
+**Vetted (spike S-6):** `DecimalFormat(pattern, DecimalFormatSymbols(locale))` renders the guest's
+pattern with the device's symbols — `1.234,6` in `de-DE`, `1,234.6` in `en-US` from the same
+recipe — and a malformed guest pattern throws at construction, where it is caught and degraded to
+the unpatterned form plus a `SkewReport` entry. A guest-authored pattern is untrusted input and is
+treated like every other skew: wrong-looking beats crashed.
+
+Dates deliberately do **not** take free-form patterns in v1: a date pattern that hard-codes field
+order defeats the locale, and skeleton-based reordering (ICU `DateTimePatternGenerator`) exists on
+Android but not in desktop `java.time`. Dates keep named styles (`short`/`medium`/`long`), with
+skeletons recorded as an Android-capable extension for the ADR's assumptions section.
+
+**Estimate:** ½ day, folded into T1's ADR.
 
 ### T2. Plural rules — as a formatting recipe, not a service
 
-"3 nights" / "1 night" / "3 泊" cannot be built guest-side (`Intl.PluralRules` does not exist in
-the sandbox) and string tables deliberately have no plural logic.
-
-**Design:** one more text factory. The guest sends the count **and its own templates** (from its
-string table); the host picks the CLDR category for its locale and substitutes the formatted
-number:
+Unchanged from the previous revision: one more text factory; the guest ships the count **and its
+own templates** (words stay payload-owned, exactly like `StringTable`); the host picks the CLDR
+category for its locale and substitutes the formatted number.
 
 ```kotlin
 Formats.plural(count = nights, templates = mapOf("one" to "# night", "other" to "# nights"))
 // wire: [13, 3, {"one":"# night","other":"# nights"}]
 ```
 
-Host resolution: category from the platform (`android.icu.text.PluralRules` on Android,
-`com.ibm.icu` or an English-only fallback on desktop — decision recorded in the ADR), template
-lookup with fallback to `"other"`, `#` replaced by `formatNumber(count)`. Words stay
-payload-owned, exactly like `StringTable`; only the *category selection* is host work, which is
-the only part that needs the locale data.
+Host category source: `android.icu.text.PluralRules` on Android; on desktop, `com.ibm.icu` or an
+English-only fallback — decided in the ADR. **Estimate:** 1 day, after T1 (it returns
+`DogwoodText`, so it lands everywhere T1 reaches).
 
-**Estimate:** 1 day, sequenced after T1 (it returns `DogwoodText`, so it lands everywhere T1
-reaches). **Deliberately deferred, and why:** caret placement (needs a declared-target design of
-the ADR-014 kind), richer mask grammar (a grammar deserves its own record), message interpolation
-beyond `#` (scope creep toward ICU MessageFormat — decide against wholesale, per-need instead).
+**Deliberately deferred, and why:** caret placement (needs a declared-target design of the
+ADR-014 kind), richer mask grammar (a grammar deserves its own record), message interpolation
+beyond `#` (scope creep toward ICU MessageFormat — decide per need, not wholesale).
 
 ---
 
@@ -275,7 +308,7 @@ but worth a sentence so nobody ships a permanently pulsing badge without meaning
 
 | Order | Item | Why this order | ADR |
 |---|---|---|---|
-| 1 | **T1** `DogwoodText` (+ T-3/T-4 fixes) | Unblocks real products' components; two latent generator defects ride along | ADR-021 |
+| 1 | **T1 + T1b** host-resolved value types (`DogwoodText`, `DogwoodColor`) and guest-shipped patterns | The destination-state rule reaches the whole generated surface; two latent generator defects ride along | ADR-021 |
 | 2 | **A1** animated colour | Smallest animation item; exercises the recipe-in-recipe shape A3 also uses | ADR-022 (jointly with A3) |
 | 3 | **A3** oscillate | Corrected design is fully specified; shares ADR-022 with A1 | ADR-022 |
 | 4 | **A2** `Presence` | Largest; depends on nothing above but benefits from A1/A3's spec parsing being settled | ADR-023 |
@@ -284,7 +317,7 @@ but worth a sentence so nobody ships a permanently pulsing badge without meaning
 Each lands with the full gate this phase has used: unit tests both sides, a device verification
 pass (ADR-019's lesson — the harness types differently from a keyboard, and by extension animates
 differently from a display), sample-screen usage so the feature is visible, and the spec/roadmap
-rows updated. Total estimate: **5–7 working days**.
+rows updated. Total estimate: **6–8 working days**.
 
 ## Part 4 — What this plan deliberately does not fix
 
