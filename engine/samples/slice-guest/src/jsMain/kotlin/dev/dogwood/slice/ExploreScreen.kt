@@ -32,6 +32,7 @@ import dev.dogwood.compose.DogwoodModifier
 import dev.dogwood.compose.GuestServices
 import dev.dogwood.compose.HorizontalList
 import dev.dogwood.compose.LocalDogwoodConfiguration
+import dev.dogwood.compose.rememberDogwoodLazyListState
 import dev.dogwood.compose.Price
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.Row
@@ -124,6 +125,11 @@ fun ExploreScreen(params: ExploreParams) {
   var state by remember { mutableStateOf<FeedState>(FeedState.Loading) }
   var attempt by remember { mutableStateOf(0) }
 
+  // The list position is host-owned -- scroll offset changes every frame and the guest may not
+  // hold per-frame state -- but it is *saveable*, so publishing new code while somebody is
+  // halfway down the page brings them back to where they were rather than to the top.
+  val listState = rememberDogwoodLazyListState()
+
   // The one place this screen leaves the sandbox. `fetch` suspends rather than blocks, because
   // the guest is single-threaded: a blocking call here would stop composition, the frame clock,
   // and every pending event until the network answered.
@@ -136,10 +142,17 @@ fun ExploreScreen(params: ExploreParams) {
     modifier = DogwoodModifier.fillMaxWidth(),
     spacingDp = 16,
     contentPaddingDp = 16,
+    state = listState,
   ) {
     SectionHeader(
       title = "Explore ${params.country}",
-      description = "Return flights, next 3 months",
+      // The visible range is a report from the host, not a measurement: it arrives when it
+      // changes by an item, never by a pixel. Rendering it is exactly what it is for.
+      description = if (listState.lastVisibleItemIndex >= 0) {
+        "Return flights, next 3 months · showing ${listState.firstVisibleItemIndex + 1}–${listState.lastVisibleItemIndex + 1}"
+      } else {
+        "Return flights, next 3 months"
+      },
     )
 
     when (val current = state) {
@@ -218,6 +231,15 @@ fun ExploreScreen(params: ExploreParams) {
           label = "See all ${feed.stays.size} stays",
           modifier = DogwoodModifier.fillMaxWidth().padding(4),
           onClick = { savedStays = 0 },
+        )
+
+        // A declared target, not a command: the guest says where it wants to be and the host
+        // gets there. Tapping it twice is two requests, which is why the holder carries a
+        // sequence number rather than a flag.
+        PrimaryButton(
+          label = "Back to top",
+          modifier = DogwoodModifier.fillMaxWidth().padding(4),
+          onClick = { listState.animateScrollToItem(0) },
         )
       }
     }

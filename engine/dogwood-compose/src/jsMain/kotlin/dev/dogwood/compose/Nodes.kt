@@ -154,6 +154,17 @@ class LambdaSlots {
     return true
   }
 
+  /**
+   * Drops one slot.
+   *
+   * For a handler that stops being registered while its node lives on -- a lazy list whose state
+   * holder became null. Without it the old closure would keep receiving events and writing into a
+   * holder the composition has forgotten.
+   */
+  fun clear(id: Id, tag: EventTag) {
+    slots.remove(key(id, tag))
+  }
+
   /** Drops every slot belonging to [id]. Called for each node in the depth-first purge. */
   fun purge(id: Id) {
     val prefix = id.value.toLong() shl 32

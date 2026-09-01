@@ -151,7 +151,7 @@ The excluded set is not open-ended; it is a bounded list of subsystems that must
 1. **`Modifier`.** Compose's `Modifier.Element` implementations are `internal` — `PaddingElement` does not appear in any public signature dump. A guest cannot name, cast, or serialize them. Dogwood must define its own tagged, serializable `Modifier` type, as Redwood did with `ModifierElement(tag, value)`. **Consequence: guest signatures differ from Compose signatures, and the "identical signatures" claim is withdrawn** (see [Layer 1](layer-1-authoring.md)). Scoped modifiers (`RowScope.weight`, `BoxScope.align`) are interface methods on scopes, so the tag space must be scope-aware and the generator must emit each children slot's dispatch *inside* its parent's scope.
 2. **Lazy layouts.** A cut-down `LazyListScope` with guest-side windowing, a placeholder pool, and throttled `onViewportChanged(first, last)` callbacks. Redwood needed ten modules and a hand-tuned loading strategy for this one case.
 3. **Text input.** A version-vector protocol with optimistic host-side state. Redwood's `TextFieldState` carries a `userEditCount` and its host binding discards stale guest updates outright.
-4. **Live state holders.** `LazyListState`, `FocusRequester`, `SnackbarHostState`, `PagerState`, `DrawerState` — each needs mirrored state and a conflict rule. The corrected measurement enumerates roughly **30 holder types** in the widget surface (including `DatePickerState`, `TimePickerState`, `SliderState`, `CarouselState`, `PullToRefreshState`, `SwipeToDismissBoxState`, `MutableTransitionState`) plus **76 lowercase `remember*` factories** that construct them, so this subsystem's per-holder cost recurs far more often than the five examples suggest.
+4. **Live state holders. ◐ Started** ([ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md)): `LazyListState` is built, and the pattern it establishes — targets down, reports up, host authoritative — is meant to carry the rest. `LazyListState`, `FocusRequester`, `SnackbarHostState`, `PagerState`, `DrawerState` — each needs mirrored state and a conflict rule. The corrected measurement enumerates roughly **30 holder types** in the widget surface (including `DatePickerState`, `TimePickerState`, `SliderState`, `CarouselState`, `PullToRefreshState`, `SwipeToDismissBoxState`, `MutableTransitionState`) plus **76 lowercase `remember*` factories** that construct them, so this subsystem's per-holder cost recurs far more often than the five examples suggest.
 5. **Host environment. ✅ Delivered** ([ADR-012](../adrs/layer-5/ADR-012-host-environment-subsystem.md)). `LocalDensity`, `LocalLayoutDirection`, the palette, safe-area insets, dark mode, viewport size, **and locale** — derived in host composition from Compose Multiplatform's own ambient values, pushed across as a serializable `DogwoodConfiguration`, and exposed to guest code as a `CompositionLocal`. Locale matters doubly: the pinned QuickJS ships no ECMA-402 `Intl`, so locale-aware formatting needs either a host service or guest-bundled data — the tag lets a guest *branch*, which is the half it can do, and leaves formatting to the resources subsystem. See [The Host Environment](#the-host-environment) below.
 6. **Node identity and reuse.** See below.
 7. **Animation.** The design invariant in [Layer 4](layer-4-sandbox.md) forbids per-frame state in the guest, and the whole `animate*AsState` / `updateTransition` / `Animatable` / `rememberInfiniteTransition` surface (34 lowercase functions, previously unmeasured) is exactly that. The promised replacement — "declare a target, the host runs it" — is a protocol that does not yet exist anywhere in this specification: it needs a grammar for targets, durations, springs and easings, interruption and retargeting semantics, completion events, dictionary entries, skew rules, and **time-varying `Modifier` values** (an `alpha` animation is a modifier argument, so the `Modifier` protocol must accept host-side animated values, not just constants). Sizing reference: this is at least as large as text input, and React Native's equivalent (moving animation onto the native thread) was among the largest subsystems that ecosystem built. Until this ships, [Layer 1](layer-1-authoring.md)'s checker **must reject** animation APIs — the failure mode of *not* rejecting them is silent, compiling guest code that ticks the boundary every frame.
@@ -270,6 +270,46 @@ flowchart LR
 **The launch payload is data, decoded by the guest.** The host cannot construct guest types: it was built months before this payload and has never seen its classes. The sample decodes with `ignoreUnknownKeys = true`, which is the additive evolution rule applied to launch parameters.
 
 **The surface is versioned through the dictionary channel**, as `segmentVersions["dogwood.services"]`. It matters more than a widget version, and the asymmetry is the point: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method an older host does not implement is an error at the boundary with no fallback. A guest that wants a method added after revision *N* must check the version before calling it.
+
+### Live-State Holders
+
+Layer 4 forbids per-frame state in the guest. That invariant is stated as a prohibition, and this is its constructive half: what a guest gets *instead* of a holder it owns. The decision record is [ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md); `LazyListState` is the first of roughly thirty.
+
+```mermaid
+sequenceDiagram
+  participant G as Guest holder<br/>(DogwoodLazyListState)
+  participant B as Change batch
+  participant H as Host binding<br/>(LazyListMirror)
+  participant L as LazyListState<br/>(the real one)
+
+  Note over G,L: Targets go down as ordinary properties
+  G->>B: targetIndex = 0, targetSequence = 3
+  B->>H: PropertySet ×2, in composition order
+  H->>H: wait until totalItemsCount > targetIndex
+  H->>L: animateScrollToItem(0)
+
+  Note over G,L: Reports come up, per item, never per pixel
+  L-->>H: snapshotFlow(first, last, scrolling)
+  H->>H: distinctUntilChanged
+  H-->>G: Event(first, last, scrolling)
+  G->>G: report(...) — structural equality, so an unchanged report costs nothing
+```
+
+#### Diagram Node Definitions
+
+- **The guest holder (`DogwoodLazyListState`).** A mirror, not a holder. It carries the last reported visible range, the last reported scroll flag, and a declared target. It measures nothing, because the guest has no layout, no viewport and no scroll offset.
+- **The change batch.** The target crosses as **ordinary properties on the list widget** — an index and a sequence number — so it needs no new `Change` subtype and no addition to the positional encoding. It arrives in order with everything else from the same composition pass.
+- **`LazyListMirror`.** The host binding. Applies targets, and reports the viewport when the guest said it was watching. Presence has to be a property because the host cannot see guest closures; without it, every list on every screen would pay for an observer nobody reads.
+- **The real `LazyListState`.** Compose's own, owned by the host, passed to `LazyColumn`/`LazyRow`. It is authoritative for where the list actually is.
+
+Four rules make the pattern work, and each exists because of a specific failure:
+
+1. **The newest target wins, and a stale one cannot arrive.** Not a rule enforced on top of the channel — a consequence of it. A property carries only its latest value, so two targets declared in one pass cross as one property set.
+2. **The sequence is a counter, not a flag.** Asking twice for the same index is two requests. A user who taps "back to top", scrolls away, and taps again expects to go back; with a flag the second tap would change no property and cross nothing.
+3. **A target is held until the list can satisfy it.** A restored position is declared in a replacement guest's *first* batch, while its content is still being fetched — so the list at that moment is a header and a loading row, and `scrollToItem` would clamp to the end and lose the position silently. This was found on a device, not reasoned about.
+4. **Reports are item-granular.** `distinctUntilChanged` over the index triple turns a sixty-frame fling across three items into three crossings. That is the throttle, and it is also the honest limit: nothing frame-accurate can be built on this mirror, which is the point.
+
+**Position survives a code update** through the ordinary saveable mechanism: the holder's `Saver` stores the first visible index and restores it by reissuing it as a target, so restore needs no separate path. The constraint that comes with it is worth stating, because it is the concrete form of "the new code may have a different composition shape": `rememberSaveable` keys on `currentCompositeKeyHash`, the *path* through the composition rather than the local call site, so a refactor that moves a call site loses its state.
 
 ### What Deserves a Dictionary Entry
 

@@ -26,6 +26,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /** The Phase 0 and Phase 1 binding dictionary, hand-assigned. */
@@ -49,9 +50,14 @@ object Tags {
   val P2 = PropertyTag(2)
   val P3 = PropertyTag(3)
   val P4 = PropertyTag(4)
+  val P5 = PropertyTag(5)
+  val P6 = PropertyTag(6)
 
   /** Event tags are parameter-declaration order, widget-scoped. */
   val OnClick = EventTag(1)
+
+  /** A lazy container's viewport report: first visible, last visible, scrolling. */
+  val OnViewport = EventTag(1)
 }
 
 /**
@@ -298,9 +304,11 @@ fun VerticalList(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
+  /** Pass one to read the visible range or to declare a scroll target. Null costs nothing. */
+  state: DogwoodLazyListState? = null,
   content: @Composable DogwoodColumnScope.() -> Unit,
 ) {
-  ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp) {
+  ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp, state) {
     ColumnScopeInstance.content()
   }
 }
@@ -311,9 +319,10 @@ fun HorizontalList(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
+  state: DogwoodLazyListState? = null,
   content: @Composable DogwoodRowScope.() -> Unit,
 ) {
-  ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp) {
+  ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp, state) {
     RowScopeInstance.content()
   }
 }
@@ -324,14 +333,42 @@ private fun ListContainer(
   modifier: DogwoodModifier,
   spacingDp: Int,
   contentPaddingDp: Int,
+  state: DogwoodLazyListState?,
   content: @Composable () -> Unit,
 ) {
+  // Read here, in the composable body, not inside `update`. That is what subscribes this call
+  // site to the holder's snapshot state; a read inside `update` would happen after the
+  // composition had already decided not to recompose, and a declared target would never cross.
+  val targetSequence = state?.targetSequence ?: 0
+  val targetIndex = state?.targetIndex ?: 0
+  val targetAnimated = state?.targetAnimated ?: false
+  val observed = state != null
+
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(tag) },
     update = {
       set(spacingDp) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
       set(contentPaddingDp) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      set(targetIndex) { recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(targetSequence) { recording.recorder.property(id, Tags.P4, JsonPrimitive(it)) }
+      // Presence has to be a property: the host cannot see guest closures, so it cannot know
+      // whether reporting the viewport would be observed by anyone. Reporting unconditionally
+      // would cost a crossing per item boundary on every list on the screen.
+      set(observed) { recording.recorder.property(id, Tags.P5, JsonPrimitive(it)) }
+      set(targetAnimated) { recording.recorder.property(id, Tags.P6, JsonPrimitive(it)) }
+      set(state) { holder ->
+        if (holder == null) {
+          recording.lambdas.clear(id, Tags.OnViewport)
+        } else {
+          recording.lambdas.set(id, Tags.OnViewport) { args ->
+            holder.report(
+              first = args.getOrNull(0)?.jsonPrimitive?.intOrNull ?: 0,
+              last = args.getOrNull(1)?.jsonPrimitive?.intOrNull ?: -1,
+              scrolling = args.getOrNull(2)?.jsonPrimitive?.booleanOrNull ?: false,
+            )
+          }
+        }
+      }
     },
     content = { Children(Tags.Content, content) },
   )

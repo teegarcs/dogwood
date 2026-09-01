@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,7 +37,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +51,8 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.WidgetTag
 import dev.dogwood.protocol.widgetTag
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -79,6 +85,7 @@ private const val P2 = 2
 private const val P3 = 3
 private const val P4 = 4
 private const val P5 = 5
+private const val P6 = 6
 
 object DogwoodDictionary {
   // Segment 0 -- layout primitives.
@@ -180,23 +187,35 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
 
     DogwoodDictionary.Spacer.value -> Spacer(modifier)
 
-    DogwoodDictionary.VerticalList.value -> LazyColumn(
-      modifier = modifier,
-      verticalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
-      contentPadding = PaddingValues(node.int(P2, 0).dp),
-    ) {
-      items(node.children(CONTENT), key = { it.id.value }) { child ->
-        RenderNode(child, LayoutScope(), events)
+    DogwoodDictionary.VerticalList.value -> {
+      // The real holder lives here, because scroll offset changes every frame and Layer 4
+      // forbids per-frame state in the guest. What the guest has is a mirror.
+      val listState = rememberLazyListState()
+      LazyListMirror(node, listState, events)
+      LazyColumn(
+        modifier = modifier,
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
+        contentPadding = PaddingValues(node.int(P2, 0).dp),
+      ) {
+        items(node.children(CONTENT), key = { it.id.value }) { child ->
+          RenderNode(child, LayoutScope(), events)
+        }
       }
     }
 
-    DogwoodDictionary.HorizontalList.value -> LazyRow(
-      modifier = modifier,
-      horizontalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
-      contentPadding = PaddingValues(horizontal = node.int(P2, 0).dp),
-    ) {
-      items(node.children(CONTENT), key = { it.id.value }) { child ->
-        RenderNode(child, LayoutScope(), events)
+    DogwoodDictionary.HorizontalList.value -> {
+      val listState = rememberLazyListState()
+      LazyListMirror(node, listState, events)
+      LazyRow(
+        modifier = modifier,
+        state = listState,
+        horizontalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),
+        contentPadding = PaddingValues(horizontal = node.int(P2, 0).dp),
+      ) {
+        items(node.children(CONTENT), key = { it.id.value }) { child ->
+          RenderNode(child, LayoutScope(), events)
+        }
       }
     }
 
@@ -216,6 +235,77 @@ fun RenderChildren(node: WidgetView, slot: Int, scope: LayoutScope, events: Even
   for (child in node.children(slot)) {
     key(child.id.value) {
       RenderNode(child, scope, events)
+    }
+  }
+}
+
+/**
+ * Keeps a host-owned [LazyListState] and a guest-side holder in step.
+ *
+ * Two directions, and they are not symmetric.
+ *
+ * **Targets come down, and they are held until they can be met.** The guest declares where it
+ * wants the list to be as a pair of ordinary properties: an index and a sequence number. A target
+ * naming an item that does not exist yet waits for the list to grow rather than clamping to the
+ * end -- the ordinary case being a restored position declared while the content is still loading. A stale target cannot arrive, because a property
+ * carries only its latest value -- a guest that asked for item 40 and then item 0 in the same
+ * composition pass sends one property set, for 0. The sequence exists so that asking twice for the
+ * *same* index is two requests, which is what a user tapping "back to top" a second time expects.
+ *
+ * **Reports go up, and only when they mean something.** The visible range is sent when it changes
+ * **by an item**, not by a pixel: `distinctUntilChanged` over the index triple turns a sixty-frame
+ * fling across three items into three crossings instead of a hundred and eighty. That is the
+ * throttle roadmap.md asks for, and it is also the honest limit of the mirror -- a guest cannot
+ * build anything frame-accurate on it, which is the point.
+ *
+ * Nothing is reported at all unless the guest said it was watching. The host cannot see guest
+ * closures, so presence has to be a property; without it every list on every screen would pay for
+ * an observer nobody reads.
+ */
+@Composable
+private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: EventSink) {
+  val targetSequence = node.int(P4, 0)
+  if (targetSequence > 0) {
+    val targetIndex = node.int(P3, 0)
+    val animated = node.boolean(P6, false)
+    // Keyed on the sequence, not the index, so two requests for the same place both run.
+    LaunchedEffect(node.id.value, targetSequence) {
+      // A target may name an item that does not exist yet. The case is not exotic: a guest that
+      // restored its position after a code update declares that target in its *first* batch,
+      // while its content is still being fetched, so the list at that moment holds a header and
+      // a loading row. `scrollToItem` would clamp to the end and the position would be silently
+      // lost -- which is what happened the first time this was run on a device.
+      //
+      // So a target is held until the list is long enough to satisfy it. It is abandoned when a
+      // newer target arrives or the node goes away, both of which cancel this effect; a target
+      // for an item that never appears simply never fires, which is the right outcome for a
+      // position into content that turned out not to exist.
+      snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > targetIndex }
+      if (animated) {
+        listState.animateScrollToItem(targetIndex)
+      } else {
+        listState.scrollToItem(targetIndex)
+      }
+    }
+  }
+
+  if (node.boolean(P5, false)) {
+    LaunchedEffect(node.id.value, listState) {
+      snapshotFlow {
+        Triple(
+          listState.firstVisibleItemIndex,
+          listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1,
+          listState.isScrollInProgress,
+        )
+      }
+        .distinctUntilChanged()
+        .collect { (first, last, scrolling) ->
+          events.send(
+            node,
+            EventTag(1),
+            listOf(JsonPrimitive(first), JsonPrimitive(last), JsonPrimitive(scrolling)),
+          )
+        }
     }
   }
 }
