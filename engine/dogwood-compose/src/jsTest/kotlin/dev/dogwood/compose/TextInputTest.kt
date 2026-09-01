@@ -34,7 +34,7 @@ class TextFieldStateTest {
   private fun Field() {
     val state = rememberTextFieldState()
     captured = state
-    TextField(state = state, label = "Search")
+    TextField(state = state, label = TextValue("Search"))
   }
 
   private fun field(host: RecordingHost, restored: StateSnapshot?) =

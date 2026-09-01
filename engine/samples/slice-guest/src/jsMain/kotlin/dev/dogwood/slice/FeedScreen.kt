@@ -116,7 +116,7 @@ private fun FeedRow(index: Int, row: Row) {
       Spacer(modifier = Modifier.size(12))
       Column(modifier = Modifier.weight(1.0f)) {
         Text("#$index · ${row.city}", style = "titleSmall")
-        StarRating(rating = row.rating, label = null)
+        StarRating(rating = row.rating)
         Text(Formats.currency(row.priceMinor, "USD"), style = "bodyMedium")
       }
     }

@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.RectangleShape
 import coil3.compose.AsyncImage
 
 @Composable
@@ -173,20 +174,17 @@ fun IconImpl(
   name: String,
   contentDescription: String?,
   sizeDp: Int,
-  tint: String?,
+  // A resolved `Color`, not a token name. It used to be a `String` that happened to hold one --
+  // host-resolved in fact but invisible to the type system, so nothing could check it and nothing
+  // could animate it. The binding now resolves the recipe and hands over a colour.
+  tint: androidx.compose.ui.graphics.Color?,
   modifier: Modifier,
 ) {
   val icons = LocalIconSet.current
   val resolved = icons[name]
   if (resolved == null) LocalSkewReport.current.unknownIcons += name
 
-  val palette = palette()
-  val color = tint?.let { requested ->
-    palette.token(requested) ?: run {
-      LocalSkewReport.current.unknownColorTokens += requested
-      palette.ink
-    }
-  } ?: palette.ink
+  val color = tint ?: palette().ink
 
   androidx.compose.material3.Icon(
     imageVector = resolved ?: icons.fallback,

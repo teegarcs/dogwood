@@ -64,7 +64,10 @@ internal class Recipe(
  * Compose's own implementations are `internal` and have no serializable form -- so this names one
  * and the host builds it.
  */
-class Shape internal constructor(internal val recipe: Recipe) {
+class Shape internal constructor(private val recipe: Recipe) {
+  /** The wire form. Every host-resolved type exposes this, so the generator has one rule. */
+  internal val json: JsonElement get() = recipe.toJson()
+
   override fun equals(other: Any?): Boolean = other is Shape && other.recipe == recipe
   override fun hashCode(): Int = recipe.hashCode()
 
@@ -84,15 +87,14 @@ class Shape internal constructor(internal val recipe: Recipe) {
  * which a literal cannot. `Color(0xFF0770E3)` is the deliberate opt-out, spelled exactly as it is
  * in Compose so that a literal reads the same in either world.
  */
-class Color internal constructor(internal val recipe: Recipe) {
+class Color internal constructor(private val recipe: Recipe) {
+  /** The wire form. Every host-resolved type exposes this, so the generator has one rule. */
+  internal val json: JsonElement get() = recipe.toJson()
+
   override fun equals(other: Any?): Boolean = other is Color && other.recipe == recipe
   override fun hashCode(): Int = recipe.hashCode()
 
   companion object {
-    /** A literal alpha-red-green-blue colour. Does not follow the theme; that is what it means. */
-    operator fun invoke(argb: Long): Color =
-      Color(Recipe(ExpressionFactories.COLOR_ARGB, listOf(JsonPrimitive(argb))))
-
     /**
      * A named colour from the host's design system.
      *
@@ -104,6 +106,13 @@ class Color internal constructor(internal val recipe: Recipe) {
       Color(Recipe(ExpressionFactories.COLOR_TOKEN, listOf(JsonPrimitive(name))))
   }
 }
+
+/**
+ * A literal alpha-red-green-blue colour. Does not follow the theme; that is what choosing it means.
+ *
+ * Spelled exactly as Compose spells it, and a top-level function for the same reason Compose's is.
+ */
+fun Color(argb: Long): Color = Color(Recipe(ExpressionFactories.COLOR_ARGB, listOf(JsonPrimitive(argb))))
 
 /**
  * Text only the host can produce.
@@ -177,23 +186,28 @@ object Formats {
  *
  * Not named `Text`, because that call site would be ambiguous with the `Text(...)` composable.
  */
-class TextValue private constructor(internal val json: JsonElement) {
+class TextValue internal constructor(internal val json: JsonElement) {
   override fun equals(other: Any?): Boolean = other is TextValue && other.json == json
 
   override fun hashCode(): Int = json.hashCode()
 
   override fun toString(): String = json.toString()
 
-  companion object {
-    /** A literal. Reads as a plain string at the call site and crosses as one. */
-    operator fun invoke(literal: String): TextValue = TextValue(JsonPrimitive(literal))
-
-    internal fun recipe(recipe: Recipe): TextValue = TextValue(recipe.toJson())
+  internal companion object {
+    fun recipe(recipe: Recipe): TextValue = TextValue(recipe.toJson())
   }
 }
 
+/**
+ * A literal. Reads as a plain string at the call site and crosses as one.
+ *
+ * A top-level function named for its type, which is how Compose spells `Color(0xFF0770E3)` -- so
+ * `TextValue("Explore")` and `Color(0xFF…)` are constructed the same way here as there.
+ */
+fun TextValue(literal: String): TextValue = TextValue(JsonPrimitive(literal))
+
 /** Clips to a shape the host builds. */
-fun Modifier.clip(shape: Shape): Modifier = then(ModifierTags.CLIP, shape.recipe.toJson())
+fun Modifier.clip(shape: Shape): Modifier = then(ModifierTags.CLIP, shape.json)
 
 /** Fills the background with a colour the host resolves. */
-fun Modifier.background(color: Color): Modifier = then(ModifierTags.BACKGROUND, color.recipe.toJson())
+fun Modifier.background(color: Color): Modifier = then(ModifierTags.BACKGROUND, color.json)

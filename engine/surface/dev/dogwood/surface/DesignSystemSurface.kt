@@ -20,7 +20,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun PrimaryButton(
-  label: String,
+  label: TextValue,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
   onClick: () -> Unit,
@@ -42,7 +42,7 @@ fun Card(
 
 @Composable
 fun Badge(
-  text: String,
+  text: TextValue,
   selected: Boolean = false,
   modifier: Modifier = Modifier,
 ) {}
@@ -54,7 +54,7 @@ fun Divider(
 
 @Composable
 fun Chip(
-  text: String,
+  text: TextValue,
   selected: Boolean = false,
   modifier: Modifier = Modifier,
   onSelectedChange: (Boolean) -> Unit,
@@ -62,25 +62,25 @@ fun Chip(
 
 @Composable
 fun Price(
-  price: String,
+  price: TextValue,
   modifier: Modifier = Modifier,
-  leadingText: String? = null,
-  previousPrice: String? = null,
-  trailingText: String? = null,
+  leadingText: TextValue? = null,
+  previousPrice: TextValue? = null,
+  trailingText: TextValue? = null,
 ) {}
 
 @Composable
 fun StarRating(
   rating: Float,
   modifier: Modifier = Modifier,
-  label: String? = null,
+  label: TextValue? = null,
 ) {}
 
 @Composable
 fun SectionHeader(
-  title: String,
+  title: TextValue,
   modifier: Modifier = Modifier,
-  description: String? = null,
+  description: TextValue? = null,
 ) {}
 
 /**
@@ -92,7 +92,9 @@ fun SectionHeader(
  * and the host resolves it, exactly as it resolves a colour token. A name this client does not
  * carry renders the icon set's fallback and is reported as skew.
  *
- * @param tint a colour *token* name, not a colour. A literal could not follow dark mode.
+ * @param tint a `Color`, which is always a recipe -- `Color.token("primary")` follows the host's
+ *   palette including dark mode, and `Color(0xFF…)` is the deliberate opt-out. It used to be a
+ *   `String` holding a token name: host-resolved in fact, but invisible to the type system.
  */
 @Composable
 fun Icon(
@@ -100,7 +102,7 @@ fun Icon(
   contentDescription: String? = null,
   modifier: Modifier = Modifier,
   sizeDp: Int = 24,
-  tint: String? = null,
+  tint: Color? = null,
 ) {}
 
 /**
@@ -124,8 +126,8 @@ fun TextInput(
   text: String,
   version: Int = 0,
   modifier: Modifier = Modifier,
-  label: String? = null,
-  placeholder: String? = null,
+  label: TextValue? = null,
+  placeholder: TextValue? = null,
   enabled: Boolean = true,
   singleLine: Boolean = true,
   maxLength: Int = -1,

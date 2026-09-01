@@ -122,3 +122,63 @@ class ReservedTagTest {
     assertEquals(listOf("AcmeD"), (result as LockResult.Updated).added)
   }
 }
+
+/**
+ * Widening a parameter's type is a compatibility event.
+ *
+ * It moves no tag and adds no component, so every other check in the lock is silent about it —
+ * and a client built before the change reads the new encoding with the old reader and renders its
+ * default instead. `String` → `TextValue` is the case that prompted this: nothing broke loudly,
+ * and every price on an older client would have gone blank.
+ */
+class RetypedParameterTest {
+
+  private val before = """
+    package acme.design
+    import androidx.compose.runtime.Composable
+    @Composable fun AcmePrice(price: String, note: String? = null) {}
+  """
+
+  private val after = """
+    package acme.design
+    import androidx.compose.runtime.Composable
+    @Composable fun AcmePrice(price: TextValue, note: TextValue? = null) {}
+  """
+
+  private fun dict(source: String, version: Int) =
+    buildDictionary("acme", 1, version, SurfaceParser().parse(source, "S.kt"))
+
+  @Test
+  fun theDeclaredTypeIsRecorded() {
+    val entry = dict(before, 1).components.single()
+    assertEquals("String", entry.propertyTypes["price"])
+    assertEquals("String?", entry.propertyTypes["note"])
+  }
+
+  @Test
+  fun retypingWithoutRaisingTheVersionFailsTheBuild() {
+    val lock = tempLock()
+    checkAgainstLock(dict(before, 1), lock)
+    val result = checkAgainstLock(dict(after, 1), lock)
+    assertTrue(result is LockResult.Violated, "expected a violation, got $result")
+    val problems = (result as LockResult.Violated).problems
+    assertTrue(problems.any { it.contains("retyped") }, problems.toString())
+    assertTrue(problems.any { it.contains("AcmePrice.price: String -> TextValue") }, problems.toString())
+  }
+
+  @Test
+  fun retypingWithARaisedVersionIsAccepted() {
+    val lock = tempLock()
+    checkAgainstLock(dict(before, 1), lock)
+    val result = checkAgainstLock(dict(after, 2), lock)
+    assertTrue(result is LockResult.Updated, "expected an update, got $result")
+  }
+
+  @Test
+  fun anUnchangedSurfaceStillReportsUnchanged() {
+    // The check must not fire on every build, or it becomes noise nobody reads.
+    val lock = tempLock()
+    checkAgainstLock(dict(before, 1), lock)
+    assertTrue(checkAgainstLock(dict(before, 1), lock) is LockResult.Unchanged)
+  }
+}

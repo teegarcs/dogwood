@@ -37,6 +37,7 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
 
   val problems = mutableListOf<String>()
   val added = mutableListOf<String>()
+  val retyped = mutableListOf<String>()
 
   // A generated tag landing on a hand-written binding's tag renders the *wrong widget*, silently.
   // Checked here rather than trusted, because the allocator and the reservation list are edited
@@ -71,6 +72,10 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
         problems += "${lockedEntry.name}.$name moved from property tag $tag to $now"
       }
     }
+    for ((name, was) in lockedEntry.propertyTypes) {
+      val now = current.propertyTypes[name]
+      if (now != null && now != was) retyped += "${lockedEntry.name}.$name: $was -> $now"
+    }
     for ((name, tag) in lockedEntry.events) {
       val now = current.events[name]
       if (now != null && now != tag) {
@@ -91,11 +96,19 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
       "${locked.version}; a client branches on that number to decide what it may use"
   }
 
+  // A retyped parameter moves no tag and adds no component, so nothing above notices it -- and a
+  // client built before the change reads the new encoding with the old reader and renders its
+  // default instead. Widening `String` to `TextValue` is the case that prompted this.
+  if (retyped.isNotEmpty() && dictionary.version <= locked.version) {
+    problems += "retyped ${retyped.sorted()} without raising the segment version past " +
+      "${locked.version}; an older client reads the old encoding and silently renders a default"
+  }
+
   return when {
     problems.isNotEmpty() -> LockResult.Violated(problems)
-    added.isNotEmpty() -> {
+    added.isNotEmpty() || retyped.isNotEmpty() -> {
       lockFile.writeText(dictionary.encode())
-      LockResult.Updated(added)
+      LockResult.Updated(added + retyped)
     }
     else -> {
       lockFile.writeText(dictionary.encode())

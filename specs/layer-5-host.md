@@ -311,6 +311,12 @@ Four rules make the pattern work, and each exists because of a specific failure:
 
 **Position survives a code update** through the ordinary saveable mechanism: the holder's `Saver` stores the first visible index and restores it by reissuing it as a target, so restore needs no separate path. The constraint that comes with it is worth stating, because it is the concrete form of "the new code may have a different composition shape": `rememberSaveable` keys on `currentCompositeKeyHash`, the *path* through the composition rather than the local call site, so a refactor that moves a call site loses its state.
 
+### Host-Resolved Values
+
+**A value that depends on the environment crosses the wire as a *recipe*, not a result.** The host resolves it at the moment it draws, against the environment in force; when that environment changes, resolution changes, with no wire traffic and no guest recomposition. That is the whole rule, and [ADR-021](../adrs/layer-5/ADR-021-host-resolved-values.md) is where the *type system* finally states it: `TextValue`, `Color` and `Shape` are first-class surface types the generator carries, so recipes reach a product's own components instead of stopping at the layout tier.
+
+Two things follow that are easy to miss. `Icon(tint:)` used to be a `String` that happened to hold a token name — host-resolved in fact, invisible to the compiler, and therefore uncheckable; it is a `Color` now. And **the dictionary lock records each property's declared type**, because widening `String` to `TextValue` moves no tag and adds no component: every other check was silent while an older client would have read a recipe with a primitive reader and quietly rendered its default.
+
 ### Named Resources
 
 Everything a payload cannot carry is **named by the guest and owned by the host**. That is one pattern, applied four times, and it is the same one [ADR-010](../adrs/layer-5/ADR-010-deferred-expression-grammar.md) established for colour tokens. The decision record is [ADR-017](../adrs/layer-5/ADR-017-resources-and-assets.md).

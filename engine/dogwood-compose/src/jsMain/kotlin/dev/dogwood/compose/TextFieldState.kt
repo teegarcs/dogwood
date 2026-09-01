@@ -124,8 +124,8 @@ object Keyboards {
 fun TextField(
   state: TextFieldState,
   modifier: Modifier = Modifier,
-  label: String? = null,
-  placeholder: String? = null,
+  label: TextValue? = null,
+  placeholder: TextValue? = null,
   enabled: Boolean = true,
   singleLine: Boolean = true,
   maxLength: Int = -1,

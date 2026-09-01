@@ -99,6 +99,15 @@ data class DictionaryEntry(
   val name: String,
   val localTag: Int,
   val properties: Map<String, Int>,
+  /**
+   * Each property's declared type.
+   *
+   * Recorded because a tag is not the whole contract. Widening `price: String` to
+   * `price: TextValue` moves no tag and adds no component, so the lock had nothing to say about
+   * it -- yet a client built before the change reads a recipe with a primitive reader and quietly
+   * renders its default. A type change is a compatibility event and the lock now treats it as one.
+   */
+  val propertyTypes: Map<String, String> = emptyMap(),
   val slots: Map<String, Int>,
   val events: Map<String, Int>,
   /** Parameters the rule rejected, kept so the dictionary records what it declined to bind. */

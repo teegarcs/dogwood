@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 4,
+    "version": 5,
     "components": [
         {
             "name": "PrimaryButton",
@@ -9,6 +9,10 @@
             "properties": {
                 "label": 1,
                 "enabled": 2
+            },
+            "propertyTypes": {
+                "label": "TextValue",
+                "enabled": "Boolean"
             },
             "slots": {},
             "events": {
@@ -22,6 +26,11 @@
                 "url": 1,
                 "contentDescription": 2,
                 "cornerRadiusDp": 3
+            },
+            "propertyTypes": {
+                "url": "String",
+                "contentDescription": "String?",
+                "cornerRadiusDp": "Int"
             },
             "slots": {},
             "events": {}
@@ -42,6 +51,10 @@
                 "text": 1,
                 "selected": 2
             },
+            "propertyTypes": {
+                "text": "TextValue",
+                "selected": "Boolean"
+            },
             "slots": {},
             "events": {}
         },
@@ -59,6 +72,10 @@
                 "text": 1,
                 "selected": 2
             },
+            "propertyTypes": {
+                "text": "TextValue",
+                "selected": "Boolean"
+            },
             "slots": {},
             "events": {
                 "onSelectedChange": 1
@@ -73,6 +90,12 @@
                 "previousPrice": 3,
                 "trailingText": 4
             },
+            "propertyTypes": {
+                "price": "TextValue",
+                "leadingText": "TextValue?",
+                "previousPrice": "TextValue?",
+                "trailingText": "TextValue?"
+            },
             "slots": {},
             "events": {}
         },
@@ -83,6 +106,10 @@
                 "rating": 1,
                 "label": 2
             },
+            "propertyTypes": {
+                "rating": "Float",
+                "label": "TextValue?"
+            },
             "slots": {},
             "events": {}
         },
@@ -92,6 +119,10 @@
             "properties": {
                 "title": 1,
                 "description": 2
+            },
+            "propertyTypes": {
+                "title": "TextValue",
+                "description": "TextValue?"
             },
             "slots": {},
             "events": {}
@@ -104,6 +135,12 @@
                 "contentDescription": 2,
                 "sizeDp": 3,
                 "tint": 4
+            },
+            "propertyTypes": {
+                "name": "String",
+                "contentDescription": "String?",
+                "sizeDp": "Int",
+                "tint": "Color?"
             },
             "slots": {},
             "events": {}
@@ -122,6 +159,18 @@
                 "mask": 8,
                 "keyboard": 9,
                 "showCounter": 10
+            },
+            "propertyTypes": {
+                "text": "String",
+                "version": "Int",
+                "label": "TextValue?",
+                "placeholder": "TextValue?",
+                "enabled": "Boolean",
+                "singleLine": "Boolean",
+                "maxLength": "Int",
+                "mask": "String?",
+                "keyboard": "String?",
+                "showCounter": "Boolean"
             },
             "slots": {},
             "events": {

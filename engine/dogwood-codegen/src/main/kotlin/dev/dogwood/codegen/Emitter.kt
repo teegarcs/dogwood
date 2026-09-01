@@ -47,6 +47,7 @@ fun buildDictionary(
       name = component.name,
       localTag = allocated[index],
       properties = component.values.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      propertyTypes = component.values.associate { it.name to it.type },
       slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       events = component.events.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       rejected = component.parameters
@@ -113,13 +114,17 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
       appendLine("    update = {")
       for (parameter in component.values) {
         val tag = entry.properties.getValue(parameter.name)
+        // A host-resolved value already carries its own wire form -- a literal or a recipe -- so
+        // it is written straight through. Wrapping it in `JsonPrimitive` would not compile, which
+        // is how this gap was found: the parameter kind existed and nothing emitted for it.
+        val encode = if (parameter.kind == ParameterKind.HOST_RESOLVED) "it.json" else "JsonPrimitive(it)"
         if (parameter.defaultIsHostResolved || parameter.type.endsWith("?")) {
           // Absence is the sentinel: an unset optional parameter sends nothing at all, and the
           // host resolves its own default. Sending an explicit null instead would put the word
           // "null" on the wire and, given a careless reader, on the screen.
-          appendLine("      set(${parameter.name}) { if (it != null) recording.recorder.property(id, PropertyTag($tag), JsonPrimitive(it)) }")
+          appendLine("      set(${parameter.name}) { if (it != null) recording.recorder.property(id, PropertyTag($tag), $encode) }")
         } else {
-          appendLine("      set(${parameter.name}) { recording.recorder.property(id, PropertyTag($tag), JsonPrimitive(it)) }")
+          appendLine("      set(${parameter.name}) { recording.recorder.property(id, PropertyTag($tag), $encode) }")
         }
       }
       component.modifier?.let {
@@ -142,6 +147,58 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
       appendLine("  )")
       appendLine("}")
       appendLine()
+
+      // A convenience overload with every `TextValue` parameter as a plain `String`, so that
+      // widening a parameter's type does not break every existing call site for no benefit --
+      // most text really is a literal. Two overloads, never a combinatorial set: a call that mixes
+      // a literal and a recipe writes `TextValue("...")` for the literal half.
+      //
+      // **Emitted only when at least one text parameter is required**, and that condition is not a
+      // nicety. Two overloads whose parameters all have defaults are both applicable to a call
+      // that omits them, and Kotlin rejects it as ambiguous -- so a component whose text is
+      // entirely optional would become *harder* to call than before, at every call site, including
+      // the ones passing no text at all. A required text parameter is what tells the two apart:
+      // supply it as a `String` and only this overload matches; supply a `TextValue` or omit
+      // nothing and only the primary one does.
+      val textParameters = component.parameters.filter {
+        it.kind == ParameterKind.HOST_RESOLVED && it.type.removeSuffix("?") == "TextValue"
+      }
+      val hasRequiredText = textParameters.any { !it.type.endsWith("?") && !it.hasDefault }
+      if (textParameters.isNotEmpty() && hasRequiredText) {
+        appendLine("/** Convenience overload: every text parameter as a plain literal. */")
+        appendLine("@Composable")
+        appendLine("fun ${component.name}(")
+        for (parameter in component.parameters) {
+          val isText = parameter in textParameters
+          val type = when {
+            isText && parameter.type.endsWith("?") -> "String?"
+            isText -> "String"
+            parameter.kind == ParameterKind.MODIFIER -> "Modifier"
+            parameter.defaultIsHostResolved && !parameter.type.endsWith("?") -> "${parameter.type}?"
+            else -> parameter.type
+          }
+          val default = when {
+            parameter.kind == ParameterKind.MODIFIER -> " = Modifier"
+            parameter.defaultIsHostResolved -> " = null"
+            parameter.hasDefault -> " = ${parameter.defaultExpression}"
+            else -> ""
+          }
+          appendLine("  ${parameter.name}: $type$default,")
+        }
+        appendLine(") {")
+        appendLine("  ${component.name}(")
+        for (parameter in component.parameters) {
+          val argument = when {
+            parameter !in textParameters -> parameter.name
+            parameter.type.endsWith("?") -> "${parameter.name}?.let(::TextValue)"
+            else -> "TextValue(${parameter.name})"
+          }
+          appendLine("    ${parameter.name} = $argument,")
+        }
+        appendLine("  )")
+        appendLine("}")
+        appendLine()
+      }
     }
   }
 
@@ -292,6 +349,18 @@ private fun eventLambda(parameter: ParsedParameter, tag: Int): String {
  */
 private fun reader(parameter: ParsedParameter, tag: Int): String {
   val nullable = parameter.defaultIsHostResolved || parameter.type.endsWith("?")
+  if (parameter.kind == ParameterKind.HOST_RESOLVED) {
+    // Resolved against the environment in force, which is why these readers are composable and
+    // the primitive ones are not. The implementation still receives a plain platform type: the
+    // part that requires taste never learns a recipe was involved.
+    val fallback = parameter.defaultExpression?.takeIf { !parameter.defaultIsHostResolved }
+    return when (parameter.type.removeSuffix("?")) {
+      "TextValue" -> if (nullable) "node.textOrNull($tag)" else "node.text($tag, ${fallback ?: "\"\""})"
+      "Color" -> if (nullable) "node.colorOrNull($tag)" else "node.color($tag, ${fallback ?: "palette().ink"})"
+      "Shape" -> if (nullable) "node.shapeOrNull($tag)" else "node.shape($tag, ${fallback ?: "RectangleShape"})"
+      else -> "node.property($tag)"
+    }
+  }
   // The surface's own default is carried through. Substituting a plausible-looking zero here
   // would make the generated binding disagree with the declaration it was generated from, which
   // is the one failure the whole approach is supposed to make impossible.

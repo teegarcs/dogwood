@@ -37,6 +37,7 @@ import dev.dogwood.compose.alpha
 import dev.dogwood.compose.background
 import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
+import dev.dogwood.compose.TextValue
 import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
@@ -99,7 +100,7 @@ fun AboutScreen() {
     TextField(
       state = card,
       modifier = Modifier.fillMaxWidth(),
-      label = "Card number",
+      label = TextValue("Card number"),
       mask = "#### #### #### ####",
       keyboard = Keyboards.NUMBER,
       showCounter = true,

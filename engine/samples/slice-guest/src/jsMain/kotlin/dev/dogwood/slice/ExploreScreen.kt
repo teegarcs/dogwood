@@ -35,6 +35,7 @@ import dev.dogwood.compose.HorizontalList
 import dev.dogwood.compose.LocalHostEnvironment
 import dev.dogwood.compose.rememberLazyListState
 import dev.dogwood.compose.Price
+import dev.dogwood.compose.TextValue
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.Row
 import dev.dogwood.compose.SectionHeader
@@ -198,7 +199,7 @@ private fun ExploreContent(params: ExploreParams) {
     Row(modifier = Modifier.padding(2)) {
       // An icon by name. The guest has no painter, no asset and no resource identifier; the host
       // owns the icon set and resolves the name, exactly as it resolves a colour token.
-      Icon(name = "flight", contentDescription = null, sizeDp = 20, tint = "primary")
+      Icon(name = "flight", contentDescription = null, sizeDp = 20, tint = Color.token("primary"))
       Spacer(modifier = Modifier.size(8))
       Text(strings("exploreTitle"), style = "labelLarge")
     }
@@ -285,7 +286,7 @@ private fun ExploreContent(params: ExploreParams) {
         TextField(
           state = query,
           modifier = Modifier.fillMaxWidth(),
-          label = strings("filterStays"),
+          label = TextValue(strings("filterStays")),
           singleLine = true,
         )
 
@@ -403,23 +404,19 @@ private fun DestinationCard(destination: Destination, widthDp: Int, showWasPrice
       Spacer(modifier = Modifier.size(8))
       Text(destination.name, modifier = Modifier.padding(2))
       Text(destination.country, modifier = Modifier.padding(2))
-      // Formatted host-side, in the device's locale, from an integer number of cents. Switch the
-      // device to ja-JP and this becomes ￥612 with no traffic and no guest recomposition.
-      Row(modifier = Modifier.padding(2)) {
-        Text(
-          Formats.currency(destination.priceMinor, destination.currency),
-          style = "titleMedium",
-        )
-        Spacer(modifier = Modifier.size(6))
-        Text(strings("returnFlight"), style = "bodySmall")
-      }
-      if (showWasPrice) {
-        Text(
-          Formats.currency(destination.wasMinor, destination.currency),
-          modifier = Modifier.padding(2),
-          style = "bodySmall",
-        )
-      }
+      // The design system's own component, taking host-formatted money. Before `TextValue` this
+      // had to be hand-assembled out of raw `Text` -- losing the strike-through, the baseline
+      // alignment, and everything else `Price` exists to provide.
+      Price(
+        price = Formats.currency(destination.priceMinor, destination.currency),
+        previousPrice = if (showWasPrice) {
+          Formats.currency(destination.wasMinor, destination.currency)
+        } else {
+          null
+        },
+        trailingText = TextValue(strings("returnFlight")),
+        modifier = Modifier.padding(2),
+      )
     }
   }
 }
@@ -440,17 +437,19 @@ private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
         Text(stay.area, modifier = Modifier.padding(1))
         StarRating(
           rating = stay.rating,
-          label = stay.reviews,
+          // Explicit, because `StarRating`'s only text parameter is optional and a literal
+          // overload for it could not be resolved against a call that omits it.
+          label = TextValue(stay.reviews),
           modifier = Modifier.padding(1),
         )
         if (stay.badge != null) {
           Badge(text = stay.badge, selected = true, modifier = Modifier.padding(1))
         }
-        Row(modifier = Modifier.padding(1)) {
-          Text(Formats.currency(stay.priceMinor, stay.currency), style = "titleMedium")
-          Spacer(modifier = Modifier.size(6))
-          Text(strings("perNight"), style = "bodySmall")
-        }
+        Price(
+          price = Formats.currency(stay.priceMinor, stay.currency),
+          trailingText = TextValue(strings("perNight")),
+          modifier = Modifier.padding(1),
+        )
       }
     }
   }
