@@ -8,7 +8,7 @@
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.PropertySet
@@ -28,17 +28,17 @@ private fun RecordingHost.last(tag: Int): PropertySet? =
 
 class TextFieldStateTest {
 
-  private var captured: DogwoodTextFieldState? = null
+  private var captured: TextFieldState? = null
 
   @Composable
   private fun Field() {
-    val state = rememberDogwoodTextFieldState()
+    val state = rememberTextFieldState()
     captured = state
     TextField(state = state, label = "Search")
   }
 
   private fun field(host: RecordingHost, restored: StateSnapshot?) =
-    DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), restored) { Field() }
+    DogwoodComposition(host, HostEnvironment(), emptyMap(), restored) { Field() }
 
   @Test
   fun theGuestSendsTheTextItLastAcknowledged() {
@@ -137,7 +137,7 @@ class TextFieldStateTest {
     // The mask is a declaration, not a conversation. A card field that asked the guest where to
     // put the spaces would be the per-keystroke crossing the Layer 4 invariant forbids.
     val (host, _) = compose {
-      val state = rememberDogwoodTextFieldState()
+      val state = rememberTextFieldState()
       TextField(state = state, mask = "#### #### #### ####", keyboard = Keyboards.NUMBER)
     }
     val masks = host.decoded().flatMap { it.g }.filterIsInstance<PropertySet>()
@@ -149,7 +149,7 @@ class TextFieldStateTest {
   @Test
   fun anUnsetOptionalSendsNothing() {
     val (host, _) = compose {
-      TextField(state = rememberDogwoodTextFieldState())
+      TextField(state = rememberTextFieldState())
     }
     val sentTags = host.decoded().flatMap { it.g }.filterIsInstance<PropertySet>().map { it.p.value }
     assertTrue(3 !in sentTags, "no label was given, so none should cross")

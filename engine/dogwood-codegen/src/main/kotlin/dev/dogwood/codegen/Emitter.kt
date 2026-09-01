@@ -95,7 +95,7 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
       appendLine()
       for (parameter in component.parameters) {
         val default = when {
-          parameter.kind == ParameterKind.MODIFIER -> " = DogwoodModifier.Empty"
+          parameter.kind == ParameterKind.MODIFIER -> " = Modifier"
           parameter.defaultIsHostResolved -> " = null"
           parameter.hasDefault -> " = ${parameter.defaultExpression}"
           else -> ""

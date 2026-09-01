@@ -9,7 +9,7 @@
  * exists to remove.
  *
  * So this is guest code with no protocol at all. It selects on the language the host reported
- * through `DogwoodConfiguration`, which the guest already has.
+ * through `HostEnvironment`, which the guest already has.
  *
  * **What this does not do is formatting.** No plural rules, no number or date substitution, no
  * currency. QuickJS ships no ECMA-402 `Intl`, so none of that is possible here at any price -- it
@@ -55,10 +55,10 @@ val LocalStringTable = staticCompositionLocalOf { StringTable(emptyMap()) }
 /**
  * Looks up a key in the device's language.
  *
- * Reads `DogwoodConfiguration.language`, so a locale change re-renders exactly the nodes that call
+ * Reads `HostEnvironment.language`, so a locale change re-renders exactly the nodes that call
  * this and nothing else.
  */
 @Composable
 @ReadOnlyComposable
 fun strings(key: String): String =
-  LocalStringTable.current.get(LocalDogwoodConfiguration.current.language, key)
+  LocalStringTable.current.get(LocalHostEnvironment.current.language, key)

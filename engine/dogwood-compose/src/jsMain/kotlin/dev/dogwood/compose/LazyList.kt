@@ -7,7 +7,7 @@
  * laziness stops exactly where it matters.
  *
  * What makes real laziness possible is that the host already reports its viewport
- * ([DogwoodLazyListState], `adrs/layer-5/ADR-014-live-state-holders.md`). Given that, the guest can
+ * ([LazyListState], `adrs/layer-5/ADR-014-live-state-holders.md`). Given that, the guest can
  * compose **only the window** and tell the host two more numbers: how many items there really are,
  * and which index the window starts at. The host renders a list of the true length and draws a
  * placeholder wherever it has no node -- so the scroll extent, the scrollbar, and every index the
@@ -72,8 +72,8 @@ internal fun windowFor(
 @Composable
 fun <T> LazyVerticalList(
   items: List<T>,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  state: DogwoodLazyListState = rememberDogwoodLazyListState(),
+  modifier: Modifier = Modifier,
+  state: LazyListState = rememberLazyListState(),
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
   overscan: Int = 6,
@@ -104,8 +104,8 @@ fun <T> LazyVerticalList(
 @Composable
 fun <T> LazyHorizontalList(
   items: List<T>,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  state: DogwoodLazyListState = rememberDogwoodLazyListState(),
+  modifier: Modifier = Modifier,
+  state: LazyListState = rememberLazyListState(),
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
   overscan: Int = 4,

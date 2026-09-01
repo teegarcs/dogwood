@@ -18,7 +18,7 @@
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.PropertySet
 import dev.dogwood.protocol.WidthClass
 import dev.dogwood.protocol.language
@@ -27,7 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val phone = DogwoodConfiguration(
+private val phone = HostEnvironment(
   density = 3f,
   fontScale = 1f,
   darkMode = false,
@@ -44,7 +44,7 @@ class HostEnvironmentTest {
 
   @Composable
   private fun WidthLabel() {
-    Text("width ${LocalDogwoodConfiguration.current.viewportWidthDp}")
+    Text("width ${LocalHostEnvironment.current.viewportWidthDp}")
   }
 
   @Test
@@ -132,7 +132,7 @@ class HostEnvironmentTest {
     // The guest has no density it can trust and no way to convert pixels itself, so the
     // conversion is the host's job and the contract is that it has already happened.
     val (host, _) = compose(configuration = phone) {
-      Text("bottom ${LocalDogwoodConfiguration.current.safeAreaBottomDp}")
+      Text("bottom ${LocalHostEnvironment.current.safeAreaBottomDp}")
     }
     val text = host.decoded().single().g.filterIsInstance<PropertySet>().single()
     assertEquals("bottom 48", text.v.toString().trim('"'))
@@ -148,7 +148,7 @@ class DerivedEnvironmentTest {
 
   @Test
   fun widthClassesFollowTheMaterialBreakpoints() {
-    fun at(width: Int) = DogwoodConfiguration(viewportWidthDp = width).widthClass
+    fun at(width: Int) = HostEnvironment(viewportWidthDp = width).widthClass
     assertEquals(WidthClass.Compact, at(0))
     assertEquals(WidthClass.Compact, at(599))
     assertEquals(WidthClass.Medium, at(600))
@@ -159,10 +159,10 @@ class DerivedEnvironmentTest {
 
   @Test
   fun theLanguageSubtagIsTheHalfBeforeTheRegion() {
-    assertEquals("en", DogwoodConfiguration(locale = "en-US").language)
-    assertEquals("en", DogwoodConfiguration(locale = "en-GB").language)
-    assertEquals("ja", DogwoodConfiguration(locale = "ja-JP").language)
+    assertEquals("en", HostEnvironment(locale = "en-US").language)
+    assertEquals("en", HostEnvironment(locale = "en-GB").language)
+    assertEquals("ja", HostEnvironment(locale = "ja-JP").language)
     // A bare language tag is legal and must not lose its only subtag.
-    assertEquals("de", DogwoodConfiguration(locale = "de").language)
+    assertEquals("de", HostEnvironment(locale = "de").language)
   }
 }

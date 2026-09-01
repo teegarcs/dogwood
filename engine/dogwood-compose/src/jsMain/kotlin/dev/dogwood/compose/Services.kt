@@ -39,7 +39,7 @@ import kotlinx.serialization.json.JsonNull
  *   tag, which becomes a placeholder, calling a `ZiplineService` method an older host does not
  *   implement is an error at the boundary with no fallback path.
  */
-class GuestServices(
+class HostServices(
   val version: Int,
   val available: Set<String>,
   val log: DogwoodLog?,
@@ -88,11 +88,11 @@ class GuestServices(
 
   companion object {
     /** What a composition sees when nothing provided services — tests, and hosts that offer none. */
-    val None = GuestServices(0, emptySet(), null, null, null, null, emptyMap())
+    val None = HostServices(0, emptySet(), null, null, null, null, emptyMap())
 
-    internal fun resolve(services: DogwoodServices, version: Int): GuestServices {
+    internal fun resolve(services: DogwoodServices, version: Int): HostServices {
       val flagService: DogwoodFeatureFlags? = services.featureFlags()
-      return GuestServices(
+      return HostServices(
         version = version,
         available = services.available(),
         log = services.log(),
@@ -109,9 +109,9 @@ class GuestServices(
  * Static, because the set of services is fixed for a composition's lifetime.
  *
  * A host cannot start offering analytics halfway through a screen; if it ever needs to, that is a
- * pushed value with dedupe rules, like `DogwoodConfiguration`, not a mutable local.
+ * pushed value with dedupe rules, like `HostEnvironment`, not a mutable local.
  */
-val LocalDogwoodServices = staticCompositionLocalOf { GuestServices.None }
+val LocalHostServices = staticCompositionLocalOf { HostServices.None }
 
 /**
  * The parameters this experience was launched with.
@@ -120,12 +120,12 @@ val LocalDogwoodServices = staticCompositionLocalOf { GuestServices.None }
  * types, so the launch payload has to be data. Guest code decodes it into whatever it declared,
  * which keeps the type on the side that owns it.
  */
-val LocalDogwoodLaunch = staticCompositionLocalOf<JsonElement> { JsonNull }
+val LocalLaunchParams = staticCompositionLocalOf<JsonElement> { JsonNull }
 
 /** Shorthand for the services in force. */
 @Composable
 @ReadOnlyComposable
-fun services(): GuestServices = LocalDogwoodServices.current
+fun services(): HostServices = LocalHostServices.current
 
-/** The name of the segment carrying the service-surface version, for a `LocalDogwoodSegments` read. */
+/** The name of the segment carrying the service-surface version, for a `LocalSegmentVersions` read. */
 const val ServicesSegment = SERVICES_SEGMENT

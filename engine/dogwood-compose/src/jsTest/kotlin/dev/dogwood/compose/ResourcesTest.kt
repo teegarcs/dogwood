@@ -9,7 +9,7 @@
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.PropertySet
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,7 +50,7 @@ class FormatRecipeTest {
       Formats.time(0),
       Formats.dateTime(0),
       Formats.relativeTime(0, 0),
-    ).map { (it.toJson() as JsonArray)[0].jsonPrimitive.intOrNull }
+    ).map { (it.json as JsonArray)[0].jsonPrimitive.intOrNull }
     assertEquals(factories.size, factories.toSet().size, "duplicate factory identifiers: $factories")
     assertEquals(listOf(5, 6, 7, 8, 9, 10, 11), factories)
   }
@@ -93,7 +93,7 @@ class StringTableTest {
 
   @Test
   fun theDeviceLanguageSelectsTheTranslation() {
-    val (host, _) = compose(configuration = DogwoodConfiguration(locale = "ja-JP")) {
+    val (host, _) = compose(configuration = HostEnvironment(locale = "ja-JP")) {
       androidx.compose.runtime.CompositionLocalProvider(LocalStringTable provides table) {
         Greeting()
       }
@@ -105,7 +105,7 @@ class StringTableTest {
   fun regionIsIgnoredBecauseTranslationsAreByLanguage() {
     // `en-GB` and `en-US` share a translation; they differ in *formatting*, which is the host's
     // job, not the table's.
-    val (host, _) = compose(configuration = DogwoodConfiguration(locale = "en-GB")) {
+    val (host, _) = compose(configuration = HostEnvironment(locale = "en-GB")) {
       androidx.compose.runtime.CompositionLocalProvider(LocalStringTable provides table) {
         Greeting()
       }

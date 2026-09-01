@@ -15,7 +15,7 @@ package dev.dogwood.host
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.serialization.json.JsonObject
@@ -43,7 +43,7 @@ class DogwoodSession(
   private val manifestUrl: String,
   private val ziplineDispatcher: CoroutineDispatcher,
   private val uiScope: CoroutineScope,
-  initialConfiguration: DogwoodConfiguration = DogwoodConfiguration(),
+  initialConfiguration: HostEnvironment = HostEnvironment(),
   /** Which of the payload's experiences to run, and what to launch it with. */
   private val entryPoint: String = "main",
   private val launchParams: JsonObject = JsonObject(emptyMap()),
@@ -89,7 +89,7 @@ class DogwoodSession(
    * user-interface thread. `flowOn` moves the *upstream* to the Zipline dispatcher, not the
    * collector.
    */
-  private var configuration: DogwoodConfiguration = initialConfiguration
+  private var configuration: HostEnvironment = initialConfiguration
 
   private var status = SessionStatus()
 
@@ -156,7 +156,7 @@ class DogwoodSession(
    * configuration is dropped here rather than crossing the boundary, because a crossing is not
    * free and a guest recomposition is less free still.
    */
-  fun updateConfiguration(next: DogwoodConfiguration) {
+  fun updateConfiguration(next: HostEnvironment) {
     if (next == configuration) return
     configuration = next
     currentExperience.value?.updateConfiguration(next)

@@ -39,10 +39,10 @@ private fun RecordingHost.lastProperty(tag: Int): PropertySet? =
 class LiveStateHolderTest {
 
   /** Written from composition so both generations can be driven through the same call site. */
-  private var captured: DogwoodLazyListState? = null
+  private var captured: LazyListState? = null
 
   @Composable
-  private fun ListWith(state: DogwoodLazyListState?) {
+  private fun ListWith(state: LazyListState?) {
     VerticalList(state = state) { Text("row") }
   }
 
@@ -57,15 +57,15 @@ class LiveStateHolderTest {
 
   @Test
   fun aHolderDeclaresItselfWatching() {
-    val (host, _) = compose { ListWith(DogwoodLazyListState()) }
+    val (host, _) = compose { ListWith(LazyListState()) }
     assertEquals(JsonPrimitive(true), host.lastProperty(OBSERVED)?.v)
   }
 
   @Test
   fun aScrollTargetCrossesAsAnIndexAndASequence() {
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       ListWith(state)
     }
 
@@ -80,9 +80,9 @@ class LiveStateHolderTest {
   fun askingTwiceForTheSamePlaceIsTwoRequests() {
     // A flag would make the second tap of "back to top" change no property and cross nothing,
     // and the user who scrolled away in between would stay where they were.
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       ListWith(state)
     }
 
@@ -98,9 +98,9 @@ class LiveStateHolderTest {
   fun theNewestTargetWinsAndAStaleOneCannotArrive() {
     // The conflict rule, and it falls out of the channel rather than being enforced: a property
     // carries only its latest value, so two targets declared in one pass cross as one.
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       ListWith(state)
     }
     val batchesBefore = host.batches.size
@@ -120,9 +120,9 @@ class LiveStateHolderTest {
 
   @Test
   fun aViewportReportReachesTheHolder() {
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       ListWith(state)
     }
     // Node 1 is the list: node 0 is the root, and the root's content slot holds it.
@@ -149,16 +149,16 @@ class LiveStateHolderTest {
   fun beforeTheFirstReportTheVisibleRangeIsUnknownRatherThanZero() {
     // -1 rather than 0, so a guest can tell "the host has not told me yet" from "the first item
     // is visible". A zero here would render "showing 1-1" on every list before it laid out.
-    val state = DogwoodLazyListState()
+    val state = LazyListState()
     assertEquals(0, state.firstVisibleItemIndex)
     assertEquals(-1, state.lastVisibleItemIndex)
   }
 
   @Test
   fun aReportThatSaysNothingNewCostsNoFrame() {
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       Text("first ${state.firstVisibleItemIndex}")
       ListWith(state)
     }
@@ -197,14 +197,14 @@ class LiveStateHolderTest {
    */
   @Composable
   private fun Listing() {
-    val holder = rememberDogwoodLazyListState()
+    val holder = rememberLazyListState()
     captured = holder
     ListWith(holder)
   }
 
   /** One call site, so both generations produce the same composite key. */
   private fun listing(host: RecordingHost, restored: StateSnapshot?) =
-    DogwoodComposition(host, dev.dogwood.protocol.DogwoodConfiguration(), emptyMap(), restored) {
+    DogwoodComposition(host, dev.dogwood.protocol.HostEnvironment(), emptyMap(), restored) {
       Listing()
     }
 
@@ -250,7 +250,7 @@ class LiveStateHolderTest {
 
   @Test
   fun aColdStartDeclaresNoTarget() {
-    val (host, _) = compose { ListWith(DogwoodLazyListState()) }
+    val (host, _) = compose { ListWith(LazyListState()) }
     assertEquals(0, host.lastProperty(TARGET_SEQUENCE)?.v?.jsonPrimitive?.intOrNull)
   }
 }

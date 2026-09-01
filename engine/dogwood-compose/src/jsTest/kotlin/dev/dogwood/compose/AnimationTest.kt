@@ -31,7 +31,7 @@ class AnimatedModifierTest {
   @Test
   fun anAnimatedArgumentCrossesAsATargetAndASpec() {
     val (host, _) = compose {
-      Text("x", modifier = DogwoodModifier.alpha(animate(0.5f, Animations.tween(400, "linear"))))
+      Text("x", modifier = Modifier.alpha(animate(0.5f, Animations.tween(400, "linear"))))
     }
     val element = host.chains().single().e.single()
     val recipe = element.v as JsonArray
@@ -50,7 +50,7 @@ class AnimatedModifierTest {
     // forbids, wearing a different name.
     var visible by mutableStateOf(false)
     val (host, composition) = compose {
-      Text("x", modifier = DogwoodModifier.alpha(animate(if (visible) 1f else 0f)))
+      Text("x", modifier = Modifier.alpha(animate(if (visible) 1f else 0f)))
     }
     val before = host.batches.size
 
@@ -70,7 +70,7 @@ class AnimatedModifierTest {
   fun retargetingMidFlightIsOneMoreCrossingNotARestart() {
     var target by mutableStateOf(0f)
     val (host, composition) = compose {
-      Text("x", modifier = DogwoodModifier.alpha(animate(target)))
+      Text("x", modifier = Modifier.alpha(animate(target)))
     }
     target = 1f
     composition.frame(0L)
@@ -89,7 +89,7 @@ class AnimatedModifierTest {
     var tick by mutableStateOf(0)
     val (host, composition) = compose {
       // `tick` is read, so the composable recomposes, but the modifier does not change.
-      Text("x$tick".take(1), modifier = DogwoodModifier.alpha(animate(1f, onFinished = {})))
+      Text("x$tick".take(1), modifier = Modifier.alpha(animate(1f, onFinished = {})))
     }
     val before = host.chains().size
     tick = 1
@@ -99,11 +99,11 @@ class AnimatedModifierTest {
 
   @Test
   fun aCompletionIsRequestedOnlyWhenTheGuestAsksForOne() {
-    val (silent, _) = compose { Text("x", modifier = DogwoodModifier.alpha(animate(1f))) }
+    val (silent, _) = compose { Text("x", modifier = Modifier.alpha(animate(1f))) }
     assertEquals(false, ((silent.chains().single().e.single().v as JsonArray)[3]).jsonPrimitive.content.toBoolean())
 
     val (noisy, _) = compose {
-      Text("x", modifier = DogwoodModifier.alpha(animate(1f, onFinished = {})))
+      Text("x", modifier = Modifier.alpha(animate(1f, onFinished = {})))
     }
     assertEquals(true, ((noisy.chains().single().e.single().v as JsonArray)[3]).jsonPrimitive.content.toBoolean())
   }
@@ -116,7 +116,7 @@ class AnimatedModifierTest {
     val (host, composition) = compose {
       Text(
         "x",
-        modifier = DogwoodModifier
+        modifier = Modifier
           .padding(4)
           .alpha(animate(1f, onFinished = { finished += 1 })),
       )
@@ -149,7 +149,7 @@ class AnimatedModifierTest {
     val (host, composition) = compose {
       Text(
         "x",
-        modifier = DogwoodModifier.alpha(animate(1f, onFinished = { observed = counter })),
+        modifier = Modifier.alpha(animate(1f, onFinished = { observed = counter })),
       )
     }
     val node = host.decoded().first().g

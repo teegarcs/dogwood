@@ -58,7 +58,7 @@ import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.allowHosts
 import dev.dogwood.host.cachePath
 import dev.dogwood.host.dogwoodLeakDetector
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.widthClass
 import java.util.concurrent.Executors
@@ -120,7 +120,7 @@ class SliceActivity : ComponentActivity() {
   private fun SliceHost() {
     var status by remember { mutableStateOf(SessionStatus()) }
     var failure by remember { mutableStateOf<String?>(null) }
-    var environment by remember { mutableStateOf(DogwoodConfiguration()) }
+    var environment by remember { mutableStateOf(HostEnvironment()) }
     var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
 
     // The chrome sits below the status bar; the experience below it does not need to.
@@ -192,8 +192,8 @@ class SliceActivity : ComponentActivity() {
   @Composable
   private fun Experience(
     entryPoint: String,
-    configuration: DogwoodConfiguration,
-    onEnvironment: (DogwoodConfiguration) -> Unit,
+    configuration: HostEnvironment,
+    onEnvironment: (HostEnvironment) -> Unit,
     onStatus: (SessionStatus) -> Unit,
     onFailure: (String?) -> Unit,
   ) {

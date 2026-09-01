@@ -76,12 +76,18 @@ class SurfaceParser {
       ParsedParameter(name, type, kind, hasDefault = default != null, defaultExpression = default, rejection = rejection)
 
     return when {
-      type == "DogwoodModifier" || type == "Modifier" -> of(ParameterKind.MODIFIER)
+      type == "Modifier" -> of(ParameterKind.MODIFIER)
 
       // A live-state holder: the guest would have to read or drive host-owned state per frame,
       // which the Layer 4 invariant forbids outright.
       LIVE_STATE.any { type.contains(it) } ->
         of(ParameterKind.UNSUPPORTED, "live-state holder: $type")
+
+      // Host-resolved: the guest names an intent -- a token, a shape, a formatting recipe -- and
+      // the host resolves it against the environment it is drawing in. `Shape` and `Color` used to
+      // be rejected here as asset-gated, and that was true before the recipe grammar existed. It
+      // is not true now, and leaving them rejected would have kept a product's own components from
+      // accepting a themed colour.
 
       // Asset-gated: the guest has no way to name a Painter, and no way to send one.
       ASSET_TYPES.any { type.contains(it) } ->
@@ -94,7 +100,7 @@ class SurfaceParser {
 
       type.contains("->") -> classifyLambda(name, type, default)
 
-      type == "DogwoodExpression" -> of(ParameterKind.EXPRESSION)
+      HOST_RESOLVED.any { type.removeSuffix("?") == it } -> of(ParameterKind.HOST_RESOLVED)
 
       SERIALIZABLE.any { type.removeSuffix("?") == it } || type.removeSuffix("?").first().isUpperCase() &&
         type.removeSuffix("?").all { it.isLetterOrDigit() || it == '?' } -> of(ParameterKind.VALUE)
@@ -126,7 +132,16 @@ class SurfaceParser {
       "InteractionSource", "ScrollState", "LazyListState", "CarouselState", "PagerState",
       "FocusRequester", "TextFieldState", "MutableState",
     )
-    val ASSET_TYPES = listOf("Painter", "ImageBitmap", "ImageVector", "Brush", "Shape", "Color", "TextStyle")
+    val ASSET_TYPES = listOf("Painter", "ImageBitmap", "ImageVector", "Brush", "TextStyle")
     val SERIALIZABLE = listOf("String", "Int", "Long", "Float", "Double", "Boolean")
+
+    /**
+     * Types whose value the host resolves at draw time.
+     *
+     * They cross as a recipe rather than a result, so the same wire bytes render differently in
+     * dark mode, in another locale, or on a device with different currency conventions. See
+     * `specs/layer-5-host.md`, "Named Resources".
+     */
+    val HOST_RESOLVED = listOf("TextValue", "Color", "Shape")
   }
 }

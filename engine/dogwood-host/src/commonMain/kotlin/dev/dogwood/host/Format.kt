@@ -40,7 +40,7 @@ expect fun formatRelativeTime(epochMillis: Long, nowMillis: Long, locale: String
 /**
  * Which locale and time zone the host formats in.
  *
- * The locale duplicates what the guest was told through `DogwoodConfiguration`, deliberately: the
+ * The locale duplicates what the guest was told through `HostEnvironment`, deliberately: the
  * guest carries it so it can *branch*, and the host carries it so it can *format*. Those are two
  * different needs and collapsing them would mean either the guest formatting (which it cannot) or
  * the host trusting a value the guest could have changed.

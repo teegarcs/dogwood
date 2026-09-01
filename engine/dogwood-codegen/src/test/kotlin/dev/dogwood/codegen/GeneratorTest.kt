@@ -17,22 +17,22 @@ package acme.design
 import androidx.compose.runtime.Composable
 
 @Composable
-fun AcmeDivider(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+fun AcmeDivider(modifier: Modifier = Modifier.Empty) {}
 
 @Composable
-fun AcmeBadge(text: String, selected: Boolean = false, modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+fun AcmeBadge(text: String, selected: Boolean = false, modifier: Modifier = Modifier.Empty) {}
 
 @Composable
 fun AcmeButton(
   text: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier.Empty,
   enabled: Boolean = true,
   style: String? = LocalDogwoodTheme.current.buttonStyle,
   onClick: () -> Unit,
 ) {}
 
 @Composable
-fun AcmeCard(modifier: DogwoodModifier = DogwoodModifier.Empty, content: @Composable () -> Unit) {}
+fun AcmeCard(modifier: Modifier = Modifier.Empty, content: @Composable () -> Unit) {}
 
 @Composable
 fun AcmeRipple(
@@ -161,8 +161,8 @@ class RoundTripTest {
     package acme.design
     import androidx.compose.runtime.Composable
 
-    @Composable fun AcmeDivider(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
-    @Composable fun AcmeBadge(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+    @Composable fun AcmeDivider(modifier: Modifier = Modifier.Empty) {}
+    @Composable fun AcmeBadge(text: String, modifier: Modifier = Modifier.Empty) {}
     @Composable fun AcmeChip(text: String, onSelectedChange: (Boolean) -> Unit) {}
   """
 
@@ -171,10 +171,10 @@ class RoundTripTest {
     package acme.design
     import androidx.compose.runtime.Composable
 
-    @Composable fun AcmeDivider(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
-    @Composable fun AcmeBadge(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty, subtitle: String? = null) {}
+    @Composable fun AcmeDivider(modifier: Modifier = Modifier.Empty) {}
+    @Composable fun AcmeBadge(text: String, modifier: Modifier = Modifier.Empty, subtitle: String? = null) {}
     @Composable fun AcmeChip(text: String, onSelectedChange: (Boolean) -> Unit) {}
-    @Composable fun AcmeSpinner(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+    @Composable fun AcmeSpinner(modifier: Modifier = Modifier.Empty) {}
   """
 
   @Test

@@ -9,7 +9,7 @@
  * There are two halves, and they are deliberately separate:
  *
  *   - **Deriving** the environment from Compose Multiplatform's own ambient values, which is
- *     what [rememberDogwoodConfiguration] and [DogwoodEnvironment] do. This is common code, so
+ *     what [rememberHostEnvironment] and [DogwoodEnvironment] do. This is common code, so
  *     it is the same derivation on Android, desktop, Web and iOS.
  *   - **Delivering** it to a running guest, which is `DogwoodExperience.updateConfiguration` and
  *     `DogwoodSession.updateConfiguration`. Delivery is a boundary crossing and therefore has a
@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.LayoutDirection
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 
 /**
  * Mounts an experience's environment: measures the slot it is given, resolves the palette, and
@@ -61,10 +61,10 @@ fun DogwoodEnvironment(
   modifier: Modifier = Modifier,
   darkMode: Boolean = isSystemInDarkTheme(),
   windowInsets: WindowInsets = WindowInsets.safeDrawing,
-  content: @Composable (DogwoodConfiguration) -> Unit,
+  content: @Composable (HostEnvironment) -> Unit,
 ) {
   BoxWithConstraints(modifier) {
-    val configuration = rememberDogwoodConfiguration(
+    val configuration = rememberHostEnvironment(
       viewportWidthDp = maxWidth.value.toInt(),
       viewportHeightDp = maxHeight.value.toInt(),
       darkMode = darkMode,
@@ -102,12 +102,12 @@ fun DogwoodEnvironment(
  * nothing.
  */
 @Composable
-fun rememberDogwoodConfiguration(
+fun rememberHostEnvironment(
   viewportWidthDp: Int,
   viewportHeightDp: Int,
   darkMode: Boolean = isSystemInDarkTheme(),
   windowInsets: WindowInsets = WindowInsets.safeDrawing,
-): DogwoodConfiguration {
+): HostEnvironment {
   val density = LocalDensity.current
   val layoutDirection = LocalLayoutDirection.current
   val locale = Locale.current.toLanguageTag()
@@ -125,7 +125,7 @@ fun rememberDogwoodConfiguration(
     safeAreaTopDp,
     safeAreaBottomDp,
   ) {
-    DogwoodConfiguration(
+    HostEnvironment(
       density = density.density,
       fontScale = density.fontScale,
       darkMode = darkMode,

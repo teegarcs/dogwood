@@ -12,10 +12,10 @@
 package dev.dogwood.slice
 
 import androidx.compose.runtime.Composable
-import dev.dogwood.compose.DogwoodModifier
-import dev.dogwood.compose.LocalDogwoodConfiguration
-import dev.dogwood.compose.LocalDogwoodLaunch
-import dev.dogwood.compose.LocalDogwoodSegments
+import dev.dogwood.compose.Modifier
+import dev.dogwood.compose.LocalHostEnvironment
+import dev.dogwood.compose.LocalLaunchParams
+import dev.dogwood.compose.LocalSegmentVersions
 import dev.dogwood.compose.Divider
 import dev.dogwood.compose.SectionHeader
 import dev.dogwood.compose.Text
@@ -28,7 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.dogwood.compose.Animations
 import dev.dogwood.compose.Box
-import dev.dogwood.compose.Colors
+import dev.dogwood.compose.Color
 import dev.dogwood.compose.Keyboards
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.animate
@@ -37,7 +37,7 @@ import dev.dogwood.compose.alpha
 import dev.dogwood.compose.background
 import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
-import dev.dogwood.compose.rememberDogwoodTextFieldState
+import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
 import dev.dogwood.protocol.widthClass
@@ -45,12 +45,12 @@ import dev.dogwood.protocol.widthClass
 @Composable
 fun AboutScreen() {
   val host = services()
-  val environment = LocalDogwoodConfiguration.current
-  val segments = LocalDogwoodSegments.current
-  val launch = LocalDogwoodLaunch.current
+  val environment = LocalHostEnvironment.current
+  val segments = LocalSegmentVersions.current
+  val launch = LocalLaunchParams.current
 
   VerticalList(
-    modifier = DogwoodModifier.fillMaxWidth(),
+    modifier = Modifier.fillMaxWidth(),
     spacingDp = 8,
     contentPaddingDp = 16,
   ) {
@@ -59,7 +59,7 @@ fun AboutScreen() {
       description = "Everything on this screen came from the host. None of it is knowable inside the sandbox.",
     )
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(title = "Services", description = null)
     Text(
@@ -75,7 +75,7 @@ fun AboutScreen() {
     Text("host clock ${host.nowEpochMillis() ?: "unavailable"}")
     Text("time zone ${host.clock?.timeZoneId() ?: "unavailable"}")
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(
       title = "Formatted by the host",
@@ -89,16 +89,16 @@ fun AboutScreen() {
     Text(Formats.dateTime(now))
     Text(Formats.relativeTime(now - 3 * 86_400_000L, now))
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(
       title = "Text input",
       description = "The mask, the limit and the counter are all applied host-side, where the typing is.",
     )
-    val card = rememberDogwoodTextFieldState()
+    val card = rememberTextFieldState()
     TextField(
       state = card,
-      modifier = DogwoodModifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth(),
       label = "Card number",
       mask = "#### #### #### ####",
       keyboard = Keyboards.NUMBER,
@@ -108,7 +108,7 @@ fun AboutScreen() {
     // validation reads.
     Text("guest sees: \"${card.text}\"")
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(
       title = "Animation",
@@ -118,11 +118,11 @@ fun AboutScreen() {
     var arrivals by remember { mutableStateOf(0) }
     PrimaryButton(
       label = if (expanded) "Collapse" else "Expand",
-      modifier = DogwoodModifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth(),
       onClick = { expanded = !expanded },
     )
     Box(
-      modifier = DogwoodModifier
+      modifier = Modifier
         .fillMaxWidth()
         // Two animated arguments in one chain. Interrupt it mid-flight -- tap twice quickly --
         // and it retargets from wherever it is rather than restarting, because that is what
@@ -137,11 +137,11 @@ fun AboutScreen() {
             onFinished = { arrivals += 1 },
           ),
         )
-        .background(Colors.token("primaryContainer")),
+        .background(Color.token("primaryContainer")),
     )
     Text("arrived $arrivals times")
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(title = "Feature flags", description = null)
     if (host.flags.isEmpty()) {
@@ -152,19 +152,19 @@ fun AboutScreen() {
       }
     }
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(title = "Launch", description = null)
     Text(launch.toString())
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(title = "Dictionary", description = null)
     for ((segment, version) in segments.entries.sortedBy { it.key }) {
       Text("$segment v$version")
     }
 
-    Divider(modifier = DogwoodModifier.fillMaxWidth())
+    Divider(modifier = Modifier.fillMaxWidth())
 
     SectionHeader(title = "Environment", description = null)
     Text("${environment.viewportWidthDp}×${environment.viewportHeightDp}dp, ${environment.widthClass}")

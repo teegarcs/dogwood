@@ -25,7 +25,8 @@ enum class ParameterKind {
   EVENT,
 
   /** A value the host must construct from a recipe. */
-  EXPRESSION,
+  /** A value the host resolves at draw time: `TextValue`, `Color`, `Shape`. */
+  HOST_RESOLVED,
 
   /** Fails the bindability rule. Reported with a reason; never emitted. */
   UNSUPPORTED,
@@ -60,7 +61,7 @@ data class ParsedComponent(
   val parameters: List<ParsedParameter>,
 ) {
   val isBindable: Boolean get() = parameters.none { it.kind == ParameterKind.UNSUPPORTED }
-  val values: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.VALUE || it.kind == ParameterKind.EXPRESSION }
+  val values: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.VALUE || it.kind == ParameterKind.HOST_RESOLVED }
   val slots: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.SLOT }
   val events: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.EVENT }
   val modifier: ParsedParameter? get() = parameters.firstOrNull { it.kind == ParameterKind.MODIFIER }

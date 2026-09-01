@@ -34,7 +34,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * Records a modifier chain, and rebinds any animation completions it carries.
  *
  * Called from every stub, hand-written and generated. The chain itself is recorded only when it
- * changes -- completions are outside `DogwoodModifier`'s equality, deliberately, because they are
+ * changes -- completions are outside `Modifier`'s equality, deliberately, because they are
  * lambdas and would otherwise make every chain look new on every recomposition.
  *
  * The rebinding, though, happens **every** time. A completion captured in the composition where
@@ -42,7 +42,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * ([Layer 5 ADR-016](../../../../../../adrs/layer-5/ADR-016-leak-detection.md)), and a stale
  * callback firing into a dead closure is the same bug wearing different clothes.
  */
-internal fun applyModifier(id: Id, modifier: DogwoodModifier) {
+internal fun applyModifier(id: Id, modifier: Modifier) {
   for (index in modifier.elements.indices) {
     val tag = EventTag(ANIMATION_EVENT_BASE + index)
     val callback = modifier.completions[index]
@@ -102,7 +102,7 @@ object Tags {
  * arguments such as `clip(RoundedCornerShape(8.dp))` need the deferred-expression grammar,
  * which does not exist yet.
  */
-open class DogwoodModifier internal constructor(
+open class Modifier internal constructor(
   val elements: List<ModifierElem>,
   /**
    * Completion callbacks for animated elements, by their position in the chain.
@@ -113,41 +113,50 @@ open class DogwoodModifier internal constructor(
    */
   internal val completions: Map<Int, () -> Unit> = emptyMap(),
 ) {
-  companion object Empty : DogwoodModifier(emptyList())
+  /**
+   * The empty modifier, spelled exactly as it is in Compose.
+   *
+   * An unnamed companion that *is* a `Modifier`, so `Modifier.padding(8)` and
+   * `modifier: Modifier = Modifier` read identically on either side of the boundary. `Modifier.Empty`
+   * remains valid for anyone who prefers to be explicit.
+   */
+  companion object : Modifier(emptyList()) {
+    val Empty: Modifier get() = this
+  }
 
-  fun then(tag: Int, value: JsonElement): DogwoodModifier =
-    DogwoodModifier(elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value), completions)
+  fun then(tag: Int, value: JsonElement): Modifier =
+    Modifier(elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value), completions)
 
-  internal fun then(tag: Int, value: JsonElement, onFinished: (() -> Unit)?): DogwoodModifier {
+  internal fun then(tag: Int, value: JsonElement, onFinished: (() -> Unit)?): Modifier {
     val next = elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value)
     val callbacks = if (onFinished == null) completions else completions + (elements.size to onFinished)
-    return DogwoodModifier(next, callbacks)
+    return Modifier(next, callbacks)
   }
 
   // Completions are deliberately outside equality. They are lambdas, so they are a fresh instance
   // on every recomposition, and including them would make every modifier chain look changed and
   // re-cross on every frame -- which is exactly the traffic this whole design avoids.
   override fun equals(other: Any?): Boolean =
-    other is DogwoodModifier && other.elements == elements
+    other is Modifier && other.elements == elements
 
   override fun hashCode(): Int = elements.hashCode()
 }
 
-fun DogwoodModifier.padding(dp: Int): DogwoodModifier = then(ModifierTags.PADDING, JsonPrimitive(dp))
-fun DogwoodModifier.fillMaxWidth(fraction: Float = 1.0f): DogwoodModifier =
+fun Modifier.padding(dp: Int): Modifier = then(ModifierTags.PADDING, JsonPrimitive(dp))
+fun Modifier.fillMaxWidth(fraction: Float = 1.0f): Modifier =
   then(ModifierTags.FILL_MAX_WIDTH, JsonPrimitive(fraction))
-fun DogwoodModifier.size(dp: Int): DogwoodModifier = then(ModifierTags.SIZE, JsonPrimitive(dp))
-fun DogwoodModifier.alpha(alpha: Float): DogwoodModifier = then(ModifierTags.ALPHA, JsonPrimitive(alpha))
+fun Modifier.size(dp: Int): Modifier = then(ModifierTags.SIZE, JsonPrimitive(dp))
+fun Modifier.alpha(alpha: Float): Modifier = then(ModifierTags.ALPHA, JsonPrimitive(alpha))
 
-fun DogwoodModifier.rotate(degrees: Float): DogwoodModifier =
+fun Modifier.rotate(degrees: Float): Modifier =
   then(ModifierTags.ROTATE, JsonPrimitive(degrees))
 
-fun DogwoodModifier.scale(scale: Float): DogwoodModifier =
+fun Modifier.scale(scale: Float): Modifier =
   then(ModifierTags.SCALE, JsonPrimitive(scale))
 
 /** `size` sets both dimensions; these set one, which is usually what a card wants. */
-fun DogwoodModifier.width(dp: Int): DogwoodModifier = then(ModifierTags.WIDTH, JsonPrimitive(dp))
-fun DogwoodModifier.height(dp: Int): DogwoodModifier = then(ModifierTags.HEIGHT, JsonPrimitive(dp))
+fun Modifier.width(dp: Int): Modifier = then(ModifierTags.WIDTH, JsonPrimitive(dp))
+fun Modifier.height(dp: Int): Modifier = then(ModifierTags.HEIGHT, JsonPrimitive(dp))
 
 // ---------------------------------------------------------------------------
 // Scoped modifiers
@@ -171,29 +180,29 @@ annotation class DogwoodLayoutScope
 @DogwoodLayoutScope
 interface DogwoodRowScope {
   /** Distributes remaining horizontal space. Only meaningful inside a row. */
-  fun DogwoodModifier.weight(weight: Float): DogwoodModifier =
+  fun Modifier.weight(weight: Float): Modifier =
     then(ModifierTags.WEIGHT, JsonPrimitive(weight))
 
   /** Vertical alignment within the row. */
-  fun DogwoodModifier.align(alignment: VerticalAlignment): DogwoodModifier =
+  fun Modifier.align(alignment: VerticalAlignment): Modifier =
     then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
 }
 
 @DogwoodLayoutScope
 interface DogwoodColumnScope {
   /** Distributes remaining vertical space. Only meaningful inside a column. */
-  fun DogwoodModifier.weight(weight: Float): DogwoodModifier =
+  fun Modifier.weight(weight: Float): Modifier =
     then(ModifierTags.WEIGHT, JsonPrimitive(weight))
 
   /** Horizontal alignment within the column. */
-  fun DogwoodModifier.align(alignment: HorizontalAlignment): DogwoodModifier =
+  fun Modifier.align(alignment: HorizontalAlignment): Modifier =
     then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
 }
 
 @DogwoodLayoutScope
 interface DogwoodBoxScope {
   /** Alignment within the box. */
-  fun DogwoodModifier.align(alignment: BoxAlignment): DogwoodModifier =
+  fun Modifier.align(alignment: BoxAlignment): Modifier =
     then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
 }
 
@@ -269,7 +278,7 @@ internal fun Children(tag: ChildrenTag, content: @Composable () -> Unit) {
 @Composable
 fun Text(
   text: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   maxLines: Int = -1,
   /**
    * A named text style from the host's design system, such as `titleLarge`.
@@ -302,15 +311,15 @@ fun Text(
  */
 @Composable
 fun Text(
-  value: DogwoodExpression,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  value: TextValue,
+  modifier: Modifier = Modifier,
   maxLines: Int = -1,
   style: String? = null,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Text) },
     update = {
-      set(value) { recording.recorder.property(id, Tags.P4, it.toJson()) }
+      set(value) { recording.recorder.property(id, Tags.P4, it.json) }
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
@@ -321,7 +330,7 @@ fun Text(
 
 @Composable
 fun Column(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   content: @Composable DogwoodColumnScope.() -> Unit,
 ) {
   Container(Tags.Column, modifier) { ColumnScopeInstance.content() }
@@ -329,7 +338,7 @@ fun Column(
 
 @Composable
 fun Row(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
   content: @Composable DogwoodRowScope.() -> Unit,
 ) {
@@ -358,14 +367,14 @@ fun Row(
 
 @Composable
 fun Box(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   content: @Composable DogwoodBoxScope.() -> Unit = {},
 ) {
   Container(Tags.Box, modifier) { BoxScopeInstance.content() }
 }
 
 @Composable
-fun Spacer(modifier: DogwoodModifier = DogwoodModifier.Empty) {
+fun Spacer(modifier: Modifier = Modifier) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Spacer) },
     update = {
@@ -378,7 +387,7 @@ fun Spacer(modifier: DogwoodModifier = DogwoodModifier.Empty) {
 @Composable
 private fun Container(
   tag: WidgetTag,
-  modifier: DogwoodModifier,
+  modifier: Modifier,
   content: @Composable () -> Unit,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
@@ -405,11 +414,11 @@ private fun Container(
  */
 @Composable
 fun VerticalList(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
   /** Pass one to read the visible range or to declare a scroll target. Null costs nothing. */
-  state: DogwoodLazyListState? = null,
+  state: LazyListState? = null,
   content: @Composable DogwoodColumnScope.() -> Unit,
 ) {
   ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp, state) {
@@ -420,10 +429,10 @@ fun VerticalList(
 /** A horizontally scrolling list. Same laziness caveat as [VerticalList]. */
 @Composable
 fun HorizontalList(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
-  state: DogwoodLazyListState? = null,
+  state: LazyListState? = null,
   content: @Composable DogwoodRowScope.() -> Unit,
 ) {
   ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp, state) {
@@ -434,10 +443,10 @@ fun HorizontalList(
 @Composable
 private fun ListContainer(
   tag: WidgetTag,
-  modifier: DogwoodModifier,
+  modifier: Modifier,
   spacingDp: Int,
   contentPaddingDp: Int,
-  state: DogwoodLazyListState?,
+  state: LazyListState?,
   /** -1 means "every item is present"; anything else is a window into a longer list. */
   itemCount: Int = -1,
   windowStart: Int = 0,
@@ -493,10 +502,10 @@ private fun ListContainer(
 @Composable
 internal fun ListContainerWindowed(
   tag: WidgetTag,
-  modifier: DogwoodModifier,
+  modifier: Modifier,
   spacingDp: Int,
   contentPaddingDp: Int,
-  state: DogwoodLazyListState,
+  state: LazyListState,
   itemCount: Int,
   window: IntRange,
   placeholder: @Composable () -> Unit,

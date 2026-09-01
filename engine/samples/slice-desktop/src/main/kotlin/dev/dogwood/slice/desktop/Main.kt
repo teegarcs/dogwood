@@ -42,7 +42,7 @@ import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.Palette
 import dev.dogwood.host.cachePath
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.widthClass
 import java.io.File
 import java.util.concurrent.Executors
@@ -84,7 +84,7 @@ fun main() = application {
 }
 
 @androidx.compose.runtime.Composable
-private fun SliceHost(configuration: DogwoodConfiguration) {
+private fun SliceHost(configuration: HostEnvironment) {
   val uiScope = rememberCoroutineScope()
   var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
   var failure by remember { mutableStateOf<String?>(null) }

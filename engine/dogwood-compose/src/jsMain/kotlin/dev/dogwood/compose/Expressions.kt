@@ -1,5 +1,5 @@
 /*
- * Project Dogwood -- the deferred-expression grammar, guest side.
+ * Project Dogwood -- host-resolved values, guest side.
  *
  * Some parameters are not values. `clip(RoundedCornerShape(8.dp))` does not pass a number; it
  * passes an object the host must construct. `background(Color(0xFF0770E3))` is the same. The
@@ -39,48 +39,70 @@ internal object ExpressionFactories {
 }
 
 /**
- * A recipe the host evaluates.
+ * The wire form of a host-resolved value: a factory and its arguments.
  *
- * Deliberately opaque: guest code can build one and pass it, and can do nothing else with it.
- * There is no `Shape` on this side to inspect, and pretending otherwise would invite guest logic
- * that branches on a value only the host can compute.
+ * `internal`, and that is the point of this revision. Guest code never names a recipe; it names a
+ * [Shape], a [Color] or a piece of text, and those types happen to carry one. A public "expression"
+ * type invited guest logic that branched on something only the host can compute.
  */
-class DogwoodExpression internal constructor(
+internal class Recipe(
   private val factory: Int,
   private val args: List<JsonElement>,
 ) {
-  internal fun toJson(): JsonElement =
-    JsonArray(listOf(JsonPrimitive(factory)) + args)
+  fun toJson(): JsonElement = JsonArray(listOf(JsonPrimitive(factory)) + args)
 
   override fun equals(other: Any?): Boolean =
-    other is DogwoodExpression && other.factory == factory && other.args == args
+    other is Recipe && other.factory == factory && other.args == args
 
   override fun hashCode(): Int = 31 * factory + args.hashCode()
 }
 
-/** Shapes the host can build. */
-object Shapes {
-  fun roundedCorner(dp: Int): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.ROUNDED_CORNER, listOf(JsonPrimitive(dp)))
+/**
+ * A shape the host builds.
+ *
+ * Compose's name, because it is Compose's concept. The guest cannot construct a real `Shape` --
+ * Compose's own implementations are `internal` and have no serializable form -- so this names one
+ * and the host builds it.
+ */
+class Shape internal constructor(internal val recipe: Recipe) {
+  override fun equals(other: Any?): Boolean = other is Shape && other.recipe == recipe
+  override fun hashCode(): Int = recipe.hashCode()
 
-  val Circle: DogwoodExpression = DogwoodExpression(ExpressionFactories.CIRCLE, emptyList())
+  companion object {
+    fun roundedCorner(dp: Int): Shape =
+      Shape(Recipe(ExpressionFactories.ROUNDED_CORNER, listOf(JsonPrimitive(dp))))
+
+    val Circle: Shape = Shape(Recipe(ExpressionFactories.CIRCLE, emptyList()))
+  }
 }
 
-/** Colours the host can build. */
-object Colors {
-  /** A literal colour. The argument is an alpha-red-green-blue integer. */
-  fun argb(value: Long): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.COLOR_ARGB, listOf(JsonPrimitive(value)))
+/**
+ * A colour the host resolves.
+ *
+ * Always a recipe, never a value, and the type says so: a colour depends on the environment it is
+ * drawn in. [token] is the form to reach for -- it follows the host's palette, including dark mode,
+ * which a literal cannot. `Color(0xFF0770E3)` is the deliberate opt-out, spelled exactly as it is
+ * in Compose so that a literal reads the same in either world.
+ */
+class Color internal constructor(internal val recipe: Recipe) {
+  override fun equals(other: Any?): Boolean = other is Color && other.recipe == recipe
+  override fun hashCode(): Int = recipe.hashCode()
 
-  /**
-   * A named colour from the host's design system.
-   *
-   * Preferred over [argb] for anything the design system owns: a token follows the host's theme,
-   * including dark mode, where a literal cannot. This is the deferred-expression protocol earning
-   * its keep -- the guest names an intent and the host resolves it in context.
-   */
-  fun token(name: String): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.COLOR_TOKEN, listOf(JsonPrimitive(name)))
+  companion object {
+    /** A literal alpha-red-green-blue colour. Does not follow the theme; that is what it means. */
+    operator fun invoke(argb: Long): Color =
+      Color(Recipe(ExpressionFactories.COLOR_ARGB, listOf(JsonPrimitive(argb))))
+
+    /**
+     * A named colour from the host's design system.
+     *
+     * The guest names an intent and the host resolves it in context. This is the whole
+     * host-resolved rule in one call: the same name is a different colour in dark mode, and the
+     * change costs no traffic.
+     */
+    fun token(name: String): Color =
+      Color(Recipe(ExpressionFactories.COLOR_TOKEN, listOf(JsonPrimitive(name))))
+  }
 }
 
 /**
@@ -103,11 +125,15 @@ object Colors {
  * recomposition of the guest at all.
  */
 object Formats {
+  private fun of(factory: Int, vararg args: JsonElement): TextValue =
+    TextValue.recipe(Recipe(factory, args.toList()))
+
   /** @param maximumFractionDigits null lets the host's locale decide. */
-  fun number(value: Double, maximumFractionDigits: Int? = null): DogwoodExpression =
-    DogwoodExpression(
+  fun number(value: Double, maximumFractionDigits: Int? = null): TextValue =
+    of(
       ExpressionFactories.TEXT_NUMBER,
-      listOf(JsonPrimitive(value), maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull),
+      JsonPrimitive(value),
+      maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull,
     )
 
   /**
@@ -116,40 +142,58 @@ object Formats {
    *   places [currencyCode] actually has, which the guest does not.
    * @param currencyCode an ISO 4217 code, such as `USD` or `JPY`.
    */
-  fun currency(minorUnits: Long, currencyCode: String): DogwoodExpression =
-    DogwoodExpression(
-      ExpressionFactories.TEXT_CURRENCY,
-      listOf(JsonPrimitive(minorUnits), JsonPrimitive(currencyCode)),
-    )
+  fun currency(minorUnits: Long, currencyCode: String): TextValue =
+    of(ExpressionFactories.TEXT_CURRENCY, JsonPrimitive(minorUnits), JsonPrimitive(currencyCode))
 
   /** @param fraction 0.075 renders as 7.5% in a locale that writes it that way. */
-  fun percent(fraction: Double, maximumFractionDigits: Int? = null): DogwoodExpression =
-    DogwoodExpression(
+  fun percent(fraction: Double, maximumFractionDigits: Int? = null): TextValue =
+    of(
       ExpressionFactories.TEXT_PERCENT,
-      listOf(JsonPrimitive(fraction), maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull),
+      JsonPrimitive(fraction),
+      maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull,
     )
 
-  fun date(epochMillis: Long): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.TEXT_DATE, listOf(JsonPrimitive(epochMillis)))
+  fun date(epochMillis: Long): TextValue =
+    of(ExpressionFactories.TEXT_DATE, JsonPrimitive(epochMillis))
 
-  fun time(epochMillis: Long): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.TEXT_TIME, listOf(JsonPrimitive(epochMillis)))
+  fun time(epochMillis: Long): TextValue =
+    of(ExpressionFactories.TEXT_TIME, JsonPrimitive(epochMillis))
 
-  fun dateTime(epochMillis: Long): DogwoodExpression =
-    DogwoodExpression(ExpressionFactories.TEXT_DATE_TIME, listOf(JsonPrimitive(epochMillis)))
+  fun dateTime(epochMillis: Long): TextValue =
+    of(ExpressionFactories.TEXT_DATE_TIME, JsonPrimitive(epochMillis))
 
   /** "3 days ago", in the host's language. [nowMillis] comes from the host clock service. */
-  fun relativeTime(epochMillis: Long, nowMillis: Long): DogwoodExpression =
-    DogwoodExpression(
-      ExpressionFactories.TEXT_RELATIVE_TIME,
-      listOf(JsonPrimitive(epochMillis), JsonPrimitive(nowMillis)),
-    )
+  fun relativeTime(epochMillis: Long, nowMillis: Long): TextValue =
+    of(ExpressionFactories.TEXT_RELATIVE_TIME, JsonPrimitive(epochMillis), JsonPrimitive(nowMillis))
+}
+
+/**
+ * Text that is either a literal or a recipe the host renders.
+ *
+ * The type that lets host-resolved text reach a design system's own components. A parameter typed
+ * `String` can only ever carry a finished string, and a finished string is one somebody already
+ * formatted -- deciding the currency symbol, the separators and the decimal places on behalf of
+ * every device the payload will ever reach.
+ *
+ * Not named `Text`, because that call site would be ambiguous with the `Text(...)` composable.
+ */
+class TextValue private constructor(internal val json: JsonElement) {
+  override fun equals(other: Any?): Boolean = other is TextValue && other.json == json
+
+  override fun hashCode(): Int = json.hashCode()
+
+  override fun toString(): String = json.toString()
+
+  companion object {
+    /** A literal. Reads as a plain string at the call site and crosses as one. */
+    operator fun invoke(literal: String): TextValue = TextValue(JsonPrimitive(literal))
+
+    internal fun recipe(recipe: Recipe): TextValue = TextValue(recipe.toJson())
+  }
 }
 
 /** Clips to a shape the host builds. */
-fun DogwoodModifier.clip(shape: DogwoodExpression): DogwoodModifier =
-  then(ModifierTags.CLIP, shape.toJson())
+fun Modifier.clip(shape: Shape): Modifier = then(ModifierTags.CLIP, shape.recipe.toJson())
 
-/** Fills the background with a colour the host builds. */
-fun DogwoodModifier.background(color: DogwoodExpression): DogwoodModifier =
-  then(ModifierTags.BACKGROUND, color.toJson())
+/** Fills the background with a colour the host resolves. */
+fun Modifier.background(color: Color): Modifier = then(ModifierTags.BACKGROUND, color.recipe.toJson())

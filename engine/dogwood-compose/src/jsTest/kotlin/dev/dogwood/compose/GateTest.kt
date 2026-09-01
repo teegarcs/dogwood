@@ -27,7 +27,7 @@ import dev.dogwood.protocol.ChildAdd
 import dev.dogwood.protocol.ChildMove
 import dev.dogwood.protocol.ChildRemove
 import dev.dogwood.protocol.Create
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
@@ -214,7 +214,7 @@ class BatchShapeTest {
   @Test
   fun modifierChainsCrossInOrder() {
     val (host, _) = compose {
-      Box(modifier = DogwoodModifier.padding(8).size(48).alpha(0.5f))
+      Box(modifier = Modifier.padding(8).size(48).alpha(0.5f))
     }
     val chain = host.decoded().single().g.filterIsInstance<ModifierSet>().single()
     assertEquals(
@@ -296,7 +296,7 @@ class StatePreservationTest {
   @Test
   fun savedStateSurvivesAReplacementGuest() {
     val host = RecordingHost()
-    val first = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null) { Counter() }
+    val first = DogwoodComposition(host, HostEnvironment(), emptyMap(), null) { Counter() }
 
     // Drive the state forward the way an interaction would.
     first.sendEvent(Event(i = Id(4), e = EventTag(1), q = first.lastSentSequence))
@@ -310,7 +310,7 @@ class StatePreservationTest {
 
     // A fresh composition, as a newly delivered guest would be.
     val secondHost = RecordingHost()
-    val second = DogwoodComposition(secondHost, DogwoodConfiguration(), emptyMap(), carried) {
+    val second = DogwoodComposition(secondHost, HostEnvironment(), emptyMap(), carried) {
       Counter()
     }
 
@@ -327,7 +327,7 @@ class StatePreservationTest {
   @Test
   fun aColdStartRestoresNothing() {
     val host = RecordingHost()
-    val composition = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null) { Counter() }
+    val composition = DogwoodComposition(host, HostEnvironment(), emptyMap(), null) { Counter() }
     val texts = host.decoded().single().g
       .filterIsInstance<PropertySet>()
       .map { it.v.toString().trim('"') }
@@ -360,7 +360,7 @@ class ModifierChainTest {
     val chain = chainOf {
       Text(
         "x",
-        modifier = DogwoodModifier.padding(8).width(120).alpha(0.5f).height(40).fillMaxWidth(0.75f),
+        modifier = Modifier.padding(8).width(120).alpha(0.5f).height(40).fillMaxWidth(0.75f),
       )
     }
     assertEquals(listOf(1, 6, 5, 7, 2), chain.map { it.t.local })
@@ -374,8 +374,8 @@ class ModifierChainTest {
   fun orderIsPreservedBecauseOrderChangesTheLayout() {
     // padding-then-size and size-then-padding are different layouts, so the chain is a sequence
     // and not a set. Two chains with the same elements in different orders must differ.
-    val a = chainOf { Text("x", modifier = DogwoodModifier.padding(8).size(48)) }
-    val b = chainOf { Text("x", modifier = DogwoodModifier.size(48).padding(8)) }
+    val a = chainOf { Text("x", modifier = Modifier.padding(8).size(48)) }
+    val b = chainOf { Text("x", modifier = Modifier.size(48).padding(8)) }
     assertEquals(listOf(1, 4), a.map { it.t.local })
     assertEquals(listOf(4, 1), b.map { it.t.local })
   }
@@ -383,7 +383,7 @@ class ModifierChainTest {
   @Test
   fun aScopedModifierCrossesWithItsScopeIntact() {
     val (host, _) = compose {
-      Row { Text("x", modifier = DogwoodModifier.weight(2.0f)) }
+      Row { Text("x", modifier = Modifier.weight(2.0f)) }
     }
     val chain = host.decoded().single().g.filterIsInstance<ModifierSet>()
       .first { it.e.any { element -> element.t.local == 3 } }
@@ -399,9 +399,9 @@ class ModifierChainTest {
     val chain = chainOf {
       Text(
         "x",
-        modifier = DogwoodModifier
-          .clip(Shapes.roundedCorner(12))
-          .background(Colors.token("primary")),
+        modifier = Modifier
+          .clip(Shape.roundedCorner(12))
+          .background(Color.token("primary")),
       )
     }
     assertEquals(listOf(9, 10), chain.map { it.t.local })

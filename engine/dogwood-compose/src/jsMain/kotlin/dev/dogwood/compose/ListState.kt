@@ -42,7 +42,7 @@ import androidx.compose.runtime.setValue
  *   scroll target on the first composition, which is also how a restored position is reapplied
  *   after a code update.
  */
-class DogwoodLazyListState internal constructor(initialFirstVisibleItemIndex: Int = 0) {
+class LazyListState internal constructor(initialFirstVisibleItemIndex: Int = 0) {
 
   /**
    * The first item the host reported as visible.
@@ -117,9 +117,9 @@ class DogwoodLazyListState internal constructor(initialFirstVisibleItemIndex: In
      * object. Restoring a position is reissuing a target, which is exactly what the constructor
      * does with a non-zero index -- so the round trip needs no special case at either end.
      */
-    val Saver: Saver<DogwoodLazyListState, Int> = Saver(
+    val Saver: Saver<LazyListState, Int> = Saver(
       save = { it.firstVisibleItemIndex },
-      restore = { DogwoodLazyListState(it) },
+      restore = { LazyListState(it) },
     )
   }
 }
@@ -132,8 +132,8 @@ class DogwoodLazyListState internal constructor(initialFirstVisibleItemIndex: In
  * make that normal case feel like a crash.
  */
 @Composable
-fun rememberDogwoodLazyListState(
+fun rememberLazyListState(
   initialFirstVisibleItemIndex: Int = 0,
-): DogwoodLazyListState = rememberSaveable(saver = DogwoodLazyListState.Saver) {
-  DogwoodLazyListState(initialFirstVisibleItemIndex)
+): LazyListState = rememberSaveable(saver = LazyListState.Saver) {
+  LazyListState(initialFirstVisibleItemIndex)
 }

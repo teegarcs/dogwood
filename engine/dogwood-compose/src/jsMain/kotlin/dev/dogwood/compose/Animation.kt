@@ -40,7 +40,7 @@ private const val SPEC_SPRING = 2
 private const val SPEC_SNAP = 3
 
 /** How the host should travel to a target. Named parts, so the set can grow additively. */
-class DogwoodAnimationSpec internal constructor(internal val json: JsonElement)
+class AnimationSpec internal constructor(internal val json: JsonElement)
 
 object Animations {
   /**
@@ -51,7 +51,7 @@ object Animations {
     durationMs: Int = 300,
     easing: String = "fastOutSlowIn",
     delayMs: Int = 0,
-  ): DogwoodAnimationSpec = DogwoodAnimationSpec(
+  ): AnimationSpec = AnimationSpec(
     JsonArray(
       listOf(
         JsonPrimitive(SPEC_TWEEN),
@@ -72,13 +72,13 @@ object Animations {
   fun spring(
     stiffness: String = "medium",
     damping: String = "noBouncy",
-  ): DogwoodAnimationSpec = DogwoodAnimationSpec(
+  ): AnimationSpec = AnimationSpec(
     JsonArray(listOf(JsonPrimitive(SPEC_SPRING), JsonPrimitive(stiffness), JsonPrimitive(damping))),
   )
 
   /** No animation. Useful for turning one off without changing the shape of the call site. */
-  val Snap: DogwoodAnimationSpec =
-    DogwoodAnimationSpec(JsonArray(listOf(JsonPrimitive(SPEC_SNAP))))
+  val Snap: AnimationSpec =
+    AnimationSpec(JsonArray(listOf(JsonPrimitive(SPEC_SNAP))))
 }
 
 /**
@@ -89,9 +89,9 @@ object Animations {
  * lives on the host, and a guest that could read it would immediately be written as if it could
  * poll it.
  */
-class DogwoodAnimatedValue internal constructor(
+class AnimationTarget internal constructor(
   internal val target: JsonElement,
-  internal val spec: DogwoodAnimationSpec,
+  internal val spec: AnimationSpec,
   internal val onFinished: (() -> Unit)?,
 ) {
   internal fun toJson(notify: Boolean): JsonElement = JsonArray(
@@ -117,38 +117,38 @@ class DogwoodAnimatedValue internal constructor(
  */
 fun animate(
   target: Float,
-  spec: DogwoodAnimationSpec = Animations.tween(),
+  spec: AnimationSpec = Animations.tween(),
   onFinished: (() -> Unit)? = null,
-): DogwoodAnimatedValue = DogwoodAnimatedValue(JsonPrimitive(target), spec, onFinished)
+): AnimationTarget = AnimationTarget(JsonPrimitive(target), spec, onFinished)
 
 /** As [animate], for density-independent pixels. */
 fun animateDp(
   target: Int,
-  spec: DogwoodAnimationSpec = Animations.tween(),
+  spec: AnimationSpec = Animations.tween(),
   onFinished: (() -> Unit)? = null,
-): DogwoodAnimatedValue = DogwoodAnimatedValue(JsonPrimitive(target), spec, onFinished)
+): AnimationTarget = AnimationTarget(JsonPrimitive(target), spec, onFinished)
 
-private fun DogwoodModifier.animated(tag: Int, value: DogwoodAnimatedValue): DogwoodModifier =
+private fun Modifier.animated(tag: Int, value: AnimationTarget): Modifier =
   then(tag, value.toJson(notify = value.onFinished != null), value.onFinished)
 
 /** Fades to [alpha]. Interrupting with a new target retargets from wherever it currently is. */
-fun DogwoodModifier.alpha(alpha: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.alpha(alpha: AnimationTarget): Modifier =
   animated(ModifierTags.ALPHA, alpha)
 
-fun DogwoodModifier.rotate(degrees: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.rotate(degrees: AnimationTarget): Modifier =
   animated(ModifierTags.ROTATE, degrees)
 
-fun DogwoodModifier.scale(scale: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.scale(scale: AnimationTarget): Modifier =
   animated(ModifierTags.SCALE, scale)
 
-fun DogwoodModifier.height(dp: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.height(dp: AnimationTarget): Modifier =
   animated(ModifierTags.HEIGHT, dp)
 
-fun DogwoodModifier.width(dp: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.width(dp: AnimationTarget): Modifier =
   animated(ModifierTags.WIDTH, dp)
 
-fun DogwoodModifier.size(dp: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.size(dp: AnimationTarget): Modifier =
   animated(ModifierTags.SIZE, dp)
 
-fun DogwoodModifier.padding(dp: DogwoodAnimatedValue): DogwoodModifier =
+fun Modifier.padding(dp: AnimationTarget): Modifier =
   animated(ModifierTags.PADDING, dp)

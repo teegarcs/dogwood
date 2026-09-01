@@ -21,7 +21,7 @@ import androidx.compose.runtime.Composable
 @Composable
 fun PrimaryButton(
   label: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   enabled: Boolean = true,
   onClick: () -> Unit,
 ) {}
@@ -30,13 +30,13 @@ fun PrimaryButton(
 fun AsyncImage(
   url: String,
   contentDescription: String? = null,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   cornerRadiusDp: Int = 8,
 ) {}
 
 @Composable
 fun Card(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   content: @Composable () -> Unit,
 ) {}
 
@@ -44,26 +44,26 @@ fun Card(
 fun Badge(
   text: String,
   selected: Boolean = false,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
 ) {}
 
 @Composable
 fun Divider(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
 ) {}
 
 @Composable
 fun Chip(
   text: String,
   selected: Boolean = false,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   onSelectedChange: (Boolean) -> Unit,
 ) {}
 
 @Composable
 fun Price(
   price: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   leadingText: String? = null,
   previousPrice: String? = null,
   trailingText: String? = null,
@@ -72,14 +72,14 @@ fun Price(
 @Composable
 fun StarRating(
   rating: Float,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   label: String? = null,
 ) {}
 
 @Composable
 fun SectionHeader(
   title: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   description: String? = null,
 ) {}
 
@@ -98,7 +98,7 @@ fun SectionHeader(
 fun Icon(
   name: String,
   contentDescription: String? = null,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   sizeDp: Int = 24,
   tint: String? = null,
 ) {}
@@ -107,7 +107,7 @@ fun Icon(
  * A text field whose state the host owns.
  *
  * The low-level shape. Guest code should use `dev.dogwood.compose.TextField`, which wraps this in
- * a `DogwoodTextFieldState` and hides the version stamping — see
+ * a `TextFieldState` and hides the version stamping — see
  * `adrs/layer-5/ADR-019-text-input.md` for why the version exists and why a naive controlled text
  * field is forbidden.
  *
@@ -123,7 +123,7 @@ fun Icon(
 fun TextInput(
   text: String,
   version: Int = 0,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  modifier: Modifier = Modifier,
   label: String? = null,
   placeholder: String? = null,
   enabled: Boolean = true,

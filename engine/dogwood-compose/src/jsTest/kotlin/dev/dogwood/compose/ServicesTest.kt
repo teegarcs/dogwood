@@ -19,7 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.dogwood.protocol.DogwoodAnalytics
 import dev.dogwood.protocol.DogwoodClock
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodFeatureFlags
 import dev.dogwood.protocol.DogwoodLog
 import dev.dogwood.protocol.DogwoodNetwork
@@ -137,7 +137,7 @@ private fun startGuest(
     host = host,
     services = services,
     entryPoint = entryPoint,
-    configuration = DogwoodConfiguration(),
+    configuration = HostEnvironment(),
     launchParams = launchParams,
     segmentVersions = segmentVersions,
     restoredState = null,
@@ -195,7 +195,7 @@ class EntryPointTest {
       host = host,
       services = FakeServices(),
       entryPoint = entryPoint,
-      configuration = DogwoodConfiguration(),
+      configuration = HostEnvironment(),
       launchParams = JsonObject(emptyMap()),
       segmentVersions = emptyMap(),
       restoredState = null,
@@ -213,7 +213,7 @@ class EntryPointTest {
 class HostServiceTest {
 
   @Composable
-  private fun Probe(body: (GuestServices) -> String) {
+  private fun Probe(body: (HostServices) -> String) {
     Text(body(services()))
   }
 
@@ -289,7 +289,7 @@ class HostServiceTest {
   fun aMissingNetworkAnswersLikeARefusalRatherThanThrowing() {
     // One shape for the guest to handle, not two: "this client has no network" and "this client
     // will not let me reach that address" both arrive as a failed response.
-    val response = runNow { GuestServices.None.fetch(HttpRequest(url = "https://example.com")) }
+    val response = runNow { HostServices.None.fetch(HttpRequest(url = "https://example.com")) }
     assertEquals(0, response.code)
     assertTrue(!response.isSuccessful)
     assertTrue(response.failure!!.contains("no network service"), response.failure!!)
@@ -316,7 +316,7 @@ class HostServiceTest {
     // Passed to the entry point *and* published as a local, because a screen deep in the tree
     // should not have to be threaded the launch payload by every composable above it.
     val guest = DogwoodGuest(
-      "main" to { _ -> Text(LocalDogwoodLaunch.current.toString()) },
+      "main" to { _ -> Text(LocalLaunchParams.current.toString()) },
     )
     val host = startGuest(guest, "main", launchParams = buildJsonObject { put("city", "Osaka") })
     assertTrue(

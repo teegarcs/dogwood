@@ -10,7 +10,7 @@ package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
 import dev.dogwood.protocol.ChangeBatch
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
@@ -44,9 +44,9 @@ internal class RecordingHost : DogwoodHost {
 }
 
 internal fun compose(
-  configuration: DogwoodConfiguration = DogwoodConfiguration(),
+  configuration: HostEnvironment = HostEnvironment(),
   restoredState: StateSnapshot? = null,
-  services: GuestServices = GuestServices.None,
+  services: HostServices = HostServices.None,
   launchParams: JsonElement = JsonNull,
   content: @Composable () -> Unit,
 ): Pair<RecordingHost, DogwoodComposition> {

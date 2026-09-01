@@ -64,11 +64,11 @@ class LazyListTrafficTest {
   private val rows = List(10_000) { "row $it" }
 
   @Composable
-  private fun Feed(state: DogwoodLazyListState) {
+  private fun Feed(state: LazyListState) {
     LazyVerticalList(
       items = rows,
       state = state,
-      placeholder = { Spacer(modifier = DogwoodModifier.height(64)) },
+      placeholder = { Spacer(modifier = Modifier.height(64)) },
     ) { _, value ->
       Text(value)
     }
@@ -78,9 +78,9 @@ class LazyListTrafficTest {
   fun tenThousandRowsCrossAsAWindow() {
     // The whole point. Before windowing this was ten thousand `Create` changes; the host's
     // `LazyColumn` then rendered about ten of them.
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, _) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       Feed(state)
     }
 
@@ -96,9 +96,9 @@ class LazyListTrafficTest {
 
   @Test
   fun theWindowFollowsTheViewportReport() {
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       Feed(state)
     }
     val listNode = host.decoded().first().g
@@ -125,9 +125,9 @@ class LazyListTrafficTest {
     // Keying each item by its index is what buys this. Without it, sliding the window by one
     // rewrites every node in it -- which would make the traffic proportional to the window on
     // every frame of a fling rather than to the movement.
-    lateinit var state: DogwoodLazyListState
+    lateinit var state: LazyListState
     val (host, composition) = compose {
-      state = rememberDogwoodLazyListState()
+      state = rememberLazyListState()
       Feed(state)
     }
     val listNode = host.decoded().first().g
@@ -166,7 +166,7 @@ class LazyListTrafficTest {
     val (host, _) = compose {
       LazyVerticalList(
         items = rows,
-        placeholder = { Spacer(modifier = DogwoodModifier.height(64)) },
+        placeholder = { Spacer(modifier = Modifier.height(64)) },
       ) { _, value -> Text(value) }
     }
     val placeholderSlot = host.decoded().flatMap { it.g }
@@ -182,7 +182,7 @@ class LazyListTrafficTest {
     val (host, _) = compose {
       LazyVerticalList(
         items = listOf("a", "b", "c", "d", "e"),
-        placeholder = { Spacer(modifier = DogwoodModifier.height(64)) },
+        placeholder = { Spacer(modifier = Modifier.height(64)) },
       ) { _, value -> Text(value) }
     }
     val texts = host.decoded().flatMap { it.g }.filterIsInstance<PropertySet>()

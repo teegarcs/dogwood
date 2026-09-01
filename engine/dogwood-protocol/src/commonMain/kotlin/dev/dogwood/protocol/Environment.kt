@@ -17,7 +17,7 @@ package dev.dogwood.protocol
  *
  * Bucketed rather than raw, because a guest that branches on an exact width produces a different
  * composition for every device and no two of them are testable. The raw value remains available
- * on [DogwoodConfiguration] for the cases that genuinely need it.
+ * on [HostEnvironment] for the cases that genuinely need it.
  */
 enum class WidthClass {
   /** Below 600 density-independent pixels: a phone in portrait. */
@@ -30,7 +30,7 @@ enum class WidthClass {
   Expanded,
 }
 
-val DogwoodConfiguration.widthClass: WidthClass
+val HostEnvironment.widthClass: WidthClass
   get() = when {
     viewportWidthDp < 600 -> WidthClass.Compact
     viewportWidthDp < 840 -> WidthClass.Medium
@@ -40,9 +40,9 @@ val DogwoodConfiguration.widthClass: WidthClass
 /**
  * The language subtag of the locale, for the common case of choosing a string.
  *
- * The full tag stays on [DogwoodConfiguration] because region matters for formatting -- `en-US`
+ * The full tag stays on [HostEnvironment] because region matters for formatting -- `en-US`
  * and `en-GB` write dates differently -- but a guest choosing between a Japanese and an English
  * label wants only this half.
  */
-val DogwoodConfiguration.language: String
+val HostEnvironment.language: String
   get() = locale.substringBefore('-')

@@ -29,11 +29,11 @@ import dev.dogwood.compose.Card
 import dev.dogwood.compose.Chip
 import dev.dogwood.compose.Column
 import dev.dogwood.compose.Divider
-import dev.dogwood.compose.DogwoodModifier
-import dev.dogwood.compose.GuestServices
+import dev.dogwood.compose.Modifier
+import dev.dogwood.compose.HostServices
 import dev.dogwood.compose.HorizontalList
-import dev.dogwood.compose.LocalDogwoodConfiguration
-import dev.dogwood.compose.rememberDogwoodLazyListState
+import dev.dogwood.compose.LocalHostEnvironment
+import dev.dogwood.compose.rememberLazyListState
 import dev.dogwood.compose.Price
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.Row
@@ -43,14 +43,14 @@ import dev.dogwood.compose.StarRating
 import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
-import dev.dogwood.compose.Colors
+import dev.dogwood.compose.Color
 import dev.dogwood.compose.Formats
 import dev.dogwood.compose.Icon
 import dev.dogwood.compose.LocalStringTable
-import dev.dogwood.compose.Shapes
+import dev.dogwood.compose.Shape
 import dev.dogwood.compose.StringTable
 import dev.dogwood.compose.TextField
-import dev.dogwood.compose.rememberDogwoodTextFieldState
+import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.strings
 import dev.dogwood.compose.background
 import dev.dogwood.compose.clip
@@ -59,7 +59,7 @@ import dev.dogwood.compose.height
 import dev.dogwood.compose.services
 import dev.dogwood.compose.size
 import dev.dogwood.compose.width
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.HttpRequest
 import dev.dogwood.protocol.WidthClass
 import dev.dogwood.protocol.widthClass
@@ -170,7 +170,7 @@ private fun ExploreContent(params: ExploreParams) {
   // resources, and QuickJS ships no `Intl`. Everything it knows about where it is running arrived
   // through this one value, and it is snapshot state, so a rotation, a window resize, or a switch
   // to dark mode recomposes only what actually reads it.
-  val environment = LocalDogwoodConfiguration.current
+  val environment = LocalHostEnvironment.current
   val host = services()
 
   var state by remember { mutableStateOf<FeedState>(FeedState.Loading) }
@@ -179,7 +179,7 @@ private fun ExploreContent(params: ExploreParams) {
   // The list position is host-owned -- scroll offset changes every frame and the guest may not
   // hold per-frame state -- but it is *saveable*, so publishing new code while somebody is
   // halfway down the page brings them back to where they were rather than to the top.
-  val listState = rememberDogwoodLazyListState()
+  val listState = rememberLazyListState()
 
   // The one place this screen leaves the sandbox. `fetch` suspends rather than blocks, because
   // the guest is single-threaded: a blocking call here would stop composition, the frame clock,
@@ -190,16 +190,16 @@ private fun ExploreContent(params: ExploreParams) {
   }
 
   VerticalList(
-    modifier = DogwoodModifier.fillMaxWidth(),
+    modifier = Modifier.fillMaxWidth(),
     spacingDp = 16,
     contentPaddingDp = 16,
     state = listState,
   ) {
-    Row(modifier = DogwoodModifier.padding(2)) {
+    Row(modifier = Modifier.padding(2)) {
       // An icon by name. The guest has no painter, no asset and no resource identifier; the host
       // owns the icon set and resolves the name, exactly as it resolves a colour token.
       Icon(name = "flight", contentDescription = null, sizeDp = 20, tint = "primary")
-      Spacer(modifier = DogwoodModifier.size(8))
+      Spacer(modifier = Modifier.size(8))
       Text(strings("exploreTitle"), style = "labelLarge")
     }
 
@@ -223,7 +223,7 @@ private fun ExploreContent(params: ExploreParams) {
         Text(current.reason)
         PrimaryButton(
           label = "Try again",
-          modifier = DogwoodModifier.fillMaxWidth().padding(4),
+          modifier = Modifier.fillMaxWidth().padding(4),
           onClick = { attempt += 1 },
         )
       }
@@ -234,7 +234,7 @@ private fun ExploreContent(params: ExploreParams) {
         // does cross is the value, once per keystroke -- and the list below recomposes from it.
         // That is the right split: a stutter in a filtered list is a slow list, a stutter in a
         // text field is a broken keyboard.
-        val query = rememberDogwoodTextFieldState()
+        val query = rememberTextFieldState()
         val matches = if (query.text.isBlank()) {
           feed.stays
         } else {
@@ -271,7 +271,7 @@ private fun ExploreContent(params: ExploreParams) {
           }
         }
 
-        Divider(modifier = DogwoodModifier.fillMaxWidth())
+        Divider(modifier = Modifier.fillMaxWidth())
 
         SectionHeader(
           title = "${strings("staysIn")} ${params.city}",
@@ -284,7 +284,7 @@ private fun ExploreContent(params: ExploreParams) {
 
         TextField(
           state = query,
-          modifier = DogwoodModifier.fillMaxWidth(),
+          modifier = Modifier.fillMaxWidth(),
           label = strings("filterStays"),
           singleLine = true,
         )
@@ -308,7 +308,7 @@ private fun ExploreContent(params: ExploreParams) {
 
         PrimaryButton(
           label = "See all ${matches.size} stays",
-          modifier = DogwoodModifier.fillMaxWidth().padding(4),
+          modifier = Modifier.fillMaxWidth().padding(4),
           onClick = { savedStays = 0 },
         )
 
@@ -317,7 +317,7 @@ private fun ExploreContent(params: ExploreParams) {
         // sequence number rather than a flag.
         PrimaryButton(
           label = "Back to top",
-          modifier = DogwoodModifier.fillMaxWidth().padding(4),
+          modifier = Modifier.fillMaxWidth().padding(4),
           onClick = { listState.animateScrollToItem(0) },
         )
       }
@@ -327,7 +327,7 @@ private fun ExploreContent(params: ExploreParams) {
     // The guest cannot measure it and cannot convert pixels to density-independent pixels on its
     // own, so the host reports it already converted and the guest simply obeys.
     if (environment.safeAreaBottomDp > 0) {
-      Spacer(modifier = DogwoodModifier.height(environment.safeAreaBottomDp))
+      Spacer(modifier = Modifier.height(environment.safeAreaBottomDp))
     }
   }
 }
@@ -340,7 +340,7 @@ private fun ExploreContent(params: ExploreParams) {
  * payload cannot read. Collapsing them into "something went wrong" would leave whoever is
  * debugging with nothing.
  */
-private suspend fun load(host: GuestServices, params: ExploreParams): FeedState {
+private suspend fun load(host: HostServices, params: ExploreParams): FeedState {
   if (params.apiBaseUrl.isEmpty()) {
     return FeedState.Failed("This client did not say where its data lives (no apiBaseUrl in the launch parameters).")
   }
@@ -373,7 +373,7 @@ private suspend fun load(host: GuestServices, params: ExploreParams): FeedState 
  * Bucketed by width class rather than computed from the exact viewport, so that the number of
  * distinct layouts this screen can produce is three rather than one per device.
  */
-private fun destinationCardWidthDp(environment: DogwoodConfiguration): Int =
+private fun destinationCardWidthDp(environment: HostEnvironment): Int =
   when (environment.widthClass) {
     WidthClass.Compact -> 220
     WidthClass.Medium -> 280
@@ -382,41 +382,41 @@ private fun destinationCardWidthDp(environment: DogwoodConfiguration): Int =
 
 @Composable
 private fun DestinationCard(destination: Destination, widthDp: Int, showWasPrice: Boolean) {
-  Card(modifier = DogwoodModifier.width(widthDp)) {
-    Column(modifier = DogwoodModifier.padding(8)) {
+  Card(modifier = Modifier.width(widthDp)) {
+    Column(modifier = Modifier.padding(8)) {
       AsyncImage(
         url = photo(destination.image, 400, 300),
         contentDescription = "${destination.name}, ${destination.country}",
-        modifier = DogwoodModifier.fillMaxWidth().height(130),
+        modifier = Modifier.fillMaxWidth().height(130),
         cornerRadiusDp = 12,
       )
       // Deferred expressions. Neither of these arguments is a value the guest could construct:
       // the shape and the colour are built host-side from recipes. The colour is named rather
       // than literal, so it follows the host's theme -- which a literal could not.
       Box(
-        modifier = DogwoodModifier
+        modifier = Modifier
           .fillMaxWidth()
           .height(3)
-          .clip(Shapes.roundedCorner(2))
-          .background(Colors.token("primary")),
+          .clip(Shape.roundedCorner(2))
+          .background(Color.token("primary")),
       )
-      Spacer(modifier = DogwoodModifier.size(8))
-      Text(destination.name, modifier = DogwoodModifier.padding(2))
-      Text(destination.country, modifier = DogwoodModifier.padding(2))
+      Spacer(modifier = Modifier.size(8))
+      Text(destination.name, modifier = Modifier.padding(2))
+      Text(destination.country, modifier = Modifier.padding(2))
       // Formatted host-side, in the device's locale, from an integer number of cents. Switch the
       // device to ja-JP and this becomes ￥612 with no traffic and no guest recomposition.
-      Row(modifier = DogwoodModifier.padding(2)) {
+      Row(modifier = Modifier.padding(2)) {
         Text(
           Formats.currency(destination.priceMinor, destination.currency),
           style = "titleMedium",
         )
-        Spacer(modifier = DogwoodModifier.size(6))
+        Spacer(modifier = Modifier.size(6))
         Text(strings("returnFlight"), style = "bodySmall")
       }
       if (showWasPrice) {
         Text(
           Formats.currency(destination.wasMinor, destination.currency),
-          modifier = DogwoodModifier.padding(2),
+          modifier = Modifier.padding(2),
           style = "bodySmall",
         )
       }
@@ -426,29 +426,29 @@ private fun DestinationCard(destination: Destination, widthDp: Int, showWasPrice
 
 @Composable
 private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
-  Card(modifier = DogwoodModifier.fillMaxWidth()) {
-    Row(modifier = DogwoodModifier.fillMaxWidth().padding(8), onClick = onSave) {
+  Card(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth().padding(8), onClick = onSave) {
       AsyncImage(
         url = photo(stay.image, 300, 300),
         contentDescription = stay.name,
-        modifier = DogwoodModifier.size(thumbnailDp),
+        modifier = Modifier.size(thumbnailDp),
         cornerRadiusDp = 8,
       )
-      Spacer(modifier = DogwoodModifier.size(12))
-      Column(modifier = DogwoodModifier.weight(1.0f).padding(2)) {
-        Text(stay.name, modifier = DogwoodModifier.padding(1))
-        Text(stay.area, modifier = DogwoodModifier.padding(1))
+      Spacer(modifier = Modifier.size(12))
+      Column(modifier = Modifier.weight(1.0f).padding(2)) {
+        Text(stay.name, modifier = Modifier.padding(1))
+        Text(stay.area, modifier = Modifier.padding(1))
         StarRating(
           rating = stay.rating,
           label = stay.reviews,
-          modifier = DogwoodModifier.padding(1),
+          modifier = Modifier.padding(1),
         )
         if (stay.badge != null) {
-          Badge(text = stay.badge, selected = true, modifier = DogwoodModifier.padding(1))
+          Badge(text = stay.badge, selected = true, modifier = Modifier.padding(1))
         }
-        Row(modifier = DogwoodModifier.padding(1)) {
+        Row(modifier = Modifier.padding(1)) {
           Text(Formats.currency(stay.priceMinor, stay.currency), style = "titleMedium")
-          Spacer(modifier = DogwoodModifier.size(6))
+          Spacer(modifier = Modifier.size(6))
           Text(strings("perNight"), style = "bodySmall")
         }
       }

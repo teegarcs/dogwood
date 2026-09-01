@@ -18,7 +18,7 @@ import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateRegistry
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodGuestUi
 import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.DogwoodServices
@@ -50,8 +50,8 @@ import kotlinx.serialization.json.intOrNull
  * a map rather than a scalar, because a client can carry several independently versioned
  * design-system segments ([Layer 5 ADR-006]).
  */
-val LocalDogwoodConfiguration = compositionLocalOf { DogwoodConfiguration() }
-val LocalDogwoodSegments = staticCompositionLocalOf { emptyMap<String, Int>() }
+val LocalHostEnvironment = compositionLocalOf { HostEnvironment() }
+val LocalSegmentVersions = staticCompositionLocalOf { emptyMap<String, Int>() }
 
 /**
  * The composition, its applier, and the channel back to the host.
@@ -63,11 +63,11 @@ val LocalDogwoodSegments = staticCompositionLocalOf { emptyMap<String, Int>() }
  */
 class DogwoodComposition(
   private val host: DogwoodHost,
-  initialConfiguration: DogwoodConfiguration,
+  initialConfiguration: HostEnvironment,
   private val segmentVersions: Map<String, Int>,
   restoredState: StateSnapshot?,
   /** Resolved once by the caller, because every accessor call allocates a service proxy. */
-  private val services: GuestServices = GuestServices.None,
+  private val services: HostServices = HostServices.None,
   private val launchParams: JsonElement = JsonNull,
   content: @Composable () -> Unit,
 ) {
@@ -115,10 +115,10 @@ class DogwoodComposition(
     }
     composition.setContent {
       CompositionLocalProvider(
-        LocalDogwoodConfiguration provides configuration.value,
-        LocalDogwoodSegments provides segmentVersions,
-        LocalDogwoodServices provides services,
-        LocalDogwoodLaunch provides launchParams,
+        LocalHostEnvironment provides configuration.value,
+        LocalSegmentVersions provides segmentVersions,
+        LocalHostServices provides services,
+        LocalLaunchParams provides launchParams,
         LocalSaveableStateRegistry provides saveableRegistry,
       ) {
         Children(Tags.Content) { content() }
@@ -207,7 +207,7 @@ class DogwoodComposition(
    * what makes it safe for a host to push the environment liberally rather than trying to work
    * out whether it moved.
    */
-  fun updateConfiguration(next: DogwoodConfiguration) = guestCall("updateConfiguration") {
+  fun updateConfiguration(next: HostEnvironment) = guestCall("updateConfiguration") {
     configuration.value = next
     Snapshot.sendApplyNotifications()
   }
@@ -288,7 +288,7 @@ class DogwoodGuest(
     host: DogwoodHost,
     services: DogwoodServices,
     entryPoint: String,
-    configuration: DogwoodConfiguration,
+    configuration: HostEnvironment,
     launchParams: JsonElement,
     segmentVersions: Map<String, Int>,
     restoredState: StateSnapshot?,
@@ -311,7 +311,7 @@ class DogwoodGuest(
       initialConfiguration = configuration,
       segmentVersions = segmentVersions,
       restoredState = restoredState,
-      services = GuestServices.resolve(services, segmentVersions[SERVICES_SEGMENT] ?: 0),
+      services = HostServices.resolve(services, segmentVersions[SERVICES_SEGMENT] ?: 0),
       launchParams = launchParams,
       content = { content(launchParams) },
     )
@@ -328,7 +328,7 @@ class DogwoodGuest(
     composition?.frame(timeNanos)
   }
 
-  override fun updateConfiguration(configuration: DogwoodConfiguration) {
+  override fun updateConfiguration(configuration: HostEnvironment) {
     composition?.updateConfiguration(configuration)
   }
 

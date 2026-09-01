@@ -101,7 +101,7 @@ interface DogwoodClock : ZiplineService {
  *
  * A snapshot rather than a live feed, and the limit is worth stating plainly: a flag flipped while
  * a screen is open does not reach that screen. Making flags live means making them a pushed value
- * with the same dedupe rules as `DogwoodConfiguration`, which is a design, not an addition.
+ * with the same dedupe rules as `HostEnvironment`, which is a design, not an addition.
  */
 interface DogwoodFeatureFlags : ZiplineService {
   fun snapshot(): Map<String, String>

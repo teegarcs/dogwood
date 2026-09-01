@@ -14,9 +14,9 @@ import androidx.compose.runtime.Composable
 import dev.dogwood.compose.AsyncImage
 import dev.dogwood.compose.Box
 import dev.dogwood.compose.Card
-import dev.dogwood.compose.Colors
+import dev.dogwood.compose.Color
 import dev.dogwood.compose.Column
-import dev.dogwood.compose.DogwoodModifier
+import dev.dogwood.compose.Modifier
 import dev.dogwood.compose.Formats
 import dev.dogwood.compose.LazyVerticalList
 import dev.dogwood.compose.PrimaryButton
@@ -28,7 +28,7 @@ import dev.dogwood.compose.background
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.height
 import dev.dogwood.compose.padding
-import dev.dogwood.compose.rememberDogwoodLazyListState
+import dev.dogwood.compose.rememberLazyListState
 import dev.dogwood.compose.services
 import dev.dogwood.compose.size
 import dev.dogwood.compose.width
@@ -58,7 +58,7 @@ private data class Row(val index: Int) {
 @Composable
 fun FeedScreen() {
   val host = services()
-  val listState = rememberDogwoodLazyListState()
+  val listState = rememberLazyListState()
   val rows = remember10k()
 
   // Logged so the windowing is observable without a profiler: scroll to row nine thousand and
@@ -68,10 +68,10 @@ fun FeedScreen() {
     "viewport ${listState.firstVisibleItemIndex}..${listState.lastVisibleItemIndex} of $ROWS",
   )
 
-  Column(modifier = DogwoodModifier.fillMaxWidth()) {
-    Row(modifier = DogwoodModifier.fillMaxWidth().padding(12)) {
+  Column(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth().padding(12)) {
       Text("$ROWS stays", style = "titleMedium")
-      Spacer(modifier = DogwoodModifier.size(12))
+      Spacer(modifier = Modifier.size(12))
       PrimaryButton(
         label = "Jump to 9,000",
         // A declared target into content the host has never laid out. The list is genuinely ten
@@ -83,7 +83,7 @@ fun FeedScreen() {
 
     LazyVerticalList(
       items = rows,
-      modifier = DogwoodModifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth(),
       state = listState,
       spacingDp = 8,
       contentPaddingDp = 12,
@@ -91,10 +91,10 @@ fun FeedScreen() {
       // thousand nine hundred rows the guest has not sent.
       placeholder = {
         Box(
-          modifier = DogwoodModifier
+          modifier = Modifier
             .fillMaxWidth()
             .height(96)
-            .background(Colors.token("canvasContrast")),
+            .background(Color.token("canvasContrast")),
         )
       },
     ) { index, row ->
@@ -105,16 +105,16 @@ fun FeedScreen() {
 
 @Composable
 private fun FeedRow(index: Int, row: Row) {
-  Card(modifier = DogwoodModifier.fillMaxWidth()) {
-    Row(modifier = DogwoodModifier.fillMaxWidth().padding(8)) {
+  Card(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth().padding(8)) {
       AsyncImage(
         url = "https://images.unsplash.com/${row.image}?w=200&h=200&fit=crop",
         contentDescription = null,
-        modifier = DogwoodModifier.size(72),
+        modifier = Modifier.size(72),
         cornerRadiusDp = 8,
       )
-      Spacer(modifier = DogwoodModifier.size(12))
-      Column(modifier = DogwoodModifier.weight(1.0f)) {
+      Spacer(modifier = Modifier.size(12))
+      Column(modifier = Modifier.weight(1.0f)) {
         Text("#$index · ${row.city}", style = "titleSmall")
         StarRating(rating = row.rating, label = null)
         Text(Formats.currency(row.priceMinor, "USD"), style = "bodyMedium")

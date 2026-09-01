@@ -1,7 +1,7 @@
 /*
  * Project Dogwood -- text input.
  *
- * The one live-state holder that cannot use [DogwoodLazyListState]'s pattern, and Layer 5 has said
+ * The one live-state holder that cannot use [LazyListState]'s pattern, and Layer 5 has said
  * so since the first coverage measurement: "Do not attempt a naive controlled `TextField`."
  *
  * The reason is the Layer 4 invariant. A controlled text field asks the guest what the text should
@@ -45,7 +45,7 @@ import androidx.compose.runtime.setValue
  * transform the host applies, so guest code that validates a card number never has to strip
  * anything, and a change to the mask cannot change what the guest sees.
  */
-class DogwoodTextFieldState internal constructor(
+class TextFieldState internal constructor(
   initialText: String = "",
   initialAcknowledged: Int = 0,
 ) {
@@ -89,16 +89,16 @@ class DogwoodTextFieldState internal constructor(
      * composition group -- so a guest that came back stamped zero would have every value it sent
      * discarded as stale, silently, for the life of the screen.
      */
-    val Saver: Saver<DogwoodTextFieldState, Any> = listSaver(
+    val Saver: Saver<TextFieldState, Any> = listSaver(
       save = { listOf(it.text, it.acknowledged) },
-      restore = { DogwoodTextFieldState(it[0] as String, it[1] as Int) },
+      restore = { TextFieldState(it[0] as String, it[1] as Int) },
     )
   }
 }
 
 @Composable
-fun rememberDogwoodTextFieldState(initialText: String = ""): DogwoodTextFieldState =
-  rememberSaveable(saver = DogwoodTextFieldState.Saver) { DogwoodTextFieldState(initialText) }
+fun rememberTextFieldState(initialText: String = ""): TextFieldState =
+  rememberSaveable(saver = TextFieldState.Saver) { TextFieldState(initialText) }
 
 /** Which keyboard the host should offer. Named rather than an ordinal, like every other token. */
 object Keyboards {
@@ -122,8 +122,8 @@ object Keyboards {
  */
 @Composable
 fun TextField(
-  state: DogwoodTextFieldState,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  state: TextFieldState,
+  modifier: Modifier = Modifier,
   label: String? = null,
   placeholder: String? = null,
   enabled: Boolean = true,

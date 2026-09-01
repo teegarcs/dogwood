@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import app.cash.zipline.Zipline
-import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodGuestUi
 import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.DogwoodServices
@@ -132,7 +132,7 @@ class DogwoodExperience(
     entryPoint: String = "main",
     /** What this client lets the guest reach. The default offers nothing at all. */
     services: DogwoodServices = DogwoodServiceHost(),
-    configuration: DogwoodConfiguration = DogwoodConfiguration(),
+    configuration: HostEnvironment = HostEnvironment(),
     launchParams: JsonObject = JsonObject(emptyMap()),
     restoredState: StateSnapshot? = null,
   ) {
@@ -174,10 +174,10 @@ class DogwoodExperience(
    * Called from the user-interface thread -- it is derived from composition -- and hops to the
    * Zipline dispatcher, because the guest is single-threaded and has no lock. Equal
    * configurations are the caller's problem to suppress, and
-   * [rememberDogwoodConfiguration] does exactly that; the guest also dedupes structurally,
+   * [rememberHostEnvironment] does exactly that; the guest also dedupes structurally,
    * since the value backing it is snapshot state.
    */
-  fun updateConfiguration(configuration: DogwoodConfiguration) {
+  fun updateConfiguration(configuration: HostEnvironment) {
     uiScope.launch(ziplineDispatcher) {
       // Before the guest exists there is no thread binding to check against, and no one to tell.
       // Ordering the null check first keeps a configuration that arrives during startup from
