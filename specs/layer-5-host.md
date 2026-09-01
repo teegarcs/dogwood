@@ -321,7 +321,9 @@ A purely compositional component can live on either side, and the choice is a de
 
 ### Host Composition, Identity, and Reuse
 
-The host renders the mirror tree with a generated `@Composable RenderNode`. **Compose identity is positional**, so a generated `RenderNode` that does not wrap each child in `key(node.id)` will destroy and recreate a subtree on any reorder — losing host-side scroll position, animation state, focus, and the input method editor connection. Wrapping every child in `key(node.id)` is a **generator requirement with a test**, not a note.
+The host renders the mirror tree with a generated `@Composable RenderNode`. **Compose identity is positional**, so a generated `RenderNode` that does not wrap each child in `key(node.id)` will destroy and recreate a subtree on any reorder — losing host-side scroll position, animation state, focus, and the input method editor connection. Wrapping every child in `key(node.id)` is a **generator requirement with a test**, not a note. ✅ **The test now exists** ([ADR-015](../adrs/layer-5/ADR-015-node-identity-and-reuse.md)), running a real host composition on the Java Virtual Machine, with a negative control that reproduces the loss.
+
+**The key must be the outermost thing inside the loop body.** `key` relocates a *movable group* among its **immediate siblings**, so a per-child conditional — `if (something) key(id) { … } else … ` — puts each movable group alone inside its own replace group where there is nothing to match it against. The mechanism is defeated, nothing warns, and the screen still renders correctly; the only symptom is state quietly lost on reorder, which is the exact bug the requirement exists to prevent. This was found by testing rather than by reading, and it is a live hazard for the generator, which emits this loop.
 
 Two consequences follow:
 

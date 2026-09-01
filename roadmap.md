@@ -259,7 +259,7 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 | Lazy layouts | Guest-side windowing, placeholder pool, throttled viewport callbacks. Redwood needed ten modules for this alone — budget accordingly. |
 | Text input | Version vector plus optimistic host state. Do not attempt a naive controlled `TextField`. Scope must also cover declarative masks/formatting (card numbers) and host-computed counters — per-keystroke guest round trips are forbidden by the Layer 4 invariant. |
 | Animation | The largest addition from re-review. Less urgent under design-system-first — registered components own their internal transitions — but required for any guest-authored motion. Declarative targets, springs/easings, interruption semantics, completion events, time-varying `Modifier` values. Until it ships, Layer 1 rejects the `animate*` Application Programming Interfaces — the product promise "animation without a release" is **not true on day one**. |
-| Node reuse | Key stability across list mutation. |
+| Node reuse ✅ | **Delivered** ([ADR-015](adrs/layer-5/ADR-015-node-identity-and-reuse.md)). The mechanism was already built; what was missing was the test, and the project had no way to run a host composition off a device. It has one now — `compose.uiTest` in the ordinary unit-test suite — with a negative control. Found that `key` is silently defeated by a per-child conditional, which is a live generator hazard, and closed [ADR-009](adrs/layer-5/ADR-009-modifier-subsystem.md)'s open claim that modifier order affects layout. |
 | Leak detection | Adopt `redwood-leak-detector`. **Before iOS, not after** — cross-language reference cycles span Kotlin/Native garbage collection and Swift reference counting. |
 
 ---

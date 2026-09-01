@@ -123,11 +123,10 @@ class ChangeRecorder {
     return batch
   }
 
-  fun reset() {
-    nextIdValue = 1
-    sequence = 0
-    changes.clear()
-  }
+  // There is deliberately no `reset()`. An earlier one existed, unused, and it set `nextIdValue`
+  // back to 1 -- which would have reused identifiers inside a live composition and let a stale
+  // event land on whichever node inherited the number. The invariant is easier to keep when the
+  // only way to get a fresh counter is a fresh recorder.
 }
 
 /**

@@ -66,6 +66,13 @@ kotlin {
     jvmTest {
       dependencies {
         implementation(kotlin("test"))
+        // A real composition, on the host, in a unit test. Until this existed the host half of
+        // every decision was demonstrated on a device and asserted by construction; ADR-009 had
+        // to say so about pixel identity. Desktop Compose Multiplatform runs on the Java Virtual
+        // Machine, which is where these tests already are.
+        @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+        implementation(compose.uiTest)
+        implementation(compose.desktop.currentOs)
       }
     }
   }

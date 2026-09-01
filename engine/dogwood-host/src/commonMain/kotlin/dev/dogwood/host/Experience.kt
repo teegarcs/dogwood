@@ -195,12 +195,31 @@ class DogwoodExperience(
 @Composable
 fun DogwoodSurface(experience: DogwoodExperience, modifier: Modifier = Modifier) {
   val sink = EventSink { node, tag, args -> experience.send(node, tag, args) }
-  // One evaluator per experience: its cache holds host objects built from this guest's recipes,
-  // so its lifetime is this guest's.
-  val evaluator = androidx.compose.runtime.remember(experience) { ExpressionEvaluator() }
+  DogwoodTree(experience.tree, sink, modifier, evaluatorKey = experience)
+}
+
+/**
+ * Renders a host tree, with no Zipline instance in sight.
+ *
+ * Split out from [DogwoodSurface] because the tree is the renderable thing and the experience is
+ * only where this one came from. A host that gets its tree some other way -- a test, a preview, or
+ * the Web profile, where the guest loads into the browser's own engine rather than through
+ * `ZiplineLoader` -- renders it here without pretending to have a QuickJS instance.
+ *
+ * @param evaluatorKey what the expression cache's lifetime is tied to. The cache holds host
+ *   objects built from one guest's recipes, so a new guest must not inherit the old one's.
+ */
+@Composable
+fun DogwoodTree(
+  tree: HostTree,
+  events: EventSink,
+  modifier: Modifier = Modifier,
+  evaluatorKey: Any? = tree,
+) {
+  val evaluator = androidx.compose.runtime.remember(evaluatorKey) { ExpressionEvaluator() }
   androidx.compose.runtime.CompositionLocalProvider(LocalExpressionEvaluator provides evaluator) {
     androidx.compose.foundation.layout.Column(modifier) {
-      RenderChildren(experience.tree.root, slot = 1, scope = LayoutScope(column = this), events = sink)
+      RenderChildren(tree.root, slot = 1, scope = LayoutScope(column = this), events = events)
     }
   }
 }

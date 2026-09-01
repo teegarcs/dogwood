@@ -8,6 +8,8 @@
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
@@ -250,5 +252,54 @@ class LiveStateHolderTest {
   fun aColdStartDeclaresNoTarget() {
     val (host, _) = compose { ListWith(DogwoodLazyListState()) }
     assertEquals(0, host.lastProperty(TARGET_SEQUENCE)?.v?.jsonPrimitive?.intOrNull)
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Node identity, guest side.
+ *
+ * specs/layer-5-host.md makes two demands of identifiers, and they exist for different reasons.
+ * Monotonicity is about *events*: an identifier reused inside a live composition lets an event
+ * aimed at a node that is gone land on whichever node inherited the number, which is a wrong tap
+ * rather than a dropped one. Stability across a reorder is about *state*, and is asserted on the
+ * host where the state actually lives.
+ */
+class NodeIdentityGuestTest {
+
+  @Composable
+  private fun Rows(labels: List<String>) {
+    Column {
+      for (label in labels) {
+        androidx.compose.runtime.key(label) { Text(label) }
+      }
+    }
+  }
+
+  @Test
+  fun identifiersAreNeverReusedAfterNodesAreRemoved() {
+    var labels by androidx.compose.runtime.mutableStateOf(listOf("a", "b", "c"))
+    val (host, composition) = compose { Rows(labels) }
+
+    fun createdIds() = host.decoded().flatMap { it.g }
+      .filterIsInstance<dev.dogwood.protocol.Create>()
+      .map { it.i.value }
+
+    val firstGeneration = createdIds()
+
+    // Remove everything, then create a fresh set. A recorder that restarted its counter would
+    // hand these new nodes the identifiers the old ones had.
+    labels = emptyList()
+    composition.frame(0L)
+    labels = listOf("d", "e", "f")
+    composition.frame(16L)
+
+    val all = createdIds()
+    assertEquals(all.size, all.toSet().size, "an identifier was reused: $all")
+    assertTrue(
+      all.drop(firstGeneration.size).all { it > firstGeneration.max() },
+      "identifiers must be monotonic; got $all",
+    )
   }
 }
