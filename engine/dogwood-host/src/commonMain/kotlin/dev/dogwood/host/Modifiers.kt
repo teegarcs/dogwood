@@ -51,6 +51,7 @@ private const val BACKGROUND = 10
 @Composable
 fun WidgetView.composeModifier(scope: LayoutScope): Modifier {
   val evaluator = LocalExpressionEvaluator.current
+  val palette = LocalPalette.current
   var modifier: Modifier = Modifier
   for (element in modifiers) {
     // Expression arguments are arrays, not primitives, so the primitive view is read lazily.
@@ -79,7 +80,7 @@ fun WidgetView.composeModifier(scope: LayoutScope): Modifier {
       }
       // Deferred expressions: the argument is a recipe, not a value, and the host builds it.
       CLIP -> modifier.clip(evaluator.shape(element.v))
-      BACKGROUND -> modifier.background(evaluator.color(element.v))
+      BACKGROUND -> modifier.background(evaluator.color(element.v, palette))
       SIZE -> modifier.size((value.intOrNull ?: 0).dp)
       WIDTH -> modifier.width((value.intOrNull ?: 0).dp)
       HEIGHT -> modifier.height((value.intOrNull ?: 0).dp)

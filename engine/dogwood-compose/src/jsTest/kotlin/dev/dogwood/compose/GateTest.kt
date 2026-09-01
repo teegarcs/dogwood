@@ -42,42 +42,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Captures what crossed, so a test can assert on the traffic rather than on the screen. */
-private class RecordingHost : DogwoodHost {
-  val batches = mutableListOf<String>()
-  var frameRequests = 0
-
-  override fun sendChanges(positionalBatch: String) {
-    batches += positionalBatch
-  }
-
-  override fun requestFrame() {
-    frameRequests++
-  }
-
-  override fun onUnknownEvent(widgetTag: WidgetTag, tag: EventTag) = Unit
-  var unknownNodes = 0
-    private set
-
-  override fun onUnknownEventNode(id: Id, tag: EventTag) {
-    unknownNodes++
-  }
-  override fun handleUncaughtException(exception: Throwable) = throw exception
-  override fun close() = Unit
-}
-
-private fun compose(content: @Composable () -> Unit): Pair<RecordingHost, DogwoodComposition> {
-  val host = RecordingHost()
-  val composition = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null, content)
-  return host to composition
-}
-
-/**
- * Reads the batches back through the same decoder the host uses, so the test asserts on what
- * genuinely crossed rather than on an in-memory structure that never went through the encoder.
- */
-private fun RecordingHost.decoded(): List<ChangeBatch> = batches.map { decodeForTest(it) }
-
 // ---------------------------------------------------------------------------
 
 class WrapperScopingTest {
@@ -387,7 +351,7 @@ class StatePreservationTest {
 class ModifierChainTest {
 
   private fun chainOf(content: @Composable () -> Unit): List<ModifierElem> {
-    val (host, _) = compose(content)
+    val (host, _) = compose(content = content)
     return host.decoded().single().g.filterIsInstance<ModifierSet>().first().e
   }
 

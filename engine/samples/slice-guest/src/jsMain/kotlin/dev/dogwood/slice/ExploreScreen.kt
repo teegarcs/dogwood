@@ -27,6 +27,7 @@ import dev.dogwood.compose.Column
 import dev.dogwood.compose.Divider
 import dev.dogwood.compose.DogwoodModifier
 import dev.dogwood.compose.HorizontalList
+import dev.dogwood.compose.LocalDogwoodConfiguration
 import dev.dogwood.compose.Price
 import dev.dogwood.compose.PrimaryButton
 import dev.dogwood.compose.Row
@@ -44,6 +45,9 @@ import dev.dogwood.compose.padding
 import dev.dogwood.compose.height
 import dev.dogwood.compose.size
 import dev.dogwood.compose.width
+import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.WidthClass
+import dev.dogwood.protocol.widthClass
 
 private data class Destination(
   val name: String,
@@ -101,6 +105,12 @@ fun ExploreScreen() {
   }
   var savedStays by rememberSaveable(key = "saved", stateSaver = autoSaver()) { mutableStateOf(0) }
 
+  // The host environment. This composition cannot see the device: it has no display metrics, no
+  // resources, and QuickJS ships no `Intl`. Everything it knows about where it is running
+  // arrived through this one value, and it is snapshot state, so a rotation, a window resize, or
+  // a switch to dark mode recomposes only what actually reads it.
+  val environment = LocalDogwoodConfiguration.current
+
   VerticalList(
     modifier = DogwoodModifier.fillMaxWidth(),
     spacingDp = 16,
@@ -113,7 +123,7 @@ fun ExploreScreen() {
 
     HorizontalList(spacingDp = 12) {
       for (destination in destinations) {
-        DestinationCard(destination)
+        DestinationCard(destination, widthDp = destinationCardWidthDp(environment))
       }
     }
 
@@ -139,7 +149,14 @@ fun ExploreScreen() {
     )
 
     for (stay in stays) {
-      StayCard(stay, onSave = { savedStays += 1 })
+      StayCard(
+        stay,
+        // Wider rooms get a larger thumbnail. The guest decides this, not the host, because it
+        // is a composition decision -- which is the point of sending the environment across
+        // rather than letting the host silently adapt what the guest emitted.
+        thumbnailDp = if (environment.widthClass == WidthClass.Compact) 96 else 128,
+        onSave = { savedStays += 1 },
+      )
     }
 
     PrimaryButton(
@@ -147,12 +164,32 @@ fun ExploreScreen() {
       modifier = DogwoodModifier.fillMaxWidth().padding(4),
       onClick = { savedStays = 0 },
     )
+
+    // The home indicator, the gesture bar, whatever this device puts at the bottom of its
+    // screen. The guest cannot measure it and cannot convert pixels to density-independent
+    // pixels on its own, so the host reports it already converted and the guest simply obeys.
+    if (environment.safeAreaBottomDp > 0) {
+      Spacer(modifier = DogwoodModifier.height(environment.safeAreaBottomDp))
+    }
   }
 }
 
+/**
+ * How wide a destination card should be, given the room available.
+ *
+ * Bucketed by width class rather than computed from the exact viewport, so that the number of
+ * distinct layouts this screen can produce is three rather than one per device.
+ */
+private fun destinationCardWidthDp(environment: DogwoodConfiguration): Int =
+  when (environment.widthClass) {
+    WidthClass.Compact -> 220
+    WidthClass.Medium -> 280
+    WidthClass.Expanded -> 340
+  }
+
 @Composable
-private fun DestinationCard(destination: Destination) {
-  Card(modifier = DogwoodModifier.width(220)) {
+private fun DestinationCard(destination: Destination, widthDp: Int) {
+  Card(modifier = DogwoodModifier.width(widthDp)) {
     Column(modifier = DogwoodModifier.padding(8)) {
       AsyncImage(
         url = photo(destination.image, 400, 300),
@@ -184,13 +221,13 @@ private fun DestinationCard(destination: Destination) {
 }
 
 @Composable
-private fun StayCard(stay: Stay, onSave: () -> Unit) {
+private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
   Card(modifier = DogwoodModifier.fillMaxWidth()) {
     Row(modifier = DogwoodModifier.fillMaxWidth().padding(8), onClick = onSave) {
       AsyncImage(
         url = photo(stay.image, 300, 300),
         contentDescription = stay.name,
-        modifier = DogwoodModifier.size(96),
+        modifier = DogwoodModifier.size(thumbnailDp),
         cornerRadiusDp = 8,
       )
       Spacer(modifier = DogwoodModifier.size(12))

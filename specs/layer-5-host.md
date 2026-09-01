@@ -152,7 +152,7 @@ The excluded set is not open-ended; it is a bounded list of subsystems that must
 2. **Lazy layouts.** A cut-down `LazyListScope` with guest-side windowing, a placeholder pool, and throttled `onViewportChanged(first, last)` callbacks. Redwood needed ten modules and a hand-tuned loading strategy for this one case.
 3. **Text input.** A version-vector protocol with optimistic host-side state. Redwood's `TextFieldState` carries a `userEditCount` and its host binding discards stale guest updates outright.
 4. **Live state holders.** `LazyListState`, `FocusRequester`, `SnackbarHostState`, `PagerState`, `DrawerState` — each needs mirrored state and a conflict rule. The corrected measurement enumerates roughly **30 holder types** in the widget surface (including `DatePickerState`, `TimePickerState`, `SliderState`, `CarouselState`, `PullToRefreshState`, `SwipeToDismissBoxState`, `MutableTransitionState`) plus **76 lowercase `remember*` factories** that construct them, so this subsystem's per-holder cost recurs far more often than the five examples suggest.
-5. **Host environment.** `LocalDensity`, `LocalLayoutDirection`, `MaterialTheme`, safe-area insets, dark mode, viewport size, **and locale** — delivered to the guest as a `StateFlow` of a serializable configuration, as Redwood's `UiConfiguration` does. Locale matters doubly: the pinned QuickJS ships no ECMA-402 `Intl`, so locale-aware formatting needs either a host service or guest-bundled data.
+5. **Host environment. ✅ Delivered** ([ADR-012](../adrs/layer-5/ADR-012-host-environment-subsystem.md)). `LocalDensity`, `LocalLayoutDirection`, the palette, safe-area insets, dark mode, viewport size, **and locale** — derived in host composition from Compose Multiplatform's own ambient values, pushed across as a serializable `DogwoodConfiguration`, and exposed to guest code as a `CompositionLocal`. Locale matters doubly: the pinned QuickJS ships no ECMA-402 `Intl`, so locale-aware formatting needs either a host service or guest-bundled data — the tag lets a guest *branch*, which is the half it can do, and leaves formatting to the resources subsystem. See [The Host Environment](#the-host-environment) below.
 6. **Node identity and reuse.** See below.
 7. **Animation.** The design invariant in [Layer 4](layer-4-sandbox.md) forbids per-frame state in the guest, and the whole `animate*AsState` / `updateTransition` / `Animatable` / `rememberInfiniteTransition` surface (34 lowercase functions, previously unmeasured) is exactly that. The promised replacement — "declare a target, the host runs it" — is a protocol that does not yet exist anywhere in this specification: it needs a grammar for targets, durations, springs and easings, interruption and retargeting semantics, completion events, dictionary entries, skew rules, and **time-varying `Modifier` values** (an `alpha` animation is a modifier argument, so the `Modifier` protocol must accept host-side animated values, not just constants). Sizing reference: this is at least as large as text input, and React Native's equivalent (moving animation onto the native thread) was among the largest subsystems that ecosystem built. Until this ships, [Layer 1](layer-1-authoring.md)'s checker **must reject** animation APIs — the failure mode of *not* rejecting them is silent, compiling guest code that ticks the boundary every frame.
 8. **Resources and assets.** `Image` and `Icon` take a required `Painter`, `ImageBitmap`, or `ImageVector` that no deferred expression can produce: the sandboxed guest has no filesystem, no network, and no stable host resource identifiers (integer resource identifiers change across host builds, and the guest ships months apart from the host). The subsystem comprises: a Uniform Resource Locator (URL)-keyed host image-loading protocol with placeholder and error slots (Redwood's proven shape — its `Image` widget takes `url: String` and each host binding loads it: [`RedwoodUiBasic.kt`](https://github.com/cashapp/redwood/blob/trunk/redwood-ui-basic-schema/src/main/kotlin/app/cash/redwood/ui/basic/RedwoodUiBasic.kt)); an icon dictionary for the enumerable `Icons.*` `val` properties; a font story (payload-carried or host-resolved); and a localized-strings story (server-resolved or payload string tables). The 14 lowercase `*Resource` loaders are unavailable in the guest by construction.
@@ -161,6 +161,58 @@ The excluded set is not open-ended; it is a bounded list of subsystems that must
    **Registration is multi-tenant by design** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)). The dictionary is partitioned into **namespaced segments** — the generated androidx tier plus one segment per registered module (`dogwood.material3`, `acme.designsystem`, `acme.checkout-kit`) — with tag spaces partitioned by segment so registrations cannot collide, and a version per segment so one design system evolves without re-versioning the others. Registering a module is a Gradle declaration, after which the same pipeline runs for it as for the androidx tier: guest stubs, host bindings, dictionary segment, and the Layer 1 checker all derive from one parsed model. The bindability rule applies to registered signatures unchanged, and the build fails a registration whose signature violates it, naming the offending parameter. The manifest records every segment version the payload compiled against, and skew checking and containment operate per segment. A company with several design systems registers each with the same one-line operation.
 
    **Registered components absorb bespoke subsystems.** What a registered component does internally never crosses the boundary: a `PrimaryButton` owning its press animation needs none of the animation subsystem to deliver it; a registered `AsyncImage(url, placeholder)` delivers images without the general resources subsystem; a registered chart delivers what the `Canvas` exclusion forbids. The general subsystems above remain the long-term answer for the generated tier; registration is the short-term answer for a curated catalog.
+
+### The Host Environment
+
+A guest composition cannot see the device. It runs inside QuickJS with no display metrics, no resources, no system settings, no window, and no `Intl`. Every fact about where it is running arrives through one value, `DogwoodConfiguration`, or it does not exist at all. The subsystem that produces and delivers that value is described here; the decision record is [ADR-012](../adrs/layer-5/ADR-012-host-environment-subsystem.md).
+
+The subsystem has two halves, and keeping them apart is what makes it correct. **Derivation** happens in host composition and has no dispatcher, because composition is where the ambient values live. **Delivery** is a boundary crossing and therefore does have one.
+
+```mermaid
+flowchart TD
+  subgraph host["Host — user-interface thread"]
+    ambients["Compose ambient values<br/>LocalDensity · LocalLayoutDirection<br/>Locale.current · isSystemInDarkTheme<br/>WindowInsets"]
+    box["DogwoodEnvironment<br/>(BoxWithConstraints)"]
+    derive["rememberDogwoodConfiguration"]
+    palette["LocalPalette<br/>Palette.Light / Palette.Dark"]
+    session["DogwoodSession<br/>retains the current value"]
+    experience["DogwoodExperience.updateConfiguration"]
+    evaluator["ExpressionEvaluator<br/>colour memo, palette-keyed"]
+  end
+  subgraph guest["Guest — Zipline thread, inside QuickJS"]
+    push["DogwoodComposition.updateConfiguration"]
+    state["configuration: MutableState"]
+    local["LocalDogwoodConfiguration"]
+    code["Guest composable code"]
+  end
+
+  ambients --> derive
+  box -- "measured viewport" --> derive
+  derive --> session
+  derive --> palette
+  palette --> evaluator
+  session -- "dropped if equal" --> experience
+  experience -- "hop to Zipline dispatcher" --> push
+  push --> state --> local --> code
+  code -- "recomposes only readers" --> code
+```
+
+#### Diagram Node Definitions
+
+- **Compose ambient values.** The five sources every field is derived from. `LocalDensity` supplies density *and* font scale, kept as separate fields because a user who enlarges text has not enlarged everything. `LocalLayoutDirection` becomes a boolean rather than an ordinal, so that adding a third layout direction could never be a silent renumbering of the wire format. `androidx.compose.ui.text.intl.Locale.current` supplies the language tag. `isSystemInDarkTheme()` supplies dark mode, overridable by a host that has its own theme switch. `WindowInsets` supplies the safe areas, converted to density-independent pixels before crossing — the guest has no density it can trust to convert them itself.
+- **`DogwoodEnvironment`.** The composable a host places **exactly around the slot the experience occupies**. It measures that slot with `BoxWithConstraints` and provides the palette. Measuring the slot rather than the screen is the whole point: screen metrics are wrong in split screen, on a foldable's inner display, in a resizable desktop window, and in a side pane — and wrong silently, because a layout computed for a viewport 40% too wide still renders. It takes `windowInsets` as a parameter because a host that has already inset the slot has to say so rather than be inferred. **Measured, not assumed:** with the sample's banner wrapped in `windowInsetsPadding(safeDrawing.only(Top))`, `BoxWithConstraints` correctly reported the shrunk viewport — 868 rather than 920 density-independent pixels, because it measures the slot it is actually given — while a composition read of `WindowInsets.safeDrawing` still reported the full 52-pixel top inset the ancestor had already paid for. Two ambient facts about the same padding, disagreeing; the parameter is how a host resolves it.
+- **`rememberDogwoodConfiguration`.** Assembles the value and `remember`s it on its own contents, so an unrelated recomposition of the caller cannot manufacture a fresh-but-equal configuration. A new value is a boundary crossing and a guest recomposition; an equal-but-not-identical one would buy both for nothing.
+- **`LocalPalette`.** The palette in force, as a *dynamic* composition local — a static one would not invalidate its readers when the theme changed. `Palette` is a class with `Light` and `Dark` instances, not an object of constants, because the same token name must resolve to a different colour in a different theme.
+- **`DogwoodSession`.** Retains the current configuration. That retention is the point rather than an optimisation: a code update published after the user rotated the device would otherwise hand the replacement guest the environment captured when the session was constructed, and the screen would come back laid out for a device the user is no longer holding.
+- **`DogwoodExperience.updateConfiguration`.** The crossing. Called on the user-interface thread, hops to the Zipline dispatcher, and asserts it arrived there — the guest is single-threaded and has no lock.
+- **`ExpressionEvaluator`.** Resolves `Colors.token(name)` recipes against the palette passed to it, clearing its colour memo when the palette identity changes. A memo keyed on the recipe alone would repaint the screen in the old theme with no other symptom. Shapes are palette-independent and are not invalidated.
+- **`DogwoodComposition.updateConfiguration`.** The guest entry point, guarded against re-entrancy like every other, because a host call arriving mid-composition would interleave two passes into one batch.
+- **`configuration: MutableState`.** Snapshot state with the default structural-equality policy. This is the second of two dedupes: the session drops an equal value before it crosses, and an equal value that does cross invalidates nothing. Two dedupes are deliberate — together they are what make it safe for a host to push the environment liberally from composition rather than trying to work out for itself whether it moved.
+- **`LocalDogwoodConfiguration`** and **guest composable code.** The value as guest code sees it: an ordinary `CompositionLocal`. Because it is snapshot state, a rotation recomposes the nodes that *read* it and nothing else — a screen of 160 nodes with one responsive card width costs one `PropertySet`, not a re-emit.
+
+**Derived views live in `dogwood-protocol`, not on either side.** `WidthClass` (Compact below 600 density-independent pixels, Medium below 840, Expanded above — Google's published Material window size classes) and `language` are shared, because a guest laying out for "compact" and a host measuring "compact" must mean the same thing. Breakpoints that drifted apart would produce a disagreement invisible until somebody reported a layout bug on one device.
+
+**On Android this subsystem replaces activity recreation.** A host that declares `android:configChanges` for orientation, screen size, `uiMode`, density, font scale, locale and layout direction keeps its QuickJS instance, its composition, and the guest's `rememberSaveable` state across a rotation, and pays one recomposition of the nodes that read the environment. A host that does not is not broken — it simply pays a full guest reload for every rotation.
 
 ### What Deserves a Dictionary Entry
 

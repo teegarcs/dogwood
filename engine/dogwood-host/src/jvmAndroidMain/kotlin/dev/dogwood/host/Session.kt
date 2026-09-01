@@ -41,7 +41,7 @@ class DogwoodSession(
   private val manifestUrl: String,
   private val ziplineDispatcher: CoroutineDispatcher,
   private val uiScope: CoroutineScope,
-  private val configuration: DogwoodConfiguration = DogwoodConfiguration(),
+  initialConfiguration: DogwoodConfiguration = DogwoodConfiguration(),
   private val pollIntervalMs: Long = 5_000,
   private val onSwap: (SessionStatus) -> Unit = {},
   /** Every failed poll, including the first. A silent failure is a blank screen with no cause. */
@@ -51,6 +51,22 @@ class DogwoodSession(
 
   /** The experience to render. Changes when new code is adopted. */
   val experience: State<DogwoodExperience?> get() = currentExperience
+
+  /**
+   * The host environment, held so a guest adopted mid-session starts with the environment the
+   * device is actually in.
+   *
+   * Holding it is the whole point. Without it a code update published after the user rotated the
+   * device, enlarged their text, or switched to dark mode would hand the replacement guest the
+   * environment captured when the session was constructed -- and the screen would come back
+   * laid out for a device the user is no longer holding, with nothing to indicate why.
+   *
+   * Not synchronised, and it does not need to be: [updateConfiguration] is called from
+   * composition and [run] collects on the same user-interface scope, so both touch this from the
+   * user-interface thread. `flowOn` moves the *upstream* to the Zipline dispatcher, not the
+   * collector.
+   */
+  private var configuration: DogwoodConfiguration = initialConfiguration
 
   private var status = SessionStatus()
 
@@ -94,6 +110,19 @@ class DogwoodSession(
       )
       onSwap(status)
     }
+  }
+
+  /**
+   * Records the environment and pushes it into the live guest, if there is one.
+   *
+   * Call from the user-interface thread. Safe to call with an unchanged value: an equal
+   * configuration is dropped here rather than crossing the boundary, because a crossing is not
+   * free and a guest recomposition is less free still.
+   */
+  fun updateConfiguration(next: DogwoodConfiguration) {
+    if (next == configuration) return
+    configuration = next
+    currentExperience.value?.updateConfiguration(next)
   }
 
   fun close() {

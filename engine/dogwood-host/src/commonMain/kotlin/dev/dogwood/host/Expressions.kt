@@ -41,25 +41,19 @@ private const val COLOR_TOKEN = 4
  */
 private const val CACHE_LIMIT = 1000
 
-/** The host's named colours, resolvable by a guest that knows only the name. */
-private val colorTokens: Map<String, Color> = mapOf(
-  "ink" to Palette.Ink,
-  "inkSecondary" to Palette.InkSecondary,
-  "canvas" to Palette.Canvas,
-  "canvasContrast" to Palette.CanvasContrast,
-  "primary" to Palette.Primary,
-  "primaryContainer" to Palette.PrimaryContainer,
-  "onPrimary" to Palette.OnPrimary,
-  "line" to Palette.Line,
-  "success" to Palette.Success,
-  "successContainer" to Palette.SuccessContainer,
-  "warning" to Palette.Warning,
-  "warningContainer" to Palette.WarningContainer,
-)
-
 class ExpressionEvaluator {
   private val shapes = HashMap<JsonElement, Shape>()
   private val colors = HashMap<JsonElement, Color>()
+
+  /**
+   * Which palette the colour cache was filled against.
+   *
+   * A token recipe evaluates to a different colour in dark mode, so the memo is only valid while
+   * the palette is unchanged. Identity comparison, and a clear rather than a rebuild: a theme
+   * switch is rare, and a stale cache here would repaint the screen in the wrong theme with no
+   * other symptom.
+   */
+  private var cachedFor: Palette? = null
 
   /** Factory identifiers this client does not know. Telemetry, and the skew signal. */
   val unknownFactories = mutableSetOf<Int>()
@@ -80,13 +74,28 @@ class ExpressionEvaluator {
     return built
   }
 
-  fun color(expression: JsonElement, fallback: Color = Color.Unspecified): Color {
+  /**
+   * @param palette the palette in force, which token recipes resolve against. Passed rather than
+   *   held, because it changes while the evaluator does not: the evaluator's lifetime is the
+   *   guest's, and dark mode can flip several times inside one.
+   */
+  fun color(
+    expression: JsonElement,
+    palette: Palette,
+    fallback: Color = Color.Unspecified,
+  ): Color {
+    if (cachedFor !== palette) {
+      colors.clear()
+      cachedFor = palette
+    }
     colors[expression]?.let { return it }
     if (colors.size >= CACHE_LIMIT) colors.clear()
     val args = expression.jsonArray
     val built = when (val factory = args[0].jsonPrimitive.intOrNull) {
+      // A literal colour, which the guest may only send for something genuinely unthemed. It
+      // does not follow dark mode, and that is the point of preferring a token.
       COLOR_ARGB -> Color((args[1].jsonPrimitive.longOrNull ?: 0L).toULong() shl 32)
-      COLOR_TOKEN -> colorTokens[args[1].jsonPrimitive.content] ?: fallback
+      COLOR_TOKEN -> palette.token(args[1].jsonPrimitive.content) ?: fallback
       else -> {
         if (factory != null) unknownFactories += factory
         fallback

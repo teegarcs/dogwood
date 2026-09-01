@@ -160,7 +160,19 @@ class DogwoodComposition(
     frameClock.sendFrame(timeNanos)
   }
 
-  fun updateConfiguration(next: DogwoodConfiguration) {
+  /**
+   * Pushes a new host environment into the composition.
+   *
+   * Guarded like every other host entry point, because it is one: it arrives on the Zipline
+   * dispatcher while a frame or an event may already be in flight, and two composition passes
+   * interleaved into one batch would break the invariant that a batch is one pass.
+   *
+   * An unchanged configuration is free. The value is snapshot state with the default structural
+   * equality policy, so an equal value invalidates nothing and no frame is requested -- which is
+   * what makes it safe for a host to push the environment liberally rather than trying to work
+   * out whether it moved.
+   */
+  fun updateConfiguration(next: DogwoodConfiguration) = guestCall("updateConfiguration") {
     configuration.value = next
     Snapshot.sendApplyNotifications()
   }

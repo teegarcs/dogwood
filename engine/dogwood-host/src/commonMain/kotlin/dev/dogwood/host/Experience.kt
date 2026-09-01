@@ -151,8 +151,24 @@ class DogwoodExperience(
     return guest?.snapshotState() ?: StateSnapshot()
   }
 
-  fun configurationChanged(configuration: DogwoodConfiguration) {
-    uiScope.launch(ziplineDispatcher) { guest?.updateConfiguration(configuration) }
+  /**
+   * Pushes a new host environment into the running guest.
+   *
+   * Called from the user-interface thread -- it is derived from composition -- and hops to the
+   * Zipline dispatcher, because the guest is single-threaded and has no lock. Equal
+   * configurations are the caller's problem to suppress, and
+   * [rememberDogwoodConfiguration] does exactly that; the guest also dedupes structurally,
+   * since the value backing it is snapshot state.
+   */
+  fun updateConfiguration(configuration: DogwoodConfiguration) {
+    uiScope.launch(ziplineDispatcher) {
+      // Before the guest exists there is no thread binding to check against, and no one to tell.
+      // Ordering the null check first keeps a configuration that arrives during startup from
+      // failing the assertion instead of being harmlessly dropped.
+      val target = guest ?: return@launch
+      threads.checkZipline()
+      target.updateConfiguration(configuration)
+    }
   }
 
   fun close() {

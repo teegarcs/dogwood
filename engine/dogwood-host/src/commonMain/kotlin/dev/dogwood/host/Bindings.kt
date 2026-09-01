@@ -144,7 +144,7 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       modifier = modifier,
       maxLines = node.int(P2, Int.MAX_VALUE),
       overflow = TextOverflow.Ellipsis,
-      color = Palette.Ink,
+      color = palette().ink,
       style = MaterialTheme.typography.bodyLarge,
     )
 
@@ -166,9 +166,10 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       }
     }
 
-    DogwoodDictionary.Box.value -> Box(
-      modifier.background(Palette.CanvasContrast, RoundedCornerShape(Radius.Xs)),
-    ) {
+    // No default background. A `Box` is a transparent container, exactly as Compose's own is,
+    // and a host-painted default here would draw OVER whatever the guest's own
+    // `background(...)` modifier put down -- silently, because the result still renders.
+    DogwoodDictionary.Box.value -> Box(modifier) {
       RenderChildren(node, CONTENT, LayoutScope(), events)
     }
 

@@ -44,8 +44,8 @@ fun PrimaryButtonImpl(label: String, enabled: Boolean, modifier: Modifier, onCli
     enabled = enabled,
     shape = RoundedCornerShape(Radius.Sm),
     colors = ButtonDefaults.buttonColors(
-      containerColor = Palette.Primary,
-      contentColor = Palette.OnPrimary,
+      containerColor = palette().primary,
+      contentColor = palette().onPrimary,
     ),
     contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Md),
   ) {
@@ -64,7 +64,7 @@ fun AsyncImageImpl(
     model = url,
     contentDescription = contentDescription,
     contentScale = ContentScale.Crop,
-    modifier = modifier.clip(RoundedCornerShape(cornerRadiusDp.dp)).background(Palette.CanvasContrast),
+    modifier = modifier.clip(RoundedCornerShape(cornerRadiusDp.dp)).background(palette().canvasContrast),
     onError = { state -> println("dogwood: image failed for $url: ${state.result.throwable}") },
   )
 }
@@ -74,7 +74,7 @@ fun CardImpl(modifier: Modifier, content: @Composable () -> Unit) {
   Card(
     modifier = modifier,
     shape = RoundedCornerShape(Radius.Md),
-    colors = CardDefaults.cardColors(containerColor = Palette.Canvas),
+    colors = CardDefaults.cardColors(containerColor = palette().canvas),
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     content()
@@ -85,12 +85,12 @@ fun CardImpl(modifier: Modifier, content: @Composable () -> Unit) {
 fun BadgeImpl(text: String, selected: Boolean, modifier: Modifier) {
   Surface(
     modifier = modifier.clip(RoundedCornerShape(Radius.Xs)),
-    color = if (selected) Palette.SuccessContainer else Palette.CanvasContrast,
+    color = if (selected) palette().successContainer else palette().canvasContrast,
   ) {
     Text(
       text,
       modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
-      color = if (selected) Palette.Success else Palette.InkSecondary,
+      color = if (selected) palette().success else palette().inkSecondary,
       style = MaterialTheme.typography.labelMedium,
     )
   }
@@ -98,7 +98,7 @@ fun BadgeImpl(text: String, selected: Boolean, modifier: Modifier) {
 
 @Composable
 fun DividerImpl(modifier: Modifier) {
-  HorizontalDivider(modifier, color = Palette.Line)
+  HorizontalDivider(modifier, color = palette().line)
 }
 
 @Composable
@@ -107,12 +107,12 @@ fun ChipImpl(text: String, selected: Boolean, modifier: Modifier, onSelectedChan
     modifier = modifier
       .clip(RoundedCornerShape(Radius.Full))
       .clickable { onSelectedChange(!selected) },
-    color = if (selected) Palette.Primary else Palette.CanvasContrast,
+    color = if (selected) palette().primary else palette().canvasContrast,
   ) {
     Text(
       text,
       modifier = Modifier.padding(horizontal = Spacing.Base, vertical = Spacing.Md),
-      color = if (selected) Palette.OnPrimary else Palette.Ink,
+      color = if (selected) palette().onPrimary else palette().ink,
       style = MaterialTheme.typography.labelLarge,
     )
   }
@@ -127,32 +127,32 @@ fun PriceImpl(
   modifier: Modifier,
 ) {
   Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.Sm)) {
-    leadingText?.let { Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall) }
+    leadingText?.let { Text(it, color = palette().inkSecondary, style = MaterialTheme.typography.bodySmall) }
     previousPrice?.let {
       Text(
         it,
-        color = Palette.InkSecondary,
+        color = palette().inkSecondary,
         style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.LineThrough),
       )
     }
-    Text(price, color = Palette.Ink, style = MaterialTheme.typography.titleMedium)
-    trailingText?.let { Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall) }
+    Text(price, color = palette().ink, style = MaterialTheme.typography.titleMedium)
+    trailingText?.let { Text(it, color = palette().inkSecondary, style = MaterialTheme.typography.bodySmall) }
   }
 }
 
 @Composable
 fun StarRatingImpl(rating: Float, label: String?, modifier: Modifier) {
   Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.Sm)) {
-    Text("★", color = Palette.Star, style = MaterialTheme.typography.bodyMedium)
-    Text(rating.toString(), color = Palette.Ink, style = MaterialTheme.typography.labelLarge)
-    label?.let { Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall) }
+    Text("★", color = palette().star, style = MaterialTheme.typography.bodyMedium)
+    Text(rating.toString(), color = palette().ink, style = MaterialTheme.typography.labelLarge)
+    label?.let { Text(it, color = palette().inkSecondary, style = MaterialTheme.typography.bodySmall) }
   }
 }
 
 @Composable
 fun SectionHeaderImpl(title: String, description: String?, modifier: Modifier) {
   Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
-    Text(title, color = Palette.Ink, style = MaterialTheme.typography.titleLarge)
-    description?.let { Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodyMedium) }
+    Text(title, color = palette().ink, style = MaterialTheme.typography.titleLarge)
+    description?.let { Text(it, color = palette().inkSecondary, style = MaterialTheme.typography.bodyMedium) }
   }
 }

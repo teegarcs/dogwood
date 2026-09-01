@@ -10,9 +10,17 @@
  * The colours are NOT Backpack's. Its colour tokens are generated and not vendored here, so
  * these are ours, chosen to sit sensibly with its spacing. Saying so matters: a reader should
  * never have to guess which parts of this are borrowed and which are invented.
+ *
+ * Spacing and radius are constants because they do not vary with the environment. Colour is a
+ * *value* rather than a constant, because dark mode is a host fact that changes at runtime --
+ * see [Palette] and the host-environment subsystem in
+ * `adrs/layer-5/ADR-012-host-environment-subsystem.md`.
  */
 package dev.dogwood.host
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -37,19 +45,108 @@ object Radius {
   val Full = 100.dp
 }
 
-/** Ours, not Backpack's. */
-object Palette {
-  val Ink = Color(0xFF111236)
-  val InkSecondary = Color(0xFF5F6067)
-  val Canvas = Color(0xFFFFFFFF)
-  val CanvasContrast = Color(0xFFF1F2F8)
-  val Primary = Color(0xFF0770E3)
-  val PrimaryContainer = Color(0xFFE6F0FC)
-  val OnPrimary = Color(0xFFFFFFFF)
-  val Line = Color(0xFFDDDDE5)
-  val Success = Color(0xFF0C7D63)
-  val SuccessContainer = Color(0xFFE0F5F1)
-  val Warning = Color(0xFFB35C00)
-  val WarningContainer = Color(0xFFFDF2E4)
-  val Star = Color(0xFFFF9400)
+/**
+ * The host's named colours. Ours, not Backpack's.
+ *
+ * A class rather than an object, because there is more than one of them: the same token name
+ * resolves to a different colour in dark mode. This is the reason a guest may not send a literal
+ * colour for anything themed -- it would have to know which palette is in force, and it cannot,
+ * because the palette is a host fact that can change while the guest is running.
+ */
+class Palette(
+  val name: String,
+  val ink: Color,
+  val inkSecondary: Color,
+  val canvas: Color,
+  val canvasContrast: Color,
+  val primary: Color,
+  val primaryContainer: Color,
+  val onPrimary: Color,
+  val line: Color,
+  val success: Color,
+  val successContainer: Color,
+  val warning: Color,
+  val warningContainer: Color,
+  val star: Color,
+) {
+  /**
+   * Resolves a token by the name the guest sent, or null when this client has never heard of it.
+   *
+   * Null rather than a throw: a guest built against a newer dictionary may name a token this
+   * client's palette does not carry, and skew must degrade rather than crash. The caller decides
+   * the fallback.
+   */
+  fun token(name: String): Color? = when (name) {
+    "ink" -> ink
+    "inkSecondary" -> inkSecondary
+    "canvas" -> canvas
+    "canvasContrast" -> canvasContrast
+    "primary" -> primary
+    "primaryContainer" -> primaryContainer
+    "onPrimary" -> onPrimary
+    "line" -> line
+    "success" -> success
+    "successContainer" -> successContainer
+    "warning" -> warning
+    "warningContainer" -> warningContainer
+    "star" -> star
+    else -> null
+  }
+
+  companion object {
+    val Light = Palette(
+      name = "light",
+      ink = Color(0xFF111236),
+      inkSecondary = Color(0xFF5F6067),
+      canvas = Color(0xFFFFFFFF),
+      canvasContrast = Color(0xFFF1F2F8),
+      primary = Color(0xFF0770E3),
+      primaryContainer = Color(0xFFE6F0FC),
+      onPrimary = Color(0xFFFFFFFF),
+      line = Color(0xFFDDDDE5),
+      success = Color(0xFF0C7D63),
+      successContainer = Color(0xFFE0F5F1),
+      warning = Color(0xFFB35C00),
+      warningContainer = Color(0xFFFDF2E4),
+      star = Color(0xFFFF9400),
+    )
+
+    /**
+     * The same token names, resolved for a dark surface.
+     *
+     * Not an inversion: `primary` is lightened rather than flipped, because a mid-blue that
+     * carries white text on white fails contrast against near-black.
+     */
+    val Dark = Palette(
+      name = "dark",
+      ink = Color(0xFFF3F3F7),
+      inkSecondary = Color(0xFFA8A9B4),
+      canvas = Color(0xFF15161C),
+      canvasContrast = Color(0xFF23252E),
+      primary = Color(0xFF6BA9F0),
+      primaryContainer = Color(0xFF1B2C42),
+      onPrimary = Color(0xFF06182B),
+      line = Color(0xFF33353F),
+      success = Color(0xFF4FC7AA),
+      successContainer = Color(0xFF10312B),
+      warning = Color(0xFFE9A24B),
+      warningContainer = Color(0xFF362514),
+      star = Color(0xFFFFB13D),
+    )
+  }
 }
+
+/**
+ * The palette in force.
+ *
+ * A dynamic `compositionLocalOf` rather than a static one, precisely because it changes: a
+ * device switching to dark mode mid-session must repaint, and a static local would not
+ * invalidate its readers. [DogwoodEnvironment] provides it; the default is light so that a host
+ * that never opts into theming still renders.
+ */
+val LocalPalette = compositionLocalOf { Palette.Light }
+
+/** Shorthand for the palette in force, for the many binding implementations that read it. */
+@Composable
+@ReadOnlyComposable
+fun palette(): Palette = LocalPalette.current

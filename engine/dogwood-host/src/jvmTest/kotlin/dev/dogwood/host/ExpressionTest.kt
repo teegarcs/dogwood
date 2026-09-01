@@ -26,7 +26,7 @@ class ExpressionTest {
     val evaluator = ExpressionEvaluator()
     assertEquals(RoundedCornerShape(8.dp), evaluator.shape(expr("[1,8]")))
     assertEquals(CircleShape, evaluator.shape(expr("[2]")))
-    assertEquals(Palette.Primary, evaluator.color(expr("""[4,"primary"]""")))
+    assertEquals(Palette.Light.primary, evaluator.color(expr("""[4,"primary"]"""), Palette.Light))
   }
 
   @Test
@@ -54,7 +54,7 @@ class ExpressionTest {
     // tag becomes a placeholder rather than a crash.
     val shape = evaluator.shape(expr("[99,1]"), fallback = CircleShape)
     assertSame(CircleShape, shape)
-    assertEquals(Color.Unspecified, evaluator.color(expr("[98]")))
+    assertEquals(Color.Unspecified, evaluator.color(expr("[98]"), Palette.Light))
     assertTrue(99 in evaluator.unknownFactories && 98 in evaluator.unknownFactories)
   }
 
@@ -62,6 +62,40 @@ class ExpressionTest {
   fun anUnknownColourTokenFallsBack() {
     val evaluator = ExpressionEvaluator()
     // Known factory, unknown token: the same skew, one level down.
-    assertEquals(Color.Unspecified, evaluator.color(expr("""[4,"chartreuse"]""")))
+    assertEquals(Color.Unspecified, evaluator.color(expr("""[4,"chartreuse"]"""), Palette.Light))
+  }
+
+  @Test
+  fun aTokenResolvesAgainstThePaletteInForce() {
+    val evaluator = ExpressionEvaluator()
+    // The same recipe, twice, either side of a theme switch. If the memo were keyed on the
+    // recipe alone the screen would stay in the old theme with nothing to show why.
+    assertEquals(Palette.Light.primary, evaluator.color(expr("""[4,"primary"]"""), Palette.Light))
+    assertEquals(Palette.Dark.primary, evaluator.color(expr("""[4,"primary"]"""), Palette.Dark))
+    assertEquals(Palette.Light.primary, evaluator.color(expr("""[4,"primary"]"""), Palette.Light))
+  }
+
+  @Test
+  fun aLiteralColourDoesNotFollowTheTheme() {
+    val evaluator = ExpressionEvaluator()
+    // Deliberate: a guest that sends an ARGB literal has opted out of theming, and it gets what
+    // it asked for. This is the reason a token is the recommended form for anything themed.
+    val light = evaluator.color(expr("[3,4278190335]"), Palette.Light)
+    val dark = evaluator.color(expr("[3,4278190335]"), Palette.Dark)
+    assertEquals(light, dark)
+  }
+
+  @Test
+  fun everyTokenNameResolvesInBothPalettes() {
+    // A palette that carries a name in light but not in dark would render one theme correctly
+    // and fall back to Color.Unspecified -- invisible text -- in the other.
+    val names = listOf(
+      "ink", "inkSecondary", "canvas", "canvasContrast", "primary", "primaryContainer",
+      "onPrimary", "line", "success", "successContainer", "warning", "warningContainer", "star",
+    )
+    for (name in names) {
+      assertTrue(Palette.Light.token(name) != null, "light palette is missing '$name'")
+      assertTrue(Palette.Dark.token(name) != null, "dark palette is missing '$name'")
+    }
   }
 }

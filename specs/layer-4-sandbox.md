@@ -126,13 +126,15 @@ This is Dogwood's real cross-process boundary: a Zipline service boundary serial
 interface DogwoodGuestUi : ZiplineService {          // ZiplineService extends AutoCloseable
   fun start(
     host: DogwoodHost,
-    configuration: Flow<DogwoodConfiguration>,  // a flow, not a one-shot -- see below
+    configuration: DogwoodConfiguration,        // the value at launch; pushed after -- see below
     launchParams: JsonElement,                  // serializable entry parameters, ADR-004 §2.5
     segmentVersions: Map<String, Int>,          // per-segment dictionary versions, ADR-006
+    restoredState: StateSnapshot? = null,       // carried across a code update
   )
   fun sendEvent(event: Event)
   fun frame(timeNanos: Long)
   fun snapshotState(): StateSnapshot
+  fun updateConfiguration(configuration: DogwoodConfiguration)
   override fun close()
 }
 ```
@@ -155,7 +157,11 @@ interface DogwoodHost : ZiplineService {
 
 **Lifecycle.** Every service is closed through a `ZiplineScope`; teardown order is guest services first, then the `Zipline` instance. Zipline services that are not closed leak the guest-side proxy and its host reference.
 
-**Configuration is a flow, not a one-shot value.** Density, layout direction, dark mode, safe-area insets, viewport size, and **locale** all change at runtime, so `DogwoodConfiguration` is delivered as a `StateFlow` and exposed to guest code as a `CompositionLocal`. Locale is required twice over: for the resources subsystem ([Layer 5](layer-5-host.md), subsystem 8) and because the pinned QuickJS ships no ECMA-402 `Intl`, so guest-side locale-aware formatting has no built-in primitive. The dictionary state, by contrast, is fixed for a composition's lifetime and is passed at construction as a `staticCompositionLocalOf` — **a map of segment name to version** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)), not a scalar, so guest capability branching is per segment: `if (DogwoodSegments["acme.designsystem"] >= 3) ...`.
+**Configuration changes at runtime, and is pushed rather than pulled.** Density, layout direction, dark mode, safe-area insets, viewport size, and **locale** all move while a screen is live, so `DogwoodConfiguration` is not a one-shot launch parameter. An earlier draft of this specification declared it as a `Flow<DogwoodConfiguration>` parameter to `start`, mirroring Redwood's `UiConfiguration`. **The implementation pushes instead**, through `updateConfiguration`, and the reason is the threading contract: the value is *derived in host composition*, so it is already produced on the user-interface thread, and a push lets the crossing state which dispatcher it hops to and assert it got there. A long-lived flow across the boundary would have to be collected somewhere, and the somewhere is the thing this layer is careful about. The value is exposed to guest code as a `CompositionLocal`.
+
+**An unchanged environment must cost nothing, and it is deduplicated twice.** The host drops an equal configuration before it crosses; the guest's backing value is snapshot state with the default structural-equality policy, so an equal value that does cross invalidates nothing and requests no frame. Both halves matter, because the host derives the configuration in composition and will therefore offer it far more often than it changes. See [Layer 5 ADR-012](../adrs/layer-5/ADR-012-host-environment-subsystem.md).
+
+Locale is required twice over: for the resources subsystem ([Layer 5](layer-5-host.md), subsystem 8) and because the pinned QuickJS ships no ECMA-402 `Intl`, so guest-side locale-aware formatting has no built-in primitive. The dictionary state, by contrast, is fixed for a composition's lifetime and is passed at construction as a `staticCompositionLocalOf` — **a map of segment name to version** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)), not a scalar, so guest capability branching is per segment: `if (DogwoodSegments["acme.designsystem"] >= 3) ...`.
 
 **What the boundary actually costs, measured.** Phase 0.3 has now run ([ADR-006](../adrs/layer-4/ADR-006-batch-crossing-is-guest-encoding.md)). For the reference screen's initial batch — 572 changes, 19,795 bytes — on a development machine faster than the gate device: the whole crossing is **24.06 ms** at p50, of which **guest-side encoding is 99.4%** and `CallChannel` transport is **1.0%**. The governing variable is **how much interpreted Kotlin runs while encoding**, not how many bytes come out: a bake-off over six wire formats ([ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md)) found candidates that are smaller and slower, and a winner that is smaller *and* twenty times faster. Three consequences for anyone implementing this layer. First, **build the batch as native JavaScript values and let QuickJS's own `JSON.stringify` do the work** — positional JSON constructed that way crosses in **1.23 ms** where the same batch through `kotlinx.serialization` costs **24 ms**. Second, **do not reach for a binary format**: protocol buffers (+45%) and Concise Binary Object Representation (CBOR) (+908%) were measured and are slower, because their encoders are interpreted Kotlin and because `CallChannel` is a string channel that forces a Base64 surcharge on top. Third, steady state is cheap — a one-change batch crosses in 0.12 ms — so the expensive crossing is the *initial* batch, once per screen open, not the per-frame diff.
 

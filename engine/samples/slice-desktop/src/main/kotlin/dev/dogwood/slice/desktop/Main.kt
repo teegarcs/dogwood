@@ -9,16 +9,19 @@
  */
 package dev.dogwood.slice.desktop
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,10 +29,14 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.cash.zipline.loader.ZiplineCache
+import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodExperience
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.Palette
 import dev.dogwood.host.cachePath
+import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.widthClass
 import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -52,19 +59,34 @@ fun main() = application {
     state = rememberWindowState(width = 420.dp, height = 900.dp),
     title = "Dogwood — Phase 1 slice",
   ) {
-    MaterialTheme {
-      Surface(Modifier.fillMaxSize()) {
-        SliceHost()
+    // A resizable window is the cheapest way to exercise the host environment subsystem: drag
+    // the edge and the viewport the guest is told about changes with it, live.
+    val dark = isSystemInDarkTheme()
+    MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
+      Surface(Modifier.fillMaxSize(), color = (if (dark) Palette.Dark else Palette.Light).canvas) {
+        DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->
+          SliceHost(configuration)
+        }
       }
     }
   }
 }
 
 @androidx.compose.runtime.Composable
-private fun SliceHost() {
+private fun SliceHost(configuration: DogwoodConfiguration) {
   val uiScope = rememberCoroutineScope()
   var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
   var failure by remember { mutableStateOf<String?>(null) }
+  // Read at start time rather than captured at first composition, so a window resized while the
+  // first load is still in flight still hands the guest the size it ends up with.
+  val latestConfiguration by rememberUpdatedState(configuration)
+
+  // Resizing the window, or the operating system flipping to dark mode, pushes the new
+  // environment into the running guest. Equal values are dropped inside the experience's guest,
+  // where the configuration is snapshot state, so this costs nothing while nothing moves.
+  LaunchedEffect(configuration, experience) {
+    experience?.updateConfiguration(configuration)
+  }
 
   // The Zipline dispatcher is a single thread, and it is the only thread that may touch the
   // guest. Eight megabytes of stack because interpreted composition is deeply recursive.
@@ -93,7 +115,7 @@ private fun SliceHost() {
       println("loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
       // Constructed here, on the user-interface thread, because that is the thread it binds.
       val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
-      withContext(dispatcher) { created.start() }
+      withContext(dispatcher) { created.start(configuration = latestConfiguration) }
       experience = created
     } catch (e: Throwable) {
       failure = "could not load the guest: ${e.message}\n\n" +
@@ -105,7 +127,15 @@ private fun SliceHost() {
 
   failure?.let { androidx.compose.material3.Text(it, Modifier.fillMaxSize()) }
   experience?.let {
-    // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
-    DogwoodSurface(it, Modifier.fillMaxSize())
+    Column(Modifier.fillMaxSize()) {
+      androidx.compose.material3.Text(
+        "${configuration.viewportWidthDp}×${configuration.viewportHeightDp}dp " +
+          "(${configuration.widthClass}) · ${if (configuration.darkMode) "dark" else "light"} · " +
+          "${configuration.locale}",
+        style = MaterialTheme.typography.labelSmall,
+      )
+      // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
+      DogwoodSurface(it, Modifier.fillMaxSize())
+    }
   }
 }

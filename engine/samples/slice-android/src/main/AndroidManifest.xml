@@ -9,9 +9,18 @@
       android:label="Dogwood Slice"
       android:allowBackup="false"
       android:networkSecurityConfig="@xml/network_security_config">
+    <!--
+      Dogwood handles configuration changes itself: the host derives the environment and pushes
+      it into the running guest, which recomposes only the nodes that read it. Letting Android
+      destroy and recreate the activity instead would tear down the QuickJS instance, refetch the
+      guest, and lose its state on every rotation, for a screen the guest is perfectly capable of
+      re-laying out in place. This declaration is what makes the host-environment subsystem worth
+      having rather than a slower route to the same recreation.
+    -->
     <activity
         android:name=".SliceActivity"
         android:exported="true"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
         android:theme="@style/Theme.Dogwood">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
