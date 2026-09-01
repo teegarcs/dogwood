@@ -42,6 +42,9 @@ object Tags {
   val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
   val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
+  /** Generated, and named here so tests can find the node they mean. */
+  val TextInput = widgetTag(Segments.DESIGN_SYSTEM, 13)
+
   /** The single content slot every container in this slice declares. */
   val Content = ChildrenTag(1)
 

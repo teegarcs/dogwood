@@ -49,6 +49,8 @@ import dev.dogwood.compose.Icon
 import dev.dogwood.compose.LocalStringTable
 import dev.dogwood.compose.Shapes
 import dev.dogwood.compose.StringTable
+import dev.dogwood.compose.TextField
+import dev.dogwood.compose.rememberDogwoodTextFieldState
 import dev.dogwood.compose.strings
 import dev.dogwood.compose.background
 import dev.dogwood.compose.clip
@@ -137,12 +139,14 @@ private val exploreStrings = StringTable(
       "returnFlight" to "return",
       "perNight" to "per night",
       "staysIn" to "Stays in",
+      "filterStays" to "Filter stays",
     ),
     "ja" to mapOf(
       "exploreTitle" to "航空券と宿泊",
       "returnFlight" to "往復",
       "perNight" to "1泊あたり",
       "staysIn" to "宿泊先:",
+      "filterStays" to "宿泊先を絞り込む",
     ),
   ),
 )
@@ -226,6 +230,19 @@ private fun ExploreContent(params: ExploreParams) {
 
       is FeedState.Ready -> {
         val feed = current.feed
+        // The field's text lives host-side, so typing never waits for a boundary crossing. What
+        // does cross is the value, once per keystroke -- and the list below recomposes from it.
+        // That is the right split: a stutter in a filtered list is a slow list, a stutter in a
+        // text field is a broken keyboard.
+        val query = rememberDogwoodTextFieldState()
+        val matches = if (query.text.isBlank()) {
+          feed.stays
+        } else {
+          feed.stays.filter {
+            it.name.contains(query.text, ignoreCase = true) ||
+              it.area.contains(query.text, ignoreCase = true)
+          }
+        }
 
         HorizontalList(spacingDp = 12) {
           for (destination in feed.destinations) {
@@ -259,13 +276,20 @@ private fun ExploreContent(params: ExploreParams) {
         SectionHeader(
           title = "${strings("staysIn")} ${params.city}",
           description = if (savedStays == 0) {
-            "${feed.stays.size} properties"
+            "${matches.size} properties"
           } else {
-            "${feed.stays.size} properties · $savedStays saved"
+            "${matches.size} properties · $savedStays saved"
           },
         )
 
-        for (stay in feed.stays) {
+        TextField(
+          state = query,
+          modifier = DogwoodModifier.fillMaxWidth(),
+          label = strings("filterStays"),
+          singleLine = true,
+        )
+
+        for (stay in matches) {
           StayCard(
             stay,
             // Wider rooms get a larger thumbnail. The guest decides this, not the host, because
@@ -283,7 +307,7 @@ private fun ExploreContent(params: ExploreParams) {
         }
 
         PrimaryButton(
-          label = "See all ${feed.stays.size} stays",
+          label = "See all ${matches.size} stays",
           modifier = DogwoodModifier.fillMaxWidth().padding(4),
           onClick = { savedStays = 0 },
         )

@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 3,
+    "version": 4,
     "components": [
         {
             "name": "PrimaryButton",
@@ -107,6 +107,26 @@
             },
             "slots": {},
             "events": {}
+        },
+        {
+            "name": "TextInput",
+            "localTag": 13,
+            "properties": {
+                "text": 1,
+                "version": 2,
+                "label": 3,
+                "placeholder": 4,
+                "enabled": 5,
+                "singleLine": 6,
+                "maxLength": 7,
+                "mask": 8,
+                "keyboard": 9,
+                "showCounter": 10
+            },
+            "slots": {},
+            "events": {
+                "onValueChange": 1
+            }
         }
     ],
     "reservedLocalTags": [

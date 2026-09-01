@@ -22,6 +22,9 @@ import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.Formats
+import dev.dogwood.compose.Keyboards
+import dev.dogwood.compose.TextField
+import dev.dogwood.compose.rememberDogwoodTextFieldState
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
 import dev.dogwood.protocol.widthClass
@@ -72,6 +75,25 @@ fun AboutScreen() {
     Text(Formats.percent(0.075, maximumFractionDigits = 1))
     Text(Formats.dateTime(now))
     Text(Formats.relativeTime(now - 3 * 86_400_000L, now))
+
+    Divider(modifier = DogwoodModifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Text input",
+      description = "The mask, the limit and the counter are all applied host-side, where the typing is.",
+    )
+    val card = rememberDogwoodTextFieldState()
+    TextField(
+      state = card,
+      modifier = DogwoodModifier.fillMaxWidth(),
+      label = "Card number",
+      mask = "#### #### #### ####",
+      keyboard = Keyboards.NUMBER,
+      showCounter = true,
+    )
+    // The guest sees digits. It never sees the spaces, so changing the mask cannot change what
+    // validation reads.
+    Text("guest sees: \"${card.text}\"")
 
     Divider(modifier = DogwoodModifier.fillMaxWidth())
 

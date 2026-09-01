@@ -350,8 +350,12 @@ private fun canBeSaved(value: Any?): Boolean = when (value) {
   null -> true
   is MutableState<*> -> canBeSaved(value.value)
   is Int, is Long, is Float, is Double, is Boolean, is String -> true
-  // Deliberately narrow. A saved value has to survive JSON, and a guest that tries to save
-  // something richer should be told at the call site rather than discover on the next code
+  // Lists of saveable values, which is what Compose's own `listSaver` produces and therefore the
+  // idiomatic way to save a holder with more than one field. Checked element by element rather
+  // than assumed: a list is only saveable if everything in it is.
+  is List<*> -> value.all(::canBeSaved)
+  // Deliberately narrow beyond that. A saved value has to survive JSON, and a guest that tries to
+  // save something richer should be told at the call site rather than discover on the next code
   // update that its state quietly vanished.
   else -> false
 }
@@ -368,11 +372,13 @@ private fun toJson(value: Any?): JsonElement = when (value) {
   is Float -> JsonPrimitive(value)
   is Double -> JsonPrimitive(value)
   is String -> JsonPrimitive(value)
+  is List<*> -> kotlinx.serialization.json.JsonArray(value.map(::toJson))
   // Unreachable: canBeSaved rejects anything else before it gets here.
   else -> error("guest tried to save an unsupported value")
 }
 
 private fun fromJson(value: JsonElement): Any? {
+  if (value is kotlinx.serialization.json.JsonArray) return value.map(::fromJson)
   if (value is JsonObject) {
     val inner = value[STATE_ENVELOPE] ?: return null
     return mutableStateOf(fromJson(inner))

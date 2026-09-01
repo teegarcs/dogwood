@@ -29,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -193,3 +195,100 @@ fun IconImpl(
     tint = color,
   )
 }
+
+/**
+ * The host half of text input.
+ *
+ * **The host is authoritative for the text**, and everything below follows from that one decision.
+ * A controlled field -- one that asks the guest what the text should be after every keystroke --
+ * is a boundary crossing per character with a composition on the far side of it, racing the next
+ * keystroke. When it loses, the caret jumps, a character is swallowed, or the input method's
+ * composing region is torn apart mid-word. Layer 5 has forbidden it since the first coverage
+ * measurement, and this is what replaces it.
+ *
+ * The conflict rule is Redwood's, made explicit. This binding counts user edits. Every event
+ * carries the raw text and that count. A value arriving from the guest carries the count it last
+ * acknowledged, and **a value stamped older than the current count is discarded** -- the user has
+ * typed since, and the user wins. A programmatic set is therefore honoured exactly when the guest
+ * is up to date, which is exactly when it should be.
+ *
+ * The mask, the length limit and the counter never round trip at all. The guest declares them; the
+ * host applies them where the typing is happening.
+ */
+@Composable
+fun TextInputImpl(
+  text: String,
+  version: Int,
+  label: String?,
+  placeholder: String?,
+  enabled: Boolean,
+  singleLine: Boolean,
+  maxLength: Int,
+  mask: String?,
+  keyboard: String?,
+  showCounter: Boolean,
+  modifier: Modifier,
+  onValueChange: (String, Int) -> Unit,
+) {
+  // The authoritative value, and the count of edits made to it. Both survive a code update,
+  // because this binding keeps its composition group -- which is why the guest's state saver has
+  // to carry the count too, or every value it sent afterwards would be discarded as stale.
+  var raw by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(text) }
+  var editCount by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+
+  // The guest speaks. Adopted only when it is answering the newest edit; otherwise dropped,
+  // silently and on purpose, because the alternative is undoing what the user just typed.
+  androidx.compose.runtime.LaunchedEffect(text, version) {
+    if (version >= editCount && text != raw) raw = text
+  }
+
+  val capacity = when {
+    maxLength >= 0 -> maxLength
+    mask != null -> maskCapacity(mask)
+    else -> Int.MAX_VALUE
+  }
+
+  androidx.compose.material3.OutlinedTextField(
+    // The field's value is the **raw** text, always. The mask is a visual transformation over it,
+    // so the caret arithmetic stays Compose's -- which knows what the input method is doing.
+    value = raw,
+    onValueChange = { typed ->
+      val next = (if (mask != null) filterForMask(typed, mask) else typed).take(capacity)
+      if (next != raw) {
+        raw = next
+        editCount += 1
+        onValueChange(next, editCount)
+      }
+    },
+    modifier = modifier,
+    enabled = enabled,
+    singleLine = singleLine,
+    label = label?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
+    placeholder = placeholder?.let { { Text(it, color = palette().inkSecondary) } },
+    supportingText = if (showCounter && capacity != Int.MAX_VALUE) {
+      { Text("${raw.length}/$capacity", color = palette().inkSecondary, style = MaterialTheme.typography.labelSmall) }
+    } else {
+      null
+    },
+    keyboardOptions = keyboardOptionsFor(keyboard),
+    visualTransformation = when {
+      keyboard == "password" -> androidx.compose.ui.text.input.PasswordVisualTransformation()
+      mask != null -> MaskTransformation(mask)
+      else -> androidx.compose.ui.text.input.VisualTransformation.None
+    },
+    shape = RoundedCornerShape(Radius.Sm),
+  )
+}
+
+/** Keyboards are named, not ordinals, so a new one is an addition rather than a renumbering. */
+private fun keyboardOptionsFor(name: String?): androidx.compose.foundation.text.KeyboardOptions =
+  androidx.compose.foundation.text.KeyboardOptions(
+    keyboardType = when (name) {
+      "number" -> androidx.compose.ui.text.input.KeyboardType.Number
+      "phone" -> androidx.compose.ui.text.input.KeyboardType.Phone
+      "email" -> androidx.compose.ui.text.input.KeyboardType.Email
+      "password" -> androidx.compose.ui.text.input.KeyboardType.Password
+      "decimal" -> androidx.compose.ui.text.input.KeyboardType.Decimal
+      else -> androidx.compose.ui.text.input.KeyboardType.Text
+    },
+  )

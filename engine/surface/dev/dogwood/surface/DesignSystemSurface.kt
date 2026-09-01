@@ -102,3 +102,35 @@ fun Icon(
   sizeDp: Int = 24,
   tint: String? = null,
 ) {}
+
+/**
+ * A text field whose state the host owns.
+ *
+ * The low-level shape. Guest code should use `dev.dogwood.compose.TextField`, which wraps this in
+ * a `DogwoodTextFieldState` and hides the version stamping — see
+ * `adrs/layer-5/ADR-019-text-input.md` for why the version exists and why a naive controlled text
+ * field is forbidden.
+ *
+ * @param version the host edit count this value is answering. The host **discards** a value
+ *   stamped older than its own count, because the user has typed since.
+ * @param mask a display pattern: `#` takes a digit, `A` a letter, anything else is a literal. The
+ *   guest's [text] is always the raw value.
+ * @param maxLength raw characters, enforced host-side. -1 for no limit.
+ * @param showCounter drawn and computed by the host; a guest-computed counter would be a crossing
+ *   per keystroke.
+ */
+@Composable
+fun TextInput(
+  text: String,
+  version: Int = 0,
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  label: String? = null,
+  placeholder: String? = null,
+  enabled: Boolean = true,
+  singleLine: Boolean = true,
+  maxLength: Int = -1,
+  mask: String? = null,
+  keyboard: String? = null,
+  showCounter: Boolean = false,
+  onValueChange: (String, Int) -> Unit,
+) {}
