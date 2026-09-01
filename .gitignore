@@ -29,3 +29,6 @@ local.properties
 tools/api-dumps/*.txt
 !tools/api-dumps/SOURCE.txt
 __pycache__/
+
+# Generated into the source tree by the Zipline Gradle plugin's writeZiplineWebpackConfig task
+tools/phase0/*/webpack.config.d/generated-zipline-webpack-config.js

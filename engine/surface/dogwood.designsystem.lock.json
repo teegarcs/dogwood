@@ -1,0 +1,185 @@
+{
+    "segmentName": "dogwoodDesignSystem",
+    "segmentId": 1,
+    "version": 5,
+    "components": [
+        {
+            "name": "PrimaryButton",
+            "localTag": 1,
+            "properties": {
+                "label": 1,
+                "enabled": 2
+            },
+            "propertyTypes": {
+                "label": "TextValue",
+                "enabled": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "onClick": 1
+            }
+        },
+        {
+            "name": "AsyncImage",
+            "localTag": 2,
+            "properties": {
+                "url": 1,
+                "contentDescription": 2,
+                "cornerRadiusDp": 3
+            },
+            "propertyTypes": {
+                "url": "String",
+                "contentDescription": "String?",
+                "cornerRadiusDp": "Int"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Card",
+            "localTag": 3,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Badge",
+            "localTag": 4,
+            "properties": {
+                "text": 1,
+                "selected": 2
+            },
+            "propertyTypes": {
+                "text": "TextValue",
+                "selected": "Boolean"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Divider",
+            "localTag": 5,
+            "properties": {},
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Chip",
+            "localTag": 6,
+            "properties": {
+                "text": 1,
+                "selected": 2
+            },
+            "propertyTypes": {
+                "text": "TextValue",
+                "selected": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "onSelectedChange": 1
+            }
+        },
+        {
+            "name": "Price",
+            "localTag": 7,
+            "properties": {
+                "price": 1,
+                "leadingText": 2,
+                "previousPrice": 3,
+                "trailingText": 4
+            },
+            "propertyTypes": {
+                "price": "TextValue",
+                "leadingText": "TextValue?",
+                "previousPrice": "TextValue?",
+                "trailingText": "TextValue?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "StarRating",
+            "localTag": 8,
+            "properties": {
+                "rating": 1,
+                "label": 2
+            },
+            "propertyTypes": {
+                "rating": "Float",
+                "label": "TextValue?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "SectionHeader",
+            "localTag": 9,
+            "properties": {
+                "title": 1,
+                "description": 2
+            },
+            "propertyTypes": {
+                "title": "TextValue",
+                "description": "TextValue?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Icon",
+            "localTag": 12,
+            "properties": {
+                "name": 1,
+                "contentDescription": 2,
+                "sizeDp": 3,
+                "tint": 4
+            },
+            "propertyTypes": {
+                "name": "String",
+                "contentDescription": "String?",
+                "sizeDp": "Int",
+                "tint": "Color?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "TextInput",
+            "localTag": 13,
+            "properties": {
+                "text": 1,
+                "version": 2,
+                "label": 3,
+                "placeholder": 4,
+                "enabled": 5,
+                "singleLine": 6,
+                "maxLength": 7,
+                "mask": 8,
+                "keyboard": 9,
+                "showCounter": 10
+            },
+            "propertyTypes": {
+                "text": "String",
+                "version": "Int",
+                "label": "TextValue?",
+                "placeholder": "TextValue?",
+                "enabled": "Boolean",
+                "singleLine": "Boolean",
+                "maxLength": "Int",
+                "mask": "String?",
+                "keyboard": "String?",
+                "showCounter": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "onValueChange": 1
+            }
+        }
+    ],
+    "reservedLocalTags": [
+        10,
+        11
+    ]
+}

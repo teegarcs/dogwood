@@ -1,0 +1,47 @@
+# Pinned toolchain for the Dogwood engine. Same pins as the Phase 0 harness, because the
+# Phase 0 numbers are only meaningful for the toolchain that produced them.
+[versions]
+zipline = "1.27.0"
+kotlin = "2.3.20"
+coroutines = "1.10.2"
+serialization = "1.10.0"
+composeRuntime = "1.12.0"      # androidx.compose.runtime:runtime-js, for the guest
+composeMultiplatform = "1.10.3" # the host renderer
+agp = "8.13.2"
+okio = "3.17.0"
+compileSdk = "36"
+minSdk = "26"
+
+[libraries]
+zipline = { module = "app.cash.zipline:zipline", version.ref = "zipline" }
+zipline-loader = { module = "app.cash.zipline:zipline-loader", version.ref = "zipline" }
+compose-runtime-js = { module = "androidx.compose.runtime:runtime-js", version.ref = "composeRuntime" }
+compose-runtime-saveable-js = { module = "androidx.compose.runtime:runtime-saveable-js", version.ref = "composeRuntime" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+# The generator parses Kotlin source with the compiler's own frontend. Metalava dumps carry no
+# default expressions and 73.9% of parameters are optional, so dumps cannot be the source of
+# truth -- see Layer 5 ADR-002.
+kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version = "5.3.2" }
+# Real image loading, so `AsyncImage(url)` fetches a picture rather than drawing a placeholder.
+# Coil 3 targets Compose Multiplatform, which keeps the binding common across hosts.
+# Pinned to 3.4.0 rather than the newest: 3.6.0 requires compiling against Android API 37, and
+# the Android Gradle Plugin pinned here supports 36. The toolchain pin wins over the version pin.
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version = "3.4.0" }
+coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version = "3.4.0" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.11.0" }
+redwood-leak-detector = { module = "app.cash.redwood:redwood-leak-detector", version = "0.18.0" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+zipline = { id = "app.cash.zipline", version.ref = "zipline" }
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
