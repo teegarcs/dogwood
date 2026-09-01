@@ -21,7 +21,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import dev.dogwood.protocol.DogwoodConfiguration
 import dev.dogwood.protocol.DogwoodGuestUi
 import dev.dogwood.protocol.DogwoodHost
+import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.Event
+import dev.dogwood.protocol.SERVICES_SEGMENT
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.coroutines.CoroutineScope
@@ -64,6 +66,9 @@ class DogwoodComposition(
   initialConfiguration: DogwoodConfiguration,
   private val segmentVersions: Map<String, Int>,
   restoredState: StateSnapshot?,
+  /** Resolved once by the caller, because every accessor call allocates a service proxy. */
+  private val services: GuestServices = GuestServices.None,
+  private val launchParams: JsonElement = JsonNull,
   content: @Composable () -> Unit,
 ) {
   private val recorder = ChangeRecorder()
@@ -112,6 +117,8 @@ class DogwoodComposition(
       CompositionLocalProvider(
         LocalDogwoodConfiguration provides configuration.value,
         LocalDogwoodSegments provides segmentVersions,
+        LocalDogwoodServices provides services,
+        LocalDogwoodLaunch provides launchParams,
         LocalSaveableStateRegistry provides saveableRegistry,
       ) {
         Children(Tags.Content) { content() }
@@ -135,6 +142,33 @@ class DogwoodComposition(
    */
   private var inGuestCall = false
 
+  /**
+   * Wakes the frame loop for state the guest changes **on its own**.
+   *
+   * Until host services existed, every guest state change began with a host call -- a frame, an
+   * event, a configuration push -- so sending apply notifications at the end of that call was
+   * enough, and this observer would have had nothing to do. A suspending service call breaks that
+   * assumption: the coroutine resumes long after the call that started it returned, writes state,
+   * and there is nobody left to notice.
+   *
+   * The symptom is precise and was seen before this existed: the network fetch completed, the log
+   * recorded the parsed feed, and the screen sat on "Loading..." until an unrelated tap happened
+   * to deliver the apply notification the write never sent.
+   *
+   * Writes made *during* composition go to the composition's own snapshot and do not reach a
+   * global observer, so this fires exactly for the case it is for. The frame request is coalesced
+   * on this side as well as the host's, because the observer fires per write and a crossing per
+   * write would be a boundary call for every field of every object a guest touches.
+   */
+  private var frameRequested = false
+
+  private val writeObserver = Snapshot.registerGlobalWriteObserver {
+    if (!frameRequested) {
+      frameRequested = true
+      host.requestFrame()
+    }
+  }
+
   private inline fun <T> guestCall(name: String, body: () -> T): T {
     check(!inGuestCall) {
       "re-entrant guest call: $name arrived while another was still running. A change batch is " +
@@ -156,6 +190,7 @@ class DogwoodComposition(
   }
 
   fun frame(timeNanos: Long) = guestCall("frame") {
+    frameRequested = false
     Snapshot.sendApplyNotifications()
     frameClock.sendFrame(timeNanos)
   }
@@ -207,6 +242,10 @@ class DogwoodComposition(
   val lambdaSlotCount: Int get() = lambdas.size
 
   fun dispose() {
+    // Before anything else: the observer is registered globally and captures this composition's
+    // host. A guest replaced by a code update that left its observer behind would keep asking a
+    // dead host for frames, once per generation, for the life of the QuickJS instance.
+    writeObserver.dispose()
     composition.dispose()
     recomposer.cancel()
     scope.cancel()
@@ -228,19 +267,54 @@ class DogwoodComposition(
  * which is what the manifest's `mainFunction` names.
  */
 class DogwoodGuest(
-  private val content: @Composable () -> Unit,
+  /**
+   * The experiences this payload offers, by name.
+   *
+   * Each takes the launch parameters as raw data, because the host cannot construct guest types.
+   * A payload with one experience registers one entry; a payload serving a whole application
+   * registers several and lets the host route.
+   */
+  private val entryPoints: Map<String, @Composable (JsonElement) -> Unit>,
 ) : DogwoodGuestUi {
+  constructor(vararg entryPoints: Pair<String, @Composable (JsonElement) -> Unit>) :
+    this(entryPoints.toMap())
+
   private var composition: DogwoodComposition? = null
+
+  /** Which entry points this guest offers, for diagnostics and for the unknown-name message. */
+  val offers: Set<String> get() = entryPoints.keys
 
   override fun start(
     host: DogwoodHost,
+    services: DogwoodServices,
+    entryPoint: String,
     configuration: DogwoodConfiguration,
     launchParams: JsonElement,
     segmentVersions: Map<String, Int>,
     restoredState: StateSnapshot?,
   ) {
     check(composition == null) { "start() called twice on one guest" }
-    composition = DogwoodComposition(host, configuration, segmentVersions, restoredState, content)
+    val content = entryPoints[entryPoint]
+    if (content == null) {
+      // Reported, not thrown into the void. An unknown entry point is a routing mistake between
+      // a host and a payload that ship separately, and the only way anyone finds out is if the
+      // host is told which names this payload actually offers.
+      host.handleUncaughtException(
+        IllegalArgumentException(
+          "no entry point named '$entryPoint'; this payload offers ${entryPoints.keys.sorted()}",
+        ),
+      )
+      return
+    }
+    composition = DogwoodComposition(
+      host = host,
+      initialConfiguration = configuration,
+      segmentVersions = segmentVersions,
+      restoredState = restoredState,
+      services = GuestServices.resolve(services, segmentVersions[SERVICES_SEGMENT] ?: 0),
+      launchParams = launchParams,
+      content = { content(launchParams) },
+    )
   }
 
   override fun snapshotState(): StateSnapshot =

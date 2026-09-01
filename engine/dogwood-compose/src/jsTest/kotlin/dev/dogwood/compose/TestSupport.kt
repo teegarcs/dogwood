@@ -16,6 +16,8 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.StateSnapshot
 import dev.dogwood.protocol.WidgetTag
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 
 /** Captures what crossed, so a test can assert on the traffic rather than on the screen. */
 internal class RecordingHost : DogwoodHost {
@@ -44,11 +46,20 @@ internal class RecordingHost : DogwoodHost {
 internal fun compose(
   configuration: DogwoodConfiguration = DogwoodConfiguration(),
   restoredState: StateSnapshot? = null,
+  services: GuestServices = GuestServices.None,
+  launchParams: JsonElement = JsonNull,
   content: @Composable () -> Unit,
 ): Pair<RecordingHost, DogwoodComposition> {
   val host = RecordingHost()
-  val composition =
-    DogwoodComposition(host, configuration, emptyMap(), restoredState, content)
+  val composition = DogwoodComposition(
+    host = host,
+    initialConfiguration = configuration,
+    segmentVersions = emptyMap(),
+    restoredState = restoredState,
+    services = services,
+    launchParams = launchParams,
+    content = content,
+  )
   return host to composition
 }
 

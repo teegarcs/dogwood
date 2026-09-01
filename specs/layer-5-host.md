@@ -156,7 +156,7 @@ The excluded set is not open-ended; it is a bounded list of subsystems that must
 6. **Node identity and reuse.** See below.
 7. **Animation.** The design invariant in [Layer 4](layer-4-sandbox.md) forbids per-frame state in the guest, and the whole `animate*AsState` / `updateTransition` / `Animatable` / `rememberInfiniteTransition` surface (34 lowercase functions, previously unmeasured) is exactly that. The promised replacement — "declare a target, the host runs it" — is a protocol that does not yet exist anywhere in this specification: it needs a grammar for targets, durations, springs and easings, interruption and retargeting semantics, completion events, dictionary entries, skew rules, and **time-varying `Modifier` values** (an `alpha` animation is a modifier argument, so the `Modifier` protocol must accept host-side animated values, not just constants). Sizing reference: this is at least as large as text input, and React Native's equivalent (moving animation onto the native thread) was among the largest subsystems that ecosystem built. Until this ships, [Layer 1](layer-1-authoring.md)'s checker **must reject** animation APIs — the failure mode of *not* rejecting them is silent, compiling guest code that ticks the boundary every frame.
 8. **Resources and assets.** `Image` and `Icon` take a required `Painter`, `ImageBitmap`, or `ImageVector` that no deferred expression can produce: the sandboxed guest has no filesystem, no network, and no stable host resource identifiers (integer resource identifiers change across host builds, and the guest ships months apart from the host). The subsystem comprises: a Uniform Resource Locator (URL)-keyed host image-loading protocol with placeholder and error slots (Redwood's proven shape — its `Image` widget takes `url: String` and each host binding loads it: [`RedwoodUiBasic.kt`](https://github.com/cashapp/redwood/blob/trunk/redwood-ui-basic-schema/src/main/kotlin/app/cash/redwood/ui/basic/RedwoodUiBasic.kt)); an icon dictionary for the enumerable `Icons.*` `val` properties; a font story (payload-carried or host-resolved); and a localized-strings story (server-resolved or payload string tables). The 14 lowercase `*Resource` loaders are unavailable in the guest by construction.
-9. **Host services, entry points, and host-registered components.** Three things every real deployment needs that Zipline makes *mechanically* easy and this specification had not designed: (a) the **entry-point contract** — how the host launches an experience and passes parameters (the host cannot construct guest types; the boundary needs a serializable launch payload and a named entry point in the manifest); (b) the **standard service surface** — network, authentication tokens, analytics, logging, feature flags, and clock, exposed as versioned Zipline services whose signatures live in the dictionary so they skew-check like everything else; and (c) the **registration mechanism** — running `dogwood-codegen`'s parser over the host application's own modules (design-system components, video players, maps, charts) and merging the result into the dictionary. Without (c) a guest can emit only raw Material 3, which no product team ships; Redwood's entire model was app-defined schemas, and deleting the schema must not delete the escape hatch.
+9. **Host services, entry points, and host-registered components. ✅ Two thirds delivered** ([ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md)); the registration mechanism, item (c) below, remains. Three things every real deployment needs that Zipline makes *mechanically* easy and this specification had not designed: (a) the **entry-point contract** — how the host launches an experience and passes parameters (the host cannot construct guest types; the boundary needs a serializable launch payload and a named entry point in the manifest); (b) the **standard service surface** — network, authentication tokens, analytics, logging, feature flags, and clock, exposed as versioned Zipline services whose signatures live in the dictionary so they skew-check like everything else; and (c) the **registration mechanism** — running `dogwood-codegen`'s parser over the host application's own modules (design-system components, video players, maps, charts) and merging the result into the dictionary. Without (c) a guest can emit only raw Material 3, which no product team ships; Redwood's entire model was app-defined schemas, and deleting the schema must not delete the escape hatch.
 
    **Registration is multi-tenant by design** ([ADR-006](../adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)). The dictionary is partitioned into **namespaced segments** — the generated androidx tier plus one segment per registered module (`dogwood.material3`, `acme.designsystem`, `acme.checkout-kit`) — with tag spaces partitioned by segment so registrations cannot collide, and a version per segment so one design system evolves without re-versioning the others. Registering a module is a Gradle declaration, after which the same pipeline runs for it as for the androidx tier: guest stubs, host bindings, dictionary segment, and the Layer 1 checker all derive from one parsed model. The bindability rule applies to registered signatures unchanged, and the build fails a registration whose signature violates it, naming the offending parameter. The manifest records every segment version the payload compiled against, and skew checking and containment operate per segment. A company with several design systems registers each with the same one-line operation.
 
@@ -213,6 +213,63 @@ flowchart TD
 **Derived views live in `dogwood-protocol`, not on either side.** `WidthClass` (Compact below 600 density-independent pixels, Medium below 840, Expanded above — Google's published Material window size classes) and `language` are shared, because a guest laying out for "compact" and a host measuring "compact" must mean the same thing. Breakpoints that drifted apart would produce a disagreement invisible until somebody reported a layout bug on one device.
 
 **On Android this subsystem replaces activity recreation.** A host that declares `android:configChanges` for orientation, screen size, `uiMode`, density, font scale, locale and layout direction keeps its QuickJS instance, its composition, and the guest's `rememberSaveable` state across a rotation, and pays one recomposition of the nodes that read the environment. A host that does not is not broken — it simply pays a full guest reload for every rotation.
+
+### The Host Service Surface
+
+A guest experience is sandboxed. It has no filesystem, no sockets, no clock it can trust, no logger, and no way to learn anything about the account or the build it is running in. Everything it can reach, it reaches through one vendor object handed to it at start. The decision record is [ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md).
+
+```mermaid
+flowchart LR
+  subgraph app["Host application"]
+    okhttp["OkHttpClient"]
+    flags["the application's own flag system"]
+    logsink["Logcat / stdout / telemetry"]
+  end
+  subgraph hostside["dogwood-host"]
+    vendor["DogwoodServiceHost"]
+    net["OkHttpNetwork<br/>allow rule · body cap · Dispatchers.IO"]
+    clock["SystemClock"]
+    cbl["CallbackLog"]
+    cba["CallbackAnalytics"]
+    mff["MapFeatureFlags"]
+    exp["DogwoodExperience.start<br/>entryPoint · launchParams · services"]
+  end
+  subgraph guestside["Guest — inside QuickJS"]
+    resolve["GuestServices.resolve<br/>once, at start"]
+    local["LocalDogwoodServices<br/>LocalDogwoodLaunch"]
+    entry["the named entry point"]
+    code["guest composable code"]
+  end
+
+  okhttp --> net
+  flags --> mff
+  logsink --> cbl
+  logsink --> cba
+  net --> vendor
+  clock --> vendor
+  cbl --> vendor
+  cba --> vendor
+  mff --> vendor
+  vendor --> exp
+  exp --> resolve --> local --> code
+  exp --> entry --> code
+  code -- "suspend fetch" --> net
+```
+
+#### Diagram Node Definitions
+
+- **`DogwoodServiceHost`.** The vendor. Holds five nullable services and hands them out. A service left null is genuinely absent, reported both by a null accessor and by `available()`, and the guest is expected to carry on without it — an application should be able to ship Dogwood without wiring analytics, and a guest written against one that has analytics should keep running on one that does not. Its `close` deliberately does **not** close what it vended: the guest holds those services for its whole life, and the vendor is finished the moment `start` returns.
+- **`OkHttpNetwork`.** The guest's only route off the device, and the place the host acts as a policy point. It **defaults to refusing every request**. Cleartext is opted into per host rather than by a global switch. Bodies are capped, checked against `Content-Length` and again against what arrived, because a chunked response reports `-1`. Input and output run on `Dispatchers.IO`, because the call arrives on the Zipline thread — the only thread that may touch the guest. Every failure is a value, not an exception, so a guest can render an empty state for "this client will not let me do that".
+- **`SystemClock`.** Not about *reading* a time — QuickJS has `Date.now()`. It is about the host and guest agreeing on one, about a test being able to pin it, and about the time zone, which the guest genuinely cannot obtain because the pinned QuickJS ships no ECMA-402 International application programming interface (`Intl`).
+- **`CallbackLog`, `CallbackAnalytics`, `MapFeatureFlags`.** Adapters onto whatever the application already uses. Flags are a *snapshot* taken when the experience starts; a flag flipped while a screen is open does not reach it, and that limit is stated because its failure mode is silent — the screen keeps working, with the old answer.
+- **`DogwoodExperience.start`.** Carries three new things across: which experience to run, what to launch it with, and what it may reach.
+- **`GuestServices.resolve`.** Called exactly once. Every accessor call crosses the boundary and allocates a service proxy on both sides, so resolving per composition would leak a pair at the rate the screen recomposes.
+- **`LocalDogwoodServices` / `LocalDogwoodLaunch`.** *Static* composition locals, because neither can change while a composition is alive.
+- **The named entry point.** A payload registers several `@Composable (JsonElement) -> Unit` by name and the host chooses one. Named rather than positional, so adding an entry point cannot renumber an existing one and a host holding a deep link can route on a string it already has. **A name the payload does not offer is reported through `handleUncaughtException` carrying both what was asked for and what is on offer**, and nothing is composed — a blank screen would be the same outcome with none of the information.
+
+**The launch payload is data, decoded by the guest.** The host cannot construct guest types: it was built months before this payload and has never seen its classes. The sample decodes with `ignoreUnknownKeys = true`, which is the additive evolution rule applied to launch parameters.
+
+**The surface is versioned through the dictionary channel**, as `segmentVersions["dogwood.services"]`. It matters more than a widget version, and the asymmetry is the point: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method an older host does not implement is an error at the boundary with no fallback. A guest that wants a method added after revision *N* must check the version before calling it.
 
 ### What Deserves a Dictionary Entry
 

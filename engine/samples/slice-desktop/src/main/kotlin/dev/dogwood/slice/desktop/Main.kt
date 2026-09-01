@@ -29,8 +29,15 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.cash.zipline.loader.ZiplineCache
+import dev.dogwood.host.CallbackAnalytics
+import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodExperience
+import dev.dogwood.host.DogwoodServiceHost
+import dev.dogwood.host.MapFeatureFlags
+import dev.dogwood.host.OkHttpNetwork
+import dev.dogwood.host.SystemClock
+import dev.dogwood.host.allowHosts
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.Palette
@@ -41,6 +48,9 @@ import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.OkHttpClient
 import okio.FileSystem
 
 /**
@@ -51,7 +61,8 @@ private val TRUSTED_KEYS = mapOf(
   "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
 )
 
-private const val MANIFEST_URL = "http://localhost:8080/manifest.zipline.json"
+private const val DEV_SERVER = "http://localhost:8080"
+private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
 
 fun main() = application {
   Window(
@@ -115,7 +126,31 @@ private fun SliceHost(configuration: DogwoodConfiguration) {
       println("loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
       // Constructed here, on the user-interface thread, because that is the thread it binds.
       val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
-      withContext(dispatcher) { created.start(configuration = latestConfiguration) }
+      withContext(dispatcher) {
+        created.start(
+          entryPoint = "explore",
+          // Default-deny, opened for the development server only, and cleartext named
+          // explicitly rather than switched on globally.
+          services = DogwoodServiceHost(
+            log = CallbackLog { level, tag, message -> println("[$level] $tag: $message") },
+            clock = SystemClock(),
+            analytics = CallbackAnalytics { name, properties -> println("analytics: $name $properties") },
+            featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
+            network = OkHttpNetwork(
+              client = OkHttpClient(),
+              allow = allowHosts("localhost", allowCleartextHosts = setOf("localhost")),
+            ),
+          ),
+          configuration = latestConfiguration,
+          // `localhost` here, `10.0.2.2` on the emulator: the same machine, and only the host
+          // knows which name reaches it.
+          launchParams = buildJsonObject {
+            put("city", "Tokyo")
+            put("country", "Japan")
+            put("apiBaseUrl", DEV_SERVER)
+          },
+        )
+      }
       experience = created
     } catch (e: Throwable) {
       failure = "could not load the guest: ${e.message}\n\n" +

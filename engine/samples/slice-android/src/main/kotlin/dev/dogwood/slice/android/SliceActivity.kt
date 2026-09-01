@@ -25,9 +25,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -40,19 +42,30 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.cash.zipline.loader.ZiplineCache
+import dev.dogwood.host.CallbackAnalytics
+import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.DogwoodEnvironment
+import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.DogwoodSession
+import dev.dogwood.host.MapFeatureFlags
+import dev.dogwood.host.OkHttpNetwork
 import dev.dogwood.host.Palette
 import dev.dogwood.host.SessionStatus
+import dev.dogwood.host.SystemClock
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.allowHosts
 import dev.dogwood.host.cachePath
 import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.widthClass
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.OkHttpClient
 import okio.FileSystem
 
 private const val TAG = "DogwoodSlice"
@@ -73,7 +86,17 @@ private val TRUSTED_KEYS = mapOf(
  * On the Android emulator, 10.0.2.2 is the development machine. Serve the guest with
  * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
  */
-private const val MANIFEST_URL = "http://10.0.2.2:8080/manifest.zipline.json"
+private const val DEV_SERVER = "http://10.0.2.2:8080"
+private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+
+/**
+ * The host names which of the payload's experiences to run.
+ *
+ * A real application routes on a deep link, a navigation event, or a remote configuration value.
+ * The sample offers a toggle, because seeing one payload serve two experiences is the whole point
+ * of the entry-point contract.
+ */
+private val ENTRY_POINTS = listOf("explore", "about")
 
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +118,7 @@ class SliceActivity : ComponentActivity() {
     var status by remember { mutableStateOf(SessionStatus()) }
     var failure by remember { mutableStateOf<String?>(null) }
     var environment by remember { mutableStateOf(DogwoodConfiguration()) }
+    var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
 
     // The chrome sits below the status bar; the experience below it does not need to.
     Column(
@@ -117,6 +141,17 @@ class SliceActivity : ComponentActivity() {
         style = MaterialTheme.typography.labelSmall,
       )
 
+      // One payload, two experiences, and the host chooses. Switching restarts the guest, which
+      // is correct: a different entry point is a different composition, not a different screen
+      // inside one.
+      Row {
+        for (name in ENTRY_POINTS) {
+          TextButton(onClick = { entryPoint = name }) {
+            Text(if (name == entryPoint) "● $name" else name)
+          }
+        }
+      }
+
       failure?.let {
         Text(it, Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()))
       }
@@ -132,6 +167,7 @@ class SliceActivity : ComponentActivity() {
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
       ) { configuration ->
         Experience(
+          entryPoint = entryPoint,
           configuration = configuration,
           onEnvironment = { environment = it },
           onStatus = { status = it },
@@ -152,6 +188,7 @@ class SliceActivity : ComponentActivity() {
    */
   @Composable
   private fun Experience(
+    entryPoint: String,
     configuration: DogwoodConfiguration,
     onEnvironment: (DogwoodConfiguration) -> Unit,
     onStatus: (SessionStatus) -> Unit,
@@ -168,12 +205,45 @@ class SliceActivity : ComponentActivity() {
       }.asCoroutineDispatcher()
     }
 
+    // What this client lets the payload reach. Remembered rather than rebuilt, because switching
+    // entry points restarts the guest and the offer should not change underneath it.
+    val serviceHost = remember {
+      DogwoodServiceHost(
+        log = CallbackLog { level, tag, message ->
+          Log.println(
+            when (level) {
+              LogLevel.Debug -> Log.DEBUG
+              LogLevel.Info -> Log.INFO
+              LogLevel.Warn -> Log.WARN
+              LogLevel.Error -> Log.ERROR
+            },
+            "$TAG/$tag",
+            message,
+          )
+        },
+        clock = SystemClock(),
+        analytics = CallbackAnalytics { name, properties ->
+          Log.i(TAG, "analytics: $name $properties")
+        },
+        // Resolved by whatever the application already uses for flags; a map stands in here.
+        featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
+        // Default-deny, opened for exactly one host. The payload is downloaded and replaceable
+        // over the air, so an open network service would be an exfiltration channel with this
+        // application's name on it. Cleartext is named separately so it cannot be switched on
+        // globally and forgotten.
+        network = OkHttpNetwork(
+          client = OkHttpClient(),
+          allow = allowHosts("10.0.2.2", allowCleartextHosts = setOf("10.0.2.2")),
+        ),
+      )
+    }
+
     LaunchedEffect(configuration) {
       onEnvironment(configuration)
       session?.updateConfiguration(configuration)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(entryPoint) {
       try {
         // Layer 3: fetch over the network, verify the manifest's Ed25519 signature against a key
         // compiled into this application, cache the modules on disk. The session then keeps
@@ -197,6 +267,15 @@ class SliceActivity : ComponentActivity() {
           ziplineDispatcher = dispatcher,
           uiScope = uiScope,
           initialConfiguration = latestConfiguration,
+          entryPoint = entryPoint,
+          // What the guest cannot know. `10.0.2.2` is this emulator's name for the development
+          // machine; a payload that hard-coded it would work here and nowhere else.
+          launchParams = buildJsonObject {
+            put("city", "Tokyo")
+            put("country", "Japan")
+            put("apiBaseUrl", DEV_SERVER)
+          },
+          services = serviceHost,
           onFailure = { e ->
             Log.e(TAG, "load failed", e)
             onFailure(

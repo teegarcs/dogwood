@@ -13,6 +13,7 @@ import app.cash.zipline.Zipline
 import dev.dogwood.protocol.DogwoodConfiguration
 import dev.dogwood.protocol.DogwoodGuestUi
 import dev.dogwood.protocol.DogwoodHost
+import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
@@ -117,6 +118,10 @@ class DogwoodExperience(
    */
   fun start(
     serviceName: String = "dogwood.guest",
+    /** Which of the payload's experiences to run. Unknown names fail loudly, not blankly. */
+    entryPoint: String = "main",
+    /** What this client lets the guest reach. The default offers nothing at all. */
+    services: DogwoodServices = DogwoodServiceHost(),
     configuration: DogwoodConfiguration = DogwoodConfiguration(),
     launchParams: JsonObject = JsonObject(emptyMap()),
     restoredState: StateSnapshot? = null,
@@ -126,6 +131,8 @@ class DogwoodExperience(
     guest = service
     service.start(
       host = hostServices,
+      services = services,
+      entryPoint = entryPoint,
       configuration = configuration,
       launchParams = launchParams,
       segmentVersions = DogwoodDictionary.segmentVersions,

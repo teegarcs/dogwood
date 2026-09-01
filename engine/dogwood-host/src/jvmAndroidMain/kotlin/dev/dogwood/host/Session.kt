@@ -16,7 +16,9 @@ package dev.dogwood.host
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import dev.dogwood.protocol.DogwoodConfiguration
+import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.StateSnapshot
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.flowOn
@@ -42,6 +44,17 @@ class DogwoodSession(
   private val ziplineDispatcher: CoroutineDispatcher,
   private val uiScope: CoroutineScope,
   initialConfiguration: DogwoodConfiguration = DogwoodConfiguration(),
+  /** Which of the payload's experiences to run, and what to launch it with. */
+  private val entryPoint: String = "main",
+  private val launchParams: JsonObject = JsonObject(emptyMap()),
+  /**
+   * What this client lets the guest reach.
+   *
+   * Held by the session rather than passed per start, because a replacement guest adopted by a
+   * code update gets the same offer as the one it replaced. A client that changed what it offered
+   * mid-session would have a guest built for one set of services running against another.
+   */
+  private val services: DogwoodServices = DogwoodServiceHost(),
   private val pollIntervalMs: Long = 5_000,
   private val onSwap: (SessionStatus) -> Unit = {},
   /** Every failed poll, including the first. A silent failure is a blank screen with no cause. */
@@ -98,7 +111,13 @@ class DogwoodSession(
       // Constructed on the user-interface thread, because that is the thread it binds.
       val next = DogwoodExperience(delivered.zipline, ziplineDispatcher, uiScope)
       withContext(ziplineDispatcher) {
-        next.start(configuration = configuration, restoredState = carried)
+        next.start(
+          entryPoint = entryPoint,
+          services = services,
+          configuration = configuration,
+          launchParams = launchParams,
+          restoredState = carried,
+        )
       }
 
       currentExperience.value = next

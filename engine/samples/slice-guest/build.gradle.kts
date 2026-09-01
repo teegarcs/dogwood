@@ -45,3 +45,24 @@ zipline {
     }
   }
 }
+
+/*
+ * The sample's data endpoint, served from the same development server as the payload.
+ *
+ * A real deployment's feed comes from a real service; this exists so the network path is
+ * exercised end to end without inventing one. The guest is never told this address at compile
+ * time -- the host passes it in the launch parameters, because `10.0.2.2` on an Android emulator
+ * and `localhost` on a desktop are the same machine reached by different names, and only the host
+ * knows which it is.
+ */
+val copyExploreApi by tasks.registering(Copy::class) {
+  from(layout.projectDirectory.file("api/explore.json"))
+  into(layout.buildDirectory.dir("zipline/ProductionWebpack"))
+}
+
+tasks.matching { it.name == "jsBrowserProductionWebpackZipline" }.configureEach {
+  finalizedBy(copyExploreApi)
+}
+tasks.matching { it.name == "serveProductionWebpackZipline" }.configureEach {
+  dependsOn(copyExploreApi)
+}

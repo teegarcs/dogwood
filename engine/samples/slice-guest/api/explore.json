@@ -1,0 +1,17 @@
+{
+  "destinations": [
+    { "name": "Kyoto",      "country": "Japan",       "price": "$612",   "was": "$740",   "image": "photo-1478436127897-769e1b3f0f36" },
+    { "name": "Reykjavík",  "country": "Iceland",     "price": "$438",   "was": "$520",   "image": "photo-1462993340984-49bd9e0f32dd" },
+    { "name": "Lisbon",     "country": "Portugal",    "price": "$289",   "was": "$355",   "image": "photo-1501927023255-9063be98970c" },
+    { "name": "Queenstown", "country": "New Zealand", "price": "$904",   "was": "$1,120", "image": "photo-1512017615494-fdf6146235ff" },
+    { "name": "Marrakesh",  "country": "Morocco",     "price": "$341",   "was": "$398",   "image": "photo-1517821115309-2c35b3906a7b" }
+  ],
+  "stays": [
+    { "name": "The Shinjuku Warren",  "area": "Shinjuku", "rating": 4.6, "reviews": "1,204 reviews", "price": "$186", "badge": "Free cancellation",  "image": "photo-1522177634436-e1b72e13340e" },
+    { "name": "Asakusa River House",  "area": "Asakusa",  "rating": 4.3, "reviews": "870 reviews",   "price": "$132",                                "image": "photo-1565356277201-8c2f9e5df911" },
+    { "name": "Meguro Garden Hotel",  "area": "Meguro",   "rating": 4.8, "reviews": "2,551 reviews", "price": "$254", "badge": "Breakfast included", "image": "photo-1565708049686-61fa0faf406a" },
+    { "name": "Kanda Capsule Nine",   "area": "Chiyoda",  "rating": 3.9, "reviews": "612 reviews",   "price": "$74",                                 "image": "photo-1480796927426-f609979314bd" },
+    { "name": "Ebisu Skyline",        "area": "Ebisu",    "rating": 4.5, "reviews": "1,880 reviews", "price": "$203",                                "image": "photo-1465353471565-b77e538f34c9" },
+    { "name": "Yanaka Ryokan",        "area": "Taitō",    "rating": 4.7, "reviews": "441 reviews",   "price": "$168", "badge": "Free cancellation",  "image": "photo-1525207934214-58e69a8f8a3e" }
+  ]
+}

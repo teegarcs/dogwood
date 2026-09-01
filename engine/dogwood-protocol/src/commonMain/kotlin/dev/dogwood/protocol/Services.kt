@@ -77,12 +77,26 @@ interface DogwoodGuestUi : ZiplineService {
   /**
    * Starts the experience.
    *
-   * The minimal entry-point contract of ADR-004 section 2.5: the manifest names the entry
-   * composable, [launchParams] carries serializable launch parameters, and outcomes are
-   * signalled by calling ordinary host services. Host-directed lambdas are not supported.
+   * The entry-point contract of ADR-004 section 2.5, grown into its Phase 4 form
+   * ([Layer 5 ADR-013](../../../adrs/layer-5/ADR-013-host-services-and-entry-points.md)): the
+   * manifest's `mainFunction` registers the guest's named entry points, the host names one,
+   * [launchParams] carries serializable launch parameters, and outcomes are signalled by calling
+   * ordinary host services. Host-directed lambdas are still not supported.
    */
   fun start(
     host: DogwoodHost,
+    /** Everything the sandbox can reach. See `HostServices.kt`. */
+    services: DogwoodServices,
+    /**
+     * Which experience to run.
+     *
+     * A payload carries several -- an explore screen, a checkout flow, a settings pane -- and the
+     * host names one. Named rather than positional so that adding an entry point cannot renumber
+     * an existing one, and so that a host holding a deep link can route on a string it already
+     * has. A name this guest does not offer is a startup failure reported through
+     * [DogwoodHost.handleUncaughtException], never a blank screen.
+     */
+    entryPoint: String,
     configuration: DogwoodConfiguration,
     launchParams: JsonElement,
     segmentVersions: Map<String, Int>,

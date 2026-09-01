@@ -120,6 +120,11 @@ object DogwoodDictionary {
     // Bumped when components were added. Guest code can branch on this to stay compatible with
     // clients that have not caught up.
     "dogwood.designsystem" to 2,
+    // The host service surface is versioned through the same channel, because a guest has the
+    // same question about it: what does this client know how to do? It matters more here — an
+    // unknown widget tag becomes a placeholder, but calling a service method an older host does
+    // not implement is an error at the boundary with no fallback.
+    dev.dogwood.protocol.SERVICES_SEGMENT to dev.dogwood.protocol.SERVICES_VERSION,
   )
 }
 
