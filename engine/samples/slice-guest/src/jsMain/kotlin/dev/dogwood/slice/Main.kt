@@ -17,9 +17,10 @@ private val zipline by lazy { Zipline.get() }
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 fun main() {
-  val state = SliceState()
   zipline.bind<DogwoodGuestUi>(
     name = "dogwood.guest",
-    instance = DogwoodGuest { SliceScreen(state) },
+    // The state is built inside the composition, by `rememberSliceState`, so that every holder
+    // is saveable and survives a code update.
+    instance = DogwoodGuest { SliceScreen(rememberSliceState()) },
   )
 }

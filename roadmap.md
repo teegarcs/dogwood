@@ -195,7 +195,7 @@ Fixed here so two teams running Phase 0 produce comparable numbers, and so no in
 6. Implement the threading contract explicitly, with dispatcher assertions on both sides.
 7. ~~**Decide host rendering strategy by measurement.**~~ **Done — the snapshot mirror is kept** ([Layer 5 ADR-007](adrs/layer-5/ADR-007-keep-the-snapshot-mirror.md)). Both strategies were built and measured at batch sizes 1 / 10 / 100 / 1,000 on trees of 160 and 1,222 nodes. The imperative applier applies two to four times faster and it does not matter; it recomposes 801 bindings for a one-property change where the snapshot mirror recomposes one.
 8. Implement the **minimal entry-point contract** of [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.5: the manifest names the entry composable, `start(...)` carries serializable launch parameters, and outcome callbacks are host services — no host-directed lambdas in Phase 1.
-9. Deliver through Zipline properly — signed manifest, Ed25519 verification, disk cache.
+9. ~~Deliver through Zipline properly — signed manifest, Ed25519 verification, disk cache.~~ **Done**, and extended past the step: `DogwoodSession` consumes `ZiplineLoader`'s update flow, so code update while a screen is live — which [Layer 4](specs/layer-4-sandbox.md) calls the *normal* case — works, with guest `rememberSaveable` state carried across the swap.
 
 **Gate.** A tap-driven screen updates correctly and feels responsive on a mid-range device. Node identity survives list reordering. A state change three guest-defined wrapper layers deep crosses as a single `PropertyChange` (the wrapper-scoping test in [Layer 4](specs/layer-4-sandbox.md) Milestone 4).
 

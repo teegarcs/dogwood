@@ -20,6 +20,10 @@ import app.cash.zipline.loader.ManifestVerifier
 import app.cash.zipline.loader.ZiplineCache
 import app.cash.zipline.loader.ZiplineLoader
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.mapNotNull
 import okhttp3.OkHttpClient
 import okio.ByteString.Companion.decodeHex
 import okio.Path
@@ -123,6 +127,52 @@ class DogwoodDelivery(
         verifiedByKey = result.manifest.signatures.keys.firstOrNull(),
       )
       is LoadResult.Failure -> throw result.exception
+    }
+  }
+
+  /**
+   * Emits a guest on load, and again whenever the published code changes.
+   *
+   * `ZiplineLoader.load` compares each fetched manifest against the last one and emits only on a
+   * difference, so polling costs a conditional request and produces an emission only when there
+   * is genuinely something new. This is the flow Layer 4 means when it says a code update while
+   * a screen is live is the normal case.
+   */
+  fun updates(
+    applicationName: String,
+    manifestUrl: String,
+    pollIntervalMs: Long = 5_000,
+    /**
+     * Called for every failed poll.
+     *
+     * Not optional, and not defaulted to a no-op. An earlier version dropped failures on the
+     * floor with a comment explaining that a failed poll should not tear down a working screen
+     * -- which is true, and which turned a mistyped Uniform Resource Locator into a blank screen
+     * with no diagnosis anywhere. Continuing quietly and failing quietly are different things.
+     */
+    onFailure: (Exception) -> Unit,
+  ): Flow<DeliveredGuest> = loader.load(
+    applicationName = applicationName,
+    freshnessChecker = MaxAgeFreshnessChecker(manifestMaxAgeMs, nowEpochMs),
+    manifestUrlFlow = flow {
+      while (true) {
+        emit(manifestUrl)
+        delay(pollIntervalMs)
+      }
+    },
+  ).mapNotNull { result ->
+    when (result) {
+      is LoadResult.Success -> DeliveredGuest(
+        zipline = result.zipline,
+        manifest = result.manifest,
+        verifiedByKey = result.manifest.signatures.keys.firstOrNull(),
+      )
+      // A failed poll is not a reason to tear down a working screen: the previous guest keeps
+      // running and the next poll tries again. It is every reason to say so.
+      is LoadResult.Failure -> {
+        onFailure(result.exception)
+        null
+      }
     }
   }
 

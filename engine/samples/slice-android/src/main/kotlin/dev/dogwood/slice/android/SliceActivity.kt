@@ -28,7 +28,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.cash.zipline.loader.ZiplineCache
-import dev.dogwood.host.DogwoodExperience
+import dev.dogwood.host.DogwoodSession
+import dev.dogwood.host.SessionStatus
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.cachePath
@@ -71,7 +72,8 @@ class SliceActivity : ComponentActivity() {
   @Composable
   private fun SliceHost() {
     val uiScope = rememberCoroutineScope()
-    var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
+    var session by remember { mutableStateOf<DogwoodSession?>(null) }
+    var status by remember { mutableStateOf(SessionStatus()) }
     var failure by remember { mutableStateOf<String?>(null) }
 
     // One thread, eight megabytes of stack, and it is the only thread that may touch the guest.
@@ -93,9 +95,9 @@ class SliceActivity : ComponentActivity() {
     LaunchedEffect(Unit) {
       try {
         // Layer 3: fetch over the network, verify the manifest's Ed25519 signature against a key
-        // compiled into this application, cache the modules on disk, then load. All on the
-        // Zipline dispatcher, because that thread owns the interpreter.
-        val delivered = withContext(dispatcher) {
+        // compiled into this application, cache the modules on disk. The session then keeps
+        // watching, and swaps the running experience whenever new code is published.
+        val delivery = withContext(dispatcher) {
           DogwoodDelivery(
             dispatcher = dispatcher,
             trustedPublicKeys = TRUSTED_KEYS,
@@ -105,19 +107,35 @@ class SliceActivity : ComponentActivity() {
               directory = cachePath(cacheDir.resolve("zipline").absolutePath),
               maxSizeInBytes = 32L * 1024 * 1024,
             ),
-          ).load(applicationName = "dogwood-slice", manifestUrl = MANIFEST_URL)
+          )
         }
-        Log.i(
-          TAG,
-          "loaded version ${delivered.manifest.version}, " +
-            "signature verified by ${delivered.verifiedByKey}",
+        val newSession = DogwoodSession(
+          delivery = delivery,
+          applicationName = "dogwood-slice",
+          manifestUrl = MANIFEST_URL,
+          ziplineDispatcher = dispatcher,
+          uiScope = this,
+          configuration = configuration,
+          onFailure = { e ->
+            Log.e(TAG, "load failed", e)
+            failure = "could not load the guest from $MANIFEST_URL\n\n" +
+              "Is the development server running?\n" +
+              "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline\n\n" +
+              e.stackTraceToString()
+          },
+          onSwap = { swapped ->
+            failure = null
+            status = swapped
+            Log.i(
+              TAG,
+              "load #${swapped.loadCount}: version ${swapped.version}, " +
+                "verified by ${swapped.verifiedByKey}, " +
+                "restored ${swapped.restoredKeys} saved state keys",
+            )
+          },
         )
-        // The experience is constructed here, on the user-interface thread, because that is the
-        // thread it binds; start() goes back to Zipline's thread, where guest work runs.
-        val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
-        withContext(dispatcher) { created.start(configuration = configuration) }
-        experience = created
-        Log.i(TAG, "guest started")
+        session = newSession
+        newSession.run()
       } catch (e: Throwable) {
         Log.e(TAG, "failed to start guest", e)
         failure = e.stackTraceToString()
@@ -125,8 +143,16 @@ class SliceActivity : ComponentActivity() {
     }
 
     failure?.let { Text(it, Modifier.fillMaxSize().verticalScroll(rememberScrollState())) }
-    experience?.let {
-      DogwoodSurface(it, Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+    session?.experience?.value?.let { live ->
+      androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+        // A banner, so a code update is visible without reading Logcat.
+        Text(
+          "load #${status.loadCount} · v${status.version} · " +
+            "signed by ${status.verifiedByKey} · restored ${status.restoredKeys} keys",
+          style = MaterialTheme.typography.labelSmall,
+        )
+        DogwoodSurface(live, Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+      }
     }
   }
 }

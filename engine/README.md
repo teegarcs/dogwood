@@ -165,6 +165,28 @@ adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity
 adb pull /sdcard/Android/data/dev.dogwood.slice.android/files/render-strategy.md
 ```
 
+## Live code update
+
+`DogwoodSession` watches the delivery flow and replaces the running experience when new code is
+published — no restart, no reinstall. Guest state declared with `rememberSaveable` is captured
+from the outgoing guest and handed to the incoming one.
+
+Demonstrated on the emulator: with the app open and the chip row set to 4, publishing a new guest
+produced `load #2: version 1.1.0, verified by dogwood-development, restored 24 saved state keys`,
+the header text changed, and the chip row was still on 4.
+
+What survives is exactly what the guest nominated with `rememberSaveable`, and nothing else. That
+is a real limit rather than a temporary one: the replacement code may have a different composition
+shape, so restoring anything the guest did not explicitly declare would be restoring state into a
+tree that may no longer have a place for it.
+
+Two sharp edges, both of which cost real debugging time here and are commented at the call sites:
+
+- `rememberSaveable { mutableStateOf(x) }` needs an explicit `stateSaver`. Without it the call
+  resolves to the generic overload and tries to save the state holder itself.
+- Compose wraps state saves in a `MutableState` envelope so the restored value keeps its mutation
+  policy, so a registry's `canBeSaved` has to look **inside** that envelope rather than reject it.
+
 ## What is not done
 
 Named Phase 1 deliverables that this does **not** yet satisfy, so nobody mistakes a working
@@ -175,8 +197,3 @@ screen for a finished phase:
   measured by call-site count.
 - **`AsyncImage` draws a placeholder.** Real image loading is the resources subsystem, Phase 4.
 - **Responsiveness is unmeasured on a real device.** Verified on an emulator only.
-- **Code update while a screen is live is not supported.** `ZiplineLoader.load` returns a *flow*
-  of results, and Layer 4 calls hot update the normal case rather than an edge one. Consuming
-  that flow means tearing down a running experience and standing up a replacement with its state
-  preserved, which needs `SaveableStateRegistry` and a host-side state store that do not exist.
-  Today an update lands on the next launch.

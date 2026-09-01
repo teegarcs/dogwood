@@ -16,6 +16,7 @@ import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
+import dev.dogwood.protocol.StateSnapshot
 import dev.dogwood.protocol.WidgetTag
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -117,6 +118,7 @@ class DogwoodExperience(
     serviceName: String = "dogwood.guest",
     configuration: DogwoodConfiguration = DogwoodConfiguration(),
     launchParams: JsonObject = JsonObject(emptyMap()),
+    restoredState: StateSnapshot? = null,
   ) {
     threads.bindZipline()
     val service = zipline.take<DogwoodGuestUi>(serviceName)
@@ -126,6 +128,7 @@ class DogwoodExperience(
       configuration = configuration,
       launchParams = launchParams,
       segmentVersions = DogwoodDictionary.segmentVersions,
+      restoredState = restoredState,
     )
   }
 
@@ -136,6 +139,15 @@ class DogwoodExperience(
       threads.checkZipline()
       guest?.sendEvent(Event(i = node.id, e = tag, q = sequence))
     }
+  }
+
+  /**
+   * Captures the guest's saveable state. Must be called on the Zipline dispatcher, and only
+   * makes sense immediately before teardown.
+   */
+  fun snapshotState(): StateSnapshot {
+    threads.checkZipline()
+    return guest?.snapshotState() ?: StateSnapshot()
   }
 
   fun configurationChanged(configuration: DogwoodConfiguration) {

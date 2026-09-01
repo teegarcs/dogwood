@@ -54,6 +54,24 @@ interface DogwoodHost : ZiplineService {
   fun handleUncaughtException(exception: Throwable)
 }
 
+/**
+ * Guest state, captured so it can survive a code update.
+ *
+ * Layer 4 is explicit that a code update while a screen is live is the NORMAL case, since
+ * `ZiplineLoader.load()` returns a flow. Without this, every update loses scroll position,
+ * expanded rows, and half-typed text.
+ *
+ * The values are whatever the guest's `rememberSaveable` call sites produced. They cross the
+ * boundary, so they must be serializable -- which is a real constraint on what a guest may
+ * declare saveable, not an implementation detail.
+ */
+@Serializable
+data class StateSnapshot(
+  val values: Map<String, List<JsonElement>> = emptyMap(),
+) {
+  val isEmpty: Boolean get() = values.isEmpty()
+}
+
 /** Implemented by the guest, called by the host. */
 interface DogwoodGuestUi : ZiplineService {
   /**
@@ -68,7 +86,17 @@ interface DogwoodGuestUi : ZiplineService {
     configuration: DogwoodConfiguration,
     launchParams: JsonElement,
     segmentVersions: Map<String, Int>,
+    /** State captured from a previous guest, or null on a cold start. */
+    restoredState: StateSnapshot? = null,
   )
+
+  /**
+   * Captures the composition's saveable state, for handing to a replacement guest.
+   *
+   * Called immediately before teardown on a code update, and available for backgrounding and
+   * process death once those are designed.
+   */
+  fun snapshotState(): StateSnapshot
 
   /** Delivers one interaction. [Event.q] lets the guest drop events rendered against a stale batch. */
   fun sendEvent(event: Event)

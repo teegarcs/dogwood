@@ -12,7 +12,10 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.compose.runtime.saveable.SaveableStateRegistry
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
 import dev.dogwood.protocol.DogwoodConfiguration
@@ -20,6 +23,7 @@ import dev.dogwood.protocol.DogwoodGuestUi
 import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.Id
+import dev.dogwood.protocol.StateSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +31,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 
 /**
  * Host facts, exposed to guest code as ordinary `CompositionLocal`s.
@@ -51,6 +63,7 @@ class DogwoodComposition(
   private val host: DogwoodHost,
   initialConfiguration: DogwoodConfiguration,
   private val segmentVersions: Map<String, Int>,
+  restoredState: StateSnapshot?,
   content: @Composable () -> Unit,
 ) {
   private val recorder = ChangeRecorder()
@@ -78,6 +91,18 @@ class DogwoodComposition(
 
   private val configuration = mutableStateOf(initialConfiguration)
 
+  /**
+   * Where `rememberSaveable` in guest code stores and restores itself.
+   *
+   * `canBeSaved` is deliberately narrow: a saved value has to cross the Zipline boundary, so it
+   * has to be serializable. A guest that tries to save something else is told at the call site
+   * rather than discovering on the next code update that its state quietly vanished.
+   */
+  private val saveableRegistry = SaveableStateRegistry(
+    restoredValues = restoredState?.values?.mapValues { (_, values) -> values.map(::fromJson) },
+    canBeSaved = ::canBeSaved,
+  )
+
   init {
     recording = RecordingContext(recorder, lambdas)
     scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -87,6 +112,7 @@ class DogwoodComposition(
       CompositionLocalProvider(
         LocalDogwoodConfiguration provides configuration.value,
         LocalDogwoodSegments provides segmentVersions,
+        LocalSaveableStateRegistry provides saveableRegistry,
       ) {
         Children(Tags.Content) { content() }
       }
@@ -131,6 +157,11 @@ class DogwoodComposition(
     Snapshot.sendApplyNotifications()
   }
 
+  /** Captures saveable state for a replacement guest to restore. */
+  fun snapshotState(): StateSnapshot = StateSnapshot(
+    saveableRegistry.performSave().mapValues { (_, values) -> values.map(::toJson) },
+  )
+
   /** How many event closures are currently retained. Reclamation is not automatic. */
   val lambdaSlotCount: Int get() = lambdas.size
 
@@ -165,10 +196,14 @@ class DogwoodGuest(
     configuration: DogwoodConfiguration,
     launchParams: JsonElement,
     segmentVersions: Map<String, Int>,
+    restoredState: StateSnapshot?,
   ) {
     check(composition == null) { "start() called twice on one guest" }
-    composition = DogwoodComposition(host, configuration, segmentVersions, content)
+    composition = DogwoodComposition(host, configuration, segmentVersions, restoredState, content)
   }
+
+  override fun snapshotState(): StateSnapshot =
+    composition?.snapshotState() ?: StateSnapshot()
 
   override fun sendEvent(event: Event) {
     composition?.sendEvent(event)
@@ -187,3 +222,53 @@ class DogwoodGuest(
     composition = null
   }
 }
+
+/**
+ * Whether a value the guest wants to save can cross the boundary.
+ *
+ * `rememberSaveable(stateSaver = ...)` does not hand the registry the value itself. Compose wraps
+ * it in a `MutableState` envelope so the restored state keeps its mutation policy, so the
+ * predicate has to look inside that envelope rather than reject it. Getting this wrong fails at
+ * composition time with a message about `MutableState` that reads like a call-site mistake.
+ */
+private fun canBeSaved(value: Any?): Boolean = when (value) {
+  null -> true
+  is MutableState<*> -> canBeSaved(value.value)
+  is Int, is Long, is Float, is Double, is Boolean, is String -> true
+  // Deliberately narrow. A saved value has to survive JSON, and a guest that tries to save
+  // something richer should be told at the call site rather than discover on the next code
+  // update that its state quietly vanished.
+  else -> false
+}
+
+/** Saveable values cross the boundary, so they are carried as JSON. */
+private fun toJson(value: Any?): JsonElement = when (value) {
+  null -> JsonNull
+  // The `MutableState` envelope is preserved on the wire, because the restore side of Compose's
+  // state saver requires one back.
+  is MutableState<*> -> buildJsonObject { put(STATE_ENVELOPE, toJson(value.value)) }
+  is Boolean -> JsonPrimitive(value)
+  is Int -> JsonPrimitive(value)
+  is Long -> JsonPrimitive(value)
+  is Float -> JsonPrimitive(value)
+  is Double -> JsonPrimitive(value)
+  is String -> JsonPrimitive(value)
+  // Unreachable: canBeSaved rejects anything else before it gets here.
+  else -> error("guest tried to save an unsupported value")
+}
+
+private fun fromJson(value: JsonElement): Any? {
+  if (value is JsonObject) {
+    val inner = value[STATE_ENVELOPE] ?: return null
+    return mutableStateOf(fromJson(inner))
+  }
+  val primitive = value as? JsonPrimitive ?: return null
+  if (primitive is JsonNull) return null
+  if (primitive.isString) return primitive.content
+  primitive.booleanOrNull?.let { return it }
+  primitive.intOrNull?.let { return it }
+  primitive.doubleOrNull?.let { return it }
+  return primitive.content
+}
+
+private const val STATE_ENVELOPE = "s"

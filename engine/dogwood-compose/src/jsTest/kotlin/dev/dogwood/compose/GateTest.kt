@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.autoSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.dogwood.protocol.ChangeBatch
 import dev.dogwood.protocol.ChildAdd
@@ -27,6 +29,7 @@ import dev.dogwood.protocol.ChildRemove
 import dev.dogwood.protocol.Create
 import dev.dogwood.protocol.DogwoodConfiguration
 import dev.dogwood.protocol.DogwoodHost
+import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.ModifierSet
@@ -57,7 +60,7 @@ private class RecordingHost : DogwoodHost {
 
 private fun compose(content: @Composable () -> Unit): Pair<RecordingHost, DogwoodComposition> {
   val host = RecordingHost()
-  val composition = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), content)
+  val composition = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null, content)
   return host to composition
 }
 
@@ -247,5 +250,71 @@ class BatchShapeTest {
       chain.e.map { it.t.local },
       "order is load-bearing: padding-then-size and size-then-padding lay out differently",
     )
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Code update while a screen is live.
+ *
+ * Layer 4 calls this the normal case, not an edge one, and says plainly what happens without it:
+ * "any code update loses scroll position, expanded rows, and half-typed text." These assert the
+ * mechanism that stops that -- capture from the outgoing guest, restore into the incoming one.
+ */
+class StatePreservationTest {
+
+  @Composable
+  private fun Counter() {
+    val count = rememberSaveable(key = "count", stateSaver = autoSaver()) { mutableStateOf(0) }
+    val label = rememberSaveable(key = "label", stateSaver = autoSaver()) { mutableStateOf("a") }
+    Column {
+      Text("count ${count.value}")
+      Text(label.value)
+      PrimaryButton("increment", onClick = { count.value += 1 })
+    }
+  }
+
+  @Test
+  fun savedStateSurvivesAReplacementGuest() {
+    val host = RecordingHost()
+    val first = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null) { Counter() }
+
+    // Drive the state forward the way an interaction would.
+    first.sendEvent(Event(i = Id(4), e = EventTag(1), q = first.lastSentSequence))
+    first.sendEvent(Event(i = Id(4), e = EventTag(1), q = first.lastSentSequence))
+    first.frame(0L)
+
+    val carried = first.snapshotState()
+    first.dispose()
+
+    assertTrue(carried.values.isNotEmpty(), "nothing was captured, so nothing can be restored")
+
+    // A fresh composition, as a newly delivered guest would be.
+    val secondHost = RecordingHost()
+    val second = DogwoodComposition(secondHost, DogwoodConfiguration(), emptyMap(), carried) {
+      Counter()
+    }
+
+    val texts = secondHost.decoded().single().g
+      .filterIsInstance<PropertySet>()
+      .map { it.v.toString().trim('"') }
+    assertTrue(
+      texts.any { it == "count 2" },
+      "the counter should have been restored to 2; the replacement guest rendered $texts",
+    )
+    second.dispose()
+  }
+
+  @Test
+  fun aColdStartRestoresNothing() {
+    val host = RecordingHost()
+    val composition = DogwoodComposition(host, DogwoodConfiguration(), emptyMap(), null) { Counter() }
+    val texts = host.decoded().single().g
+      .filterIsInstance<PropertySet>()
+      .map { it.v.toString().trim('"') }
+    assertTrue(texts.any { it == "count 0" }, "a cold start begins at the initial value")
+    assertTrue(composition.snapshotState().values.isNotEmpty())
+    composition.dispose()
   }
 }

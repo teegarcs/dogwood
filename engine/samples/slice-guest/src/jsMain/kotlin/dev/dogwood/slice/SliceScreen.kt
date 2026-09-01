@@ -34,6 +34,10 @@
 package dev.dogwood.slice
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.autoSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import dev.dogwood.compose.Badge
 import dev.dogwood.compose.Box
 import dev.dogwood.compose.Column
@@ -60,15 +64,23 @@ const val REFERENCE_ROWS: Int = 23
  * The chip row deliberately derives its selection from [quantity] rather than owning a
  * twenty-fifth holder, because the appendix enumerates the twenty-four and a chip-selection
  * holder is not among them.
+ *
+ * The holders are passed in rather than constructed here so that [rememberSliceState] can make
+ * every one of them saveable. That is what lets this screen survive a code update: on a swap the
+ * host captures these twenty-four values from the outgoing guest and hands them to the incoming
+ * one. Nothing outside them survives, which is the honest limit of the mechanism.
  */
-class SliceState {
-  /** Row selection. Twenty holders; rows beyond the twentieth share them, modulo twenty. */
-  val rowSelected = List(20) { mutableStateOf(false) }
-
-  var quantity by mutableStateOf(1)
-  var promoVisible by mutableStateOf(false)
-  var total by mutableStateOf("$0.00")
-  var loading by mutableStateOf(false)
+class SliceState(
+  val rowSelected: List<MutableState<Boolean>>,
+  quantityState: MutableState<Int>,
+  promoVisibleState: MutableState<Boolean>,
+  totalState: MutableState<String>,
+  loadingState: MutableState<Boolean>,
+) {
+  var quantity by quantityState
+  var promoVisible by promoVisibleState
+  var total by totalState
+  var loading by loadingState
 
   /** Sanity check used by the harness so the count cannot silently drift. */
   val holderCount: Int get() = rowSelected.size + 4
@@ -77,6 +89,28 @@ class SliceState {
     val holder = rowSelected[index % rowSelected.size]
     holder.value = !holder.value
   }
+}
+
+/**
+ * Builds the screen's state so that every holder survives a code update.
+ *
+ * `rememberSaveable` needs an explicit key inside a loop: keys are derived from source position
+ * by default, and twenty call sites at the same position would collide.
+ */
+@Composable
+fun rememberSliceState(): SliceState {
+  // `stateSaver` is required and easy to omit. Without it the call resolves to the generic
+  // overload, which tries to save the `MutableState` object itself rather than the value inside
+  // it -- and the registry rejects that, because a state holder cannot cross the boundary.
+  val rowSelected = List(20) { index ->
+    rememberSaveable(key = "row-$index", stateSaver = autoSaver()) { mutableStateOf(false) }
+  }
+  val quantity = rememberSaveable(key = "quantity", stateSaver = autoSaver()) { mutableStateOf(1) }
+  val promoVisible =
+    rememberSaveable(key = "promo-visible", stateSaver = autoSaver()) { mutableStateOf(false) }
+  val total = rememberSaveable(key = "total", stateSaver = autoSaver()) { mutableStateOf("$0.00") }
+  val loading = rememberSaveable(key = "loading", stateSaver = autoSaver()) { mutableStateOf(false) }
+  return remember { SliceState(rowSelected, quantity, promoVisible, total, loading) }
 }
 
 @Composable
