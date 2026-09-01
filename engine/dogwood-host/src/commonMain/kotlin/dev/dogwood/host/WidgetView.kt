@@ -43,6 +43,31 @@ fun WidgetView.boolean(tag: Int, default: Boolean): Boolean =
 
 fun WidgetView.has(tag: Int): Boolean = property(tag) != null
 
+/*
+ * Absence-reading accessors.
+ *
+ * A generated binding for an optional parameter must be able to tell "the guest sent nothing" from
+ * "the guest sent a value that happens to look empty". Absence is the host-default sentinel, and
+ * collapsing it into a default here would take the decision away from the implementation that is
+ * supposed to make it.
+ */
+
+/**
+ * `JsonNull` is a `JsonPrimitive` whose `content` is the four-character string "null", so a
+ * reader that forgets to exclude it renders the word on screen. It did, in the price rows.
+ */
+private fun WidgetView.primitive(tag: Int): kotlinx.serialization.json.JsonPrimitive? =
+  (property(tag) as? kotlinx.serialization.json.JsonPrimitive)
+    ?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+
+fun WidgetView.stringOrNull(tag: Int): String? = primitive(tag)?.content
+
+fun WidgetView.intOrNull(tag: Int): Int? = primitive(tag)?.content?.toIntOrNull()
+
+fun WidgetView.floatOrNull(tag: Int): Float? = primitive(tag)?.content?.toFloatOrNull()
+
+fun WidgetView.booleanOrNull(tag: Int): Boolean? = primitive(tag)?.content?.toBooleanStrictOrNull()
+
 /**
  * Counts how many bindings Compose re-executed.
  *

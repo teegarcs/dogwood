@@ -133,6 +133,10 @@ object DogwoodDictionary {
 @Composable
 fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
   LocalRenderCounter.current?.record()
+  // The registered segment is dispatched by generated code. Nine of the eleven components in it
+  // are bound without a line of hand-written dispatch; what remains below is the layout tier and
+  // the two lazy containers the generator does not yet model.
+  if (bindDogwoodDesignSystem(node, scope, events)) return
   val modifier = node.composeModifier(scope)
   when (node.tag.value) {
     DogwoodDictionary.Text.value -> Text(
@@ -170,143 +174,6 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
 
     DogwoodDictionary.Spacer.value -> Spacer(modifier)
 
-    DogwoodDictionary.PrimaryButton.value -> Button(
-      onClick = { events.send(node, EventTag(1)) },
-      modifier = modifier,
-      shape = RoundedCornerShape(Radius.Sm),
-      colors = ButtonDefaults.buttonColors(
-        containerColor = Palette.Primary,
-        contentColor = Palette.OnPrimary,
-      ),
-      contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Md),
-    ) {
-      Text(node.string(P1), style = MaterialTheme.typography.titleSmall)
-    }
-
-    // Real image loading. The guest sends a Uniform Resource Locator (URL) and nothing else --
-    // no bitmap, no painter, no asset handle -- which is exactly why this component is bindable
-    // at all, and why Layer 5 ADR-006 says a registered `AsyncImage(url)` solves images long
-    // before the general resources subsystem exists.
-    DogwoodDictionary.AsyncImage.value -> AsyncImage(
-      model = node.string(P1),
-      contentDescription = node.string(P2).ifEmpty { null },
-      contentScale = ContentScale.Crop,
-      modifier = modifier
-        .clip(RoundedCornerShape(node.int(P3, 8).dp))
-        .background(Palette.CanvasContrast),
-      // A picture that silently fails to arrive is indistinguishable from a layout bug, and the
-      // guest cannot see it happen. Say so where somebody will read it.
-      onError = { state ->
-        println("dogwood: image failed for ${node.string(P1)}: ${state.result.throwable}")
-      },
-    )
-
-    DogwoodDictionary.Card.value -> Card(
-      modifier = modifier,
-      shape = RoundedCornerShape(Radius.Md),
-      colors = CardDefaults.cardColors(containerColor = Palette.Canvas),
-      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-    ) {
-      RenderChildren(node, CONTENT, LayoutScope(column = this), events)
-    }
-
-    DogwoodDictionary.Badge.value -> {
-      val selected = node.boolean(P2, false)
-      Surface(
-        modifier = modifier.clip(RoundedCornerShape(Radius.Xs)),
-        color = if (selected) Palette.SuccessContainer else Palette.CanvasContrast,
-      ) {
-        Text(
-          node.string(P1),
-          modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
-          color = if (selected) Palette.Success else Palette.InkSecondary,
-          style = MaterialTheme.typography.labelMedium,
-        )
-      }
-    }
-
-    DogwoodDictionary.Divider.value -> HorizontalDivider(modifier, color = Palette.Line)
-
-    DogwoodDictionary.Chip.value -> {
-      val selected = node.boolean(P2, false)
-      Surface(
-        modifier = modifier
-          .clip(RoundedCornerShape(Radius.Full))
-          // `onSelectedChange: (Boolean) -> Unit` in the design system, so the event carries the
-          // new state rather than making the guest infer it. ADR-004 gave `Event` an argument
-          // list from the start; until now nothing used it.
-          .clickable { events.send(node, EventTag(1), listOf(JsonPrimitive(!selected))) },
-        color = if (selected) Palette.Primary else Palette.CanvasContrast,
-      ) {
-        Text(
-          node.string(P1),
-          modifier = Modifier.padding(horizontal = Spacing.Base, vertical = Spacing.Md),
-          color = if (selected) Palette.OnPrimary else Palette.Ink,
-          style = MaterialTheme.typography.labelLarge,
-        )
-      }
-    }
-
-    // Bindable exactly as its design system declares it: every parameter is a string or an
-    // enumerated token, and its one lambda is a discrete event. It needed no wrapper at all.
-    DogwoodDictionary.Price.value -> Row(
-      modifier,
-      verticalAlignment = Alignment.Bottom,
-      horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
-    ) {
-      node.string(P2).takeIf { it.isNotEmpty() }?.let {
-        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
-      }
-      node.string(P3).takeIf { it.isNotEmpty() }?.let {
-        Text(
-          it,
-          color = Palette.InkSecondary,
-          style = MaterialTheme.typography.bodySmall.copy(
-            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
-          ),
-        )
-      }
-      Text(
-        node.string(P1),
-        color = Palette.Ink,
-        style = MaterialTheme.typography.titleMedium,
-      )
-      node.string(P4).takeIf { it.isNotEmpty() }?.let {
-        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
-      }
-    }
-
-    DogwoodDictionary.StarRating.value -> Row(
-      modifier,
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
-    ) {
-      val rating = node.float(P1, 0f)
-      Text("★", color = Palette.Star, style = MaterialTheme.typography.bodyMedium)
-      Text(
-        rating.toString(),
-        color = Palette.Ink,
-        style = MaterialTheme.typography.labelLarge,
-      )
-      node.string(P2).takeIf { it.isNotEmpty() }?.let {
-        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodySmall)
-      }
-    }
-
-    DogwoodDictionary.SectionHeader.value -> Column(
-      modifier,
-      verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
-    ) {
-      Text(node.string(P1), color = Palette.Ink, style = MaterialTheme.typography.titleLarge)
-      node.string(P2).takeIf { it.isNotEmpty() }?.let {
-        Text(it, color = Palette.InkSecondary, style = MaterialTheme.typography.bodyMedium)
-      }
-    }
-
-    // Laziness, but only half of it. The host composes and draws only the visible children,
-    // which is the expensive half. The guest still composed and sent every child, so the
-    // protocol traffic is not windowed -- and guest-side windowing, with its placeholder pool
-    // and throttled viewport callbacks, is the Phase 4 subsystem this does not replace.
     DogwoodDictionary.VerticalList.value -> LazyColumn(
       modifier = modifier,
       verticalArrangement = Arrangement.spacedBy(node.int(P1, 0).dp),

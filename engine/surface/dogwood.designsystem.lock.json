@@ -1,0 +1,100 @@
+{
+    "segmentName": "dogwoodDesignSystem",
+    "segmentId": 1,
+    "version": 2,
+    "components": [
+        {
+            "name": "PrimaryButton",
+            "localTag": 1,
+            "properties": {
+                "label": 1,
+                "enabled": 2
+            },
+            "slots": {},
+            "events": {
+                "onClick": 1
+            }
+        },
+        {
+            "name": "AsyncImage",
+            "localTag": 2,
+            "properties": {
+                "url": 1,
+                "contentDescription": 2,
+                "cornerRadiusDp": 3
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Card",
+            "localTag": 3,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Badge",
+            "localTag": 4,
+            "properties": {
+                "text": 1,
+                "selected": 2
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Divider",
+            "localTag": 5,
+            "properties": {},
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "Chip",
+            "localTag": 6,
+            "properties": {
+                "text": 1,
+                "selected": 2
+            },
+            "slots": {},
+            "events": {
+                "onSelectedChange": 1
+            }
+        },
+        {
+            "name": "Price",
+            "localTag": 7,
+            "properties": {
+                "price": 1,
+                "leadingText": 2,
+                "previousPrice": 3,
+                "trailingText": 4
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "StarRating",
+            "localTag": 8,
+            "properties": {
+                "rating": 1,
+                "label": 2
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "SectionHeader",
+            "localTag": 9,
+            "properties": {
+                "title": 1,
+                "description": 2
+            },
+            "slots": {},
+            "events": {}
+        }
+    ]
+}

@@ -134,7 +134,7 @@ class RenderBenchActivity : ComponentActivity() {
   @Composable
   private fun Bench() {
     val counter = remember { RenderCounter() }
-    val events = remember { EventSink { _, _ -> } }
+    val events = remember { EventSink { _, _, _ -> } }
 
     var rows by remember { mutableStateOf(ROW_COUNTS.first()) }
     var useSnapshot by remember { mutableStateOf(true) }

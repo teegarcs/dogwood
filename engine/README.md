@@ -13,6 +13,7 @@ deliverables are outstanding; see "What is not done" below.
 | --- | --- | --- |
 | `dogwood-protocol` | everywhere | The wire types of [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) and the Layer 4 service boundary. |
 | `dogwood-compose` | guest (Kotlin/JavaScript) | `DogwoodApplier`, the change recorder, the lambda slot table, the recording stubs, the frame clock, and the [ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) encoder. |
+| `dogwood-codegen` | build time | The generator. Parses the component surface with the Kotlin compiler's frontend and emits guest stubs, host dispatch, and the versioned dictionary. |
 | `dogwood-host` | host (common Kotlin) | The binding dictionary, modifier reconstruction, the snapshot mirror, the decoder, the threading contract, the driver, and Layer 3 delivery. **This is where the architecture's claim lives:** one binding implementation, every platform. |
 | `samples/slice-guest` | guest | The Phase 1 screen. Identical to the screen Phase 0 measured, so those numbers still describe it. |
 | `samples/slice-desktop` | host | Compose Multiplatform desktop. The development loop, not a shipping target. |
@@ -163,6 +164,31 @@ the decision is reproducible rather than asserted. See
 ```bash
 adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity
 adb pull /sdcard/Android/data/dev.dogwood.slice.android/files/render-strategy.md
+```
+
+## Generated bindings
+
+`surface/` holds the registered design system's declarations — ordinary `@Composable` signatures
+with empty bodies. **Nothing compiles them.** `dogwood-codegen` reads them and emits, from one
+parse, the guest stubs, the host dispatch layer and the versioned dictionary. Generated output
+lands in `build/generated/dogwood/` and is not committed; generated code in version control is a
+copy that drifts.
+
+The generator emits the **bridge**, not the widget. Dispatch calls an implementation named by
+convention — `Badge` in the surface calls `BadgeImpl` in `DesignSystemImpl.kt` — and that
+implementation is ordinary Compose that knows nothing about tags, nodes or events. Nine of the
+eleven registered components are bound this way with no hand-written dispatch on either side; the
+two lazy containers remain hand-written, because their children must be composed inside the host's
+`items` block, a slot shape the generator does not model.
+
+**Tags are locked.** `surface/dogwood.designsystem.lock.json` is committed, and every build
+compares against it. Additions update it; a renumbering or removal **fails the build**, naming the
+component and both tags. This is mechanical rather than a review convention because reordering two
+declarations is an innocent-looking edit, and a moved tag renders the *wrong* widget on a client
+one version behind rather than failing to render.
+
+```bash
+./gradlew :dogwood-codegen:generateDesignSystem   # runs automatically before any compile
 ```
 
 ## The registered design system

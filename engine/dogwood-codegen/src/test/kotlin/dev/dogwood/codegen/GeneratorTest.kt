@@ -145,3 +145,69 @@ class GeneratorTest {
     assertTrue(stubs.contains("widgetTag(1, 3)"), "the stub carries its segment-encoded tag")
   }
 }
+
+/**
+ * The second half of the Phase 3 gate: the generator round-trips an upstream change without hand
+ * edits.
+ *
+ * A Compose version bump is not reproducible in a test, but the property that matters under one
+ * is: when the surface gains a component and an optional parameter, every tag that already
+ * existed must keep its number. If tags moved, a client one dictionary version behind would
+ * silently render the wrong widget — which is worse than failing to render it.
+ */
+class RoundTripTest {
+
+  private val before = """
+    package acme.design
+    import androidx.compose.runtime.Composable
+
+    @Composable fun AcmeDivider(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+    @Composable fun AcmeBadge(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+    @Composable fun AcmeChip(text: String, onSelectedChange: (Boolean) -> Unit) {}
+  """
+
+  /** Upstream added a component at the end, and an optional parameter to an existing one. */
+  private val after = """
+    package acme.design
+    import androidx.compose.runtime.Composable
+
+    @Composable fun AcmeDivider(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+    @Composable fun AcmeBadge(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty, subtitle: String? = null) {}
+    @Composable fun AcmeChip(text: String, onSelectedChange: (Boolean) -> Unit) {}
+    @Composable fun AcmeSpinner(modifier: DogwoodModifier = DogwoodModifier.Empty) {}
+  """
+
+  @Test
+  fun existingTagsSurviveAnUpstreamChange() {
+    val parser = SurfaceParser()
+    val v1 = buildDictionary("acme", 1, 1, parser.parse(before, "Before.kt"))
+    val v2 = buildDictionary("acme", 1, 2, parser.parse(after, "After.kt"))
+
+    for (entry in v1.components) {
+      val updated = v2.components.single { it.name == entry.name }
+      assertEquals(entry.localTag, updated.localTag, "${entry.name} changed widget tag")
+      for ((property, tag) in entry.properties) {
+        assertEquals(tag, updated.properties[property], "${entry.name}.$property changed property tag")
+      }
+      for ((event, tag) in entry.events) {
+        assertEquals(tag, updated.events[event], "${entry.name}.$event changed event tag")
+      }
+    }
+  }
+
+  @Test
+  fun additionsAppend() {
+    val parser = SurfaceParser()
+    val v2 = buildDictionary("acme", 1, 2, parser.parse(after, "After.kt"))
+    assertEquals(4, v2.components.single { it.name == "AcmeSpinner" }.localTag, "a new component appends")
+    assertEquals(2, v2.components.single { it.name == "AcmeBadge" }.properties["subtitle"], "a new optional parameter appends")
+  }
+
+  @Test
+  fun regeneratingUnchangedInputProducesIdenticalOutput() {
+    val parser = SurfaceParser()
+    val first = buildDictionary("acme", 1, 1, parser.parse(before, "Before.kt")).encode()
+    val second = buildDictionary("acme", 1, 1, parser.parse(before, "Before.kt")).encode()
+    assertEquals(first, second, "the generator must be deterministic or its output cannot be diffed")
+  }
+}

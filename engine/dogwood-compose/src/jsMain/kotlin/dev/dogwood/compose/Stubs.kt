@@ -38,15 +38,6 @@ object Tags {
   val Spacer = widgetTag(Segments.LAYOUT, 5)
 
   // Segment 1 -- the registered design-system slice.
-  val PrimaryButton = widgetTag(Segments.DESIGN_SYSTEM, 1)
-  val AsyncImage = widgetTag(Segments.DESIGN_SYSTEM, 2)
-  val Card = widgetTag(Segments.DESIGN_SYSTEM, 3)
-  val Badge = widgetTag(Segments.DESIGN_SYSTEM, 4)
-  val Divider = widgetTag(Segments.DESIGN_SYSTEM, 5)
-  val Chip = widgetTag(Segments.DESIGN_SYSTEM, 6)
-  val Price = widgetTag(Segments.DESIGN_SYSTEM, 7)
-  val StarRating = widgetTag(Segments.DESIGN_SYSTEM, 8)
-  val SectionHeader = widgetTag(Segments.DESIGN_SYSTEM, 9)
   val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
   val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
@@ -185,7 +176,7 @@ class RecordingContext(
 /** Set once per composition, before `setContent`. Single-threaded guest, so this is safe. */
 internal lateinit var recording: RecordingContext
 
-private fun newWidget(tag: WidgetTag): WidgetNode {
+internal fun newWidget(tag: WidgetTag): WidgetNode {
   val id = recording.recorder.newId()
   recording.recorder.create(id, tag)
   return WidgetNode(id, tag)
@@ -295,129 +286,6 @@ private fun Container(
 // Segment 1 -- the registered design-system slice
 // ---------------------------------------------------------------------------
 
-@Composable
-fun PrimaryButton(label: String, modifier: DogwoodModifier = DogwoodModifier.Empty, onClick: () -> Unit) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.PrimaryButton) },
-    update = {
-      set(label) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-      // The lambda is stored guest-side; only its tag crosses the boundary.
-      set(onClick) { handler -> recording.lambdas.set(id, Tags.OnClick) { handler() } }
-    },
-  )
-}
-
-@Composable
-fun AsyncImage(
-  url: String,
-  contentDescription: String?,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  cornerRadiusDp: Int = 8,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.AsyncImage) },
-    update = {
-      set(url) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(contentDescription) {
-        recording.recorder.property(id, Tags.P2, if (it == null) JsonNull else JsonPrimitive(it))
-      }
-      set(cornerRadiusDp) { recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
-  )
-}
-
-/**
- * A selectable chip.
- *
- * Bindable as its design system declares it: a string, a boolean, and one discrete event.
- */
-@Composable
-fun Chip(
-  text: String,
-  selected: Boolean,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  onSelectedChange: (Boolean) -> Unit,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.Chip) },
-    update = {
-      set(text) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(selected) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-      // The first event that carries an argument. ADR-004 gave `Event` an argument list from
-      // the start; nothing used it until a component whose signature needed one.
-      set(onSelectedChange) { handler ->
-        recording.lambdas.set(id, Tags.OnClick) { args ->
-          handler(args.firstOrNull()?.jsonPrimitive?.booleanOrNull ?: false)
-        }
-      }
-    },
-  )
-}
-
-/** A price, with optional leading, struck-through previous, and trailing text. */
-@Composable
-fun Price(
-  price: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  leadingText: String? = null,
-  previousPrice: String? = null,
-  trailingText: String? = null,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.Price) },
-    update = {
-      set(price) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(leadingText) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(previousPrice) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
-      set(trailingText) { if (it != null) recording.recorder.property(id, Tags.P4, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
-  )
-}
-
-/**
- * A star rating.
- *
- * The design system's own signature takes `contentDescription` as a lambda the host invokes to
- * build a string. That is neither a content slot nor a discrete event, so it cannot cross; this
- * takes the finished string instead. The wrapper is the whole fix.
- */
-@Composable
-fun StarRating(
-  rating: Float,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  label: String? = null,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.StarRating) },
-    update = {
-      set(rating) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(label) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
-  )
-}
-
-/** A section title with an optional description beneath it. */
-@Composable
-fun SectionHeader(
-  title: String,
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  description: String? = null,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.SectionHeader) },
-    update = {
-      set(title) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(description) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
-  )
-}
-
 /**
  * A vertically scrolling list.
  *
@@ -466,35 +334,5 @@ private fun ListContainer(
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
     },
     content = { Children(Tags.Content, content) },
-  )
-}
-
-@Composable
-fun Card(
-  modifier: DogwoodModifier = DogwoodModifier.Empty,
-  content: @Composable DogwoodColumnScope.() -> Unit,
-) {
-  Container(Tags.Card, modifier) { ColumnScopeInstance.content() }
-}
-
-@Composable
-fun Badge(text: String, selected: Boolean, modifier: DogwoodModifier = DogwoodModifier.Empty) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.Badge) },
-    update = {
-      set(text) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
-      set(selected) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
-  )
-}
-
-@Composable
-fun Divider(modifier: DogwoodModifier = DogwoodModifier.Empty) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(Tags.Divider) },
-    update = {
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-    },
   )
 }

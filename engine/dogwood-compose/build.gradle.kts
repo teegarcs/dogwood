@@ -16,6 +16,9 @@ kotlin {
   }
 
   sourceSets {
+    // Generated guest stubs. Not committed; regenerated from the surface on every build.
+    jsMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/guest"))
+
     jsTest {
       dependencies {
         implementation(kotlin("test"))
@@ -33,4 +36,8 @@ kotlin {
       }
     }
   }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+  dependsOn(":dogwood-codegen:generateDesignSystem")
 }

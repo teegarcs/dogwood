@@ -36,6 +36,7 @@ import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.ModifierSet
 import dev.dogwood.protocol.PropertySet
 import dev.dogwood.protocol.WidgetTag
+import dev.dogwood.protocol.widgetTag
 import kotlin.test.Test
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
@@ -281,7 +282,7 @@ class EventArgumentTest {
         selected = nowSelected
       }
     }
-    val chip = host.decoded().single().g.filterIsInstance<Create>().single { it.w == Tags.Chip }
+    val chip = host.decoded().single().g.filterIsInstance<Create>().single { it.w == widgetTag(dev.dogwood.protocol.Segments.DESIGN_SYSTEM, 6) }
 
     composition.sendEvent(
       Event(i = chip.i, e = EventTag(1), q = composition.lastSentSequence, a = listOf(JsonPrimitive(true))),

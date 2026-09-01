@@ -38,6 +38,9 @@ kotlin {
     jvmMain.get().dependsOn(jvmAndroidMain)
     androidMain.get().dependsOn(jvmAndroidMain)
 
+    // Generated host bindings. Not committed; regenerated from the surface on every build.
+    commonMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/host"))
+
     commonMain {
       dependencies {
         api(project(":dogwood-protocol"))
@@ -82,4 +85,8 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+  dependsOn(":dogwood-codegen:generateDesignSystem")
 }
