@@ -136,3 +136,32 @@ fun TextInput(
   showCounter: Boolean = false,
   onValueChange: (String, Int) -> Unit,
 ) {}
+
+/**
+ * Animates its content in and out.
+ *
+ * The enter half of this is easy and the exit half is the reason it is a *container*. Animating a
+ * node as it is removed needs somebody to keep it alive after the guest has removed it, and doing
+ * that in the applier is not an option: indices inside a change batch assume removal is immediate,
+ * so every subsequent child add or move in the same batch would address the wrong slot. That is a
+ * correctness failure, not a cosmetic one.
+ *
+ * So the guest keeps the node composed and declares *visibility* instead, and [onExited] tells it
+ * when removal is safe. The node the guest is animating away is a node it still owns.
+ *
+ * @param enter named transition parts, combinable with `+`: `fade`, `expandVertically`,
+ *   `expandHorizontally`, `slideUp`, `slideDown`, `scale`. An unknown name is skew and degrades to
+ *   a fade rather than throwing.
+ * @param exit as [enter], with `shrinkVertically` and `shrinkHorizontally`.
+ * @param onExited fired once, when the exit animation has finished and the content is gone. Not
+ *   fired when an exit is interrupted by becoming visible again -- that is not an exit.
+ */
+@Composable
+fun Presence(
+  visible: Boolean,
+  modifier: Modifier = Modifier,
+  enter: String? = null,
+  exit: String? = null,
+  onExited: (() -> Unit)? = null,
+  content: @Composable () -> Unit,
+) {}

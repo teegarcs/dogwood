@@ -361,7 +361,7 @@ but worth a sentence so nobody ships a permanently pulsing badge without meaning
 | 2 | ✅ **T1** host-resolved value types (T1b patterns still to come) (`TextValue`, `Color`) and guest-shipped patterns | The destination-state rule reaches the whole generated surface; two latent generator defects ride along | ADR-021 |
 | 3 | ✅ **A1** animated colour | Smallest animation item; exercises the recipe-in-recipe shape A3 also uses | ADR-022 (jointly with A3) |
 | 4 | ✅ **A3** oscillate | Corrected design is fully specified; shares ADR-022 with A1 | ADR-022 |
-| 5 | **A2** `Presence` | Largest; depends on nothing above but benefits from A1/A3's spec parsing being settled | ADR-023 |
+| 5 | ✅ **A2** `Presence` | Largest; depends on nothing above but benefits from A1/A3's spec parsing being settled | ADR-023 |
 | 6 | **T2** plurals | Returns `TextValue`, so it wants T1 landed first | ADR-024 |
 
 Each lands with the full gate this phase has used: unit tests both sides, a device verification

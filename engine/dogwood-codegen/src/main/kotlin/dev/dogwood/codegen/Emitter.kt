@@ -136,7 +136,20 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
       }
       for (parameter in component.events) {
         val tag = entry.events.getValue(parameter.name)
-        appendLine("      set(${parameter.name}) { handler -> recording.lambdas.set(id, EventTag($tag)) ${guestEventBody(parameter)} }")
+        if (parameter.type.trim().endsWith("?")) {
+          // An optional callback. Registering nothing is not the same as registering a no-op: the
+          // slot has to be *cleared*, or a handler from a previous composition keeps receiving
+          // events after the guest has stopped asking for them.
+          appendLine("      set(${parameter.name}) { handler ->")
+          appendLine("        if (handler == null) {")
+          appendLine("          recording.lambdas.clear(id, EventTag($tag))")
+          appendLine("        } else {")
+          appendLine("          recording.lambdas.set(id, EventTag($tag)) ${guestEventBody(parameter)}")
+          appendLine("        }")
+          appendLine("      }")
+        } else {
+          appendLine("      set(${parameter.name}) { handler -> recording.lambdas.set(id, EventTag($tag)) ${guestEventBody(parameter)} }")
+        }
       }
       appendLine("    },")
       if (component.slots.isNotEmpty()) {
@@ -307,10 +320,23 @@ fun emitHostBindings(
  * `{ handler() }` for every event compiles only for the zero-argument case, which is why the
  * first event with an argument found this.
  */
-private fun guestEventBody(parameter: ParsedParameter): String {
-  val arguments = parameter.type
-    .substringAfter("(").substringBefore(")")
+/**
+ * The declared arguments of an event lambda.
+ *
+ * Reads them from the *normalized* type, so a nullable lambda's own wrapper is not mistaken for an
+ * argument list. `(() -> Unit)?` takes nothing; read naively it appears to take one argument
+ * called `) -> Unit`, and both ends of the boundary would have been generated to pass it.
+ */
+internal fun eventArguments(parameter: ParsedParameter): List<String> {
+  var bare = parameter.type.trim()
+  if (bare.endsWith("?")) bare = bare.dropLast(1).trim()
+  if (bare.startsWith("((")) bare = bare.substring(1).trim()
+  return bare.substringAfter("(").substringBefore(")")
     .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+private fun guestEventBody(parameter: ParsedParameter): String {
+  val arguments = eventArguments(parameter)
   if (arguments.isEmpty()) return "{ handler() }"
   val decoded = arguments.mapIndexed { index, type ->
     when (type.removeSuffix("?")) {
@@ -331,9 +357,7 @@ private fun guestEventBody(parameter: ParsedParameter): String {
  * list since ADR-004's first draft, and this is where the generator uses it.
  */
 private fun eventLambda(parameter: ParsedParameter, tag: Int): String {
-  val arguments = parameter.type
-    .substringAfter("(").substringBefore(")")
-    .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+  val arguments = eventArguments(parameter)
   if (arguments.isEmpty()) return "{ events.send(node, EventTag($tag)) }"
   val names = arguments.indices.map { "a$it" }
   val encoded = names.joinToString(", ") { "JsonPrimitive($it)" }

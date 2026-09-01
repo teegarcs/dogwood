@@ -32,9 +32,13 @@ class SkewReport {
   /** Icon names absent from this client's icon set. Rendered as the set's fallback icon. */
   val unknownIcons = mutableSetOf<String>()
 
+  /** Enter/exit transition names this client does not implement. Rendered as a fade. */
+  val unknownTransitions = mutableSetOf<String>()
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
-      unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty()
+      unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
+      unknownTransitions.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -42,7 +46,8 @@ class SkewReport {
     if (unknownExpressionFactories.isNotEmpty()) append("factories=$unknownExpressionFactories ")
     if (unknownColorTokens.isNotEmpty()) append("colours=$unknownColorTokens ")
     if (unknownTextStyles.isNotEmpty()) append("styles=$unknownTextStyles ")
-    if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons")
+    if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons ")
+    if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions")
     append(")")
   }
 }

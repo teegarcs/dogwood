@@ -34,6 +34,7 @@ import dev.dogwood.compose.HostServices
 import dev.dogwood.compose.HorizontalList
 import dev.dogwood.compose.LocalHostEnvironment
 import dev.dogwood.compose.rememberLazyListState
+import dev.dogwood.compose.Presence
 import dev.dogwood.compose.Price
 import dev.dogwood.compose.TextValue
 import dev.dogwood.compose.PrimaryButton
@@ -177,6 +178,12 @@ private fun ExploreContent(params: ExploreParams) {
   var state by remember { mutableStateOf<FeedState>(FeedState.Loading) }
   var attempt by remember { mutableStateOf(0) }
 
+  // Two sets, and the pair is the pattern. `dismissed` is what the user asked to remove;
+  // `departed` is what has finished animating away and may now leave the list. Collapsing them
+  // into one would remove the node mid-exit.
+  var dismissed by remember { mutableStateOf(emptySet<String>()) }
+  var departed by remember { mutableStateOf(emptySet<String>()) }
+
   // The list position is host-owned -- scroll offset changes every frame and the guest may not
   // hold per-frame state -- but it is *saveable*, so publishing new code while somebody is
   // halfway down the page brings them back to where they were rather than to the top.
@@ -243,7 +250,7 @@ private fun ExploreContent(params: ExploreParams) {
             it.name.contains(query.text, ignoreCase = true) ||
               it.area.contains(query.text, ignoreCase = true)
           }
-        }
+        }.filter { it.name !in departed }
 
         HorizontalList(spacingDp = 12) {
           for (destination in feed.destinations) {
@@ -290,7 +297,15 @@ private fun ExploreContent(params: ExploreParams) {
           singleLine = true,
         )
 
+        // The removal handshake. A stay the user dismisses stays composed until the host says its
+        // exit finished, and only then leaves the list -- because a node animating away is a node
+        // the guest still owns. Removing it on the tap would delete it mid-animation.
         for (stay in matches) {
+          Presence(
+            visible = stay.name !in dismissed,
+            exit = "fade+shrinkVertically",
+            onExited = { departed = departed + stay.name },
+          ) {
           StayCard(
             stay,
             // Wider rooms get a larger thumbnail. The guest decides this, not the host, because
@@ -304,7 +319,9 @@ private fun ExploreContent(params: ExploreParams) {
                 mapOf("stay" to stay.name, "at" to (host.nowEpochMillis()?.toString() ?: "")),
               )
             },
+            onDismiss = { dismissed = dismissed + stay.name },
           )
+          }
         }
 
         PrimaryButton(
@@ -422,7 +439,7 @@ private fun DestinationCard(destination: Destination, widthDp: Int, showWasPrice
 }
 
 @Composable
-private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
+private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit, onDismiss: () -> Unit) {
   Card(modifier = Modifier.fillMaxWidth()) {
     Row(modifier = Modifier.fillMaxWidth().padding(8), onClick = onSave) {
       AsyncImage(
@@ -445,6 +462,7 @@ private fun StayCard(stay: Stay, thumbnailDp: Int, onSave: () -> Unit) {
         if (stay.badge != null) {
           Badge(text = stay.badge, selected = true, modifier = Modifier.padding(1))
         }
+        PrimaryButton(label = "Dismiss", onClick = onDismiss)
         Price(
           price = Formats.currency(stay.priceMinor, stay.currency),
           trailingText = TextValue(strings("perNight")),
