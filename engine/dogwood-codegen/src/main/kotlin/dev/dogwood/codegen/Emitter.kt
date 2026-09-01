@@ -124,6 +124,10 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
       }
       component.modifier?.let {
         appendLine("      set(${it.name}) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }")
+        // `reconcile`, not `set`: it runs on every update rather than only when the chain
+        // changes. A completion callback captured where the chain last *changed* would go stale,
+        // which is the same defect the viewport reporter had.
+        appendLine("      reconcile { applyModifier(id, ${it.name}) }")
       }
       for (parameter in component.events) {
         val tag = entry.events.getValue(parameter.name)
@@ -195,6 +199,12 @@ fun emitHostBindings(
   appendLine("/**")
   appendLine(" * Dispatches one node to its implementation. Returns false when the tag is not ours,")
   appendLine(" * so a caller can try another segment before falling back to a placeholder.")
+  appendLine(" *")
+  appendLine(" * The tag is checked **before** the modifier chain is built, and that ordering is")
+  appendLine(" * load-bearing rather than tidy. Building it first meant every node from another")
+  appendLine(" * segment built its chain twice -- once here, once in the caller after this returned")
+  appendLine(" * false. That was merely wasteful until modifier arguments could be animated, at which")
+  appendLine(" * point it became two animations and two completion events for one declared target.")
   appendLine(" */")
   appendLine("@Composable")
   appendLine("fun bind${dictionary.segmentName.replaceFirstChar { it.uppercase() }}(")
@@ -202,7 +212,8 @@ fun emitHostBindings(
   appendLine("  scope: LayoutScope,")
   appendLine("  events: EventSink,")
   appendLine("): Boolean {")
-  appendLine("  val modifier = node.composeModifier(scope)")
+  appendLine("  if (node.tag.value !in ${dictionary.segmentName.replaceFirstChar { it.uppercase() }}Tags) return false")
+  appendLine("  val modifier = node.composeModifier(scope, events)")
   appendLine("  when (node.tag.value) {")
 
   for (component in bindable) {

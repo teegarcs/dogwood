@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import dev.dogwood.protocol.ChildrenTag
 import dev.dogwood.protocol.EventTag
+import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.PropertyTag
 import dev.dogwood.protocol.Segments
@@ -28,6 +29,30 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * Records a modifier chain, and rebinds any animation completions it carries.
+ *
+ * Called from every stub, hand-written and generated. The chain itself is recorded only when it
+ * changes -- completions are outside `DogwoodModifier`'s equality, deliberately, because they are
+ * lambdas and would otherwise make every chain look new on every recomposition.
+ *
+ * The rebinding, though, happens **every** time. A completion captured in the composition where
+ * the chain last changed would go stale exactly as the viewport reporter did
+ * ([Layer 5 ADR-016](../../../../../../adrs/layer-5/ADR-016-leak-detection.md)), and a stale
+ * callback firing into a dead closure is the same bug wearing different clothes.
+ */
+internal fun applyModifier(id: Id, modifier: DogwoodModifier) {
+  for (index in modifier.elements.indices) {
+    val tag = EventTag(ANIMATION_EVENT_BASE + index)
+    val callback = modifier.completions[index]
+    if (callback != null) {
+      recording.lambdas.set(id, tag) { callback() }
+    } else {
+      recording.lambdas.clear(id, tag)
+    }
+  }
+}
 
 /** The Phase 0 and Phase 1 binding dictionary, hand-assigned. */
 object Tags {
@@ -77,12 +102,31 @@ object Tags {
  * arguments such as `clip(RoundedCornerShape(8.dp))` need the deferred-expression grammar,
  * which does not exist yet.
  */
-open class DogwoodModifier internal constructor(val elements: List<ModifierElem>) {
+open class DogwoodModifier internal constructor(
+  val elements: List<ModifierElem>,
+  /**
+   * Completion callbacks for animated elements, by their position in the chain.
+   *
+   * Guest-side only; nothing here crosses. The *position* is what both sides share -- the host
+   * walks the same ordered chain -- so a completion event needs no allocated identifier and no
+   * registry: the element's index is the identifier. See `Animation.kt`.
+   */
+  internal val completions: Map<Int, () -> Unit> = emptyMap(),
+) {
   companion object Empty : DogwoodModifier(emptyList())
 
   fun then(tag: Int, value: JsonElement): DogwoodModifier =
-    DogwoodModifier(elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value))
+    DogwoodModifier(elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value), completions)
 
+  internal fun then(tag: Int, value: JsonElement, onFinished: (() -> Unit)?): DogwoodModifier {
+    val next = elements + ModifierElem(modifierTag(Segments.LAYOUT, tag), value)
+    val callbacks = if (onFinished == null) completions else completions + (elements.size to onFinished)
+    return DogwoodModifier(next, callbacks)
+  }
+
+  // Completions are deliberately outside equality. They are lambdas, so they are a fresh instance
+  // on every recomposition, and including them would make every modifier chain look changed and
+  // re-cross on every frame -- which is exactly the traffic this whole design avoids.
   override fun equals(other: Any?): Boolean =
     other is DogwoodModifier && other.elements == elements
 
@@ -94,6 +138,12 @@ fun DogwoodModifier.fillMaxWidth(fraction: Float = 1.0f): DogwoodModifier =
   then(ModifierTags.FILL_MAX_WIDTH, JsonPrimitive(fraction))
 fun DogwoodModifier.size(dp: Int): DogwoodModifier = then(ModifierTags.SIZE, JsonPrimitive(dp))
 fun DogwoodModifier.alpha(alpha: Float): DogwoodModifier = then(ModifierTags.ALPHA, JsonPrimitive(alpha))
+
+fun DogwoodModifier.rotate(degrees: Float): DogwoodModifier =
+  then(ModifierTags.ROTATE, JsonPrimitive(degrees))
+
+fun DogwoodModifier.scale(scale: Float): DogwoodModifier =
+  then(ModifierTags.SCALE, JsonPrimitive(scale))
 
 /** `size` sets both dimensions; these set one, which is usually what a card wants. */
 fun DogwoodModifier.width(dp: Int): DogwoodModifier = then(ModifierTags.WIDTH, JsonPrimitive(dp))
@@ -174,6 +224,8 @@ internal object ModifierTags {
   const val ALIGN = 8
   const val CLIP = 9
   const val BACKGROUND = 10
+  const val ROTATE = 11
+  const val SCALE = 12
 }
 
 /**
@@ -236,6 +288,7 @@ fun Text(
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
     },
   )
 }
@@ -261,6 +314,7 @@ fun Text(
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
     },
   )
 }
@@ -283,6 +337,7 @@ fun Row(
     factory = { newWidget(Tags.Row) },
     update = {
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
       // Stand-in for `Modifier.clickable`, which carries a lambda argument and so needs the
       // modifier subsystem Phase 2 defines.
       //
@@ -315,6 +370,7 @@ fun Spacer(modifier: DogwoodModifier = DogwoodModifier.Empty) {
     factory = { newWidget(Tags.Spacer) },
     update = {
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
     },
   )
 }
@@ -329,6 +385,7 @@ private fun Container(
     factory = { newWidget(tag) },
     update = {
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
     },
     content = { Children(Tags.Content, content) },
   )

@@ -130,6 +130,16 @@ class ChangeRecorder {
 }
 
 /**
+ * The event tag an animation completion for chain element *n* is reported under.
+ *
+ * Derived from the element's position rather than allocated, because both sides already walk the
+ * same ordered chain -- so the index is an identifier they agree on with nothing on the wire. The
+ * base is far above any declared event tag; a widget with a hundred lambda parameters would be a
+ * different problem.
+ */
+const val ANIMATION_EVENT_BASE = 1000
+
+/**
  * Maps an (node identifier, [EventTag]) pair to the Kotlin lambda captured during
  * composition. The protocol carries only the tag; the closure never crosses the boundary.
  *

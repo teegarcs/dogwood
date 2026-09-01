@@ -157,7 +157,7 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
   // are bound without a line of hand-written dispatch; what remains below is the layout tier and
   // the two lazy containers the generator does not yet model.
   if (bindDogwoodDesignSystem(node, scope, events)) return
-  val modifier = node.composeModifier(scope)
+  val modifier = node.composeModifier(scope, events)
   when (node.tag.value) {
     DogwoodDictionary.Text.value -> {
       // Two ways to say what the text is, and the second is the one the sandbox cannot do for

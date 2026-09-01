@@ -22,7 +22,20 @@ import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.Formats
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.dogwood.compose.Animations
+import dev.dogwood.compose.Box
+import dev.dogwood.compose.Colors
 import dev.dogwood.compose.Keyboards
+import dev.dogwood.compose.PrimaryButton
+import dev.dogwood.compose.animate
+import dev.dogwood.compose.animateDp
+import dev.dogwood.compose.alpha
+import dev.dogwood.compose.background
+import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
 import dev.dogwood.compose.rememberDogwoodTextFieldState
 import dev.dogwood.compose.services
@@ -94,6 +107,39 @@ fun AboutScreen() {
     // The guest sees digits. It never sees the spaces, so changing the mask cannot change what
     // validation reads.
     Text("guest sees: \"${card.text}\"")
+
+    Divider(modifier = DogwoodModifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Animation",
+      description = "One property crossed when the target changed. Every frame after that is host work.",
+    )
+    var expanded by remember { mutableStateOf(false) }
+    var arrivals by remember { mutableStateOf(0) }
+    PrimaryButton(
+      label = if (expanded) "Collapse" else "Expand",
+      modifier = DogwoodModifier.fillMaxWidth(),
+      onClick = { expanded = !expanded },
+    )
+    Box(
+      modifier = DogwoodModifier
+        .fillMaxWidth()
+        // Two animated arguments in one chain. Interrupt it mid-flight -- tap twice quickly --
+        // and it retargets from wherever it is rather than restarting, because that is what
+        // Compose's own `animateFloatAsState` does and this protocol declares targets rather than
+        // starting animations.
+        .height(animateDp(if (expanded) 160 else 24, Animations.spring(damping = "mediumBouncy")))
+        .alpha(
+          animate(
+            if (expanded) 1f else 0.35f,
+            Animations.tween(durationMs = 250),
+            // A completion, not a retarget: an interrupted animation never reports one.
+            onFinished = { arrivals += 1 },
+          ),
+        )
+        .background(Colors.token("primaryContainer")),
+    )
+    Text("arrived $arrivals times")
 
     Divider(modifier = DogwoodModifier.fillMaxWidth())
 
