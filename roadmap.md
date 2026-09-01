@@ -248,7 +248,22 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 **Goal:** reach the components developers actually reach for. This is the larger half of the total work, and it is incremental — each subsystem ships independently.
 
-**Ongoing. Prioritise by real usage in your own product, not by this order.**
+✅ **All nine subsystems are delivered**, each with an Architecture Decision Record, tests, and a
+verification pass on a device. That does not mean each is *finished* — every row below names what
+it does not yet cover, and those limits are the honest boundary of what a product can build today.
+
+Five of the nine turned up defects that reading could not have found, which is the argument for
+verifying on a device rather than in a suite:
+
+| Subsystem | What only a device (or a real composition) showed |
+|---|---|
+| Host services | A suspending call resumed, wrote state, and **nobody was left to notice** — the fetch completed and the screen sat on "Loading…". Layer 4 had assumed every guest state change began with a host call. |
+| Live-state holders | A restored scroll position was saved, restored, and **still lost**: the replacement guest declares its target while its content is still loading, so `scrollToItem` clamped to a two-item list. |
+| Node reuse | `key` is **silently defeated by a per-child conditional**, because a movable group can only be matched among its immediate siblings. Nothing warns, and the screen still renders. |
+| Leak detection | The instrument found a real leak on its first run: the lazy list's viewport reporter was **still reporting to the previous, closed guest** after a code update, holding a whole QuickJS heap alive. |
+| Resources, text input, animation | A tag collision would have rendered every list as an icon; a masked field transposed digits through a real keyboard that the test harness could not reproduce; and the generated dispatch had been **building every layout primitive's modifier chain twice** since it shipped. |
+
+**Prioritise by real usage in your own product, not by this order.**
 
 | Subsystem | Notes |
 |---|---|
