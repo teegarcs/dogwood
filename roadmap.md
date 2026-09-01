@@ -230,13 +230,15 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 **Approximately 6–8 weeks — for generator v1.** Per the design-system-first path above, v1 targets **registered modules plus `foundation-layout`**: first-party Kotlin sources, no metalava, curated signatures, few `@Composable` defaults. The full Material tier — the defaults-expression problem in its general form — is **generator v2**, scheduled after the first production screen ships, and its 6–8 week estimate should be treated as a floor (see the effort-realism note at the end of this document). The multi-segment dictionary (namespaced tag spaces, per-segment versions — [ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)) is a v1 requirement, not a later refinement, because the vertical slice already spans two segments.
 
-1. Build the surface parser on the Kotlin frontend. Metalava dumps carry no default expressions and 73.9% of parameters are optional, so they cannot be the source of truth — see [Layer 5 ADR-002](adrs/layer-5/ADR-002-standalone-codegen-tool-not-ksp.md).
-2. Emit four artifacts from one parsed model: guest stubs, **guest-side value-type stand-ins** (`Dp`, `Color`, `TextStyle` — Google publishes no Kotlin/JavaScript artifact for these), host bindings, and the versioned binding dictionary.
-3. Implement the deferred-expression protocol **per the grammar ADR written in Phase 2**, evaluated **inside the host composition** and memoized against the composition-local snapshot, with a bounded cache.
-4. Implement the "use host default" sentinel for parameters whose defaults are `@Composable`.
-5. Implement the build-time dictionary checker in Layer 1, and per-dictionary-version builds in Layer 2.
+1. ~~Build the surface parser on the Kotlin frontend.~~ **Done.** `dogwood-codegen` parses Kotlin *source* with the compiler's own frontend, applies the bindability rule, and classifies every parameter as value, modifier, slot, event, expression or unsupported — including all five failure classes the [Backpack audit](adrs/layer-5/ADR-008-design-system-audit-backpack.md) found in the wild. It reads source rather than a metalava dump for the reason [Layer 5 ADR-002](adrs/layer-5/ADR-002-standalone-codegen-tool-not-ksp.md) gives: dumps carry no default expressions.
+2. **Two of the four artifacts.** The **versioned dictionary** and the **guest stubs** are emitted from one parsed model, with tags assigned in declaration order and never renumbered. **Host bindings** and **guest-side value-type stand-ins** (`Dp`, `Color`, `TextStyle`) are **not emitted yet**.
+3. ~~Implement the deferred-expression protocol per the grammar ADR.~~ **Done in Phase 2** for modifier arguments ([ADR-010](adrs/layer-5/ADR-010-deferred-expression-grammar.md)), evaluated host-side with a bounded memo. The general case — `@Composable` defaults, expressions over live state — is scoped there and unbuilt.
+4. **The sentinel is emitted, not yet exercised end to end.** The parser recognises a default the host must resolve, and the emitted stub guards it so absence reaches the wire. No generated component is in service yet, so the sentinel has been tested in the generator's output rather than in a running screen.
+5. **Not started.** The build-time dictionary checker in Layer 1 and per-dictionary-version builds in Layer 2.
 
-**Gate.** Generated bindings reproduce the Phase 1 and 2 behaviour exactly, and the generator round-trips a Compose version bump without hand edits.
+**Phase 3 is therefore part-built.** What exists is the parse and the two artifacts that depend only on it. What does not is the substitution: no hand-written binding has been replaced by a generated one, which is what the gate below actually asks for.
+
+**Gate.** Generated bindings reproduce the Phase 1 and 2 behaviour exactly, and the generator round-trips a Compose version bump without hand edits. **Not met.** The generator emits guest stubs and a dictionary that are structurally right and tested, but nothing generated is in service, so "reproduces the hand-written behaviour exactly" is untested by construction. That substitution is the remaining work, and it is where the estimate's uncertainty lives.
 
 ---
 

@@ -21,6 +21,10 @@ coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", ve
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+# The generator parses Kotlin source with the compiler's own frontend. Metalava dumps carry no
+# default expressions and 73.9% of parameters are optional, so dumps cannot be the source of
+# truth -- see Layer 5 ADR-002.
+kotlin-compiler-embeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version = "5.3.2" }
 # Real image loading, so `AsyncImage(url)` fetches a picture rather than drawing a placeholder.
 # Coil 3 targets Compose Multiplatform, which keeps the binding common across hosts.
