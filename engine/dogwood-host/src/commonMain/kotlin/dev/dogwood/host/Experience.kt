@@ -39,8 +39,10 @@ class DogwoodExperience(
   private val ziplineDispatcher: CoroutineDispatcher,
   private val uiScope: CoroutineScope,
   private val onGuestException: (Throwable) -> Unit = { throw it },
+  /** Off by default. See `Leaks.kt` for what is worth watching in a host, and why. */
+  leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
 ) {
-  val tree = HostTree()
+  val tree = HostTree(leakDetector)
 
   /**
    * The threading contract.

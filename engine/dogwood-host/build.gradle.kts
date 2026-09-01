@@ -54,6 +54,10 @@ kotlin {
         api(compose.ui)
         implementation(libs.coroutines.core)
         implementation(libs.okio)
+        // `implementation`, not `api`: Redwood marks its LeakDetector "for Redwood internal use
+        // only", so it stays behind `DogwoodLeakWatcher` and never reaches a consumer's compile
+        // classpath. See Leaks.kt.
+        implementation(libs.redwood.leak.detector)
         api(libs.coil.compose)
         api(libs.coil.network)
       }

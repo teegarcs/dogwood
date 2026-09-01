@@ -64,7 +64,15 @@ class HostNode(
  * placeholder node rather than a dropped one, so that later index arithmetic in the same batch
  * stays consistent when a guest is built against a newer dictionary than the client carries.
  */
-class HostTree {
+class HostTree(
+  /**
+   * Watches nodes as they are detached.
+   *
+   * Off by default: watching costs a weak reference per detached node and a periodic collection,
+   * and a host that is not investigating a leak should not pay for one. See `Leaks.kt`.
+   */
+  private val leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
+) {
   val root = HostNode(Id(0), WidgetTag(0))
 
   private val byId = HashMap<Int, HostNode>().apply { put(0, root) }
@@ -106,9 +114,15 @@ class HostTree {
   private fun node(id: Id): HostNode =
     byId[id.value] ?: error("batch referenced node ${id.value} before creating it")
 
-  /** Identifiers are never reused within a composition, so removal may forget them outright. */
+  /**
+   * Identifiers are never reused within a composition, so removal may forget them outright.
+   *
+   * Depth first, because forgetting only the root of a detached subtree would leave every
+   * descendant in [byId] -- reachable, addressable, and invisible.
+   */
   private fun purge(node: HostNode) {
     byId.remove(node.id.value)
+    leakDetector.watch(node, "detached node ${node.id.value}, widget ${node.tag.value}")
     for (slot in node.allSlots()) for (child in slot) purge(child)
   }
 }

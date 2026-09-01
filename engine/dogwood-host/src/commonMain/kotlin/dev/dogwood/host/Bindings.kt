@@ -38,7 +38,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -290,6 +292,21 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
   }
 
   if (node.boolean(P5, false)) {
+    // `rememberUpdatedState`, and this is not a stylistic choice -- it fixes a real leak that the
+    // leak detector found on a device.
+    //
+    // The report effect is keyed on the node identifier and the host's own list state, neither of
+    // which changes when a code update swaps the guest underneath: the replacement tree hands out
+    // the same identifiers, so `key(node.id)` matches the same composition groups and the effect
+    // is *not* restarted. It therefore kept the `EventSink` from the composition it was launched
+    // in, that sink captured the first `DogwoodExperience`, and that experience holds a Zipline
+    // instance and an entire QuickJS heap. Six code updates in a row leaked exactly one
+    // generation: the first, permanently.
+    //
+    // The memory was the symptom. The defect was that viewport reports after a code update were
+    // being delivered to the previous, closed guest.
+    val currentNode by rememberUpdatedState(node)
+    val currentEvents by rememberUpdatedState(events)
     LaunchedEffect(node.id.value, listState) {
       snapshotFlow {
         Triple(
@@ -300,8 +317,8 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
       }
         .distinctUntilChanged()
         .collect { (first, last, scrolling) ->
-          events.send(
-            node,
+          currentEvents.send(
+            currentNode,
             EventTag(1),
             listOf(JsonPrimitive(first), JsonPrimitive(last), JsonPrimitive(scrolling)),
           )

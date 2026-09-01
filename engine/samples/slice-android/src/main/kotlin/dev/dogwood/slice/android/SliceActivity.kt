@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,10 +57,12 @@ import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.allowHosts
 import dev.dogwood.host.cachePath
+import dev.dogwood.host.dogwoodLeakDetector
 import dev.dogwood.protocol.DogwoodConfiguration
 import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.widthClass
 import java.util.concurrent.Executors
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -205,6 +208,19 @@ class SliceActivity : ComponentActivity() {
       }.asCoroutineDispatcher()
     }
 
+    // Leak detection, on in the development slice because the leak worth catching here is
+    // peculiar to this architecture: a retained guest generation holds a whole QuickJS heap, and a
+    // code update while a screen is live is the normal case. Publish twice, watch Logcat, and
+    // either nothing appears or something is wrong.
+    val leakDetector = remember(uiScope) {
+      dogwoodLeakDetector(uiScope, leakThreshold = 10.seconds) { _, note ->
+        Log.w(TAG, "LEAK: $note")
+      }
+    }
+    DisposableEffect(leakDetector) {
+      onDispose { leakDetector.close() }
+    }
+
     // What this client lets the payload reach. Remembered rather than rebuilt, because switching
     // entry points restarts the guest and the offer should not change underneath it.
     val serviceHost = remember {
@@ -276,6 +292,7 @@ class SliceActivity : ComponentActivity() {
             put("apiBaseUrl", DEV_SERVER)
           },
           services = serviceHost,
+          leakDetector = leakDetector,
           onFailure = { e ->
             Log.e(TAG, "load failed", e)
             onFailure(

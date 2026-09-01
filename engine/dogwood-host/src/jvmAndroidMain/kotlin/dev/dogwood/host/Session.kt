@@ -55,6 +55,16 @@ class DogwoodSession(
    * mid-session would have a guest built for one set of services running against another.
    */
   private val services: DogwoodServices = DogwoodServiceHost(),
+  /**
+   * Watches each replaced guest generation.
+   *
+   * This is the leak that matters in this architecture, and it is not one an ordinary application
+   * can have. A retained [DogwoodExperience] is not one stale object: it holds the Zipline
+   * instance, and through it an entire QuickJS heap with a whole composition inside. A code update
+   * while a screen is live is the normal case here, so leaking a generation per publish means a
+   * long-lived screen accumulating interpreters.
+   */
+  private val leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
   private val pollIntervalMs: Long = 5_000,
   private val onSwap: (SessionStatus) -> Unit = {},
   /** Every failed poll, including the first. A silent failure is a blank screen with no cause. */
@@ -109,7 +119,12 @@ class DogwoodSession(
       }
 
       // Constructed on the user-interface thread, because that is the thread it binds.
-      val next = DogwoodExperience(delivered.zipline, ziplineDispatcher, uiScope)
+      val next = DogwoodExperience(
+        delivered.zipline,
+        ziplineDispatcher,
+        uiScope,
+        leakDetector = leakDetector,
+      )
       withContext(ziplineDispatcher) {
         next.start(
           entryPoint = entryPoint,
@@ -121,6 +136,9 @@ class DogwoodSession(
       }
 
       currentExperience.value = next
+      // Watched only after the replacement is in place, so that the reference handed to the
+      // detector is the last one this session itself holds.
+      if (previous != null) watchOutgoing(previous, status.loadCount)
       status = SessionStatus(
         loadCount = status.loadCount + 1,
         version = delivered.manifest.version,
@@ -142,6 +160,13 @@ class DogwoodSession(
     if (next == configuration) return
     configuration = next
     currentExperience.value?.updateConfiguration(next)
+  }
+
+  private fun watchOutgoing(previous: DogwoodExperience, generation: Int) {
+    leakDetector.watch(
+      previous,
+      "guest generation #$generation, replaced by a code update",
+    )
   }
 
   fun close() {
