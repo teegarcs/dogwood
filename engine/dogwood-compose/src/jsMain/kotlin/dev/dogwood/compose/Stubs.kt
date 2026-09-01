@@ -25,6 +25,8 @@ import dev.dogwood.protocol.widgetTag
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /** The Phase 0 and Phase 1 binding dictionary, hand-assigned. */
 object Tags {
@@ -82,15 +84,92 @@ open class DogwoodModifier internal constructor(val elements: List<ModifierElem>
   override fun hashCode(): Int = elements.hashCode()
 }
 
-fun DogwoodModifier.padding(dp: Int): DogwoodModifier = then(1, JsonPrimitive(dp))
-fun DogwoodModifier.fillMaxWidth(): DogwoodModifier = then(2, JsonPrimitive(1.0f))
-fun DogwoodModifier.weight(weight: Float): DogwoodModifier = then(3, JsonPrimitive(weight))
-fun DogwoodModifier.size(dp: Int): DogwoodModifier = then(4, JsonPrimitive(dp))
-fun DogwoodModifier.alpha(alpha: Float): DogwoodModifier = then(5, JsonPrimitive(alpha))
+fun DogwoodModifier.padding(dp: Int): DogwoodModifier = then(ModifierTags.PADDING, JsonPrimitive(dp))
+fun DogwoodModifier.fillMaxWidth(fraction: Float = 1.0f): DogwoodModifier =
+  then(ModifierTags.FILL_MAX_WIDTH, JsonPrimitive(fraction))
+fun DogwoodModifier.size(dp: Int): DogwoodModifier = then(ModifierTags.SIZE, JsonPrimitive(dp))
+fun DogwoodModifier.alpha(alpha: Float): DogwoodModifier = then(ModifierTags.ALPHA, JsonPrimitive(alpha))
 
 /** `size` sets both dimensions; these set one, which is usually what a card wants. */
-fun DogwoodModifier.width(dp: Int): DogwoodModifier = then(6, JsonPrimitive(dp))
-fun DogwoodModifier.height(dp: Int): DogwoodModifier = then(7, JsonPrimitive(dp))
+fun DogwoodModifier.width(dp: Int): DogwoodModifier = then(ModifierTags.WIDTH, JsonPrimitive(dp))
+fun DogwoodModifier.height(dp: Int): DogwoodModifier = then(ModifierTags.HEIGHT, JsonPrimitive(dp))
+
+// ---------------------------------------------------------------------------
+// Scoped modifiers
+// ---------------------------------------------------------------------------
+
+/**
+ * Scope markers, so a scoped modifier used outside its scope is a **compile error**.
+ *
+ * `weight` and `align` are not free functions in Compose; they are members of `RowScope`,
+ * `ColumnScope` and `BoxScope`, and that is not an accident of API style. A weight outside a row
+ * or a column has no meaning, and roadmap.md Phase 2 is explicit that "out-of-scope use must be
+ * a build error rather than a silent drop".
+ *
+ * It used to be a silent drop here: the host had a `weight` branch that returned the modifier
+ * unchanged when no scope was present, so the layout was quietly wrong and nothing said so. The
+ * scopes below make the mistake unwritable instead, which is strictly better than diagnosing it.
+ */
+@DslMarker
+annotation class DogwoodLayoutScope
+
+@DogwoodLayoutScope
+interface DogwoodRowScope {
+  /** Distributes remaining horizontal space. Only meaningful inside a row. */
+  fun DogwoodModifier.weight(weight: Float): DogwoodModifier =
+    then(ModifierTags.WEIGHT, JsonPrimitive(weight))
+
+  /** Vertical alignment within the row. */
+  fun DogwoodModifier.align(alignment: VerticalAlignment): DogwoodModifier =
+    then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
+}
+
+@DogwoodLayoutScope
+interface DogwoodColumnScope {
+  /** Distributes remaining vertical space. Only meaningful inside a column. */
+  fun DogwoodModifier.weight(weight: Float): DogwoodModifier =
+    then(ModifierTags.WEIGHT, JsonPrimitive(weight))
+
+  /** Horizontal alignment within the column. */
+  fun DogwoodModifier.align(alignment: HorizontalAlignment): DogwoodModifier =
+    then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
+}
+
+@DogwoodLayoutScope
+interface DogwoodBoxScope {
+  /** Alignment within the box. */
+  fun DogwoodModifier.align(alignment: BoxAlignment): DogwoodModifier =
+    then(ModifierTags.ALIGN, JsonPrimitive(alignment.ordinal))
+}
+
+/**
+ * Alignments cross as their ordinal.
+ *
+ * They are enumerations rather than the host's own alignment objects because an ordinal is a
+ * value; `Alignment.CenterVertically` is a host object with no serializable form, and reaching
+ * for it would need the deferred-expression protocol for no benefit.
+ */
+enum class VerticalAlignment { Top, CenterVertically, Bottom }
+enum class HorizontalAlignment { Start, CenterHorizontally, End }
+enum class BoxAlignment { TopStart, TopCenter, TopEnd, CenterStart, Center, CenterEnd, BottomStart, BottomCenter, BottomEnd }
+
+internal object RowScopeInstance : DogwoodRowScope
+internal object ColumnScopeInstance : DogwoodColumnScope
+internal object BoxScopeInstance : DogwoodBoxScope
+
+/** The modifier tag space. Segment-encoded like widget tags; see ADR-009. */
+internal object ModifierTags {
+  const val PADDING = 1
+  const val FILL_MAX_WIDTH = 2
+  const val WEIGHT = 3
+  const val SIZE = 4
+  const val ALPHA = 5
+  const val WIDTH = 6
+  const val HEIGHT = 7
+  const val ALIGN = 8
+  const val CLIP = 9
+  const val BACKGROUND = 10
+}
 
 /**
  * The composition-scoped recording context. It is a plain object threaded through a
@@ -144,15 +223,18 @@ fun Text(text: String, modifier: DogwoodModifier = DogwoodModifier.Empty, maxLin
 }
 
 @Composable
-fun Column(modifier: DogwoodModifier = DogwoodModifier.Empty, content: @Composable () -> Unit) {
-  Container(Tags.Column, modifier, content)
+fun Column(
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  content: @Composable DogwoodColumnScope.() -> Unit,
+) {
+  Container(Tags.Column, modifier) { ColumnScopeInstance.content() }
 }
 
 @Composable
 fun Row(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   onClick: (() -> Unit)? = null,
-  content: @Composable () -> Unit,
+  content: @Composable DogwoodRowScope.() -> Unit,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Row) },
@@ -172,13 +254,16 @@ fun Row(
         if (handler != null) recording.lambdas.set(id, Tags.OnClick) { handler() }
       }
     },
-    content = { Children(Tags.Content, content) },
+    content = { Children(Tags.Content) { RowScopeInstance.content() } },
   )
 }
 
 @Composable
-fun Box(modifier: DogwoodModifier = DogwoodModifier.Empty, content: @Composable () -> Unit = {}) {
-  Container(Tags.Box, modifier, content)
+fun Box(
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  content: @Composable DogwoodBoxScope.() -> Unit = {},
+) {
+  Container(Tags.Box, modifier) { BoxScopeInstance.content() }
 }
 
 @Composable
@@ -253,7 +338,7 @@ fun Chip(
   text: String,
   selected: Boolean,
   modifier: DogwoodModifier = DogwoodModifier.Empty,
-  onClick: () -> Unit,
+  onSelectedChange: (Boolean) -> Unit,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Chip) },
@@ -261,7 +346,13 @@ fun Chip(
       set(text) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
       set(selected) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-      set(onClick) { handler -> recording.lambdas.set(id, Tags.OnClick) { handler() } }
+      // The first event that carries an argument. ADR-004 gave `Event` an argument list from
+      // the start; nothing used it until a component whose signature needed one.
+      set(onSelectedChange) { handler ->
+        recording.lambdas.set(id, Tags.OnClick) { args ->
+          handler(args.firstOrNull()?.jsonPrimitive?.booleanOrNull ?: false)
+        }
+      }
     },
   )
 }
@@ -339,9 +430,11 @@ fun VerticalList(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
-  content: @Composable () -> Unit,
+  content: @Composable DogwoodColumnScope.() -> Unit,
 ) {
-  ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp, content)
+  ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp) {
+    ColumnScopeInstance.content()
+  }
 }
 
 /** A horizontally scrolling list. Same laziness caveat as [VerticalList]. */
@@ -350,9 +443,11 @@ fun HorizontalList(
   modifier: DogwoodModifier = DogwoodModifier.Empty,
   spacingDp: Int = 0,
   contentPaddingDp: Int = 0,
-  content: @Composable () -> Unit,
+  content: @Composable DogwoodRowScope.() -> Unit,
 ) {
-  ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp, content)
+  ListContainer(Tags.HorizontalList, modifier, spacingDp, contentPaddingDp) {
+    RowScopeInstance.content()
+  }
 }
 
 @Composable
@@ -375,8 +470,11 @@ private fun ListContainer(
 }
 
 @Composable
-fun Card(modifier: DogwoodModifier = DogwoodModifier.Empty, content: @Composable () -> Unit) {
-  Container(Tags.Card, modifier, content)
+fun Card(
+  modifier: DogwoodModifier = DogwoodModifier.Empty,
+  content: @Composable DogwoodColumnScope.() -> Unit,
+) {
+  Container(Tags.Card, modifier) { ColumnScopeInstance.content() }
 }
 
 @Composable

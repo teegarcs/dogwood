@@ -119,6 +119,35 @@ class DogwoodComposition(
     }
   }
 
+  /**
+   * The guest half of the threading contract.
+   *
+   * Phase 1 step 6 asks for dispatcher assertions on *both* sides, and on the guest the thread
+   * check degenerates: QuickJS is single-threaded, so "am I on the right thread" is always yes
+   * and asserting it would be theatre. The hazard that is real here is **re-entrancy** -- a host
+   * call arriving while composition or change-flushing is already in progress, which would
+   * interleave two composition passes into one batch and break the invariant that a batch is
+   * exactly one pass.
+   *
+   * It cannot happen today, because every host entry point is one synchronous crossing. It would
+   * start happening the moment anything on this side awaits, which is why the check exists now
+   * rather than after the bug.
+   */
+  private var inGuestCall = false
+
+  private inline fun <T> guestCall(name: String, body: () -> T): T {
+    check(!inGuestCall) {
+      "re-entrant guest call: $name arrived while another was still running. A change batch is " +
+        "one composition pass by construction, and interleaving two would silently break that."
+    }
+    inGuestCall = true
+    try {
+      return body()
+    } finally {
+      inGuestCall = false
+    }
+  }
+
   private fun flush() {
     if (recorder.pending == 0) return
     val batch = recorder.takeBatch()
@@ -126,7 +155,7 @@ class DogwoodComposition(
     host.sendChanges(encodeBatch(batch))
   }
 
-  fun frame(timeNanos: Long) {
+  fun frame(timeNanos: Long) = guestCall("frame") {
     Snapshot.sendApplyNotifications()
     frameClock.sendFrame(timeNanos)
   }
@@ -145,14 +174,14 @@ class DogwoodComposition(
    * batch older than the one the guest has since sent, which is what makes a double-tapped
    * "Pay" button a correctness problem rather than a cosmetic one.
    */
-  fun sendEvent(event: Event) {
+  fun sendEvent(event: Event) = guestCall("sendEvent") {
     if (event.q < lastSentSequence - STALE_EVENT_TOLERANCE) {
       host.onUnknownEventNode(event.i, event.e)
-      return
+      return@guestCall
     }
     if (!lambdas.dispatch(event.i, event.e, event.a)) {
       host.onUnknownEventNode(event.i, event.e)
-      return
+      return@guestCall
     }
     Snapshot.sendApplyNotifications()
   }

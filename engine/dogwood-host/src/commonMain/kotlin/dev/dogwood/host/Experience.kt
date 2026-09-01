@@ -21,6 +21,7 @@ import dev.dogwood.protocol.WidgetTag
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -133,11 +134,11 @@ class DogwoodExperience(
   }
 
   /** Delivers one interaction, stamped with the batch the host had applied when it happened. */
-  fun send(node: WidgetView, tag: EventTag) {
+  fun send(node: WidgetView, tag: EventTag, args: List<JsonElement> = emptyList()) {
     val sequence = tree.appliedSequence
     uiScope.launch(ziplineDispatcher) {
       threads.checkZipline()
-      guest?.sendEvent(Event(i = node.id, e = tag, q = sequence))
+      guest?.sendEvent(Event(i = node.id, e = tag, q = sequence, a = args))
     }
   }
 
@@ -170,8 +171,13 @@ class DogwoodExperience(
  */
 @Composable
 fun DogwoodSurface(experience: DogwoodExperience, modifier: Modifier = Modifier) {
-  val sink = EventSink { node, tag -> experience.send(node, tag) }
-  androidx.compose.foundation.layout.Column(modifier) {
-    RenderChildren(experience.tree.root, slot = 1, scope = LayoutScope(column = this), events = sink)
+  val sink = EventSink { node, tag, args -> experience.send(node, tag, args) }
+  // One evaluator per experience: its cache holds host objects built from this guest's recipes,
+  // so its lifetime is this guest's.
+  val evaluator = androidx.compose.runtime.remember(experience) { ExpressionEvaluator() }
+  androidx.compose.runtime.CompositionLocalProvider(LocalExpressionEvaluator provides evaluator) {
+    androidx.compose.foundation.layout.Column(modifier) {
+      RenderChildren(experience.tree.root, slot = 1, scope = LayoutScope(column = this), events = sink)
+    }
   }
 }

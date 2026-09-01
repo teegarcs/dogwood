@@ -32,10 +32,12 @@ import dev.dogwood.protocol.DogwoodHost
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
+import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.ModifierSet
 import dev.dogwood.protocol.PropertySet
 import dev.dogwood.protocol.WidgetTag
 import kotlin.test.Test
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -53,7 +55,12 @@ private class RecordingHost : DogwoodHost {
   }
 
   override fun onUnknownEvent(widgetTag: WidgetTag, tag: EventTag) = Unit
-  override fun onUnknownEventNode(id: Id, tag: EventTag) = Unit
+  var unknownNodes = 0
+    private set
+
+  override fun onUnknownEventNode(id: Id, tag: EventTag) {
+    unknownNodes++
+  }
   override fun handleUncaughtException(exception: Throwable) = throw exception
   override fun close() = Unit
 }
@@ -256,6 +263,52 @@ class BatchShapeTest {
 // ---------------------------------------------------------------------------
 
 /**
+ * `Event.args`.
+ *
+ * ADR-004 gave `Event` an argument list in its first draft. Nothing exercised it until a
+ * component whose signature needed one, so it was schema that had never been executed -- the
+ * kind of thing that is always fine right up until it is not.
+ */
+class EventArgumentTest {
+
+  @Test
+  fun anEventDeliversItsArgumentsToTheGuestLambda() {
+    var received: Boolean? = null
+    var selected by mutableStateOf(false)
+    val (host, composition) = compose {
+      Chip(text = "filter", selected = selected) { nowSelected ->
+        received = nowSelected
+        selected = nowSelected
+      }
+    }
+    val chip = host.decoded().single().g.filterIsInstance<Create>().single { it.w == Tags.Chip }
+
+    composition.sendEvent(
+      Event(i = chip.i, e = EventTag(1), q = composition.lastSentSequence, a = listOf(JsonPrimitive(true))),
+    )
+    composition.frame(0L)
+
+    assertEquals(true, received, "the argument the host sent must reach the guest's lambda")
+    val update = host.decoded()[1].g.filterIsInstance<PropertySet>()
+    assertTrue(
+      // A boolean, not the string "true": the wire keeps the type.
+      update.any { it.v == JsonPrimitive(true) },
+      "and the resulting state change must cross back as a boolean: ${update.map { it.v }}",
+    )
+  }
+
+  @Test
+  fun anEventForAnUnknownNodeIsReportedRatherThanThrown() {
+    val (host, composition) = compose { Text("static") }
+    // The user tapped a node the guest had already removed. Expected, not exceptional.
+    composition.sendEvent(Event(i = Id(9999), e = EventTag(1), q = composition.lastSentSequence))
+    assertEquals(1, host.unknownNodes, "a stale event is telemetry, never a crash")
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
  * Code update while a screen is live.
  *
  * Layer 4 calls this the normal case, not an edge one, and says plainly what happens without it:
@@ -316,5 +369,79 @@ class StatePreservationTest {
     assertTrue(texts.any { it == "count 0" }, "a cold start begins at the initial value")
     assertTrue(composition.snapshotState().values.isNotEmpty())
     composition.dispose()
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * The Phase 2 modifier subsystem.
+ *
+ * The gate asks for pixel-identical output against the same chain written statically. Pixels are
+ * not asserted here -- that needs screenshot testing the project does not have, and saying so is
+ * better than implying otherwise. What is asserted is the protocol half: an arbitrary chain
+ * crosses in order, with its arguments intact, and a chain whose argument is a deferred
+ * expression crosses as a recipe rather than as a value the guest could not have built.
+ */
+class ModifierChainTest {
+
+  private fun chainOf(content: @Composable () -> Unit): List<ModifierElem> {
+    val (host, _) = compose(content)
+    return host.decoded().single().g.filterIsInstance<ModifierSet>().first().e
+  }
+
+  @Test
+  fun anArbitraryChainCrossesInOrderWithItsArguments() {
+    val chain = chainOf {
+      Text(
+        "x",
+        modifier = DogwoodModifier.padding(8).width(120).alpha(0.5f).height(40).fillMaxWidth(0.75f),
+      )
+    }
+    assertEquals(listOf(1, 6, 5, 7, 2), chain.map { it.t.local })
+    assertEquals("8", chain[0].v.toString())
+    assertEquals("120", chain[1].v.toString())
+    assertEquals("0.5", chain[2].v.toString())
+    assertEquals("0.75", chain[4].v.toString())
+  }
+
+  @Test
+  fun orderIsPreservedBecauseOrderChangesTheLayout() {
+    // padding-then-size and size-then-padding are different layouts, so the chain is a sequence
+    // and not a set. Two chains with the same elements in different orders must differ.
+    val a = chainOf { Text("x", modifier = DogwoodModifier.padding(8).size(48)) }
+    val b = chainOf { Text("x", modifier = DogwoodModifier.size(48).padding(8)) }
+    assertEquals(listOf(1, 4), a.map { it.t.local })
+    assertEquals(listOf(4, 1), b.map { it.t.local })
+  }
+
+  @Test
+  fun aScopedModifierCrossesWithItsScopeIntact() {
+    val (host, _) = compose {
+      Row { Text("x", modifier = DogwoodModifier.weight(2.0f)) }
+    }
+    val chain = host.decoded().single().g.filterIsInstance<ModifierSet>()
+      .first { it.e.any { element -> element.t.local == 3 } }
+    // JSON has one number type, so 2.0f renders as `2`. The host reads it back as a float.
+    assertEquals("2", chain.e.single { it.t.local == 3 }.v.toString())
+    // There is no test that `weight` outside a row fails, because it cannot be written: the
+    // guest's scope receivers make it a compile error. That is the Phase 2 requirement met by
+    // construction rather than by diagnosis.
+  }
+
+  @Test
+  fun aDeferredExpressionCrossesAsARecipe() {
+    val chain = chainOf {
+      Text(
+        "x",
+        modifier = DogwoodModifier
+          .clip(Shapes.roundedCorner(12))
+          .background(Colors.token("primary")),
+      )
+    }
+    assertEquals(listOf(9, 10), chain.map { it.t.local })
+    // `[factory, args...]` -- a recipe the host evaluates, not a value the guest computed.
+    assertEquals("[1,12]", chain[0].v.toString())
+    assertEquals("""[4,"primary"]""", chain[1].v.toString())
   }
 }

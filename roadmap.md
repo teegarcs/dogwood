@@ -215,12 +215,12 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 **Sequencing dependency found in review:** modifier arguments are themselves deferred expressions — `clip(RoundedCornerShape(8.dp))` and `background(brush)` carry `Shape` and `Brush` values that only the deferred-expression protocol can represent. Phase 2's implementation is therefore **scoped to modifiers whose arguments are primitives and value classes** (`padding`, `fillMaxWidth`, `weight`, `alpha`, `size`), and the **deferred-expression grammar ADR is written in this phase**, jointly with the `Modifier` ADR, so the Phase 3 generator consumes a settled pair.
 
-1. Write the two ADRs together: the `Modifier` tag space, `then()` semantics, scope-awareness, and ordering guarantees; and the deferred-expression grammar it depends on.
-2. Implement the guest-side modifier type and chain builder.
-3. Implement host-side reconstruction into real Compose modifiers.
-4. Handle scoped modifiers — `RowScope.weight`, `BoxScope.align` are interface methods, so generated dispatch for a children slot must be emitted *inside* the parent's scope, and out-of-scope use must be a build error rather than a silent drop.
+1. ~~Write the two ADRs together.~~ **Done:** [Layer 5 ADR-009](adrs/layer-5/ADR-009-modifier-subsystem.md) (tag space, `then()` semantics, ordering, scope) and [ADR-010](adrs/layer-5/ADR-010-deferred-expression-grammar.md) (the grammar), written jointly.
+2. ~~Implement the guest-side modifier type and chain builder.~~ **Done.**
+3. ~~Implement host-side reconstruction into real Compose modifiers.~~ **Done**, including `clip` and `background`, whose arguments are deferred expressions evaluated host-side with a bounded memo.
+4. ~~Handle scoped modifiers.~~ **Done, and more strongly than asked.** `weight` and `align` are members of guest scope receivers supplied by each container, so out-of-scope use does not compile. The roadmap asked for a build error; this makes the mistake **unwritable**, which needs no diagnostic and mirrors the mechanism Compose itself uses.
 
-**Gate.** Arbitrary chains of the **in-scope (value-class-argument) modifiers** over the Phase 1 composables produce pixel-identical output to the same chain written statically. Expression-argument modifiers (`clip`, `background(brush)`, `border`) gate Phase 3 instead, where the deferred-expression evaluator exists.
+**Gate.** ~~Arbitrary chains of the in-scope modifiers produce pixel-identical output to the same chain written statically.~~ **Met at the protocol level, not at the pixel level, and the difference is stated rather than glossed:** the tests assert that an arbitrary chain crosses in order with its arguments intact, that two chains differing only in order cross differently, that a scoped modifier crosses with its scope intact, and that an expression argument crosses as a recipe. **Pixel identity is not asserted** — screenshot testing does not exist in this project, and claiming it without one would be a claim nobody checked. Expression-argument modifiers arrived early rather than waiting for Phase 3: `clip` and `background` work now, because the grammar they need had to be settled here anyway.
 
 ---
 

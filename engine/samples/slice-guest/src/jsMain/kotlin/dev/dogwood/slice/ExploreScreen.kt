@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.dogwood.compose.AsyncImage
 import dev.dogwood.compose.Badge
+import dev.dogwood.compose.Box
 import dev.dogwood.compose.Card
 import dev.dogwood.compose.Chip
 import dev.dogwood.compose.Column
@@ -35,11 +36,14 @@ import dev.dogwood.compose.StarRating
 import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
+import dev.dogwood.compose.Colors
+import dev.dogwood.compose.Shapes
+import dev.dogwood.compose.background
+import dev.dogwood.compose.clip
 import dev.dogwood.compose.padding
 import dev.dogwood.compose.height
 import dev.dogwood.compose.size
 import dev.dogwood.compose.width
-import dev.dogwood.compose.weight
 
 private data class Destination(
   val name: String,
@@ -118,7 +122,7 @@ fun ExploreScreen() {
         Chip(
           text = label,
           selected = index == selectedFilter,
-          onClick = { selectedFilter = index },
+          onSelectedChange = { nowSelected -> if (nowSelected) selectedFilter = index },
         )
       }
     }
@@ -155,6 +159,16 @@ private fun DestinationCard(destination: Destination) {
         contentDescription = "${destination.name}, ${destination.country}",
         modifier = DogwoodModifier.fillMaxWidth().height(130),
         cornerRadiusDp = 12,
+      )
+      // Deferred expressions. Neither of these arguments is a value the guest could construct:
+      // the shape and the colour are built host-side from recipes. The colour is named rather
+      // than literal, so it follows the host's theme -- which a literal could not.
+      Box(
+        modifier = DogwoodModifier
+          .fillMaxWidth()
+          .height(3)
+          .clip(Shapes.roundedCorner(2))
+          .background(Colors.token("primary")),
       )
       Spacer(modifier = DogwoodModifier.size(8))
       Text(destination.name, modifier = DogwoodModifier.padding(2))

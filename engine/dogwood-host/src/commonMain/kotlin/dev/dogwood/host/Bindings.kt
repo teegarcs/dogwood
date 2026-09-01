@@ -47,6 +47,8 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.WidgetTag
 import dev.dogwood.protocol.widgetTag
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 /** Which scope a child is being composed inside, so scoped modifiers can be applied at all. */
 class LayoutScope(
@@ -54,10 +56,19 @@ class LayoutScope(
   val column: ColumnScope? = null,
 )
 
-/** Where a binding sends the events its widget produces. */
+/**
+ * Where a binding sends the events its widget produces.
+ *
+ * Arguments are serializable values, in declaration order. Most events carry none; the viewport
+ * report carries two indices, which is what makes guest-side windowing possible at all -- the
+ * guest cannot see the screen, so the host has to tell it what is on it.
+ */
 fun interface EventSink {
-  fun send(node: WidgetView, tag: EventTag)
+  fun send(node: WidgetView, tag: EventTag, args: List<JsonElement>)
 }
+
+/** Most events carry no arguments; this keeps their call sites from saying so. */
+fun EventSink.send(node: WidgetView, tag: EventTag) = send(node, tag, emptyList())
 
 /** The single content slot every container in this slice declares. */
 private const val CONTENT = 1
@@ -67,6 +78,7 @@ private const val P1 = 1
 private const val P2 = 2
 private const val P3 = 3
 private const val P4 = 4
+private const val P5 = 5
 
 object DogwoodDictionary {
   // Segment 0 -- layout primitives.
@@ -220,7 +232,10 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       Surface(
         modifier = modifier
           .clip(RoundedCornerShape(Radius.Full))
-          .clickable { events.send(node, EventTag(1)) },
+          // `onSelectedChange: (Boolean) -> Unit` in the design system, so the event carries the
+          // new state rather than making the guest infer it. ADR-004 gave `Event` an argument
+          // list from the start; until now nothing used it.
+          .clickable { events.send(node, EventTag(1), listOf(JsonPrimitive(!selected))) },
         color = if (selected) Palette.Primary else Palette.CanvasContrast,
       ) {
         Text(

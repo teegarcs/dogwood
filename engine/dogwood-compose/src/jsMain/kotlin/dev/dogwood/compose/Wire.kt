@@ -22,7 +22,9 @@ import dev.dogwood.protocol.Create
 import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.ModifierSet
 import dev.dogwood.protocol.PropertySet
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -33,13 +35,32 @@ internal const val K_CHILD_ADD = 3
 internal const val K_CHILD_REMOVE = 4
 internal const val K_CHILD_MOVE = 5
 
-/** Converts a serialized value into a native JavaScript value `JSON.stringify` can walk. */
+/**
+ * Converts a serialized value into a native JavaScript value `JSON.stringify` can walk.
+ *
+ * Booleans need naming explicitly. Without the two cases below they fall through to the numeric
+ * branch, fail to parse as a number, and cross as the JSON *strings* `"true"` and `"false"`.
+ * That went unnoticed on device because the host's reader parses either -- a leniency that hides
+ * the bug rather than excusing it, since it costs two bytes per boolean and loses the type.
+ */
 private fun nativeValue(value: JsonElement): Any? = when (value) {
   is JsonNull -> null
-  is JsonPrimitive -> if (value.isString) value.content else value.content.toDoubleOrNull() ?: value.content
-  // Structured values arrive only with deferred expressions, which do not exist yet. When they
-  // do they need a positional shape of their own; ADR-007 does not define one.
-  else -> value.toString()
+  is JsonPrimitive -> when {
+    value.isString -> value.content
+    value.content == "true" -> true
+    value.content == "false" -> false
+    else -> value.content.toDoubleOrNull() ?: value.content
+  }
+  // Structured values: deferred expressions are arrays, `[factory, arg, ...]`. Before the
+  // expression grammar existed this branch stringified them, which produced valid JSON carrying
+  // the *text* of a recipe instead of the recipe -- the kind of bug that survives because the
+  // output still parses.
+  is JsonArray -> Array<Any?>(value.size) { nativeValue(value[it]) }
+  is JsonObject -> {
+    val target: dynamic = js("({})")
+    for ((key, element) in value) target[key] = nativeValue(element)
+    target
+  }
 }
 
 private fun chain(elements: List<ModifierElem>): Array<Any?> =
