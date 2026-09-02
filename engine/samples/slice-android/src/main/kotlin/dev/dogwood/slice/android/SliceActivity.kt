@@ -86,24 +86,7 @@ import androidx.compose.foundation.layout.padding
 
 private const val TAG = "DogwoodSlice"
 
-/**
- * The public half of the key that signs the guest, compiled into the host.
- *
- * A public key is meant to be public; this is the anchor the whole delivery path trusts.
- * Changing the signing key in `samples/slice-guest/build.gradle.kts` requires changing this with
- * it, and that coupling is what makes key rotation a deliberate operation rather than an
- * accident.
- */
-private val TRUSTED_KEYS = mapOf(
-  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
-)
-
-/**
- * On the Android emulator, 10.0.2.2 is the development machine. Serve the guest with
- * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
- */
-private const val DEV_SERVER = "http://10.0.2.2:8080"
-private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+// The trust anchor and the payload address live in `Slice.kt`, shared with `TabsActivity`.
 
 /**
  * Entry points this host offers, and a demonstration of both composition models at once.

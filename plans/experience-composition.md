@@ -174,6 +174,42 @@ configuration, not architecture.
 
 *Estimate: ~1.5 days.*
 
+✅ **Done.** `samples/slice-android/.../TabsActivity.kt`, a self-contained Path B host that reads
+end to end without the diagnostic harness around it — launch with
+`adb shell am start -n dev.dogwood.slice.android/.TabsActivity`. It carries the honest caveat in
+the file itself: four entry points in one payload stand in for four team payloads, the boundary
+mechanics are identical, and what it therefore does *not* demonstrate is independent delivery,
+which is the actual reason to choose Path B.
+
+Verified on device, all of it visible on screen:
+
+- **Four warm switches, zero reloads.** State intact throughout.
+- **Cap of three over four tabs**, evicting least-recently-used with a snapshot each time;
+  returning to an evicted tab cold-started and restored its four state keys.
+- **Memory pressure, from the platform rather than a button.** `adb shell am send-trim-memory <pid>
+  RUNNING_LOW` reached `onTrimMemory`, which dropped both hidden experiences (keeping 1 and 4 state
+  keys) and left only the visible one warm; returning restored. This closes the plan's last open
+  question with a caveat: it exercises the real callback at the real level, not genuine memory
+  exhaustion.
+- **A cross-experience jump requested by guest code**, not by the tab bar: the explore experience's
+  control sent `experience/feed`, the host moved the tab bar to Stays, and the destination restored
+  the state it had when it was last evicted.
+
+Two defects found by building it, both invisible until the code ran:
+
+1. **A null service crashes the guest at start.** `TabsActivity` is the first host in the repo to
+   leave a service unwired, and `DogwoodServices` returning null for any accessor throws at the
+   Zipline boundary. "Every service is optional and its absence is normal" is a documented,
+   load-bearing property of the surface ([ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md))
+   that has never actually worked, because every host in the repo supplied every service. Tracked
+   separately below.
+2. **`onTrimMemory` called through a null reference and evicted nothing.** Publishing the shell
+   from the effect that built it, while disposing from a `DisposableEffect` keyed on it, meant a
+   stale `onShell(null)` landed *after* the fresh `onShell(built)` — Compose disposes the previous
+   key before running the new body. Silent, because every other path read the shell from
+   composition rather than from the field. Exactly the failure the plan's "under real pressure, not
+   simulated" note was written to catch.
+
 ## Part 2 — Sequencing
 
 | Order | Item | Depends on |
