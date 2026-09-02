@@ -53,6 +53,8 @@ import dev.dogwood.host.OkHttpNetwork
 import dev.dogwood.host.Palette
 import dev.dogwood.host.SessionStatus
 import dev.dogwood.host.SystemClock
+import dev.dogwood.host.Theme
+import dev.dogwood.host.ThemeStore
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.allowHosts
@@ -65,6 +67,7 @@ import java.util.concurrent.Executors
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -123,6 +126,17 @@ class SliceActivity : ComponentActivity() {
     var environment by remember { mutableStateOf(HostEnvironment()) }
     var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
 
+    // The theme is a document. The store's cached copy applies before any fetch -- the first
+    // frame is the last brand this device saw, never a flash of the default while the network
+    // decides -- and a fetched document swaps in live. The payload is not involved: the wire
+    // bytes are identical under every brand, because screens only ever named the tokens.
+    val themeStore = remember {
+      ThemeStore(cacheDir.resolve("dogwood-theme.json")) { Log.w(TAG, "theme: $it") }
+    }
+    var theme by remember { mutableStateOf(themeStore.cached()) }
+    val themeScope = rememberCoroutineScope()
+    val themeClient = remember { okhttp3.OkHttpClient() }
+
     // The chrome sits below the status bar; the experience below it does not need to.
     Column(
       Modifier
@@ -153,6 +167,17 @@ class SliceActivity : ComponentActivity() {
             Text(if (name == entryPoint) "● $name" else name)
           }
         }
+        // Brands, fetched as documents from the same origin as the payload. Watch the running
+        // screen repaint; watch the guest reload count not move.
+        for (brand in listOf("ocean", "sunset")) {
+          TextButton(onClick = {
+            themeScope.launch {
+              theme = themeStore.refresh(themeClient, "$DEV_SERVER/theme-$brand.json")
+            }
+          }) {
+            Text(if (theme.name == brand) "◆$brand" else brand)
+          }
+        }
       }
 
       failure?.let {
@@ -164,6 +189,7 @@ class SliceActivity : ComponentActivity() {
       // for room it does not have.
       DogwoodEnvironment(
         Modifier.fillMaxSize(),
+        theme = theme,
         // This host has already inset the top for its banner, so the experience must not inset
         // it a second time. Consumption is not visible to a composition read, so it is said
         // here explicitly rather than inferred.

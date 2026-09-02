@@ -69,6 +69,15 @@ class Palette(
   val warning: Color,
   val warningContainer: Color,
   val star: Color,
+  /**
+   * Tokens beyond the core thirteen.
+   *
+   * A theme document may define names this class has no property for -- a brand accent, a chart
+   * ramp -- and a custom design system may resolve its own vocabulary. They ride here, resolved
+   * by [token] exactly as the named slots are, so "the core names are typed and the rest are
+   * data" is a fact about this class rather than a limit on the vocabulary.
+   */
+  val extras: Map<String, Color> = emptyMap(),
 ) {
   /**
    * Resolves a token by the name the guest sent, or null when this client has never heard of it.
@@ -91,7 +100,7 @@ class Palette(
     "warning" -> warning
     "warningContainer" -> warningContainer
     "star" -> star
-    else -> null
+    else -> extras[name]
   }
 
   companion object {
