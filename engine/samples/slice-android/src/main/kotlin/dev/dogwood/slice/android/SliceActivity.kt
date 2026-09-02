@@ -78,6 +78,9 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.padding
 
 private const val TAG = "DogwoodSlice"
 
@@ -117,6 +120,18 @@ private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
  */
 private val ENTRY_POINTS = listOf("app", "explore", "about", "feed")
 
+/**
+ * The experience the "split" toggle composes beneath the active one.
+ *
+ * Deliberately one of the ordinary entry points rather than a special one: the point being
+ * demonstrated is that nothing about an experience has to know it is sharing a screen.
+ *
+ * `about` is chosen because it prints what it was launched with and what host services and
+ * environment it can see. Composed beside another experience launched with different parameters,
+ * it is a direct read-out of whether anything crosses between two runtimes on one screen.
+ */
+private const val SPLIT_COMPANION = "about"
+
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -138,6 +153,8 @@ class SliceActivity : ComponentActivity() {
     var failure by remember { mutableStateOf<String?>(null) }
     var environment by remember { mutableStateOf(HostEnvironment()) }
     var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
+    // Composes a second experience beneath the first, from a second runtime. See [SPLIT_COMPANION].
+    var split by remember { mutableStateOf(false) }
 
     // The theme is a document. The store's cached copy applies before any fetch -- the first
     // frame is the last brand this device saw, never a flash of the default while the network
@@ -180,6 +197,10 @@ class SliceActivity : ComponentActivity() {
             Text(if (name == entryPoint) "● $name" else name)
           }
         }
+        // Two experiences on screen at once, from two runtimes, sharing one Zipline thread.
+        TextButton(onClick = { split = !split }) {
+          Text(if (split) "◨split" else "split")
+        }
         // Brands, fetched as documents from the same origin as the payload. Watch the running
         // screen repaint; watch the guest reload count not move.
         for (brand in listOf("ocean", "sunset")) {
@@ -210,6 +231,8 @@ class SliceActivity : ComponentActivity() {
       ) { configuration ->
         Experience(
           entryPoint = entryPoint,
+          split = split,
+          theme = theme,
           configuration = configuration,
           onEnvironment = { environment = it },
           onStatus = { status = it },
@@ -239,6 +262,8 @@ class SliceActivity : ComponentActivity() {
   @Composable
   private fun Experience(
     entryPoint: String,
+    split: Boolean,
+    theme: Theme,
     configuration: HostEnvironment,
     onEnvironment: (HostEnvironment) -> Unit,
     onStatus: (SessionStatus) -> Unit,
@@ -428,9 +453,69 @@ class SliceActivity : ComponentActivity() {
       onDispose { shell?.close() }
     }
 
-    shell?.active?.value?.let { live ->
-      // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
-      DogwoodSurface(live, Modifier.fillMaxSize())
+    /*
+     * The side-by-side case, on demand.
+     *
+     * Two experiences from two QuickJS runtimes, composed at the same time, sharing a single
+     * Zipline thread. Mounting is what protects the companion from the warm cap: it is not the
+     * most recently activated entry point, so recency alone would make it the coldest thing in
+     * the pool and evict it while the user is looking at it.
+     */
+    DisposableEffect(shell, split) {
+      if (split) {
+        shell?.mount(
+          SPLIT_COMPANION,
+          // Deliberately unlike the active experience's parameters, so that anything crossing
+          // between the two runtimes shows up as the wrong city on screen.
+          launchParams = buildJsonObject {
+            put("city", "Reykjavik")
+            put("country", "Iceland")
+            put("apiBaseUrl", DEV_SERVER)
+          },
+        )
+      }
+      onDispose { if (split) shell?.unmount(SPLIT_COMPANION) }
+    }
+
+    val companion = if (split) shell?.experience(SPLIT_COMPANION) else null
+    Column(Modifier.fillMaxSize()) {
+      shell?.active?.value?.let { live ->
+        // Every surface carries its own environment, wrapping its own slot -- see the companion
+        // below for why. Uniform rather than conditional: a rule that only holds when a second
+        // surface happens to be present is a rule that is wrong the first time one appears.
+        DogwoodEnvironment(
+          Modifier.fillMaxWidth().weight(1f),
+          theme = theme,
+          windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
+        ) { activeConfiguration ->
+          LaunchedEffect(activeConfiguration) {
+            shell?.updateEnvironment(entryPoint, activeConfiguration)
+          }
+          // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
+          DogwoodSurface(live, Modifier.fillMaxSize())
+        }
+      }
+      companion?.let {
+        HorizontalDivider()
+        Text(
+          "companion experience '$SPLIT_COMPANION', a second runtime",
+          Modifier.padding(horizontal = 12.dp),
+          style = MaterialTheme.typography.labelSmall,
+        )
+        // Its own environment, wrapping its own slot. The host environment describes the space an
+        // experience actually occupies, so a second surface measured by the first one's wrapper
+        // would be told it has the whole window -- and would lay out for room it does not have.
+        DogwoodEnvironment(
+          Modifier.fillMaxWidth().weight(1f),
+          theme = theme,
+          windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
+        ) { companionConfiguration ->
+          LaunchedEffect(companionConfiguration) {
+            shell?.updateEnvironment(SPLIT_COMPANION, companionConfiguration)
+          }
+          DogwoodSurface(it, Modifier.fillMaxSize())
+        }
+      }
     }
   }
 }

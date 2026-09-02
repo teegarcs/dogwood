@@ -45,7 +45,14 @@ a host-side owner of several `DogwoodSession` instances keyed by entry point.
    single `ZiplineCache`. Sessions are constructed with `ownsDelivery = false` so that closing one
    does not take its siblings' loader down with it.
 5. **`trimMemory(keep)`** exposes the pool's `trim` for an Android `onTrimMemory` hook.
-6. **The idle claim is instrumented, not asserted.** `DogwoodExperience.frameRequests` counts
+6. **Surfaces are mounted, not inferred.** `mount(entryPoint)` / `unmount(entryPoint)` declare that
+   a host is composing an experience, and `experience(entryPoint)` returns it to compose. A mounted
+   experience is never evicted. `activate` mounts the entry point it makes active and withdraws the
+   previous one, so what the shell protects is always exactly what is on screen.
+7. **The environment is per surface.** `updateEnvironment(entryPoint, next)` overrides the
+   shell-wide environment for one experience, because the host environment describes the slot an
+   experience occupies rather than the window it sits in.
+8. **The idle claim is instrumented, not asserted.** `DogwoodExperience.frameRequests` counts
    every `requestFrame` from its guest, and `DogwoodShell.frameRequests()` exposes the counter per
    entry point, so a hidden experience doing work is visible rather than inferred.
 
@@ -102,6 +109,51 @@ after being hidden, draining work that was already in flight when the user switc
 settled and did not recur. The audit is a rate check, not a total: an entry point whose count is
 still climbing seconds after it left the screen is a bug in the guest, and now a visible one.
 
+### E2: two experiences on one screen
+
+The plan carried a second question — whether a host can compose two independent surfaces at once,
+a navigation rail from one team beside a content pane from another — marked "believed to work
+today; unproven". It was spiked by composing the slice's `explore` experience above its `about`
+experience, from two QuickJS runtimes, launched with deliberately different parameters.
+
+**It works, and one shared Zipline thread is enough.** Both surfaces render and stay interactive,
+and the thread-contract assertions (`checkUi` / `checkZipline`) fired zero times across repeated
+switching, eviction and re-entry. The sessions serialise on the single dispatcher. What was *not*
+measured is contention between two simultaneously busy guests; the existing rule that guest work
+must not block still holds, and now a guest that breaks it stalls a visible neighbour rather than
+only itself.
+
+**Nothing crosses between runtimes.** The companion, launched with
+`{"city":"Reykjavik","country":"Iceland"}`, read exactly that while the active experience beside it
+read `Tokyo`/`Japan`; each read its own dictionary versions, service list and feature flags. Host
+locals are scoped per `DogwoodTree`, and the spike confirms it rather than assuming it.
+
+The spike also found two defects, neither of them in the code it set out to test.
+
+**The host environment is per surface, not per window.** Composing two surfaces inside one
+`DogwoodEnvironment` told *both* guests they had 426×772 density-independent pixels when each
+actually had roughly half. Nothing crashed; both simply laid out for room they did not have, which
+is the kind of failure that reaches production looking like a design mistake. `DogwoodEnvironment`
+derives its measurements from the slot it wraps, so the fix is one wrapper per surface, plus
+`updateEnvironment(entryPoint, next)` so the shell can carry more than one. An entry point with an
+override stops receiving the shell-wide value, so adopting per-surface environments for one
+experience cannot silently be undone by the next window-sized update. The companion now reads
+426×377, which is its actual slot.
+
+**Recency cannot tell "not tapped recently" from "not on screen".** A companion surface is, by
+construction, not the most recently activated entry point — the user keeps tapping the pane beside
+it — so least-recently-used ordering alone made it the coldest thing in the pool and the first
+thing the cap would evict, while the user was looking straight at it. Protecting `WarmPool`'s
+active entry was never enough; being on screen has to be stated. Mounted entries are therefore
+never evicted, and mounting more experiences than the capacity **overruns the cap deliberately**
+rather than blanking a surface: a host that composes more than it budgeted for should see the
+memory, not an empty pane. `warm` reports the true size so the overrun stays visible.
+
+Verified under cap pressure on device: with a capacity of three and the companion mounted,
+activating three other entry points in turn evicted each of them in least-recently-used order,
+snapshotting and restoring their state (three and four keys respectively), while the companion
+stayed warm, was never reloaded, and kept its scroll position throughout.
+
 ### Why eviction must close the session, not just cancel its job
 
 `evict` originally cancelled the session's coroutine and stopped there. Cancelling the job stops
@@ -114,8 +166,9 @@ retained one is reported rather than merely suspected.
 ## 4. Unstated Assumptions
 
 - **All sessions share one Zipline dispatcher.** They are separate heaps but a single thread, so a
-  guest that blocks it blocks its siblings. Guest work is already required to be non-blocking;
-  whether N sessions want N threads is E2's question, not this one.
+  guest that blocks it blocks its siblings — including, now, a visible one. The E2 spike shows the
+  sharing is correct and assertion-clean; it does not show how it behaves under two guests doing
+  heavy work at the same moment, which is unmeasured.
 - **The frame-request counter measures what it claims.** It counts `requestFrame` calls arriving
   at the host, which is where the cost of waking the Zipline thread is paid. A guest recomposing
   without ever asking for a frame would not be counted, but it also would not cost anything.

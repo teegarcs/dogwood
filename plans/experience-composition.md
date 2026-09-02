@@ -100,6 +100,24 @@ one-composition-per-service assumption, which is real work.
 
 *Estimate: 0.5 day spike, folded into ADR-027.*
 
+✅ **Done**, folded into [ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md).
+Two experiences composed at once from two runtimes, launched with deliberately different
+parameters, verified on device.
+
+- **Two sessions can share one Zipline thread.** Zero thread-contract assertions fired across
+  repeated switching, eviction and re-entry. Contention between two *simultaneously busy* guests
+  is unmeasured and stated as such.
+- **Nothing cross-contaminates.** The companion read its own launch parameters, dictionary
+  versions, services and flags while the pane above it read different ones.
+- **Two defects found, neither in the code the spike targeted.** The host environment was being
+  derived per window rather than per surface, so both guests were told they had the whole screen;
+  and the pool's recency ordering made a mounted companion the first thing the cap would evict,
+  because "not tapped recently" and "not on screen" are not the same thing. Both fixed — explicit
+  `mount`/`unmount` and `updateEnvironment(entryPoint, …)` — with pool tests for the new rule.
+
+The noted-not-built optimisation (several mounts from one payload in one runtime) stays unbuilt:
+E1's 9–14 MB per warm experience does not force it.
+
 ### E3. The navigation service
 
 The missing piece for any multi-experience product: a guest cannot ask the host to go anywhere.

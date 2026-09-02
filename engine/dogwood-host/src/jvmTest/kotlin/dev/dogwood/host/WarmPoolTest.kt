@@ -96,4 +96,76 @@ class WarmPoolTest {
     assertEquals(listOf("a"), pool.touch("b"))
     assertEquals(listOf("b"), pool.warm)
   }
+  @Test
+  fun anEntryOnScreenIsNeverEvictedByTheCap() {
+    // The side-by-side case: a navigation rail composed beside a content pane. The rail is not the
+    // most recently touched -- the user keeps tapping the content -- so recency alone would make
+    // it the coldest thing in the pool and evict it while it is being looked at.
+    val pool = WarmPool(capacity = 2)
+    pool.mount("rail")
+    pool.touch("content")
+    // The cap is still honoured -- something has to go -- but the victim is the entry nobody is
+    // looking at, not the coldest one. Recency alone would have chosen the rail.
+    assertEquals(listOf("content"), pool.touch("other"))
+    assertEquals(listOf("other", "rail"), pool.warm, "the rail is on screen and must survive")
+  }
+
+  @Test
+  fun mountingBeyondTheCapOverrunsItRatherThanBlankingASurface() {
+    // Deliberate, and the lesser of two wrongs. A host that composes more experiences than it
+    // budgeted for should see the memory, not a pane that renders nothing.
+    val pool = WarmPool(capacity = 1)
+    pool.mount("a")
+    pool.mount("b")
+    assertEquals(setOf("a", "b"), pool.onScreen)
+    assertEquals(listOf("b", "a"), pool.warm, "the cap is reported honestly as overrun")
+  }
+
+  @Test
+  fun unmountingMakesAnEntryEvictableAgain() {
+    // A cap of one with two entries on screen is the overrun case from the test above. Taking the
+    // rail off screen is what lets the pool settle back to its cap, and it settles immediately
+    // rather than waiting for the next activation.
+    val pool = WarmPool(capacity = 1)
+    pool.mount("rail")
+    pool.touch("content")
+    assertEquals(listOf("content", "rail"), pool.warm, "both on screen, so the cap is overrun")
+
+    assertEquals(listOf("rail"), pool.unmount("rail"))
+    assertEquals(listOf("content"), pool.warm)
+  }
+
+  @Test
+  fun aMemoryTrimSpareEverythingOnScreen() {
+    val pool = WarmPool(capacity = 4)
+    pool.mount("rail")
+    pool.touch("cold")
+    pool.touch("content")
+    assertEquals(listOf("cold"), pool.trim(keep = 0), "only the entry nobody can see")
+    assertEquals(listOf("content", "rail"), pool.warm)
+  }
+
+  @Test
+  fun aTrimWithEverythingOnScreenEvictsNothing() {
+    // It reports that it could not help rather than overriding the host to hit a number.
+    val pool = WarmPool(capacity = 3)
+    pool.mount("a")
+    pool.mount("b")
+    assertEquals(emptyList(), pool.trim(keep = 0))
+    assertEquals(2, pool.warm.size)
+  }
+
+  @Test
+  fun forgettingAMountedEntryAlsoUnmountsIt() {
+    // Otherwise a closed experience would go on protecting a key that names nothing, and the cap
+    // would quietly stop being enforceable.
+    val pool = WarmPool(capacity = 2)
+    pool.mount("a")
+    pool.forget("a")
+    assertEquals(emptySet(), pool.onScreen)
+    pool.touch("b")
+    pool.touch("c")
+    assertEquals(listOf("b"), pool.touch("d"))
+  }
+
 }

@@ -445,8 +445,28 @@ flowchart TD
   are built with `ownsDelivery = false` so that closing one does not take its siblings' loader down.
 * **`DogwoodSession` / `DogwoodExperience`:** Unchanged from the single-experience case. The shell
   composes them; it does not modify them.
-* **`active` / `DogwoodSurface`:** Only the active experience is composed. The others are alive but
-  have no surface, which is what makes them cheap.
+* **`active` / `DogwoodSurface`:** The active experience is the one host navigation last selected.
+  A host may also compose **additional** surfaces at the same time — a navigation rail from one
+  team beside a content pane from another — by calling `mount(entryPoint)` and composing
+  `experience(entryPoint)`. Everything warm but unmounted is alive with no surface, which is what
+  makes it cheap.
+
+  **Being on screen is declared, not inferred.** A companion surface is by construction not the
+  most recently activated entry point, because the user keeps tapping the pane beside it, so
+  least-recently-used ordering alone would make it the coldest thing in the pool and evict it while
+  the user was looking straight at it. Mounted entries are never evicted. Mounting more experiences
+  than the capacity overruns the cap **deliberately**: the alternative is tearing down a surface
+  that is being drawn, which is never the better answer, and `warm` reports the true size so the
+  overrun is visible rather than silent.
+
+  **Each surface carries its own environment.** The host environment describes the slot an
+  experience occupies, not the window it sits inside. Two surfaces sharing a screen have different
+  heights and possibly different width classes and insets, so a single `DogwoodEnvironment`
+  wrapping both tells at least one of them something false — measured, before the fix, as both
+  guests believing they had 426×772 density-independent pixels when each had about half.
+  `updateEnvironment(entryPoint, next)` carries a per-surface environment; an entry point with an
+  override stops receiving the shell-wide one, so the correction cannot be silently undone by the
+  next window-sized update.
 * **`frameRequests` counter / idle audit:** The design claims a hidden experience costs memory and
   nothing else. That claim rests on `BroadcastFrameClock` requesting a frame only when something
   awaits one — true, but a claim about behaviour, so it is counted rather than trusted. Every

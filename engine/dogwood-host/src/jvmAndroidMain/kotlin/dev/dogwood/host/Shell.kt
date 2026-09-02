@@ -71,6 +71,12 @@ class DogwoodShell(
 
   private val activeKey = mutableStateOf<String?>(null)
 
+  /** Entry points the host composes as surfaces of their own, beyond the active one. */
+  private val hostMounted = mutableSetOf<String>()
+
+  /** Entry points whose environment describes their own slot rather than the window. */
+  private val perSurfaceEnvironment = mutableMapOf<String, HostEnvironment>()
+
   /**
    * The entry point currently selected.
    *
@@ -101,15 +107,64 @@ class DogwoodShell(
     entries.mapNotNull { (key, entry) -> entry.session?.let { key to it.frameRequests } }.toMap()
 
   /**
+   * The live experience for [entryPoint], or null if it is not warm.
+   *
+   * For hosts composing more than one surface. Reading it inside a composition is a snapshot read,
+   * so a surface recomposes when its experience finishes loading or is replaced by a code update.
+   */
+  fun experience(entryPoint: String): DogwoodExperience? = liveByKey.value[entryPoint]
+
+  /**
    * Makes [entryPoint] the active experience, starting or restoring it if needed.
    *
    * Returns immediately; the active experience appears in [active] when it is ready. A warm one is
    * ready on the same frame, which is the whole point.
    */
   fun activate(entryPoint: String, launchParams: JsonObject = JsonObject(emptyMap())) {
-    val evicted = pool.touch(entryPoint)
+    val previous = activeKey.value
     activeKey.value = entryPoint
 
+    val evicted = buildList {
+      // The outgoing experience stops being on screen, unless the host mounted it as a surface of
+      // its own -- in which case it is still being drawn and taking it off screen would be a lie
+      // the cap could act on.
+      if (previous != null && previous != entryPoint && previous !in hostMounted) {
+        addAll(pool.unmount(previous))
+      }
+      addAll(pool.mount(entryPoint))
+    }
+    startAndPublish(entryPoint, launchParams, evicted)
+  }
+
+  /**
+   * Composes [entryPoint] as an additional surface, alongside whatever is active.
+   *
+   * This is the side-by-side case: a navigation rail owned by one team beside a content pane owned
+   * by another. A mounted experience is protected from eviction for as long as it is mounted,
+   * because recency cannot tell "not tapped recently" from "not on screen" and the cap would
+   * otherwise tear down a surface the user is looking straight at.
+   *
+   * Compose it by reading [experience]; call [unmount] when the surface leaves.
+   */
+  fun mount(entryPoint: String, launchParams: JsonObject = JsonObject(emptyMap())) {
+    hostMounted.add(entryPoint)
+    startAndPublish(entryPoint, launchParams, pool.mount(entryPoint))
+  }
+
+  /** Withdraws a surface added by [mount]. Its experience becomes an eviction candidate again. */
+  fun unmount(entryPoint: String) {
+    if (!hostMounted.remove(entryPoint)) return
+    // Still protected if it happens to be the active one; the shell keeps that mounted itself.
+    val evicted = if (entryPoint == activeKey.value) emptyList() else pool.unmount(entryPoint)
+    publish()
+    for (key in evicted) uiScope.launch { evict(key) }
+  }
+
+  private fun startAndPublish(
+    entryPoint: String,
+    launchParams: JsonObject,
+    evicted: List<String>,
+  ) {
     val entry = entries.getOrPut(entryPoint) { ShellEntry(launchParams) }
     if (entry.session == null) start(entryPoint, entry)
     publish()
@@ -131,7 +186,35 @@ class DogwoodShell(
   /** Pushes a new host environment into every warm experience, not only the visible one. */
   fun updateEnvironment(next: HostEnvironment) {
     environment = next
-    for (entry in entries.values) entry.session?.updateConfiguration(next)
+    for ((key, entry) in entries) {
+      if (key !in perSurfaceEnvironment) entry.session?.updateConfiguration(next)
+    }
+  }
+
+  /**
+   * Sets the environment for one entry point, overriding the shell-wide one.
+   *
+   * Needed the moment a host composes more than one surface, because the host environment
+   * describes **the slot an experience occupies**, not the window. Two surfaces sharing a screen
+   * have different heights, and possibly different width classes and insets; telling both of them
+   * the window's size is telling at least one of them something false, and it will lay out for
+   * room it does not have. This was found by composing two surfaces and reading what the second
+   * one believed about itself.
+   *
+   * Wrap each surface in its own `DogwoodEnvironment` and route its measurements here. An entry
+   * point with an override stops receiving the shell-wide [updateEnvironment] value, so a host
+   * that adopts per-surface environments for one experience does not silently keep overwriting it
+   * with the window's.
+   */
+  fun updateEnvironment(entryPoint: String, next: HostEnvironment) {
+    perSurfaceEnvironment[entryPoint] = next
+    entries[entryPoint]?.session?.updateConfiguration(next)
+  }
+
+  /** Returns [entryPoint] to the shell-wide environment. */
+  fun clearEnvironmentOverride(entryPoint: String) {
+    if (perSurfaceEnvironment.remove(entryPoint) == null) return
+    entries[entryPoint]?.session?.updateConfiguration(environment)
   }
 
   fun close() {
@@ -152,7 +235,7 @@ class DogwoodShell(
       manifestUrl = manifestUrl,
       ziplineDispatcher = ziplineDispatcher,
       uiScope = uiScope,
-      initialConfiguration = environment,
+      initialConfiguration = perSurfaceEnvironment[entryPoint] ?: environment,
       entryPoint = entryPoint,
       launchParams = entry.launchParams,
       services = services,
@@ -197,7 +280,12 @@ class DogwoodShell(
     publish()
   }
 
+  private val liveByKey = mutableStateOf<Map<String, DogwoodExperience>>(emptyMap())
+
   private fun publish() {
-    derived.value = activeKey.value?.let { entries[it]?.session?.experience?.value }
+    liveByKey.value = entries.mapNotNull { (key, entry) ->
+      entry.session?.experience?.value?.let { key to it }
+    }.toMap()
+    derived.value = activeKey.value?.let { liveByKey.value[it] }
   }
 }
