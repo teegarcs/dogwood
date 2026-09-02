@@ -392,6 +392,10 @@ Everything above describes one experience: one guest payload, one QuickJS runtim
 An application is usually several. Dogwood supports two ways of assembling them, and the choice is
 an organisational one before it is a technical one.
 
+Both paths have a reference example in the repository, and reading them side by side is the
+fastest way to see what the choice actually costs: `samples/slice-guest/.../AppShell.kt` for the
+guest-owned path, and `samples/slice-android/.../TabsActivity.kt` for the host-owned one.
+
 **Guest-owned navigation.** One experience contains its own tab bar and every screen behind it.
 Switching is ordinary recomposition inside a single runtime, so it is free, and screens share state
 directly because they are the same program. The cost is that the whole thing ships as one payload

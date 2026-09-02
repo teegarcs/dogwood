@@ -231,10 +231,26 @@ through the same shell.
   drain afterwards, so the counter is meaningful as a rate, not as a total. `frameRequests()` on
   the shell makes this checkable in any host, not just the sample.
 - ✅ **Memory per warm instance on a device.** 9–14 MB. It set the default cap at three.
-- One shared Zipline thread for N sessions, or one thread each? — **still open, E2.** The shell
-  ships with one shared dispatcher, so a guest that blocks it blocks its siblings.
+- ✅ **One shared Zipline thread for N sessions, or one thread each?** One is enough. Two
+  experiences composed at once, from two runtimes, on one dispatcher: zero thread-contract
+  assertions across repeated switching, eviction and re-entry. The standing rule that guest work
+  must not block still holds and now matters more — a guest that breaks it stalls a *visible*
+  neighbour. Contention between two simultaneously busy guests is unmeasured.
 - ✅ **Does snapshot-evict-restore round-trip state through the shell path?** Yes — verified on
   device end to end: state set, entry point evicted by the cap, three keys snapshotted, three
   restored, value back on screen. Getting there required the `canBeSaved` fix above, which is
   exactly why ADR-014's "same machinery, verify anyway" note was right.
-- `onTrimMemory` behaviour under real pressure, not simulated. — **still open**, folds into EX-B.
+- ✅ **`onTrimMemory` behaviour under real pressure, not simulated.** `am send-trim-memory <pid>
+  RUNNING_LOW` reaches the real callback at the real level: every hidden experience is snapshotted
+  and dropped, the visible one is kept, and returning restores. It found a defect a button never
+  would have — the activity was holding a null shell reference, so the callback evicted nothing and
+  said nothing. Caveat kept: this is the real callback, not genuine memory exhaustion.
+
+**New, found while building EX-B:**
+
+- ❌ **A null host service crashes the guest at start.** `DogwoodServices` returning null for any
+  accessor throws at the Zipline boundary, so "every service is optional and its absence is normal"
+  — documented in `HostServices.kt` and load-bearing in
+  [ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md) — has never actually worked.
+  It went unnoticed because every host in the repo wires every service. Reproduced on device with
+  two different accessors.
