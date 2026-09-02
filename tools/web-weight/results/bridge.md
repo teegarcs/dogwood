@@ -250,7 +250,7 @@ mobile.
 **And all of it is small.** The worst pipeline measured, at the largest payload, is 118 microseconds
 — **0.71% of a 16.7 millisecond frame**. The best is 0.09%. In steady state every option is under
 0.9 microseconds, or 0.005% of a frame. The gap between the best and worst web transport, at
-screen-open size, is under 100 microseconds once per screen. Whatever decides this question, it
+screen-open size, is about 100 microseconds once per screen. Whatever decides this question, it
 should not be frame budget.
 
 ## The production optimiser is wrong, and it is silent about it
