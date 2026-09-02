@@ -156,3 +156,58 @@ class TextFieldStateTest {
     assertTrue(8 !in sentTags, "no mask was given, so none should cross")
   }
 }
+
+/*
+ * What a snapshot is allowed to remember.
+ *
+ * Saved state used to live microseconds inside a code update and never leave the process, so
+ * saving a field's text cost nothing. Persisting a snapshot across process death makes it user
+ * data at rest -- measured, for a masked card-number field, as the digits in plain text -- and
+ * that is a different thing to be storing. Nothing in the host can decide which fields are too
+ * sensitive to survive a process; only the code that declared them can.
+ */
+class SensitiveFieldTest {
+
+  @Test
+  fun anOrdinaryFieldKeepsItsTextAcrossASnapshot() {
+    // The control, and the behaviour that must not regress: losing a half-typed address is the
+    // whole failure this mechanism exists to prevent.
+    val state = TextFieldState("10 Downing Street", 4)
+    @Suppress("UNCHECKED_CAST")
+    val saved = with(TextFieldState.Saver) { SaverScopeStub.save(state) } as List<Any?>
+    assertEquals("10 Downing Street", saved[0])
+    assertEquals(4, saved[1])
+  }
+
+  @Test
+  fun aSensitiveFieldSavesItsShapeButNotItsContents() {
+    val state = TextFieldState("4242424242424242", 4, sensitive = true)
+    @Suppress("UNCHECKED_CAST")
+    val saved = with(TextFieldState.Saver) { SaverScopeStub.save(state) } as List<Any?>
+    assertEquals("", saved[0], "a sensitive field's text must never reach a snapshot")
+    // The acknowledged count still survives, and it has to: a field restored stamped zero would
+    // silently discard everything the user typed next, for the life of the screen.
+    assertEquals(4, saved[1])
+    assertEquals(true, saved[2])
+
+    val restored = TextFieldState.Saver.restore(saved)!!
+    assertEquals("", restored.text)
+    assertEquals(4, restored.acknowledged)
+    assertTrue(restored.sensitive, "and it comes back still marked sensitive")
+  }
+
+  @Test
+  fun aSnapshotWrittenBeforeTheFlagExistedStillRestores() {
+    // Two entries, not three. An older guest had no sensitive fields to protect, so the absence
+    // reads as false rather than as a corrupt entry.
+    val restored = TextFieldState.Saver.restore(listOf("kept", 2))!!
+    assertEquals("kept", restored.text)
+    assertEquals(2, restored.acknowledged)
+    assertTrue(!restored.sensitive)
+  }
+}
+
+/** `Saver.save` needs a `SaverScope`; nothing in these savers consults it. */
+private object SaverScopeStub : androidx.compose.runtime.saveable.SaverScope {
+  override fun canBeSaved(value: Any): Boolean = true
+}

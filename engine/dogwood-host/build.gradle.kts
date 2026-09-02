@@ -71,6 +71,9 @@ kotlin {
     jvmTest {
       dependencies {
         implementation(kotlin("test"))
+        // An in-memory filesystem, so the saved-state store's refusals -- oversized, stale,
+        // undecodable -- are tested without leaving files on whoever runs the build.
+        implementation("com.squareup.okio:okio-fakefilesystem:3.17.0")
         // A real composition, on the host, in a unit test. Until this existed the host half of
         // every decision was demonstrated on a device and asserted by construction; ADR-009 had
         // to say so about pixel identity. Desktop Compose Multiplatform runs on the Java Virtual

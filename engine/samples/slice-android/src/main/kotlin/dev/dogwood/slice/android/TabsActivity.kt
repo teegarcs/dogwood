@@ -62,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.cash.zipline.loader.ZiplineCache
@@ -88,6 +89,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okio.FileSystem
+import androidx.lifecycle.lifecycleScope
+import dev.dogwood.host.DogwoodStateStore
+import kotlinx.coroutines.launch
 
 private const val TAG = "DogwoodTabs"
 
@@ -118,6 +122,31 @@ class TabsActivity : ComponentActivity() {
    */
   private var shell: DogwoodShell? = null
 
+  /**
+   * Where this application's experience state waits out a process death.
+   *
+   * Held by the activity rather than the composition because the write happens in `onStop`, which
+   * can be the last thing that runs before Android reclaims the process.
+   */
+  /**
+   * The previous process's state, read exactly once.
+   *
+   * Read here rather than inside the composition, and that is not tidiness. `consume` deletes what
+   * it returns, so it must run once per process -- and a `LaunchedEffect(Unit)` cannot promise that.
+   * The effect that builds the shell sits inside `DogwoodEnvironment`, whose `BoxWithConstraints`
+   * subcomposes its content, so it can be disposed and restarted as constraints settle. When it
+   * did, the second shell called `consume` on a file the first had already deleted, and the state
+   * was restored into a shell that was then thrown away -- with both halves reporting success.
+   */
+  private val carriedState by lazy { stateStore.consume(System.currentTimeMillis()) }
+
+  private val stateStore by lazy {
+    DogwoodStateStore(
+      file = cachePath(filesDir.resolve("dogwood-saved-state.json").absolutePath),
+      onProblem = { Log.w(TAG, "saved state: $it") },
+    )
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
@@ -126,7 +155,7 @@ class TabsActivity : ComponentActivity() {
       val palette = if (dark) Palette.Dark else Palette.Light
       MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
         Surface(Modifier.fillMaxSize(), color = palette.canvas) {
-          Tabs(onShell = { shell = it })
+          Tabs(carried = carriedState, onShell = { shell = it })
         }
       }
     }
@@ -140,6 +169,27 @@ class TabsActivity : ComponentActivity() {
    * the way out, so returning to a dropped tab is a cold start that restores rather than a cold
    * start that forgets.
    */
+  /*
+   * The one lifecycle hook that matters for state.
+   *
+   * `onStop` is the last callback guaranteed to run before Android may reclaim the process, so it
+   * is where the snapshot has to be taken. It cannot be `onSaveInstanceState`: reading a live
+   * guest's state means crossing to the Zipline thread, which is suspending, and that callback is
+   * synchronous on the main thread.
+   *
+   * Launched on a scope that outlives the activity's composition, because the composition is being
+   * torn down around it.
+   */
+  override fun onStop() {
+    super.onStop()
+    val live = shell ?: return
+    lifecycleScope.launch {
+      val states = live.snapshotAll()
+      stateStore.write(states, System.currentTimeMillis())
+      Log.i(TAG, "saved state for ${states.keys} on stop")
+    }
+  }
+
   override fun onTrimMemory(level: Int) {
     super.onTrimMemory(level)
     if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
@@ -150,11 +200,24 @@ class TabsActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Tabs(onShell: (DogwoodShell?) -> Unit) {
+private fun Tabs(
+  carried: Map<String, dev.dogwood.protocol.StateSnapshot>,
+  onShell: (DogwoodShell?) -> Unit,
+) {
   val context = androidx.compose.ui.platform.LocalContext.current
   val uiScope = rememberCoroutineScope()
 
-  var current by remember { mutableStateOf(TABS.first().first) }
+  /*
+   * Saveable, not merely remembered, and the distinction is the whole drill.
+   *
+   * Restoring the guest's state across a process death accomplishes nothing on its own if the host
+   * comes back on a different tab: the state is there, correctly, and the user is looking at
+   * something else. That failure is invisible in a log -- the save and the restore both report
+   * success -- and obvious on a screen.
+   *
+   * Which tab is open is host state, so the host saves it, using the platform's own mechanism.
+   */
+  var current by rememberSaveable { mutableStateOf(TABS.first().first) }
   var routeParams by remember { mutableStateOf(JsonObject(emptyMap())) }
   var shell by remember { mutableStateOf<DogwoodShell?>(null) }
   var note by remember { mutableStateOf("starting…") }
@@ -267,6 +330,13 @@ private fun Tabs(onShell: (DogwoodShell?) -> Unit) {
           Log.e(TAG, note, failure)
         },
       )
+      // Before the first activation, because a live experience owns its own state and the shell
+      // will not overwrite one. Restoring is something that happens on the way in.
+      if (carried.isNotEmpty()) {
+        built.restoreAll(carried)
+        note = "restored state for ${carried.keys} from a previous process"
+        Log.i(TAG, note)
+      }
       shell = built
     }
 
@@ -281,10 +351,17 @@ private fun Tabs(onShell: (DogwoodShell?) -> Unit) {
      * they read the shell from composition rather than from the field.
      */
     DisposableEffect(shell) {
-      onShell(shell)
+      // Bound to a local, and both halves depend on it. `onDispose` runs when the key CHANGES, and
+      // it reads whatever the variable holds at that moment -- which, on the null-to-built
+      // transition, is the shell that was just built. Closing it there clears the shell's entries,
+      // and with them the state restored from the previous process, seconds before anything is
+      // activated. The symptom was a tab that came back correctly holding a screen that had
+      // forgotten everything, with the save and the restore both reporting success.
+      val live = shell
+      onShell(live)
       onDispose {
         onShell(null)
-        shell?.close()
+        live?.close()
       }
     }
 

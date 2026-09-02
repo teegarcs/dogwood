@@ -48,6 +48,19 @@ import androidx.compose.runtime.setValue
 class TextFieldState internal constructor(
   initialText: String = "",
   initialAcknowledged: Int = 0,
+  /**
+   * Whether this field's text may be written into a saved state snapshot.
+   *
+   * Defaults to true, because losing a half-typed address is the failure this whole mechanism
+   * exists to prevent. Set it false for anything you would not want at rest: a card number, a
+   * one-time code, an answer to a security question.
+   *
+   * The distinction only started mattering when snapshots gained a life beyond the process. Until
+   * then a snapshot lived microseconds inside a code update and never left memory, so saving the
+   * text was free. Persisting one across process death makes it user data at rest, and this flag
+   * is how a guest declines that -- see `adrs/layer-4/ADR-010`.
+   */
+  internal val sensitive: Boolean = false,
 ) {
   var text: String by mutableStateOf(initialText)
     private set
@@ -90,15 +103,36 @@ class TextFieldState internal constructor(
      * discarded as stale, silently, for the life of the screen.
      */
     val Saver: Saver<TextFieldState, Any> = listSaver(
-      save = { listOf(it.text, it.acknowledged) },
-      restore = { TextFieldState(it[0] as String, it[1] as Int) },
+      save = {
+        // A sensitive field saves its *shape* but not its contents. The acknowledged count still
+        // has to survive -- see above; a field that came back stamped zero would silently discard
+        // everything the user typed next -- so the entry stays, with the text emptied.
+        listOf(if (it.sensitive) "" else it.text, it.acknowledged, it.sensitive)
+      },
+      restore = {
+        TextFieldState(
+          initialText = it[0] as String,
+          initialAcknowledged = it[1] as Int,
+          // Tolerated as absent so a snapshot written by an older guest still restores; that guest
+          // had no sensitive fields to protect.
+          sensitive = it.getOrNull(2) as? Boolean ?: false,
+        )
+      },
     )
   }
 }
 
+/**
+ * @param sensitive when true, the text is never written into a saved state snapshot. Use it for
+ *   anything you would not want at rest after the process dies -- a card number, a one-time code.
+ *   The field still behaves normally; only its persistence changes.
+ */
 @Composable
-fun rememberTextFieldState(initialText: String = ""): TextFieldState =
-  rememberSaveable(saver = TextFieldState.Saver) { TextFieldState(initialText) }
+fun rememberTextFieldState(
+  initialText: String = "",
+  sensitive: Boolean = false,
+): TextFieldState =
+  rememberSaveable(saver = TextFieldState.Saver) { TextFieldState(initialText, sensitive = sensitive) }
 
 /** Which keyboard the host should offer. Named rather than an ordinal, like every other token. */
 object Keyboards {

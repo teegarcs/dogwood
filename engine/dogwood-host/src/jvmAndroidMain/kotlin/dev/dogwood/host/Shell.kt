@@ -160,6 +160,49 @@ class DogwoodShell(
     startAndPublish(entryPoint, launchParams, pool.mount(entryPoint))
   }
 
+  /**
+   * Captures every experience's saveable state, so a host can put it somewhere that outlives the
+   * process.
+   *
+   * The shell already snapshots on eviction and restores on return, but that only survives as long
+   * as the shell object does. Backgrounding is fine; **process death is not** -- Android reclaims a
+   * backgrounded application whenever it likes, and a user who returns to a half-typed address
+   * finds it gone. This is the seam that fixes it.
+   *
+   * Suspending, because a live guest's state can only be read on the Zipline thread, which is the
+   * reason this cannot be called from `onSaveInstanceState`: that runs synchronously on the main
+   * thread. Call it from `onStop` and persist the result yourself.
+   *
+   * Includes entries that are only warm, not active, and entries already evicted -- an evicted
+   * experience's snapshot is exactly what a returning user needs.
+   */
+  suspend fun snapshotAll(): Map<String, StateSnapshot> {
+    val captured = mutableMapOf<String, StateSnapshot>()
+    // Not `buildMap`: inside its lambda, `entries` resolves to the map builder's own property
+    // rather than the shell's, and the shadowing compiles far enough to be confusing.
+    for ((key, entry) in entries) {
+      val live = entry.session
+      val state = if (live != null) runCatching { live.snapshotState() }.getOrNull() else entry.snapshot
+      if (state != null && state.values.isNotEmpty()) captured[key] = state
+    }
+    return captured
+  }
+
+  /**
+   * Seeds the shell with state captured by a previous process.
+   *
+   * Applies only to entry points that are not already running: a live experience owns its own
+   * state, and overwriting it with a snapshot from a previous process would discard whatever the
+   * user has done since. Restoring is therefore something that happens *before* activation, and a
+   * late call is a no-op rather than an error.
+   */
+  fun restoreAll(states: Map<String, StateSnapshot>) {
+    for ((key, snapshot) in states) {
+      val entry = entries.getOrPut(key) { ShellEntry(JsonObject(emptyMap())) }
+      if (entry.session == null) entry.snapshot = snapshot
+    }
+  }
+
   /** Withdraws a surface added by [mount]. Its experience becomes an eviction candidate again. */
   fun unmount(entryPoint: String) {
     if (!hostMounted.remove(entryPoint)) return

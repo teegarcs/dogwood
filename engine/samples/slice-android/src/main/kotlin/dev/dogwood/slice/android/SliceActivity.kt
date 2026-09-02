@@ -476,7 +476,10 @@ class SliceActivity : ComponentActivity() {
     }
 
     DisposableEffect(shell) {
-      onDispose { shell?.close() }
+      // The shell this effect is keyed on, not whatever the variable holds when it disposes. See
+      // the same effect in `TabsActivity` for what the difference cost.
+      val live = shell
+      onDispose { live?.close() }
     }
 
     /*
