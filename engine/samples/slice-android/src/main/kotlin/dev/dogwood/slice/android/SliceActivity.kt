@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import app.cash.zipline.loader.ZiplineCache
 import dev.dogwood.host.CallbackAnalytics
 import dev.dogwood.host.CallbackLog
+import dev.dogwood.host.CallbackNavigation
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.DogwoodShell
@@ -69,6 +70,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
@@ -155,6 +157,10 @@ class SliceActivity : ComponentActivity() {
     var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
     // Composes a second experience beneath the first, from a second runtime. See [SPLIT_COMPANION].
     var split by remember { mutableStateOf(false) }
+    // What a guest sent with its last navigation request, merged into the destination's launch
+    // parameters. Without this the params would cross the boundary and land nowhere, which would
+    // make the route a bare signal rather than a call.
+    var routeParams by remember { mutableStateOf(JsonObject(emptyMap())) }
 
     // The theme is a document. The store's cached copy applies before any fetch -- the first
     // frame is the last brand this device saw, never a flash of the default while the network
@@ -234,6 +240,11 @@ class SliceActivity : ComponentActivity() {
           split = split,
           theme = theme,
           configuration = configuration,
+          onNavigate = { destination, params ->
+            entryPoint = destination
+            routeParams = params
+          },
+          routeParams = routeParams,
           onEnvironment = { environment = it },
           onStatus = { status = it },
           onFailure = { failure = it },
@@ -265,6 +276,8 @@ class SliceActivity : ComponentActivity() {
     split: Boolean,
     theme: Theme,
     configuration: HostEnvironment,
+    onNavigate: (String, JsonObject) -> Unit,
+    routeParams: JsonObject,
     onEnvironment: (HostEnvironment) -> Unit,
     onStatus: (SessionStatus) -> Unit,
     onFailure: (String?) -> Unit,
@@ -294,6 +307,11 @@ class SliceActivity : ComponentActivity() {
       onDispose { leakDetector.close() }
     }
 
+    // Rebound every recomposition so the service, which is built once and shared by every
+    // session, always routes into the current host state rather than the one that existed when
+    // the shell was created.
+    val latestNavigate by rememberUpdatedState(onNavigate)
+
     // What this client lets the payload reach.
     val serviceHost = remember {
       DogwoodServiceHost(
@@ -320,6 +338,28 @@ class SliceActivity : ComponentActivity() {
         network = OkHttpNetwork(
           client = OkHttpClient(),
           allow = allowHosts("10.0.2.2", allowCleartextHosts = setOf("10.0.2.2")),
+        ),
+        /*
+         * Routing, which is this host's business and not the payload's.
+         *
+         * The routes are enumerated, so a guest can ask before it draws a control and this client
+         * can refuse a destination it does not have without a boundary round trip. A production
+         * host with a deep-link table it cannot enumerate would pass an empty set instead and take
+         * the checking on itself.
+         *
+         * The guest learns nothing about what happens next. Here a route swaps an experience; it
+         * could as easily push a native screen or open a browser, and no payload would notice.
+         */
+        navigation = CallbackNavigation(
+          routes = ENTRY_POINTS.map { "experience/$it" }.toSet(),
+          uiScope = uiScope,
+          onNavigate = { route, params ->
+            Log.i(TAG, "navigate: $route $params")
+            latestNavigate(route.removePrefix("experience/"), params)
+          },
+          // Skew, not a failure: a payload built against a client with more destinations than this
+          // one must degrade rather than take a screen down when someone taps its button.
+          onUnknownRoute = { Log.w(TAG, "navigate: unknown route '$it', staying put") },
         ),
       )
     }
@@ -392,7 +432,7 @@ class SliceActivity : ComponentActivity() {
      * flatter every number here. A warm switch should land inside one frame; a cold one pays for
      * a QuickJS instance, a payload load and a state restore, and should say so.
      */
-    LaunchedEffect(shell, entryPoint) {
+    LaunchedEffect(shell, entryPoint, routeParams) {
       val live = shell ?: return@LaunchedEffect
       val warmAlready = entryPoint in live.warm
       val startedAt = android.os.SystemClock.elapsedRealtimeNanos()
@@ -402,6 +442,9 @@ class SliceActivity : ComponentActivity() {
           put("city", "Tokyo")
           put("country", "Japan")
           put("apiBaseUrl", DEV_SERVER)
+          // Whatever the guest sent with the route. Last, so a destination can be told something
+          // its host would otherwise have decided for it.
+          for ((key, value) in routeParams) put(key, value)
         },
       )
       // Two intervals, not one, because they have different owners and only the first is the

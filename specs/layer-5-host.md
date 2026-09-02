@@ -224,6 +224,7 @@ flowchart LR
     okhttp["OkHttpClient"]
     flags["the application's own flag system"]
     logsink["Logcat / stdout / telemetry"]
+    router["the application's own navigation"]
   end
   subgraph hostside["dogwood-host"]
     vendor["DogwoodServiceHost"]
@@ -232,6 +233,7 @@ flowchart LR
     cbl["CallbackLog"]
     cba["CallbackAnalytics"]
     mff["MapFeatureFlags"]
+    nav["CallbackNavigation<br/>routes · thread hop · skew"]
     exp["DogwoodExperience.start<br/>entryPoint · launchParams · services"]
   end
   subgraph guestside["Guest — inside QuickJS"]
@@ -250,10 +252,12 @@ flowchart LR
   cbl --> vendor
   cba --> vendor
   mff --> vendor
+  nav --> vendor
   vendor --> exp
   exp --> resolve --> local --> code
   exp --> entry --> code
   code -- "suspend fetch" --> net
+  code -- "navigate(route, params)" --> nav --> router
 ```
 
 #### Diagram Node Definitions
@@ -262,6 +266,17 @@ flowchart LR
 - **`OkHttpNetwork`.** The guest's only route off the device, and the place the host acts as a policy point. It **defaults to refusing every request**. Cleartext is opted into per host rather than by a global switch. Bodies are capped, checked against `Content-Length` and again against what arrived, because a chunked response reports `-1`. Input and output run on `Dispatchers.IO`, because the call arrives on the Zipline thread — the only thread that may touch the guest. Every failure is a value, not an exception, so a guest can render an empty state for "this client will not let me do that".
 - **`SystemClock`.** Not about *reading* a time — QuickJS has `Date.now()`. It is about the host and guest agreeing on one, about a test being able to pin it, and about the time zone, which the guest genuinely cannot obtain because the pinned QuickJS ships no ECMA-402 International application programming interface (`Intl`).
 - **`CallbackLog`, `CallbackAnalytics`, `MapFeatureFlags`.** Adapters onto whatever the application already uses. Flags are a *snapshot* taken when the experience starts; a flag flipped while a screen is open does not reach it, and that limit is stated because its failure mode is silent — the screen keeps working, with the old answer.
+- **`CallbackNavigation`.** The guest's way of asking to go somewhere it cannot go itself, and without it every experience in a multi-experience product is an island. Decision record: [ADR-028](../adrs/layer-5/ADR-028-guest-initiated-navigation.md). Three things it settles.
+
+  **The host interprets routes, and the guest never learns the outcome.** A route may become another Dogwood experience, a native screen, a browser, or nothing at all; that is chrome, and chrome belongs to the side that owns the back stack, the transition, the hardware back button and the deep-link table. Routes are strings for the same reason entry points are — a deep link is a string the host already holds, and a generated enumeration would mean a client build per destination.
+
+  **A guest asks before it draws, not after it taps.** `routes()` is read once at start, and `canNavigate(route)` answers locally with no boundary crossing, because what a guest legitimately needs is whether a control is worth rendering: a "See all reviews" button on a client with no reviews screen is worse than no button, since a dead control makes the user blame the product rather than the build. **An empty route set means "this host does not enumerate", never "this host handles nothing"** — a host resolving routes from a deep-link table cannot list them, and reading an empty set as a refusal would hide every navigating control on every such host.
+
+  **An unknown route is skew.** The host reports it into `SkewReport.unknownRoutes` and stays put, on the same rule as an unknown widget tag. Failing loudly would let a stale payload take a screen down by tapping a button.
+
+  It also makes the hop from the Zipline thread to the user-interface scope itself, because every navigation a host performs touches state Compose reads, and forgetting that hop is a race that appears only under load.
+
+- **The application's own navigation.** Whatever already moves the user around — a navigation graph, a router, `DogwoodShell.activate`. Dogwood does not replace it and has no opinion about it.
 - **`DogwoodExperience.start`.** Carries three new things across: which experience to run, what to launch it with, and what it may reach.
 - **`GuestServices.resolve`.** Called exactly once. Every accessor call crosses the boundary and allocates a service proxy on both sides, so resolving per composition would leak a pair at the rate the screen recomposes.
 - **`LocalDogwoodServices` / `LocalDogwoodLaunch`.** *Static* composition locals, because neither can change while a composition is alive.
@@ -270,6 +285,10 @@ flowchart LR
 **The launch payload is data, decoded by the guest.** The host cannot construct guest types: it was built months before this payload and has never seen its classes. The sample decodes with `ignoreUnknownKeys = true`, which is the additive evolution rule applied to launch parameters.
 
 **The surface is versioned through the dictionary channel**, as `segmentVersions["dogwood.services"]`. It matters more than a widget version, and the asymmetry is the point: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method an older host does not implement is an error at the boundary with no fallback. A guest that wants a method added after revision *N* must check the version before calling it.
+
+**Navigation is the first service to actually need that gate**, and it shows what obeying it looks like. `DogwoodNavigation` arrived in revision 2, so the guest's `resolve` checks `version >= NAVIGATION_MIN_VERSION` **before** calling `services.navigation()`, rather than wrapping the call and catching — the failure being prevented is the call itself. The test that pins this asserts the accessor is *not called* on a revision 1 host, not merely that it returned null, because a payload delivered over the air routinely runs on a client older than itself.
+
+**Launch parameters are start-time, and a route cannot change that.** `navigate(route, params)` carries the destination's launch parameters, which are read when a session starts. A host keeping experiences warm will often route to a destination that is already running and therefore never restarts, so it never reads them; `params` mean "what to open this with if it opens", not "a message for it". Telling a *running* experience something needs a pushed value with its own dedupe rules, like `HostEnvironment`, which this is not.
 
 ### Live-State Holders
 
@@ -475,6 +494,13 @@ flowchart TD
   requested zero frames. Work already in flight when a user switches away does drain afterwards, so
   the audit is a **rate** check: a count still climbing seconds after an experience left the screen
   is a guest bug, and now a visible one.
+
+**A guest can ask to move between them.** `DogwoodNavigation` is how an experience requests a
+destination it cannot reach itself, and `DogwoodShell.activate` is a natural thing for a host to
+route into — but only one of many, and the guest is told which one it got: nothing. Composed with
+warm switching, a guest-initiated route into an experience that is already warm costs the shell
+nothing measurable. See "The Host Service Surface" above and
+[ADR-028](../adrs/layer-5/ADR-028-guest-initiated-navigation.md).
 
 **Memory is the real constraint, and it is bounded deliberately.** Each warm experience costs
 roughly 9 to 14 megabytes of total proportional set size — interpreter, heap, payload, and host

@@ -67,6 +67,9 @@ import dev.dogwood.protocol.WidthClass
 import dev.dogwood.protocol.widthClass
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 private const val TAG = "explore"
 
@@ -230,6 +233,28 @@ private fun ExploreContent(params: ExploreParams, onSaved: () -> Unit) {
         "Return flights, next 3 months"
       },
     )
+
+    /*
+     * Asking the host to go somewhere this experience cannot go itself.
+     *
+     * Two things worth noticing. The control is drawn only when the host says it handles the
+     * route -- a button that does nothing is worse than no button, because the user blames the
+     * product rather than the build. And the guest never learns what happened next: here the route
+     * happens to swap to another experience, but it could push a native screen or open a browser,
+     * and nothing on this screen would be written differently.
+     */
+    if (host.canNavigate("experience/feed")) {
+      PrimaryButton(
+        label = "Browse all stays →",
+        modifier = Modifier.fillMaxWidth().padding(4),
+        onClick = {
+          host.navigate(
+            "experience/feed",
+            buildJsonObject { put("from", JsonPrimitive("explore")) },
+          )
+        },
+      )
+    }
 
     when (val current = state) {
       FeedState.Loading -> Text("Loading…")

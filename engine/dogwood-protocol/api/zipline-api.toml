@@ -85,6 +85,19 @@ functions = [
   "tH9tvaiR",
 ]
 
+[dev.dogwood.protocol.DogwoodNavigation]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun navigate(kotlin.String, kotlinx.serialization.json.JsonObject): kotlin.Unit
+  "Oo5X3QwN",
+
+  # fun routes(): kotlin.collections.Set<kotlin.String>
+  "dKkHV/78",
+]
+
 [dev.dogwood.protocol.DogwoodNetwork]
 
 functions = [
@@ -115,6 +128,9 @@ functions = [
 
   # fun log(): dev.dogwood.protocol.DogwoodLog
   "VilQt5xD",
+
+  # fun navigation(): dev.dogwood.protocol.DogwoodNavigation
+  "WkXKIUDf",
 
   # fun network(): dev.dogwood.protocol.DogwoodNetwork
   "u68+7btY",

@@ -27,10 +27,20 @@ package dev.dogwood.protocol
 
 import app.cash.zipline.ZiplineService
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /** The service-surface revision this file describes. Reported as `segmentVersions[SERVICES_SEGMENT]`. */
 const val SERVICES_SEGMENT = "dogwood.services"
-const val SERVICES_VERSION = 1
+const val SERVICES_VERSION = 2
+
+/**
+ * The revision that introduced [DogwoodNavigation].
+ *
+ * A guest must not call [DogwoodServices.navigation] on a host older than this. The file header
+ * explains why in general; this is the first case where it bites in practice, so it is named as a
+ * constant rather than left as a number in a comment.
+ */
+const val NAVIGATION_MIN_VERSION = 2
 
 /** Names reported by [DogwoodServices.available], so a guest can branch without calling. */
 object ServiceNames {
@@ -39,6 +49,7 @@ object ServiceNames {
   const val ANALYTICS = "analytics"
   const val FEATURE_FLAGS = "featureFlags"
   const val NETWORK = "network"
+  const val NAVIGATION = "navigation"
 }
 
 /**
@@ -66,6 +77,59 @@ interface DogwoodServices : ZiplineService {
   fun featureFlags(): DogwoodFeatureFlags?
 
   fun network(): DogwoodNetwork?
+
+  /** Added in service surface version [NAVIGATION_MIN_VERSION]. Do not call on an older host. */
+  fun navigation(): DogwoodNavigation?
+}
+
+/**
+ * The guest's way of asking to go somewhere it cannot go itself.
+ *
+ * Without this, a guest experience is a dead end: it can render, fetch and record, but it cannot
+ * move the user to another screen, and in a product assembled from several experiences that makes
+ * every experience an island. It is the counterpart of entry points -- the host decides which
+ * experience runs, and this is how a guest asks it to decide again.
+ *
+ * **The host interprets routes, and the guest learns nothing about the outcome.** A route may
+ * become another Dogwood experience, a native screen, a browser, or nothing at all; that is app
+ * chrome, exactly like the tab bar, and it belongs to the side that owns the back stack. A guest
+ * told which of those happened would start depending on it.
+ *
+ * **Routes are strings**, for the same reason entry points are: a deep link is a string the host
+ * already holds, and forcing it through a generated enumeration would mean a client build for
+ * every new destination.
+ *
+ * Fire-and-forget rather than suspending. Navigation is initiated from an event handler, where a
+ * suspending call would mean a guest coroutine outliving the screen that started it, and the
+ * answer -- "the host went somewhere" -- is not one a guest should branch on. What a guest may
+ * legitimately want to know is whether a control is worth showing at all, and [routes] answers
+ * that **before** anything is drawn.
+ */
+interface DogwoodNavigation : ZiplineService {
+  /**
+   * Routes this host declares it handles, so a guest can hide a control it cannot use.
+   *
+   * **Advisory, and possibly empty.** A host that resolves routes dynamically -- from a deep-link
+   * table, a remote configuration, a back stack that changes -- cannot enumerate them, and returns
+   * an empty set. An empty set therefore means "this host does not enumerate", never "this host
+   * handles nothing"; a guest must treat it as permission to try rather than as a refusal.
+   */
+  fun routes(): Set<String>
+
+  /**
+   * Asks the host to go to [route], carrying [params] as the destination's launch parameters.
+   *
+   * An unknown route is not an error. The host reports it as skew and stays where it is, on the
+   * same rule as an unknown widget tag: a payload built against a newer client must degrade on an
+   * older one rather than break it.
+   *
+   * **[params] are launch parameters, and launch parameters are read when an experience starts.**
+   * A host that keeps experiences warm will route to a destination that is already running and did
+   * not restart, so it never reads them. Treat them as "what to open this with if it opens", not
+   * as a message: a guest that needs to tell a *running* experience something needs a pushed value
+   * with its own dedupe rules, which this is not.
+   */
+  fun navigate(route: String, params: JsonObject)
 }
 
 @Serializable

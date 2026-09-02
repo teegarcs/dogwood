@@ -38,7 +38,16 @@ import dev.dogwood.protocol.StateSnapshot
 
 /** What the shell knows about one entry point. */
 private class ShellEntry(
-  val launchParams: JsonObject,
+  /**
+   * The parameters the next start of this entry point will use.
+   *
+   * Mutable, and it has to be. Launch parameters are consumed when a session starts, so a route
+   * carrying new ones to an experience that is already warm cannot deliver them -- nothing
+   * restarted. Holding the *first* set forever would make that worse rather than merely limited:
+   * the experience would eventually be evicted, cold-start, and come back with parameters from a
+   * navigation several steps ago.
+   */
+  var launchParams: JsonObject,
   var session: DogwoodSession? = null,
   var job: Job? = null,
   /** Kept when the session is evicted, handed back when it returns. */
@@ -166,6 +175,11 @@ class DogwoodShell(
     evicted: List<String>,
   ) {
     val entry = entries.getOrPut(entryPoint) { ShellEntry(launchParams) }
+    // Newest wins for the next start. A warm experience does not see these -- it did not restart
+    // to read them -- which is the boundary of what a route can carry and is stated in
+    // [DogwoodNavigation]. What this guarantees is that a later cold start uses the most recent
+    // parameters rather than the ones from whenever this entry point was first visited.
+    entry.launchParams = launchParams
     if (entry.session == null) start(entryPoint, entry)
     publish()
 

@@ -130,6 +130,29 @@ the host already holds. Unknown routes degrade and report, per the standing skew
 
 *Estimate: ~1 day. ADR-028.*
 
+✅ **Done.** [ADR-028](../adrs/layer-5/ADR-028-guest-initiated-navigation.md). `DogwoodNavigation`
+joins the service surface as an ordinary optional service; the host interprets routes and the guest
+never learns the outcome.
+
+- **A guest asks before it draws.** `routes()` is read once at start and `canNavigate(route)`
+  answers locally, so a control that would do nothing is never rendered — a dead button makes the
+  user blame the product rather than the build. An empty route set means "this host does not
+  enumerate", never "handles nothing", so hosts with deep-link tables are not silently stripped of
+  every navigating control.
+- **Unknown routes degrade.** Verified on device: the host logged the skew, stayed put, no crash.
+- **The service-surface version gate finally has a customer.** Navigation is revision 2, so the
+  guest checks the revision *before* calling the accessor rather than catching around it — the
+  thing that fails is the call. The test asserts the accessor is not called on a revision 1 host.
+- Verified end to end: the explore experience drew its control only because the host declared the
+  route, sent `experience/feed {"from":"explore"}`, and the host swapped experiences — **0 ms of
+  shell cost** when the destination was already warm.
+
+Two limits, both stated on the interface rather than left to be discovered: a route is a request a
+host may ignore, and **launch parameters are start-time**, so routing to an already-warm experience
+delivers the route but not new parameters. Building it also surfaced a defect — `ShellEntry` held
+the parameters it was first constructed with forever, so an experience evicted and cold-started
+came back with parameters from several navigations ago. Newest now wins for the next start.
+
 ### EX-A. Reference example: Path A, guest-owned navigation
 
 A payload whose tab bar is **inside the guest** — guest Compose state switches between three

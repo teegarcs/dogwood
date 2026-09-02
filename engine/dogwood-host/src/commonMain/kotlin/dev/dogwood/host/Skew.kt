@@ -41,11 +41,14 @@ class SkewReport {
   /** Plural categories this locale uses that the payload carried no template for. */
   val untranslatedPlurals = mutableSetOf<String>()
 
+  /** Routes a guest asked for that this client does not handle. The host stayed where it was. */
+  val unknownRoutes = mutableSetOf<String>()
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
-      untranslatedPlurals.isEmpty()
+      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -56,7 +59,8 @@ class SkewReport {
     if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons ")
     if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions ")
     if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
-    if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals")
+    if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
+    if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes")
     append(")")
   }
 }
