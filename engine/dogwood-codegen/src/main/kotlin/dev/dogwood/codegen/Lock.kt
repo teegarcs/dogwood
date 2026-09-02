@@ -86,6 +86,10 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
     val nowSafety = current.safetyRelevant
     for (name in wasSafety - nowSafety) reclassified += "${lockedEntry.name}.$name: no longer an affordance"
     for (name in nowSafety - wasSafety) reclassified += "${lockedEntry.name}.$name: now an affordance"
+    for ((name, was) in lockedEntry.eventTypes) {
+      val now = current.eventTypes[name]
+      if (now != null && now != was) retyped += "${lockedEntry.name}.$name: $was -> $now"
+    }
     for ((name, tag) in lockedEntry.events) {
       val now = current.events[name]
       if (now != null && now != tag) {
@@ -111,7 +115,9 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
   // default instead. Widening `String` to `TextValue` is the case that prompted this.
   if (retyped.isNotEmpty() && dictionary.version <= locked.version) {
     problems += "retyped ${retyped.sorted()} without raising the segment version past " +
-      "${locked.version}; an older client reads the old encoding and silently renders a default"
+      "${locked.version}; a client on either side of the change reads the other's encoding with " +
+      "the wrong reader -- a property renders its default, an event argument is dropped or " +
+      "indexed past the end of the list"
   }
 
   if (reclassified.isNotEmpty() && dictionary.version <= locked.version) {

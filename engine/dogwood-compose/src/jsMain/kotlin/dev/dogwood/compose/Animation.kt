@@ -34,6 +34,8 @@ package dev.dogwood.compose
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import dev.dogwood.protocol.ExpressionFactories
+import dev.dogwood.protocol.ModifierTags
 
 private const val SPEC_TWEEN = 1
 private const val SPEC_SPRING = 2

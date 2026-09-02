@@ -113,12 +113,15 @@ crashes, warm switching intact.
 - **The containment path is verified by inspection and on device, not by a unit test.** Reaching
   `sendChanges` requires a live Zipline guest, which the host test source set cannot stand up. The
   decoder is thoroughly tested; the six lines that catch and report are not.
-- **The expression-factory identifier space is still declared in four places.** This ADR consolidates
-  the change grammar, not the deferred-expression grammar. That remains open and is the same class of
-  hazard, with the added detail that identifier 13 is skipped on both sides with nothing recording
-  why.
-- **The lock still records event tags but not event signatures.** Changing an event lambda's
-  parameters moves no tag and passes the lock unchanged. Also open.
+- **The identifier spaces are consolidated too**, in the same change. `ExpressionFactories` and
+  `ModifierTags` now live once in `dogwood-protocol`; the guest's two objects and the host's four
+  `private const` blocks are gone. Identifier **13 is recorded as withdrawn** rather than silently
+  skipped — the state that made a collision inevitable, since the next factory takes the lowest free
+  number and nothing remembered that one was not free.
+- **Event signatures are now locked**, closing a gap inside the dictionary's own domain.
+  `DictionaryEntry.eventTypes` records each event's parameter types beside its tag, and the lock
+  fails a build that changes one without raising the segment version. Verified by changing
+  `onClick: () -> Unit` to `(Boolean) -> Unit` and watching it refuse.
 
 ## 5. Updated Documents
 

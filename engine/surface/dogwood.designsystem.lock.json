@@ -20,6 +20,9 @@
             "slots": {},
             "events": {
                 "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
             }
         },
         {
@@ -85,6 +88,9 @@
             "slots": {},
             "events": {
                 "onSelectedChange": 1
+            },
+            "eventTypes": {
+                "onSelectedChange": "(Boolean) -> Unit"
             }
         },
         {
@@ -184,6 +190,9 @@
             "slots": {},
             "events": {
                 "onValueChange": 1
+            },
+            "eventTypes": {
+                "onValueChange": "(String, Int) -> Unit"
             }
         },
         {
@@ -204,6 +213,9 @@
             },
             "events": {
                 "onExited": 1
+            },
+            "eventTypes": {
+                "onExited": "(() -> Unit)?"
             }
         }
     ],

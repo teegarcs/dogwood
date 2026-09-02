@@ -51,6 +51,7 @@ fun buildDictionary(
       safetyRelevant = component.affordances.mapTo(mutableSetOf()) { it.name },
       slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       events = component.events.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      eventTypes = component.events.associate { it.name to it.type },
       rejected = component.parameters
         .filter { it.kind == ParameterKind.UNSUPPORTED }
         .associate { it.name to (it.rejection ?: "unsupported") },

@@ -29,6 +29,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import dev.dogwood.protocol.ModifierTags
 
 /**
  * Records a modifier chain, and rebinds any animation completions it carries.
@@ -223,20 +224,6 @@ internal object ColumnScopeInstance : DogwoodColumnScope
 internal object BoxScopeInstance : DogwoodBoxScope
 
 /** The modifier tag space. Segment-encoded like widget tags; see ADR-009. */
-internal object ModifierTags {
-  const val PADDING = 1
-  const val FILL_MAX_WIDTH = 2
-  const val WEIGHT = 3
-  const val SIZE = 4
-  const val ALPHA = 5
-  const val WIDTH = 6
-  const val HEIGHT = 7
-  const val ALIGN = 8
-  const val CLIP = 9
-  const val BACKGROUND = 10
-  const val ROTATE = 11
-  const val SCALE = 12
-}
 
 /**
  * The composition-scoped recording context. It is a plain object threaded through a

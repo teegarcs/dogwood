@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import dev.dogwood.protocol.ExpressionFactories
 
 private fun JsonElement.literalOrNull(): String? =
   (this as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
@@ -78,7 +79,7 @@ fun WidgetView.colorOrNull(tag: Int): Color? {
 fun resolveColor(raw: JsonArray): Color {
   val evaluator = LocalExpressionEvaluator.current
   val palette = palette()
-  if (raw.firstOrNull()?.jsonPrimitive?.intOrNull != ANIMATED_COLOR) {
+  if (raw.firstOrNull()?.jsonPrimitive?.intOrNull != ExpressionFactories.ANIMATED_COLOR) {
     return evaluator.color(raw, palette)
   }
   val target = (raw.getOrNull(1) as? JsonArray)?.let { evaluator.color(it, palette) }
@@ -91,7 +92,6 @@ fun resolveColor(raw: JsonArray): Color {
   return animated
 }
 
-private const val ANIMATED_COLOR = 14
 
 /** Reads a shape the guest named. Unknown factories degrade, as everywhere else. */
 @Composable

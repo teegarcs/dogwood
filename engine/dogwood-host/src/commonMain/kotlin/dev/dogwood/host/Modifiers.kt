@@ -31,19 +31,9 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import dev.dogwood.protocol.ModifierTags
+import dev.dogwood.protocol.ExpressionFactories
 
-private const val PADDING = 1
-private const val FILL_MAX_WIDTH = 2
-private const val WEIGHT = 3
-private const val SIZE = 4
-private const val ALPHA = 5
-private const val WIDTH = 6
-private const val HEIGHT = 7
-private const val ALIGN = 8
-private const val CLIP = 9
-private const val BACKGROUND = 10
-private const val ROTATE = 11
-private const val SCALE = 12
 
 /**
  * The factory identifier of an animated value, and the event tag base its completion is reported
@@ -53,8 +43,6 @@ private const val SCALE = 12
  * sides walk the same ordered chain and the index is therefore an identifier they already agree
  * on. Nothing extra crosses.
  */
-private const val ANIMATED_NUMBER = 12
-private const val OSCILLATE = 15
 private const val ANIMATION_EVENT_BASE = 1000
 
 /**
@@ -95,9 +83,9 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
       }
 
     modifier = when (element.t.local) {
-      PADDING -> modifier.padding(number(0f).dp)
-      FILL_MAX_WIDTH -> modifier.fillMaxWidth(value.floatOrNull ?: 1f)
-      WEIGHT -> {
+      ModifierTags.PADDING -> modifier.padding(number(0f).dp)
+      ModifierTags.FILL_MAX_WIDTH -> modifier.fillMaxWidth(value.floatOrNull ?: 1f)
+      ModifierTags.WEIGHT -> {
         val weight = value.floatOrNull ?: 1f
         when {
           scope.row != null -> with(scope.row) { modifier.weight(weight) }
@@ -108,7 +96,7 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
           else -> modifier
         }
       }
-      ALIGN -> {
+      ModifierTags.ALIGN -> {
         val ordinal = value.intOrNull ?: 0
         when {
           scope.row != null -> with(scope.row) { modifier.align(verticalAlignment(ordinal)) }
@@ -117,20 +105,20 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
         }
       }
       // Deferred expressions: the argument is a recipe, not a value, and the host builds it.
-      CLIP -> modifier.clip(evaluator.shape(element.v))
+      ModifierTags.CLIP -> modifier.clip(evaluator.shape(element.v))
       // Through the shared resolver, so `background` accepts an animated colour on exactly the
       // same terms as `Icon`'s tint does.
-      BACKGROUND -> modifier.background(
+      ModifierTags.BACKGROUND -> modifier.background(
         (element.v as? kotlinx.serialization.json.JsonArray)
           ?.let { androidx.compose.runtime.key(index, element.t.value) { resolveColor(it) } }
           ?: evaluator.color(element.v, palette),
       )
-      SIZE -> modifier.size(number(0f).dp)
-      WIDTH -> modifier.width(number(0f).dp)
-      HEIGHT -> modifier.height(number(0f).dp)
-      ALPHA -> modifier.alpha(number(1f))
-      ROTATE -> modifier.rotate(number(0f))
-      SCALE -> modifier.scale(number(1f))
+      ModifierTags.SIZE -> modifier.size(number(0f).dp)
+      ModifierTags.WIDTH -> modifier.width(number(0f).dp)
+      ModifierTags.HEIGHT -> modifier.height(number(0f).dp)
+      ModifierTags.ALPHA -> modifier.alpha(number(1f))
+      ModifierTags.ROTATE -> modifier.rotate(number(0f))
+      ModifierTags.SCALE -> modifier.scale(number(1f))
       else -> modifier
     }
   }
@@ -179,8 +167,8 @@ private fun animatedNumber(
     ?: return raw.jsonPrimitive.floatOrNull ?: fallback
 
   val factory = array.firstOrNull()?.jsonPrimitive?.intOrNull
-  if (factory == OSCILLATE) return oscillating(array, index, node, events)
-  if (factory != ANIMATED_NUMBER) return fallback
+  if (factory == ExpressionFactories.OSCILLATE) return oscillating(array, index, node, events)
+  if (factory != ExpressionFactories.ANIMATED_NUMBER) return fallback
 
   val target = array.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: fallback
   val spec = animationSpecOf<Float>(array.getOrNull(2))

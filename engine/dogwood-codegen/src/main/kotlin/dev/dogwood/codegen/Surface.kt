@@ -133,6 +133,17 @@ data class DictionaryEntry(
   val safetyRelevant: Set<String> = emptySet(),
   val slots: Map<String, Int>,
   val events: Map<String, Int>,
+  /**
+   * Each event's parameter types, in declaration order.
+   *
+   * Recorded for the same reason [propertyTypes] is, and the gap it closes is identical. An event
+   * tag is not the whole contract: changing `onClick: () -> Unit` to `(Boolean) -> Unit` moves no
+   * tag, adds no component and retypes no property, so every other check in the lock stays silent
+   * -- while the arguments now crossing the wire have a shape the other side does not expect. In
+   * one direction the argument is ignored; in the other the generated reader indexes past the end
+   * of the list and throws on a tap.
+   */
+  val eventTypes: Map<String, String> = emptyMap(),
   /** Parameters the rule rejected, kept so the dictionary records what it declined to bind. */
   val rejected: Map<String, String> = emptyMap(),
 )

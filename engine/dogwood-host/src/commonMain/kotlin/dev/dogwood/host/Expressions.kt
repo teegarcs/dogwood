@@ -28,19 +28,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import dev.dogwood.protocol.ExpressionFactories
 
-private const val ROUNDED_CORNER = 1
-private const val CIRCLE = 2
-private const val COLOR_ARGB = 3
-private const val COLOR_TOKEN = 4
-private const val TEXT_NUMBER = 5
-private const val TEXT_CURRENCY = 6
-private const val TEXT_PERCENT = 7
-private const val TEXT_DATE = 8
-private const val TEXT_TIME = 9
-private const val TEXT_DATE_TIME = 10
-private const val TEXT_RELATIVE_TIME = 11
-private const val TEXT_PLURAL = 16
 
 /**
  * How many evaluated expressions to retain.
@@ -80,8 +69,8 @@ class ExpressionEvaluator(
     if (shapes.size >= CACHE_LIMIT) shapes.clear()
     val args = expression.jsonArray
     val built = when (val factory = args[0].jsonPrimitive.intOrNull) {
-      ROUNDED_CORNER -> RoundedCornerShape((args[1].jsonPrimitive.intOrNull ?: 0).dp)
-      CIRCLE -> CircleShape
+      ExpressionFactories.ROUNDED_CORNER -> RoundedCornerShape((args[1].jsonPrimitive.intOrNull ?: 0).dp)
+      ExpressionFactories.CIRCLE -> CircleShape
       else -> {
         if (factory != null) unknownFactories += factory
         fallback
@@ -111,8 +100,8 @@ class ExpressionEvaluator(
     val built = when (val factory = args[0].jsonPrimitive.intOrNull) {
       // A literal colour, which the guest may only send for something genuinely unthemed. It
       // does not follow dark mode, and that is the point of preferring a token.
-      COLOR_ARGB -> Color((args[1].jsonPrimitive.longOrNull ?: 0L).toULong() shl 32)
-      COLOR_TOKEN -> {
+      ExpressionFactories.COLOR_ARGB -> Color((args[1].jsonPrimitive.longOrNull ?: 0L).toULong() shl 32)
+      ExpressionFactories.COLOR_TOKEN -> {
         val name = args[1].jsonPrimitive.content
         palette.token(name) ?: run {
           skew.unknownColorTokens += name
@@ -155,7 +144,7 @@ class ExpressionEvaluator(
     val args = expression.jsonArray
     fun arg(index: Int) = args.getOrNull(index)?.jsonPrimitive
     val built = when (val factory = arg(0)?.intOrNull) {
-      TEXT_NUMBER -> {
+      ExpressionFactories.TEXT_NUMBER -> {
         val formatted = formatNumber(
           arg(1)?.doubleOrNull ?: 0.0,
           locale,
@@ -168,27 +157,27 @@ class ExpressionEvaluator(
         if (formatted.patternRejected) skew.rejectedNumberPatterns += arg(3)?.content.orEmpty()
         formatted.text
       }
-      TEXT_CURRENCY -> formatCurrency(
+      ExpressionFactories.TEXT_CURRENCY -> formatCurrency(
         arg(1)?.longOrNull ?: 0L,
         arg(2)?.content.orEmpty(),
         locale,
       )
-      TEXT_PERCENT -> formatPercent(
+      ExpressionFactories.TEXT_PERCENT -> formatPercent(
         arg(1)?.doubleOrNull ?: 0.0,
         locale,
         arg(2)?.takeIf { it !is JsonNull }?.intOrNull,
       )
-      TEXT_DATE -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 0)
-      TEXT_TIME -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 1)
-      TEXT_DATE_TIME -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 2)
-      TEXT_RELATIVE_TIME -> formatRelativeTime(
+      ExpressionFactories.TEXT_DATE -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 0)
+      ExpressionFactories.TEXT_TIME -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 1)
+      ExpressionFactories.TEXT_DATE_TIME -> formatDateTime(arg(1)?.longOrNull ?: 0L, locale, timeZoneId, 2)
+      ExpressionFactories.TEXT_RELATIVE_TIME -> formatRelativeTime(
         arg(1)?.longOrNull ?: 0L,
         arg(2)?.longOrNull ?: 0L,
         locale,
       )
       // The words are the payload's; only the category is the host's, because only the category
       // needs locale data. `#` stands for the count, formatted for this locale.
-      TEXT_PLURAL -> {
+      ExpressionFactories.TEXT_PLURAL -> {
         val count = arg(1)?.intOrNull ?: 0
         val templates = args.getOrNull(2) as? kotlinx.serialization.json.JsonObject
         val category = pluralCategory(count, locale)
