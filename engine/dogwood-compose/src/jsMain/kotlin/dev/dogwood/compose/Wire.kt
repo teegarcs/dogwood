@@ -22,18 +22,13 @@ import dev.dogwood.protocol.Create
 import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.ModifierSet
 import dev.dogwood.protocol.PropertySet
+import dev.dogwood.protocol.ChangeKind
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 
-internal const val K_CREATE = 0
-internal const val K_PROPERTY = 1
-internal const val K_MODIFIER = 2
-internal const val K_CHILD_ADD = 3
-internal const val K_CHILD_REMOVE = 4
-internal const val K_CHILD_MOVE = 5
 
 /**
  * Converts a serialized value into a native JavaScript value `JSON.stringify` can walk.
@@ -67,12 +62,12 @@ private fun chain(elements: List<ModifierElem>): Array<Any?> =
   Array(elements.size) { arrayOf(elements[it].t.value, nativeValue(elements[it].v)) }
 
 private fun change(c: Change): Array<Any?> = when (c) {
-  is Create -> arrayOf(K_CREATE, c.i.value, c.w.value)
-  is PropertySet -> arrayOf(K_PROPERTY, c.i.value, c.p.value, nativeValue(c.v))
-  is ModifierSet -> arrayOf(K_MODIFIER, c.i.value, chain(c.e))
-  is ChildAdd -> arrayOf(K_CHILD_ADD, c.i.value, c.s.value, c.c.value, c.x)
-  is ChildRemove -> arrayOf(K_CHILD_REMOVE, c.i.value, c.s.value, c.x, c.n)
-  is ChildMove -> arrayOf(K_CHILD_MOVE, c.i.value, c.s.value, c.f, c.t, c.n)
+  is Create -> arrayOf(ChangeKind.CREATE, c.i.value, c.w.value)
+  is PropertySet -> arrayOf(ChangeKind.PROPERTY, c.i.value, c.p.value, nativeValue(c.v))
+  is ModifierSet -> arrayOf(ChangeKind.MODIFIER, c.i.value, chain(c.e))
+  is ChildAdd -> arrayOf(ChangeKind.CHILD_ADD, c.i.value, c.s.value, c.c.value, c.x)
+  is ChildRemove -> arrayOf(ChangeKind.CHILD_REMOVE, c.i.value, c.s.value, c.x, c.n)
+  is ChildMove -> arrayOf(ChangeKind.CHILD_MOVE, c.i.value, c.s.value, c.f, c.t, c.n)
 }
 
 /** `[sequence, [change, ...]]`, per ADR-007 section 2.1. */

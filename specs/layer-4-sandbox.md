@@ -163,6 +163,35 @@ restored map is a plain `Map<String, Any?>`; `SaveableStateHolder` casts it to i
 generic type, which is sound only because Kotlin/JavaScript erases generics — the cast checks
 nothing at runtime, and the shape it assumes is the shape the guest wrote.
 
+### The Wire Grammar Lives in One Place, and Rejects What It Cannot Read
+
+The positional format's *vocabulary* — widget tags, property tags — is versioned and locked. Its
+**grammar** is the tuple shapes those tags travel in, and it is governed differently: the
+discriminators and the decoder live once, in `dogwood-protocol`, which both sides depend on and which
+targets JavaScript as well as the Java Virtual Machine and Android. The **encoder does not live
+there**, because [ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) requires the
+guest to build native JavaScript arrays for QuickJS's own `JSON.stringify`, which is irreducibly
+platform-specific; it imports its discriminators instead of declaring them.
+
+**Every change tuple's arity is checked, and that check is the difference between a loud failure and
+a silent one.** Every interesting element of a change tuple is an integer, so a payload whose tuples
+have shifted by one parses perfectly and means something else — a child identifier read as an
+insertion index, a count read as a position. No exception, no missing field, no report entry; just a
+tree that is quietly wrong while every later batch compounds against it. Since the guest is delivered
+over the air independently of the host, that skew is the normal case rather than an edge one.
+
+**A batch that cannot be decoded is rejected whole, reported, and survived.** Not degraded — and the
+distinction matters, because everywhere else in this system an unrecognised thing degrades. The
+changes in a batch are ordered and interdependent: skip a `Create` and a later `ChildAdd` references
+a node that does not exist; skip a `ChildRemove` and every index after it in that slot is wrong.
+There is nothing to degrade to. So `ProtocolMismatch` is caught at `sendChanges`, the reason is
+recorded in `SkewReport.rejectedBatches`, and **the tree already on screen keeps rendering** — the
+same shape the delivery layer uses when a manifest fails verification, and for the same reason.
+
+See [ADR-009](../adrs/layer-4/ADR-009-one-grammar-one-copy.md), which also records what remains
+unconsolidated: the deferred-expression factory identifiers, still declared in four places, and event
+signatures, which the dictionary lock does not cover.
+
 ## 4. Interfaces & Boundary
 
 This is Dogwood's real cross-process boundary: a Zipline service boundary serialized with `kotlinx.serialization`. Services are named for the side that **implements** them.

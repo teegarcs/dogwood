@@ -17,6 +17,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
+import dev.dogwood.protocol.decodePositional
 
 private val TEXT_TAG = DogwoodDictionary.Text.value
 private val COLUMN_TAG = DogwoodDictionary.Column.value

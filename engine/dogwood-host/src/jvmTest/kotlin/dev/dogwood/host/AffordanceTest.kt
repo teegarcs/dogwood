@@ -39,6 +39,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.widgetTag
+import dev.dogwood.protocol.decodePositional
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals

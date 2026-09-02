@@ -54,11 +54,24 @@ class SkewReport {
    */
   val withheldWidgets = mutableSetOf<Int>()
 
+  /**
+   * Batches this client refused because it could not decode them, with the reason.
+   *
+   * Distinct from every other entry here in what it costs. The rest name something the client did
+   * not recognise inside a batch it understood, and degraded around it. This names a batch whose
+   * *grammar* disagreed -- a tuple of the wrong length, a kind from a newer protocol -- where
+   * there is nothing to degrade to, because the changes in a batch are ordered and interdependent
+   * and applying half of one leaves a tree the guest never composed.
+   */
+  val rejectedBatches = mutableSetOf<String>()
+
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
-      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty()
+      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
+      rejectedBatches.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -71,7 +84,8 @@ class SkewReport {
     if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
     if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
     if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")
-    if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets")
+    if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets ")
+    if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches")
     append(")")
   }
 }

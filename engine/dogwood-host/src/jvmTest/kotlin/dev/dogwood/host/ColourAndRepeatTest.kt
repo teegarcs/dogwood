@@ -23,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import dev.dogwood.protocol.decodePositional
 
 private fun array(text: String) = Json.parseToJsonElement(text) as kotlinx.serialization.json.JsonArray
 private val TEXT_TAG = DogwoodDictionary.Text.value

@@ -9,6 +9,7 @@ package dev.dogwood.host
 
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.widgetTag
+import dev.dogwood.protocol.decodePositional
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

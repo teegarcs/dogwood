@@ -19,6 +19,8 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.StateSnapshot
 import dev.dogwood.protocol.WidgetTag
+import dev.dogwood.protocol.decodePositional
+import dev.dogwood.protocol.ProtocolMismatch
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -74,7 +76,21 @@ class DogwoodExperience(
       // Decoding is cheap enough to do on this thread -- 0.17 ms for a whole-screen batch,
       // measured in Phase 0 -- but applying it touches state Compose reads, so the apply is
       // posted to the user-interface dispatcher.
-      val batch = decodePositional(positionalBatch)
+      //
+      // A batch whose grammar this client does not share is skew, and is contained the way every
+      // other kind of skew is: reported, and survivable. It is contained by rejecting the batch
+      // WHOLE and keeping the tree that is already on screen -- the same shape the delivery layer
+      // uses when a manifest fails verification, and for the same reason. Applying the prefix of a
+      // batch would leave a tree the guest never composed, and every later batch would compound
+      // against it.
+      val batch = try {
+        decodePositional(positionalBatch)
+      } catch (mismatch: ProtocolMismatch) {
+        // Posted rather than written here: the report is read on the user-interface thread while
+        // this runs on the Zipline thread.
+        uiScope.launch { skew.rejectedBatches += mismatch.message ?: "undecodable batch" }
+        return
+      }
       uiScope.launch {
         threads.checkUi()
         tree.apply(batch)
