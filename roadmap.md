@@ -281,21 +281,42 @@ verifying on a device rather than in a suite:
 
 ## Phase 4.5 — Experience Composition & the Host Shell
 
-**Planned** — [`plans/experience-composition.md`](plans/experience-composition.md). The demo's
-tabs surfaced a question the architecture had only answered implicitly, and both answers must be
-first-class:
+**Complete** — [`plans/experience-composition.md`](plans/experience-composition.md), decided in
+[ADR-027](adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md),
+[ADR-028](adrs/layer-5/ADR-028-guest-initiated-navigation.md) and
+[ADR-029](adrs/layer-5/ADR-029-a-null-service-cannot-cross.md). The demo's tabs surfaced a question
+the architecture had only answered implicitly, and both answers are now first-class:
 
 - **Path A — one experience, many screens**: the guest owns navigation as ordinary Compose; state
   shares freely; already works and costs nothing new.
 - **Path B — many experiences**: independent teams, cadences, or isolation requirements; each its
-  own QuickJS runtime. Works, but **switching pays a full cold start today** (~127 ms p50 on a
-  development machine, worse on device), and the sample's switch leaks the prior session.
+  own QuickJS runtime. Switching used to pay a full cold start and leak the prior session; it now
+  goes through the shell and costs nothing the shell controls.
 
-The plan: a host **shell** that retains warm experiences so switching costs one frame, with
-snapshot-evict-restore under memory pressure riding the existing code-update machinery; a
-**navigation service** so a guest can ask the host to route; and **two reference examples**, one
-per path, that a product team can copy. Precedes the Web host build, which will mount experiences
-through the same shell. Approximately six days.
+Delivered: a host **shell** retaining warm experiences, a **navigation service** so a guest can ask
+the host to route, and **two reference examples** a product team can copy — `AppShell.kt` in the
+guest for Path A, `TabsActivity.kt` in the Android sample for Path B.
+
+**Measured on device.** A warm switch costs the shell **0 ms, taken synchronously**; what remains
+is Compose drawing an already-applied tree, which a native tab switch of the same content would
+also pay. What the shell removes is the **140–650 ms of guest cold start** that made Path B
+unusable. Each warm experience costs **9–14 MB**, which set the default cap at three. Hidden
+experiences requested **zero** frames over twenty idle seconds, so keeping one warm costs memory
+and nothing else. Two experiences render at once from two runtimes on one Zipline thread, with no
+cross-contamination.
+
+The plan's "switching costs one frame" target was optimistic rather than the result being poor: it
+counted the swap and forgot the draw.
+
+**Five defects were found only by running the code**, three of them in subsystems this work was not
+aiming at — a `rememberSaveableStateHolder` whose state could not cross the boundary *at all*, an
+eviction that freed nothing, a host environment derived per window rather than per surface, an
+`onTrimMemory` calling through a null reference, and — the oldest — a **null host service crashing
+the guest at start**, which falsified "every service is optional and its absence is normal", a
+property documented since [ADR-013](adrs/layer-5/ADR-013-host-services-and-entry-points.md) and
+never once exercised because every host in the repository wired every service.
+
+Precedes the Web host build, which will mount experiences through the same shell.
 
 ---
 
@@ -304,7 +325,11 @@ through the same shell. Approximately six days.
 **Approximately 4–6 weeks**, dominated by the web-profile design rather than the host itself. Per the platform order above, Web precedes iOS.
 
 1. **Design the web profile as an ADR first.** The guest loads into the browser's JavaScript engine directly — no QuickJS, no `.zipline` bytecode — and delivery and integrity ride ordinary web deployment (same-origin scripts over Hypertext Transfer Protocol Secure (HTTPS)) rather than `ZiplineLoader` and Ed25519 manifests. The dictionary check must still gate loading; specify where it runs.
-2. Bring up the Compose Multiplatform Web host with the unchanged protocol, applier, generated bindings, and registered design-system segments. Constraints verified in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md): **Compose Multiplatform for Web is Beta**, `material3-wasm-js` trails at `1.12.0-alpha03` (less limiting under the design-system-first path, which leans on registered components rather than Material), and community-measured Skiko WebAssembly payloads run ~8 MB uncompressed / ~3 MB compressed — page-weight viability is **unproven** and gates this phase.
+2. Bring up the Compose Multiplatform Web host with the unchanged protocol, applier, generated bindings, and registered design-system segments. Constraints verified in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md): **Compose Multiplatform for Web is Beta**, and `material3-wasm-js` trails at `1.12.0-alpha03` (less limiting under the design-system-first path, which leans on registered components rather than Material).
+
+   **Page weight has now been measured and does not block this phase** — [ADR-030](adrs/layer-5/ADR-030-web-page-weight-measured.md), harness at [`tools/web-weight/`](tools/web-weight/). A Compose Multiplatform page linking Material 3 is **10.23 MB raw, 2.92 MB brotli**, of which **81% is `skiko.wasm`**, a prebuilt JetBrains artifact no amount of Dogwood code discipline can shrink. The community figure was right about compressed and understated raw: ~8 MB uncompressed is the Skiko blob alone, not the page. The practical consequence is that page weight is a **fixed entry toll** rather than something that scales with how much design system a team registers.
+
+   **What still gates the phase is time to first frame**, which is unmeasured. Bytes are only a proxy for waiting, and the harness deliberately reports none — measuring it needs a real browser with a graphics context on a representative machine, and two plausible shortcuts (headless Chrome, `WebAssembly.compile` under Node) each produce numbers that are wrong in the direction that flatters the result. The page carries a `#dogwood-first-frame` probe so that doing it properly needs a browser and a network, not new code.
 3. Hardening drills that need no new platform: key rotation (ship a manifest with two signatures, roll clients forward, retire the old key), the skew containment drill (build a guest against a newer dictionary; confirm placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback — section 6 of the [specification](high-level-tech-spec-final.md)), and guest state preservation across code update, backgrounding, and process death.
 
 ---

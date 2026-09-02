@@ -1,0 +1,10 @@
+# Pinned to the engine's own toolchain. A page-weight number is only meaningful for the versions
+# that produced it, so these must be kept in step with `engine/gradle/libs.versions.toml`.
+[versions]
+kotlin = "2.3.20"
+composeMultiplatform = "1.10.3"
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
