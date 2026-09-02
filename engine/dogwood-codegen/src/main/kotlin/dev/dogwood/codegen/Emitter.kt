@@ -48,6 +48,7 @@ fun buildDictionary(
       localTag = allocated[index],
       properties = component.values.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       propertyTypes = component.values.associate { it.name to it.type },
+      safetyRelevant = component.affordances.mapTo(mutableSetOf()) { it.name },
       slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       events = component.events.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
       rejected = component.parameters
@@ -259,6 +260,17 @@ fun emitHostBindings(
   appendLine("import dev.dogwood.protocol.widgetTag")
   appendLine("import kotlinx.serialization.json.JsonPrimitive")
   appendLine()
+  appendLine("/**")
+  appendLine(" * The version this client advertises for this segment, so a guest can branch on what")
+  appendLine(" * this client is capable of.")
+  appendLine(" *")
+  appendLine(" * Emitted rather than hand-written. It was hand-written, in `Bindings.kt`, and it")
+  appendLine(" * drifted the first time the lock raised the version: the dictionary said one number")
+  appendLine(" * and the number handed to guests said another, which is exactly the failure the")
+  appendLine(" * version exists to prevent.")
+  appendLine(" */")
+  appendLine("const val ${dictionary.segmentName.replaceFirstChar { it.uppercase() }}Version: Int = ${dictionary.version}")
+  appendLine()
   appendLine("/** Local tags this segment binds, for the dictionary check and for skew reporting. */")
   appendLine("val ${dictionary.segmentName.replaceFirstChar { it.uppercase() }}Tags: Set<Int> = setOf(")
   for (entry in dictionary.components.filter { e -> bindable.any { it.name == e.name } }) {
@@ -284,6 +296,7 @@ fun emitHostBindings(
   appendLine("): Boolean {")
   appendLine("  if (node.tag.value !in ${dictionary.segmentName.replaceFirstChar { it.uppercase() }}Tags) return false")
   appendLine("  val modifier = node.composeModifier(scope, events)")
+  appendLine("  if (withholdUnsafe(node, modifier)) return true")
   appendLine("  when (node.tag.value) {")
 
   for (component in bindable) {
@@ -308,6 +321,74 @@ fun emitHostBindings(
 
   appendLine("    else -> return false")
   appendLine("  }")
+  appendLine("  return true")
+  appendLine("}")
+  appendLine()
+  emitWithholding(dictionary, bindable)
+}
+
+/**
+ * Emits the affordance guard.
+ *
+ * Section 6 of the technical specification requires that a widget carrying a safety-relevant
+ * parameter this client does not understand is **replaced by a declared fallback rather than
+ * rendered wrong**. This is where that happens, and the shape follows from what a client can
+ * actually observe.
+ *
+ * A client meeting a property tag it does not know cannot tell what that property meant: the tag
+ * comes from a dictionary it has never seen. So it cannot ask "is this unknown property the one
+ * that disables the button?" -- the decision has to be made per widget instead. A widget that owns
+ * no affordance ignores unknown properties, because for it the worst case is cosmetic and
+ * withholding the whole widget would be a far larger regression than the skew. A widget that owns
+ * one refuses to draw, because the worst case is a control that lies about what it will do.
+ *
+ * The fallback is the same inert placeholder an unknown widget tag already produces. That is
+ * deliberate: it keeps index arithmetic consistent, occupies the slot, and offers the user nothing
+ * to act on -- which is the whole requirement.
+ */
+private fun StringBuilder.emitWithholding(
+  dictionary: Dictionary,
+  bindable: List<ParsedComponent>,
+) {
+  val guarded = bindable.filter { it.affordances.isNotEmpty() }
+  val prefix = dictionary.segmentName.replaceFirstChar { it.uppercase() }
+
+  appendLine("/**")
+  appendLine(" * Widgets whose contract includes an affordance -- something the user is allowed to")
+  appendLine(" * do -- mapped to the property tags this client understands for them.")
+  appendLine(" *")
+  appendLine(" * A widget absent from this map has no affordance to get wrong, and ignores unknown")
+  appendLine(" * properties as ordinary cosmetic skew.")
+  appendLine(" */")
+  appendLine("private val ${prefix}Affordances: Map<Int, Set<Int>> = mapOf(")
+  for (component in guarded) {
+    val entry = dictionary.components.first { it.name == component.name }
+    val known = entry.properties.values.sorted().joinToString(", ")
+    val names = component.affordances.joinToString(", ") { it.name }
+    appendLine("  // ${component.name}: $names")
+    appendLine("  widgetTag(${dictionary.segmentId}, ${entry.localTag}).value to setOf($known),")
+  }
+  appendLine(")")
+  appendLine()
+  appendLine("/**")
+  appendLine(" * Draws the fallback in place of a control this client cannot safely render.")
+  appendLine(" *")
+  appendLine(" * True when a widget that owns an affordance arrived carrying a property tag this")
+  appendLine(" * client does not know -- which means a payload built against a newer dictionary is")
+  appendLine(" * telling this client something about the control that it cannot read. Rendering")
+  appendLine(" * anyway would show a control whose behaviour the payload was trying to change.")
+  appendLine(" *")
+  appendLine(" * It draws rather than merely refusing, and it draws with the guest's own modifier.")
+  appendLine(" * Returning without composing anything would let the node vanish and everything")
+  appendLine(" * after it move up, turning a contained safety problem into a visibly broken")
+  appendLine(" * screen; keeping the modifier means the gap is the size the guest asked for.")
+  appendLine(" */")
+  appendLine("@Composable")
+  appendLine("private fun withholdUnsafe(node: WidgetView, modifier: androidx.compose.ui.Modifier): Boolean {")
+  appendLine("  val known = ${prefix}Affordances[node.tag.value] ?: return false")
+  appendLine("  if (node.unknownProperties(known).isEmpty()) return false")
+  appendLine("  LocalSkewReport.current.withheldWidgets += node.tag.value")
+  appendLine("  androidx.compose.foundation.layout.Box(modifier)")
   appendLine("  return true")
   appendLine("}")
 }

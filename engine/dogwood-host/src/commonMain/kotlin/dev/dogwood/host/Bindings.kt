@@ -132,9 +132,11 @@ object DogwoodDictionary {
   /** Per-segment versions, handed to the guest so it can branch on client capability. */
   val segmentVersions: Map<String, Int> = mapOf(
     "androidx.layout" to 1,
-    // Bumped when components were added. Guest code can branch on this to stay compatible with
-    // clients that have not caught up.
-    "dogwood.designsystem" to 6,
+    // Read from the generated dictionary rather than typed here. This was a hand-written `6`
+    // until the affordance markings raised the lock to 7 and the two disagreed -- a client
+    // telling guests it was one version while binding another, which is precisely the confusion
+    // the version exists to prevent.
+    "dogwood.designsystem" to DogwoodDesignSystemVersion,
     // The host service surface is versioned through the same channel, because a guest has the
     // same question about it: what does this client know how to do? It matters more here — an
     // unknown widget tag becomes a placeholder, but calling a service method an older host does

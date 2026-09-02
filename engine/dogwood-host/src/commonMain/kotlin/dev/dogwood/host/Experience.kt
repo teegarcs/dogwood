@@ -42,15 +42,16 @@ class DogwoodExperience(
   /** Off by default. See `Leaks.kt` for what is worth watching in a host, and why. */
   leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
 ) {
-  val tree = HostTree(leakDetector)
-
   /**
    * Everything this client failed to recognise while rendering this guest.
    *
    * One report per experience, because skew is a property of the pairing between a payload and a
-   * client, not of the client alone. See `Skew.kt`.
+   * client, not of the client alone. See `Skew.kt`. Declared before [tree] because the tree
+   * reports into it.
    */
   val skew = SkewReport()
+
+  val tree = HostTree(leakDetector, skew)
 
   /**
    * The threading contract.

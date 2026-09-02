@@ -38,6 +38,7 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
   val problems = mutableListOf<String>()
   val added = mutableListOf<String>()
   val retyped = mutableListOf<String>()
+  val reclassified = mutableListOf<String>()
 
   // A generated tag landing on a hand-written binding's tag renders the *wrong widget*, silently.
   // Checked here rather than trusted, because the allocator and the reservation list are edited
@@ -76,6 +77,15 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
       val now = current.propertyTypes[name]
       if (now != null && now != was) retyped += "${lockedEntry.name}.$name: $was -> $now"
     }
+    // Marking or unmarking an affordance moves no tag, adds no component and changes no type, so
+    // every check above is silent about it -- while it changes, for every client, whether a widget
+    // is drawn or withheld when a newer payload sends it something unreadable. Unmarking is the
+    // dangerous direction, but both are recorded, because a client cannot be asked to guess which
+    // way the marking went.
+    val wasSafety = lockedEntry.safetyRelevant
+    val nowSafety = current.safetyRelevant
+    for (name in wasSafety - nowSafety) reclassified += "${lockedEntry.name}.$name: no longer an affordance"
+    for (name in nowSafety - wasSafety) reclassified += "${lockedEntry.name}.$name: now an affordance"
     for ((name, tag) in lockedEntry.events) {
       val now = current.events[name]
       if (now != null && now != tag) {
@@ -104,11 +114,16 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
       "${locked.version}; an older client reads the old encoding and silently renders a default"
   }
 
+  if (reclassified.isNotEmpty() && dictionary.version <= locked.version) {
+    problems += "reclassified ${reclassified.sorted()} without raising the segment version past " +
+      "${locked.version}; whether a widget is withheld or drawn on skew changes with this marking"
+  }
+
   return when {
     problems.isNotEmpty() -> LockResult.Violated(problems)
-    added.isNotEmpty() || retyped.isNotEmpty() -> {
+    added.isNotEmpty() || retyped.isNotEmpty() || reclassified.isNotEmpty() -> {
       lockFile.writeText(dictionary.encode())
-      LockResult.Updated(added + retyped)
+      LockResult.Updated(added + retyped + reclassified)
     }
     else -> {
       lockFile.writeText(dictionary.encode())

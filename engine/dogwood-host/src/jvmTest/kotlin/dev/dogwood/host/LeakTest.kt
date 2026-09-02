@@ -147,6 +147,6 @@ class LeakDetectorTest {
     silent.apply(decodePositional("[2,[[4,0,1,0,1]]]"))
     // No assertion on `silent` beyond it not throwing: the point is that the default watcher is a
     // no-op, so a removal costs nothing at all.
-    assertNull(silent.unknownTags.firstOrNull())
+    assertNull(silent.skew.unknownWidgetTags.firstOrNull())
   }
 }

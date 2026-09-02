@@ -13,7 +13,19 @@
  * **Declaration order is the tag order, and tags are permanent.** Append; never reorder, never
  * delete. A client one dictionary version behind keeps rendering everything it already knew only
  * because that rule holds.
+ *
+ * **`@Affordance` marks a parameter whose absence changes what the user is allowed to do**, rather
+ * than how something looks -- `enabled`, `checked`, `readOnly`, `selected`. Section 6 of the
+ * technical specification requires the marking, because a widget carrying an affordance a client
+ * cannot read must be withheld rather than drawn: every other kind of skew degrades appearance,
+ * and this kind degrades into a control that lies about what it will do. The marking is read from
+ * here rather than guessed from the parameter's name, since a guess would silently miss
+ * `interactive`, `locked` or `isEditable`. Adding one to an existing component is a compatibility
+ * event and the lock treats it as one.
  */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Affordance
 package dev.dogwood.surface
 
 import androidx.compose.runtime.Composable
@@ -22,7 +34,7 @@ import androidx.compose.runtime.Composable
 fun PrimaryButton(
   label: TextValue,
   modifier: Modifier = Modifier,
-  enabled: Boolean = true,
+  @Affordance enabled: Boolean = true,
   onClick: () -> Unit,
 ) {}
 
@@ -40,6 +52,15 @@ fun Card(
   content: @Composable () -> Unit,
 ) {}
 
+/**
+ * A badge is read, not operated, so its `selected` is **deliberately not** an `@Affordance`.
+ *
+ * The specification names `selected` among the safety-relevant parameters, and for a control that
+ * is right. This one carries no event: nothing the user does depends on it, so getting it wrong
+ * costs appearance. Withholding the whole badge over cosmetic skew would be a far larger
+ * regression than the skew. The rule is what the parameter governs, not what it is called --
+ * compare `Chip`, whose `selected` is bound to a handler and is marked.
+ */
 @Composable
 fun Badge(
   text: TextValue,
@@ -55,7 +76,7 @@ fun Divider(
 @Composable
 fun Chip(
   text: TextValue,
-  selected: Boolean = false,
+  @Affordance selected: Boolean = false,
   modifier: Modifier = Modifier,
   onSelectedChange: (Boolean) -> Unit,
 ) {}
@@ -128,7 +149,7 @@ fun TextInput(
   modifier: Modifier = Modifier,
   label: TextValue? = null,
   placeholder: TextValue? = null,
-  enabled: Boolean = true,
+  @Affordance enabled: Boolean = true,
   singleLine: Boolean = true,
   maxLength: Int = -1,
   mask: String? = null,

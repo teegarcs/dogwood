@@ -44,11 +44,21 @@ class SkewReport {
   /** Routes a guest asked for that this client does not handle. The host stayed where it was. */
   val unknownRoutes = mutableSetOf<String>()
 
+  /**
+   * Widget tags replaced by an inert placeholder because they arrived carrying a property this
+   * client could not interpret, on a widget that owns an affordance.
+   *
+   * The most serious entry in this report. Everything else here degraded something; this one
+   * refused to draw a control, because drawing it might have offered the user an action the
+   * payload was trying to withhold.
+   */
+  val withheldWidgets = mutableSetOf<Int>()
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
-      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty()
+      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -60,7 +70,8 @@ class SkewReport {
     if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions ")
     if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
     if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
-    if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes")
+    if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")
+    if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets")
     append(")")
   }
 }
