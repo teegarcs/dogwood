@@ -134,7 +134,7 @@ object DogwoodDictionary {
     "androidx.layout" to 1,
     // Bumped when components were added. Guest code can branch on this to stay compatible with
     // clients that have not caught up.
-    "dogwood.designsystem" to 5,
+    "dogwood.designsystem" to 6,
     // The host service surface is versioned through the same channel, because a guest has the
     // same question about it: what does this client know how to do? It matters more here — an
     // unknown widget tag becomes a placeholder, but calling a service method an older host does
@@ -176,7 +176,9 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         modifier = modifier,
         maxLines = node.int(P2, Int.MAX_VALUE),
         overflow = TextOverflow.Ellipsis,
-        color = palette().ink,
+        // A colour when the guest sent one -- token or literal, the same recipe channel either
+        // way -- and the host's own ink when it did not.
+        color = node.colorOrNull(P5) ?: palette().ink,
         style = textStyle(node.stringOrNull(P3)),
       )
     }

@@ -40,6 +40,7 @@ private const val TEXT_DATE = 8
 private const val TEXT_TIME = 9
 private const val TEXT_DATE_TIME = 10
 private const val TEXT_RELATIVE_TIME = 11
+private const val TEXT_PLURAL = 16
 
 /**
  * How many evaluated expressions to retain.
@@ -154,11 +155,19 @@ class ExpressionEvaluator(
     val args = expression.jsonArray
     fun arg(index: Int) = args.getOrNull(index)?.jsonPrimitive
     val built = when (val factory = arg(0)?.intOrNull) {
-      TEXT_NUMBER -> formatNumber(
-        arg(1)?.doubleOrNull ?: 0.0,
-        locale,
-        arg(2)?.takeIf { it !is JsonNull }?.intOrNull,
-      )
+      TEXT_NUMBER -> {
+        val formatted = formatNumber(
+          arg(1)?.doubleOrNull ?: 0.0,
+          locale,
+          arg(2)?.takeIf { it !is JsonNull }?.intOrNull,
+          arg(3)?.takeIf { it !is JsonNull }?.content,
+        )
+        // A guest-supplied pattern the platform would not accept. The value still renders, in the
+        // locale's own form, and the payload's mistake surfaces as telemetry rather than as a
+        // blank price nobody can explain.
+        if (formatted.patternRejected) skew.rejectedNumberPatterns += arg(3)?.content.orEmpty()
+        formatted.text
+      }
       TEXT_CURRENCY -> formatCurrency(
         arg(1)?.longOrNull ?: 0L,
         arg(2)?.content.orEmpty(),
@@ -177,6 +186,23 @@ class ExpressionEvaluator(
         arg(2)?.longOrNull ?: 0L,
         locale,
       )
+      // The words are the payload's; only the category is the host's, because only the category
+      // needs locale data. `#` stands for the count, formatted for this locale.
+      TEXT_PLURAL -> {
+        val count = arg(1)?.intOrNull ?: 0
+        val templates = args.getOrNull(2) as? kotlinx.serialization.json.JsonObject
+        val category = pluralCategory(count, locale)
+        val template = templates?.get(category)?.jsonPrimitive?.content
+          ?: templates?.get("other")?.jsonPrimitive?.content
+        if (template == null) {
+          // A payload that translated no category at all. The count alone is more useful than
+          // nothing, and the gap is recorded.
+          skew.untranslatedPlurals += category
+          formatNumber(count.toDouble(), locale, 0).text
+        } else {
+          template.replace("#", formatNumber(count.toDouble(), locale, 0).text)
+        }
+      }
       else -> {
         if (factory != null) unknownFactories += factory
         fallback

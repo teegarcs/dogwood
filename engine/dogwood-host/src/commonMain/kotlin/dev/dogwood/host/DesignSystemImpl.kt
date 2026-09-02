@@ -290,3 +290,115 @@ private fun keyboardOptionsFor(name: String?): androidx.compose.foundation.text.
       else -> androidx.compose.ui.text.input.KeyboardType.Text
     },
   )
+
+/**
+ * The host half of enter and exit.
+ *
+ * The design fork worth recording: animating a node *as it is removed* needs somebody to hold it
+ * past the guest's removal, and doing that in the applier would break the protocol. Indices inside
+ * a change batch assume removal is immediate, so a retained node would make every subsequent child
+ * add or move in that batch address the wrong slot — a correctness failure, not a cosmetic one.
+ *
+ * So the guest keeps the node and declares visibility, and this reports when the exit has
+ * finished. The `MutableTransitionState` is remembered per node, so it survives a code update
+ * exactly as a scroll position does, and a payload republished mid-exit does not restart it.
+ *
+ * `onExited` fires when the transition settles on *not visible*. An exit interrupted by becoming
+ * visible again is not an exit and reports nothing, for the same reason a retargeted animation
+ * reports no completion: "finished" has to mean one thing.
+ */
+@Composable
+fun PresenceImpl(
+  visible: Boolean,
+  enter: String?,
+  exit: String?,
+  modifier: Modifier,
+  onExited: () -> Unit,
+  content: @Composable () -> Unit,
+) {
+  val state = androidx.compose.runtime.remember {
+    androidx.compose.animation.core.MutableTransitionState(visible)
+  }
+  state.targetState = visible
+
+  val currentOnExited by androidx.compose.runtime.rememberUpdatedState(onExited)
+  androidx.compose.runtime.LaunchedEffect(state) {
+    // "Exited" means *was visible and now is not*, which is a narrower claim than "is not
+    // visible" and the difference is not academic: a `Presence` that starts hidden satisfies the
+    // looser one on its very first frame, so a guest using this to know when removal is safe would
+    // have torn down content that had never been shown. Found by the test that asks for exactly
+    // that case.
+    var everVisible = state.currentState
+    androidx.compose.runtime.snapshotFlow { Triple(state.isIdle, state.currentState, state.targetState) }
+      .collect { (idle, current, target) ->
+        if (current) {
+          everVisible = true
+        } else if (idle && !target && everVisible) {
+          // Reset, so a node shown and hidden again reports again.
+          everVisible = false
+          currentOnExited()
+        }
+      }
+  }
+
+  androidx.compose.animation.AnimatedVisibility(
+    visibleState = state,
+    modifier = modifier,
+    enter = enterTransitionOf(enter),
+    exit = exitTransitionOf(exit),
+  ) {
+    content()
+  }
+}
+
+/**
+ * Named transition parts, combinable with `+`.
+ *
+ * Named rather than a structured specification because the set is small, the host owns what each
+ * name looks like, and an unknown one can then degrade — which it does, to a fade, with the name
+ * recorded as skew. A payload built against a newer design system gets motion that is slightly
+ * wrong rather than a screen that throws.
+ */
+@Composable
+private fun enterTransitionOf(names: String?): androidx.compose.animation.EnterTransition {
+  if (names.isNullOrBlank()) return androidx.compose.animation.fadeIn()
+  val skew = LocalSkewReport.current
+  return names.split("+").map { it.trim() }.filter { it.isNotEmpty() }
+    .map { name ->
+      when (name) {
+        "fade" -> androidx.compose.animation.fadeIn()
+        "expandVertically" -> androidx.compose.animation.expandVertically()
+        "expandHorizontally" -> androidx.compose.animation.expandHorizontally()
+        "slideUp" -> androidx.compose.animation.slideInVertically { it }
+        "slideDown" -> androidx.compose.animation.slideInVertically { -it }
+        "scale" -> androidx.compose.animation.scaleIn()
+        else -> {
+          skew.unknownTransitions += name
+          androidx.compose.animation.fadeIn()
+        }
+      }
+    }
+    .reduce { a, b -> a + b }
+}
+
+@Composable
+private fun exitTransitionOf(names: String?): androidx.compose.animation.ExitTransition {
+  if (names.isNullOrBlank()) return androidx.compose.animation.fadeOut()
+  val skew = LocalSkewReport.current
+  return names.split("+").map { it.trim() }.filter { it.isNotEmpty() }
+    .map { name ->
+      when (name) {
+        "fade" -> androidx.compose.animation.fadeOut()
+        "shrinkVertically" -> androidx.compose.animation.shrinkVertically()
+        "shrinkHorizontally" -> androidx.compose.animation.shrinkHorizontally()
+        "slideUp" -> androidx.compose.animation.slideOutVertically { -it }
+        "slideDown" -> androidx.compose.animation.slideOutVertically { it }
+        "scale" -> androidx.compose.animation.scaleOut()
+        else -> {
+          skew.unknownTransitions += name
+          androidx.compose.animation.fadeOut()
+        }
+      }
+    }
+    .reduce { a, b -> a + b }
+}

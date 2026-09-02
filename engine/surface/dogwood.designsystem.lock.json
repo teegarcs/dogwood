@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 5,
+    "version": 6,
     "components": [
         {
             "name": "PrimaryButton",
@@ -175,6 +175,26 @@
             "slots": {},
             "events": {
                 "onValueChange": 1
+            }
+        },
+        {
+            "name": "Presence",
+            "localTag": 14,
+            "properties": {
+                "visible": 1,
+                "enter": 2,
+                "exit": 3
+            },
+            "propertyTypes": {
+                "visible": "Boolean",
+                "enter": "String?",
+                "exit": "String?"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onExited": 1
             }
         }
     ],

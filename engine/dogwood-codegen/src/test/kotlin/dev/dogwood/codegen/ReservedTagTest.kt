@@ -182,3 +182,58 @@ class RetypedParameterTest {
     assertTrue(checkAgainstLock(dict(before, 1), lock) is LockResult.Unchanged)
   }
 }
+
+/**
+ * An optional callback is an ordinary shape, and it used to reject the whole component.
+ *
+ * `(() -> Unit)?` is one lambda type, not a parenthesised something-else. Reading its return type
+ * naively yields `Unit)?`, which matches nothing — so the parameter was classified as a
+ * host-invoked lambda and the component was declared unbindable, with a message about blocking the
+ * guest mid-frame that had nothing to do with the real problem.
+ */
+class NullableLambdaTest {
+
+  private fun parse(declaration: String) =
+    SurfaceParser().parse(
+      """
+      package acme.design
+      import androidx.compose.runtime.Composable
+      @Composable fun AcmeThing($declaration) {}
+      """,
+      "S.kt",
+    ).single()
+
+  @Test
+  fun anOptionalCallbackIsAnEventNotARejection() {
+    val component = parse("onDismiss: (() -> Unit)? = null")
+    assertTrue(component.isBindable, "rejected: ${component.parameters.map { it.rejection }}")
+    assertEquals(ParameterKind.EVENT, component.parameters.single().kind)
+  }
+
+  @Test
+  fun anOptionalCallbackWithArgumentsKeepsThem() {
+    val component = parse("onChange: ((Boolean) -> Unit)? = null")
+    assertEquals(ParameterKind.EVENT, component.parameters.single().kind)
+    assertEquals(listOf("Boolean"), eventArguments(component.parameters.single()))
+  }
+
+  @Test
+  fun aRequiredCallbacksArgumentsAreUnaffected() {
+    // The unwrapping must not eat a real parameter list: `(Boolean) -> Unit` opens with a
+    // parenthesis too, and that one is the arguments.
+    val component = parse("onChange: (Boolean) -> Unit")
+    assertEquals(listOf("Boolean"), eventArguments(component.parameters.single()))
+  }
+
+  @Test
+  fun anOptionalHostInvokedLambdaIsStillRejected() {
+    // Nullability must not become an escape hatch: a lambda the host would call and await an
+    // answer from cannot cross, optional or not.
+    val component = parse("format: ((Int) -> String)? = null")
+    assertTrue(!component.isBindable)
+    assertTrue(
+      component.parameters.single().rejection!!.contains("returning String"),
+      component.parameters.single().rejection!!,
+    )
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "sunset",
+  "light": {
+    "primary": "#C1121F",
+    "primaryContainer": "#FFE3E0",
+    "onPrimary": "#FFFFFF",
+    "canvasContrast": "#FFF1E6",
+    "star": "#FB8500"
+  },
+  "dark": {
+    "primary": "#FF758F",
+    "primaryContainer": "#4A1B24",
+    "onPrimary": "#2B060C",
+    "canvasContrast": "#2A1E16",
+    "star": "#FFB703"
+  }
+}

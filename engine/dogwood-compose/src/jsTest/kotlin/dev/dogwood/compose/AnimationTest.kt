@@ -257,3 +257,49 @@ class AnimatedColourAndRepeatTest {
     assertEquals(15, repeated)
   }
 }
+
+// ---------------------------------------------------------------------------
+
+/** An optional callback, and what happens when the guest stops supplying one. */
+class OptionalCallbackTest {
+
+  @Test
+  fun anAbsentCallbackRegistersNothing() {
+    val (host, composition) = compose {
+      Presence(visible = true, onExited = null) { Text("x") }
+    }
+    val node = host.decoded().first().g
+      .filterIsInstance<dev.dogwood.protocol.Create>()
+      .first { it.w == dev.dogwood.protocol.widgetTag(1, 14) }
+      .i
+    val before = host.unknownNodes
+    composition.sendEvent(Event(i = node, e = EventTag(1), q = composition.lastSentSequence))
+    assertTrue(host.unknownNodes > before, "an event with no handler must be reported, not swallowed")
+  }
+
+  @Test
+  fun withdrawingACallbackClearsTheSlotRatherThanLeavingTheOldOne() {
+    // Registering nothing is not the same as registering a no-op: a handler from a previous
+    // composition would keep receiving events after the guest stopped asking for them.
+    var fired = 0
+    var listening by mutableStateOf(true)
+    val (host, composition) = compose {
+      Presence(
+        visible = true,
+        onExited = if (listening) ({ fired += 1 }) else null,
+      ) { Text("x") }
+    }
+    val node = host.decoded().first().g
+      .filterIsInstance<dev.dogwood.protocol.Create>()
+      .first { it.w == dev.dogwood.protocol.widgetTag(1, 14) }
+      .i
+
+    composition.sendEvent(Event(i = node, e = EventTag(1), q = composition.lastSentSequence))
+    assertEquals(1, fired)
+
+    listening = false
+    composition.frame(0L)
+    composition.sendEvent(Event(i = node, e = EventTag(1), q = composition.lastSentSequence))
+    assertEquals(1, fired, "the withdrawn callback must not still be receiving events")
+  }
+}

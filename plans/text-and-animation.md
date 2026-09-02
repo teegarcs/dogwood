@@ -1,7 +1,7 @@
 # Plan: Closing the Text-Formatting and Animation Gaps
 
 **Date:** 2026-09-01
-**Status:** Vetted, not built. Revised twice after review: Part 1 was reframed from a text fix
+**Status:** ✅ **Complete.** All six items delivered; every one carries an ADR and a device pass. Originally: vetted, not built. Revised twice after review: Part 1 was reframed from a text fix
 to the **host-resolved values** architecture (the destination-state rule in §1.0), and the guest
 API sheds the `Dogwood` prefix (T0) — the brand stays at the integration boundary, not in
 everyday screen code. Every risky mechanism below was spiked in a scratch test before
@@ -358,11 +358,11 @@ but worth a sentence so nobody ships a permanently pulsing badge without meaning
 | Order | Item | Why this order | ADR |
 |---|---|---|---|
 | 1 | ✅ **T0** the rename | Everything after it lands under final names, migrated never | ADR-021 (jointly with T1) |
-| 2 | ✅ **T1** host-resolved value types (T1b patterns still to come) (`TextValue`, `Color`) and guest-shipped patterns | The destination-state rule reaches the whole generated surface; two latent generator defects ride along | ADR-021 |
+| 2 | ✅ **T1** host-resolved value types and guest-shipped patterns ✅ (`TextValue`, `Color`) and guest-shipped patterns | The destination-state rule reaches the whole generated surface; two latent generator defects ride along | ADR-021 |
 | 3 | ✅ **A1** animated colour | Smallest animation item; exercises the recipe-in-recipe shape A3 also uses | ADR-022 (jointly with A3) |
 | 4 | ✅ **A3** oscillate | Corrected design is fully specified; shares ADR-022 with A1 | ADR-022 |
-| 5 | **A2** `Presence` | Largest; depends on nothing above but benefits from A1/A3's spec parsing being settled | ADR-023 |
-| 6 | **T2** plurals | Returns `TextValue`, so it wants T1 landed first | ADR-024 |
+| 5 | ✅ **A2** `Presence` | Largest; depends on nothing above but benefits from A1/A3's spec parsing being settled | ADR-023 |
+| 6 | ✅ **T2** plurals | Returns `TextValue`, so it wants T1 landed first | ADR-024 |
 
 Each lands with the full gate this phase has used: unit tests both sides, a device verification
 pass (ADR-019's lesson — the harness types differently from a keyboard, and by extension animates

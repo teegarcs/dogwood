@@ -57,6 +57,8 @@ zipline {
  */
 val copyExploreApi by tasks.registering(Copy::class) {
   from(layout.projectDirectory.file("api/explore.json"))
+  from(layout.projectDirectory.file("api/theme-ocean.json"))
+  from(layout.projectDirectory.file("api/theme-sunset.json"))
   into(layout.buildDirectory.dir("zipline/ProductionWebpack"))
 }
 

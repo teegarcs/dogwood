@@ -110,7 +110,7 @@ class SurfaceParser {
   }
 
   private fun classifyLambda(name: String, type: String, default: String?): ParsedParameter {
-    val returns = type.substringAfterLast("->").trim().removeSuffix(")").trim()
+    val returns = normalizeLambda(type).substringAfterLast("->").trim()
     return when {
       // A lambda that returns a value is one the host would call and await an answer from, during
       // composition. Found in the wild in the Backpack audit; it cannot cross.
@@ -125,6 +125,38 @@ class SurfaceParser {
       )
       else -> ParsedParameter(name, type, ParameterKind.EVENT, default != null, default)
     }
+  }
+
+  /**
+   * Strips the wrapper a nullable lambda type carries.
+   *
+   * `(() -> Unit)?` is one lambda type, not a parenthesised something-else, and reading its return
+   * type naively yields `Unit)?` -- which matches nothing, so the parameter was classified as a
+   * host-invoked lambda and **the whole component was rejected as unbindable**. Silently, with a
+   * message about blocking the guest mid-frame that had nothing to do with the real problem.
+   *
+   * Found by declaring `onExited: (() -> Unit)? = null`, which is an ordinary shape for an optional
+   * callback and one every surface author will reach for eventually.
+   */
+  private fun normalizeLambda(type: String): String {
+    var bare = type.trim()
+    if (bare.endsWith("?")) bare = bare.dropLast(1).trim()
+    // Only unwrap when the leading parenthesis is the one the trailing parenthesis closes.
+    // `(Boolean) -> Unit` opens with one too, and its parameter list must survive.
+    if (bare.startsWith("(") && bare.endsWith(")")) {
+      var depth = 0
+      var closesAtEnd = true
+      for ((index, character) in bare.withIndex()) {
+        if (character == '(') depth++
+        if (character == ')') depth--
+        if (depth == 0 && index < bare.length - 1) {
+          closesAtEnd = false
+          break
+        }
+      }
+      if (closesAtEnd) bare = bare.substring(1, bare.length - 1).trim()
+    }
+    return bare
   }
 
   private companion object {

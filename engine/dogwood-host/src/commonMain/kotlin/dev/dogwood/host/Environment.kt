@@ -61,6 +61,14 @@ fun DogwoodEnvironment(
   modifier: Modifier = Modifier,
   darkMode: Boolean = isSystemInDarkTheme(),
   windowInsets: WindowInsets = WindowInsets.safeDrawing,
+  /**
+   * The look in force. A value, so it can come from anywhere -- the compiled-in default, the
+   * product's own configuration channel, or a document fetched from the payload origin
+   * (`ThemeDelivery.kt`) -- and so swapping it mid-session repaints exactly as a dark-mode flip
+   * does: the readers recompose, and nothing crosses to the guest, because the guest only ever
+   * named the tokens.
+   */
+  theme: Theme = Theme.Default,
   content: @Composable (HostEnvironment) -> Unit,
 ) {
   BoxWithConstraints(modifier) {
@@ -70,8 +78,11 @@ fun DogwoodEnvironment(
       darkMode = darkMode,
       windowInsets = windowInsets,
     )
+    val base = materialTypography()
+    val typography = androidx.compose.runtime.remember(theme, base) { theme.applyTo(base) }
     CompositionLocalProvider(
-      LocalPalette provides if (darkMode) Palette.Dark else Palette.Light,
+      LocalPalette provides theme.palette(darkMode),
+      LocalTypography provides typography,
     ) {
       content(configuration)
     }

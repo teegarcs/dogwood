@@ -42,6 +42,7 @@ internal object ExpressionFactories {
   const val ANIMATED_NUMBER = 12
   const val ANIMATED_COLOR = 14
   const val OSCILLATE = 15
+  const val TEXT_PLURAL = 16
 }
 
 /**
@@ -163,12 +164,51 @@ object Formats {
   private fun of(factory: Int, vararg args: JsonElement): TextValue =
     TextValue.recipe(Recipe(factory, args.toList()))
 
-  /** @param maximumFractionDigits null lets the host's locale decide. */
-  fun number(value: Double, maximumFractionDigits: Int? = null): TextValue =
+  /**
+   * @param maximumFractionDigits null lets the host's locale decide.
+   * @param pattern a `java.text.DecimalFormat` pattern the **guest** supplies, rendered with the
+   *   **device's** symbols: one payload, `1.234,6` in Germany and `1,234.6` in the United States.
+   *   This is the dial that ships new formatting over the air without a host release -- the factory
+   *   set stays closed, because an open one would be remote code in a costume, but each factory
+   *   takes parameters. A malformed pattern is untrusted input: it degrades to the unpatterned form
+   *   and is recorded as skew rather than throwing through a render.
+   */
+  fun number(
+    value: Double,
+    maximumFractionDigits: Int? = null,
+    pattern: String? = null,
+  ): TextValue =
     of(
       ExpressionFactories.TEXT_NUMBER,
       JsonPrimitive(value),
       maximumFractionDigits?.let(::JsonPrimitive) ?: JsonNull,
+      pattern?.let(::JsonPrimitive) ?: JsonNull,
+    )
+
+  /**
+   * A count, in the language's own plural form.
+   *
+   * The words are the **payload's** -- they come from its string table, like every other word it
+   * shows -- and only the *category selection* is the host's, because that is the part that needs
+   * locale data the sandbox does not have. English has two forms and Arabic has six; a guest
+   * choosing between "night" and "nights" would be writing English grammar into a screen that
+   * ships everywhere.
+   *
+   * `#` in a template is replaced by the formatted count.
+   *
+   * ```
+   * Formats.plural(nights, mapOf("one" to "# night", "other" to "# nights"))
+   * ```
+   *
+   * @param templates keyed by Unicode plural category: `zero`, `one`, `two`, `few`, `many`,
+   *   `other`. `other` is required in practice -- it is the fallback when a language uses a
+   *   category the payload did not translate.
+   */
+  fun plural(count: Int, templates: Map<String, String>): TextValue =
+    of(
+      ExpressionFactories.TEXT_PLURAL,
+      JsonPrimitive(count),
+      kotlinx.serialization.json.JsonObject(templates.mapValues { JsonPrimitive(it.value) }),
     )
 
   /**

@@ -288,6 +288,12 @@ fun Text(
    * family, which is the design-system-first answer to the font half of the resources subsystem.
    */
   style: String? = null,
+  /**
+   * The text's colour: a token when the design system owns the meaning, or a literal --
+   * `Color(0xFF...)`, possibly chosen by guest logic over [isSystemInDarkTheme] -- when this
+   * screen does. Absent means the host's default ink, as always.
+   */
+  color: Color? = null,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Text) },
@@ -296,6 +302,7 @@ fun Text(
       // Absence IS the "use host default" sentinel, so an unset maxLines sends nothing.
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(color) { if (it != null) recording.recorder.property(id, Tags.P5, it.json) }
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
       reconcile { applyModifier(id, modifier) }
     },

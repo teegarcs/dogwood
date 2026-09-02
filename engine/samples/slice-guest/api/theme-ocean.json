@@ -1,0 +1,16 @@
+{
+  "name": "ocean",
+  "light": {
+    "primary": "#006494",
+    "primaryContainer": "#D4EBF7",
+    "onPrimary": "#FFFFFF",
+    "star": "#0A9396"
+  },
+  "dark": {
+    "primary": "#64B5DE",
+    "primaryContainer": "#123B52",
+    "onPrimary": "#06222F",
+    "star": "#94D2BD"
+  },
+  "typography": { "titleLarge": { "sizeSp": 24, "weight": 700 } }
+}
