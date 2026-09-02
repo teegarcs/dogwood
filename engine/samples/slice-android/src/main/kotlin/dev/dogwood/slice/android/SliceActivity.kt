@@ -102,7 +102,16 @@ private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
  * The sample offers a toggle, because seeing one payload serve two experiences is the whole point
  * of the entry-point contract.
  */
-private val ENTRY_POINTS = listOf("explore", "about", "feed")
+/**
+ * Entry points this host offers, and a demonstration of both composition models at once.
+ *
+ * `app` is **Path A**: one experience whose tab bar and navigation are guest Compose. Selecting it
+ * mounts a single runtime that never tears down as the user moves between its screens.
+ *
+ * The rest are **Path B**: an experience per surface, isolated by construction. Switching between
+ * them today costs a full teardown and cold start, which Phase 4.5's host shell is planned to fix.
+ */
+private val ENTRY_POINTS = listOf("app", "explore", "about", "feed")
 
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {

@@ -158,15 +158,19 @@ private val exploreStrings = StringTable(
   ),
 )
 
+/**
+ * @param onSaved reported upward so a shell above this screen can share the count with its other
+ *   screens. Default is a no-op, so the screen still stands alone as its own entry point.
+ */
 @Composable
-fun ExploreScreen(params: ExploreParams) {
+fun ExploreScreen(params: ExploreParams, onSaved: () -> Unit = {}) {
   CompositionLocalProvider(LocalStringTable provides exploreStrings) {
-    ExploreContent(params)
+    ExploreContent(params, onSaved)
   }
 }
 
 @Composable
-private fun ExploreContent(params: ExploreParams) {
+private fun ExploreContent(params: ExploreParams, onSaved: () -> Unit) {
   // Saveable, so a code update published while someone is mid-browse does not reset them.
   var selectedFilter by rememberSaveable(key = "filter", stateSaver = autoSaver()) {
     mutableStateOf(0)
@@ -324,6 +328,7 @@ private fun ExploreContent(params: ExploreParams) {
             thumbnailDp = if (environment.widthClass == WidthClass.Compact) 96 else 128,
             onSave = {
               savedStays += 1
+              onSaved()
               host.track(
                 "explore.save",
                 mapOf("stay" to stay.name, "at" to (host.nowEpochMillis()?.toString() ?: "")),

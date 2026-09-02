@@ -61,6 +61,8 @@ fun main() {
       "about" to { _ -> AboutScreen() },
       // Ten thousand rows, of which about twenty ever cross the boundary.
       "feed" to { _ -> FeedScreen() },
+      // Path A: one experience whose tab bar and navigation are guest Compose.
+      "app" to { params -> AppShell(exploreParams(params)) },
     ),
   )
 }

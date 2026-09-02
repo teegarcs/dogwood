@@ -69,6 +69,7 @@ object Tags {
 
   /** Generated, and named here so tests can find the node they mean. */
   val TextInput = widgetTag(Segments.DESIGN_SYSTEM, 13)
+  val PrimaryButton = widgetTag(Segments.DESIGN_SYSTEM, 1)
 
   /** The single content slot every container in this slice declares. */
   val Content = ChildrenTag(1)
