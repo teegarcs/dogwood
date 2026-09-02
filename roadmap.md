@@ -279,6 +279,26 @@ verifying on a device rather than in a suite:
 
 ---
 
+## Phase 4.5 — Experience Composition & the Host Shell
+
+**Planned** — [`plans/experience-composition.md`](plans/experience-composition.md). The demo's
+tabs surfaced a question the architecture had only answered implicitly, and both answers must be
+first-class:
+
+- **Path A — one experience, many screens**: the guest owns navigation as ordinary Compose; state
+  shares freely; already works and costs nothing new.
+- **Path B — many experiences**: independent teams, cadences, or isolation requirements; each its
+  own QuickJS runtime. Works, but **switching pays a full cold start today** (~127 ms p50 on a
+  development machine, worse on device), and the sample's switch leaks the prior session.
+
+The plan: a host **shell** that retains warm experiences so switching costs one frame, with
+snapshot-evict-restore under memory pressure riding the existing code-update machinery; a
+**navigation service** so a guest can ask the host to route; and **two reference examples**, one
+per path, that a product team can copy. Precedes the Web host build, which will mount experiences
+through the same shell. Approximately six days.
+
+---
+
 ## Phase 5 — Web Host (Second Shipping Target)
 
 **Approximately 4–6 weeks**, dominated by the web-profile design rather than the host itself. Per the platform order above, Web precedes iOS.
