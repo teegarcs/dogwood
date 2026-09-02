@@ -49,3 +49,14 @@ tasks.register<JavaExec>("dumpWire") {
   workingDir = rootProject.projectDir
   dependsOn(":guest:jsBrowserProductionWebpackZipline")
 }
+
+/** Experiment 0.5: allocation and garbage collection. See AllocGcMain.kt. */
+tasks.register<JavaExec>("allocGc") {
+  group = "verification"
+  description = "Measure allocation per batch and the tail of a sustained load"
+  mainClass.set("dev.dogwood.host.AllocGcMainKt")
+  classpath = sourceSets["main"].runtimeClasspath
+  jvmArgs("-Xss8m")
+  workingDir = rootProject.projectDir
+  dependsOn(":guest:jsBrowserProductionWebpackZipline")
+}

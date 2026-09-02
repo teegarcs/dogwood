@@ -408,6 +408,90 @@ class Phase0GuestImpl : Phase0Guest {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Experiment 0.5 -- allocation and garbage collection
+  // -------------------------------------------------------------------------
+
+  /**
+   * Monotonically increasing so every frame writes a value the screen does not already hold.
+   * A write of the current value is not a state change, and a frame that recomposes nothing
+   * would measure nothing.
+   */
+  private var frameCounter = 1
+
+  /**
+   * One steady-state frame: two state writes, one synchronous frame, one batch.
+   *
+   * The two writes are the same pair experiment 0.4's `churn` uses -- the running total,
+   * which two nodes read, and one row's selection -- so a batch here is the small,
+   * scroll-shaped diff the experiment is about rather than a screen open.
+   */
+  private fun frameStep(composition: LiveComposition): ChangeBatch {
+    val n = frameCounter++
+    composition.state.total = "$" + n + ".00"
+    composition.state.toggleRow(n)
+    composition.pumpFrame()
+    return composition.recorder.takeBatch()
+  }
+
+  private fun steadyComposition(rows: Int): LiveComposition =
+    live(if (rows > 0) rows else REFERENCE_ROWS)
+
+  override fun frameOnly(rows: Int, iterations: Int): Int {
+    val composition = steadyComposition(rows)
+    var changes = 0
+    repeat(iterations) { changes = frameStep(composition).g.size }
+    return changes
+  }
+
+  override fun frameEncode(rows: Int, variant: String, iterations: Int): Int {
+    val composition = steadyComposition(rows)
+    var changes = 0
+    repeat(iterations) {
+      val batch = frameStep(composition)
+      changes = batch.g.size
+      // The encoded string is kept in a local only so the encode cannot be elided; it is
+      // garbage the moment the iteration ends, which is exactly the point of the probe.
+      encodeSink = buildVariant(variant, batch).first
+    }
+    return changes
+  }
+
+  override fun sustainedFrames(rows: Int, variant: String, iterations: Int): Int {
+    val composition = steadyComposition(rows)
+    val h = host()
+    var changes = 0
+    repeat(iterations) {
+      val batch = frameStep(composition)
+      changes = batch.g.size
+      h.sendChangesEncoded(buildVariant(variant, batch).first)
+    }
+    return changes
+  }
+
+  override fun oneFrame(variant: String): Int {
+    val composition = steadyComposition(liveRows)
+    val batch = frameStep(composition)
+    host().sendChangesEncoded(buildVariant(variant, batch).first)
+    return batch.g.size
+  }
+
+  override fun encodeOnly(variant: String, changeCount: Int, iterations: Int): Int {
+    val batch = sourceBatch(changeCount)
+    repeat(iterations) { encodeSink = buildVariant(variant, batch).first }
+    return batch.g.size
+  }
+
+  override fun encodeAndCross(variant: String, changeCount: Int, iterations: Int): Int {
+    val batch = sourceBatch(changeCount)
+    val h = host()
+    repeat(iterations) { h.sendChangesEncoded(buildVariant(variant, batch).first) }
+    return batch.g.size
+  }
+
+  /** Holds the last encoded string so an encode-only probe is not optimised away. */
+  private var encodeSink: String = ""
+
   override fun initialBatchJson(rows: Int): String {
     val composition = live(rows)
     return DogwoodJson.encodeToString(ChangeBatch.serializer(), composition.initialBatch)

@@ -183,6 +183,50 @@ interface Phase0Guest : ZiplineService {
   /** Experiment 0.4: allocation churn under a repeated recomposition load. */
   fun churn(rows: Int, iterations: Int)
 
+  // -------------------------------------------------------------------------
+  // Experiment 0.5 -- allocation and garbage collection
+  // -------------------------------------------------------------------------
+  //
+  // These five drive a loop entirely inside the guest and return only a change count. They
+  // deliberately call no clock: a `MonotonicClock.nowNanos()` round trip costs tens of
+  // microseconds, which is of the same order as the crossing being measured, so experiment
+  // 0.5 times from the HOST end instead -- either by timestamping each `sendChangesEncoded`
+  // arrival, or by bracketing one call. What the host cannot see, it does not measure.
+  //
+  // The three `frame*` methods form an allocation ladder over the same steady-state frame:
+  // recompose alone, recompose plus encode, recompose plus encode plus crossing. Subtracting
+  // adjacent rungs attributes allocation to the stage that caused it.
+
+  /**
+   * Drives [iterations] steady-state frames and throws each batch away: a state write, one
+   * synchronous frame, and `takeBatch`. No encoding, no crossing.
+   *
+   * @return the number of changes in the last batch, so the caller can state the batch size
+   *   it measured rather than assuming one.
+   */
+  fun frameOnly(rows: Int, iterations: Int): Int
+
+  /** As [frameOnly], plus encoding each batch with the named variant. Still no crossing. */
+  fun frameEncode(rows: Int, variant: String, iterations: Int): Int
+
+  /**
+   * As [frameEncode], plus handing every encoded batch to [DogwoodHost.sendChangesEncoded].
+   * This is the whole steady-state loop, and the one the host times by call arrival.
+   */
+  fun sustainedFrames(rows: Int, variant: String, iterations: Int): Int
+
+  /**
+   * Exactly one steady-state frame, encoded and crossed. The host brackets this call to get
+   * a per-frame sample it can pair with a `memoryUsage` reading taken between frames.
+   */
+  fun oneFrame(variant: String): Int
+
+  /** Encodes a FIXED batch [iterations] times with the named variant. No recomposition. */
+  fun encodeOnly(variant: String, changeCount: Int, iterations: Int): Int
+
+  /** As [encodeOnly], plus crossing each encoded batch. Isolates the wire format's cost. */
+  fun encodeAndCross(variant: String, changeCount: Int, iterations: Int): Int
+
   /** The exact byte size of the v0 encoding of the current initial batch. */
   fun initialBatchJson(rows: Int): String
 }

@@ -27,3 +27,7 @@ rootProject.name = "web-weight"
 // difference between them is attributable rather than inferred.
 include(":floor")
 include(":material")
+
+// Not a page-weight configuration: `:bridge` measures the cost of moving a per-frame tree-diff
+// from JavaScript into Kotlin/WebAssembly. See `results/bridge.md`.
+include(":bridge")

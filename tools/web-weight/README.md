@@ -67,6 +67,15 @@ make this page meaningfully smaller.
 estimating Dogwood's own host code, which is comparable in size to a design system — an estimate,
 not a measurement.
 
+## A second question, in `results/bridge.md`
+
+`:bridge` is a third module in this build, and it does not weigh anything. It measures what a
+per-frame tree-diff costs to cross from JavaScript into Kotlin/WebAssembly, which is the web
+counterpart of the mobile Zipline `CallChannel` measurement. It links neither Compose nor Skiko,
+and that is what makes it runnable in a real headless browser when the modules above are not.
+
+Run it with `./bridge/run.sh`; the write-up is [`results/bridge.md`](results/bridge.md).
+
 ## What is NOT measured, and why
 
 **Time to first frame.** Bytes are a proxy for waiting, and the thing that actually gates adoption
