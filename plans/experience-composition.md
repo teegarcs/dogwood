@@ -201,8 +201,8 @@ Two defects found by building it, both invisible until the code ran:
    leave a service unwired, and `DogwoodServices` returning null for any accessor throws at the
    Zipline boundary. "Every service is optional and its absence is normal" is a documented,
    load-bearing property of the surface ([ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md))
-   that has never actually worked, because every host in the repo supplied every service. Tracked
-   separately below.
+   that had never actually worked, because every host in the repo supplied every service. Fixed in
+   [ADR-029](../adrs/layer-5/ADR-029-a-null-service-cannot-cross.md).
 2. **`onTrimMemory` called through a null reference and evicted nothing.** Publishing the shell
    from the effect that built it, while disposing from a `DisposableEffect` keyed on it, meant a
    stale `onShell(null)` landed *after* the fresh `onShell(built)` — Compose disposes the previous
@@ -248,9 +248,14 @@ through the same shell.
 
 **New, found while building EX-B:**
 
-- ❌ **A null host service crashes the guest at start.** `DogwoodServices` returning null for any
+- ✅ **A null host service crashes the guest at start.** Fixed;
+  [ADR-029](../adrs/layer-5/ADR-029-a-null-service-cannot-cross.md). `DogwoodServices` returning null for any
   accessor throws at the Zipline boundary, so "every service is optional and its absence is normal"
   — documented in `HostServices.kt` and load-bearing in
   [ADR-013](../adrs/layer-5/ADR-013-host-services-and-entry-points.md) — has never actually worked.
   It went unnoticed because every host in the repo wires every service. Reproduced on device with
-  two different accessors.
+  two different accessors, and traced to Zipline choosing a non-null serializer for any
+  service-typed return — nullability is ignored when the branch is picked, nothing warns, and it is
+  unchanged on trunk. A guest now consults `available()` before calling any accessor, `TabsActivity`
+  deliberately leaves one service unwired so the path stays exercised, and `ServicesTest` covers the
+  guard with a fake that throws on absence the way the real boundary does.

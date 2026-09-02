@@ -17,6 +17,11 @@
  * records nothing. The alternative, a host obliged to stub every service Dogwood ever defines,
  * makes adding a service a breaking change for every host.
  *
+ * That property is real but it is **not** delivered by the null itself. A null service cannot
+ * cross the Zipline boundary; the accessor throws instead of answering. What makes absence normal
+ * is [DogwoodServices.available], which a guest consults before calling anything. Read the note
+ * there before adding a service to this file.
+ *
  * **The surface is versioned like the dictionary.** `segmentVersions["dogwood.services"]` says
  * which revision of this file the client was built against. This matters more here than for
  * widgets: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method
@@ -63,10 +68,36 @@ interface DogwoodServices : ZiplineService {
   /**
    * Which services this host offers, by the names in [ServiceNames].
    *
-   * Redundant with the accessors returning null, and deliberately so: a guest can log what it is
-   * missing in one line at startup rather than discovering it feature by feature.
+   * **Ask this before calling any accessor below.** An earlier version of this file called it a
+   * convenience, redundant with the accessors returning null. It is not: **Zipline cannot carry a
+   * null service**, so an accessor for a service the host did not wire throws at the boundary and
+   * takes the whole experience down at `start` rather than answering null.
+   *
+   * The mechanism, because it is invisible at the call site and the compiler says nothing.
+   * Zipline's plugin chooses a serializer per parameter and return type in
+   * [`BridgedInterface.serializerExpression`](https://github.com/cashapp/zipline/blob/1.27.0/zipline-kotlin-plugin/src/main/kotlin/app/cash/zipline/kotlin/BridgedInterface.kt#L209-L223).
+   * The service branch is tested first, with `IrType.isSubtypeOfClass`, which compares classifiers
+   * and **ignores nullability** -- so `DogwoodLog?` takes it and receives the plain non-null
+   * adapter. The nullable wrapper applied to contextual, `Flow` and generic types is never reached
+   * for a service. The value then meets `checkNotNullParameter` in
+   * [`ZiplineServiceAdapter.serialize`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/commonMain/kotlin/app/cash/zipline/internal/bridge/ZiplineServiceAdapter.kt#L51-L53).
+   *
+   * Nothing warns. It compiles clean, and `api/zipline-api.toml` records these members **without**
+   * their question marks -- which is the honest rendering of what Zipline actually does with them.
+   * It is not fixed in a later release: 1.27.0 is current and the plugin file is unchanged on
+   * trunk.
+   *
+   * The nullable return types below are therefore about what a *host* may hold, not about what a
+   * guest may safely ask for. `HostServices.resolve` on the guest side gates every accessor on this
+   * set, and any other caller must do the same.
    */
   fun available(): Set<String>
+
+  /*
+   * Every accessor below: **do not call unless [available] names it.** See the note there.
+   * A `DogwoodServiceHost` returns null for a service it was not given, and that null cannot
+   * cross.
+   */
 
   fun log(): DogwoodLog?
 

@@ -26,6 +26,7 @@ import dev.dogwood.protocol.HttpResponse
 import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.NAVIGATION_MIN_VERSION
 import dev.dogwood.protocol.SERVICES_SEGMENT
+import dev.dogwood.protocol.ServiceNames
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -129,21 +130,43 @@ class HostServices(
     /** What a composition sees when nothing provided services — tests, and hosts that offer none. */
     val None = HostServices(0, emptySet(), null, null, null, null, null, emptySet(), emptyMap())
 
+    /*
+     * Two gates, for two different ways an accessor call can fail, and neither can be replaced by
+     * catching around the call.
+     *
+     * **The version gate.** Calling a `ZiplineService` method an older host does not implement is
+     * an error at the boundary with no fallback -- unlike an unknown widget tag, which degrades to
+     * a placeholder. A payload is delivered over the air and routinely runs on a client older than
+     * itself, so the guard is before the call.
+     *
+     * **The availability gate.** A service the host did not wire cannot cross as null. Zipline
+     * does not carry nullability on a service return -- its own API validator renders
+     * `fun featureFlags(): DogwoodFeatureFlags` for a member declared `DogwoodFeatureFlags?` --
+     * and calling such an accessor throws, taking the whole experience down at `start`. So
+     * [DogwoodServices.available] is not the convenience its own documentation once called it: it
+     * is the only safe way to ask, and every accessor here is gated on it.
+     *
+     * This went unnoticed for a long time because every host in this repository wires every
+     * service. The first one that did not crashed instantly.
+     */
     internal fun resolve(services: DogwoodServices, version: Int): HostServices {
-      val flagService: DogwoodFeatureFlags? = services.featureFlags()
-      // The version gate the file header describes, exercised for the first time. Calling a
-      // service accessor an older host does not implement is an error at the Zipline boundary
-      // with no fallback -- unlike an unknown widget tag, which degrades to a placeholder -- so
-      // the guard has to be here, before the call, and not around it.
+      val available = services.available()
+
+      val flagService: DogwoodFeatureFlags? =
+        if (ServiceNames.FEATURE_FLAGS in available) services.featureFlags() else null
       val navigationService: DogwoodNavigation? =
-        if (version >= NAVIGATION_MIN_VERSION) services.navigation() else null
+        if (version >= NAVIGATION_MIN_VERSION && ServiceNames.NAVIGATION in available) {
+          services.navigation()
+        } else {
+          null
+        }
       return HostServices(
         version = version,
-        available = services.available(),
-        log = services.log(),
-        clock = services.clock(),
-        analytics = services.analytics(),
-        network = services.network(),
+        available = available,
+        log = if (ServiceNames.LOG in available) services.log() else null,
+        clock = if (ServiceNames.CLOCK in available) services.clock() else null,
+        analytics = if (ServiceNames.ANALYTICS in available) services.analytics() else null,
+        network = if (ServiceNames.NETWORK in available) services.network() else null,
         navigation = navigationService,
         routes = navigationService?.routes() ?: emptySet(),
         flags = flagService?.snapshot() ?: emptyMap(),

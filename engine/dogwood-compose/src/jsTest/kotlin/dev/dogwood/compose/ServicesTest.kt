@@ -131,12 +131,23 @@ private class FakeServices(
     if (navigation != null) add(ServiceNames.NAVIGATION)
   }
 
-  override fun log(): DogwoodLog? { accessorCalls++; return log }
-  override fun clock(): DogwoodClock? { accessorCalls++; return clock }
-  override fun analytics(): DogwoodAnalytics? { accessorCalls++; return analytics }
-  override fun featureFlags(): DogwoodFeatureFlags? { accessorCalls++; return flags }
-  override fun network(): DogwoodNetwork? { accessorCalls++; return network }
-  override fun navigation(): DogwoodNavigation? { navigationReads++; return navigation }
+  /*
+   * Throwing on absence is not test pedantry -- it is what the real boundary does.
+   *
+   * Zipline does not carry nullability on a service return, so an accessor for a service the host
+   * did not wire throws rather than answering null. A fake that politely returned null would make
+   * every test pass against a guest that crashes on the first host to leave something unwired,
+   * which is exactly what happened before this was noticed.
+   */
+  private fun <T> offered(service: T?): T =
+    checkNotNull(service) { "this host does not offer that service; ask available() first" }
+
+  override fun log(): DogwoodLog { accessorCalls++; return offered(log) }
+  override fun clock(): DogwoodClock { accessorCalls++; return offered(clock) }
+  override fun analytics(): DogwoodAnalytics { accessorCalls++; return offered(analytics) }
+  override fun featureFlags(): DogwoodFeatureFlags { accessorCalls++; return offered(flags) }
+  override fun network(): DogwoodNetwork { accessorCalls++; return offered(network) }
+  override fun navigation(): DogwoodNavigation { navigationReads++; return offered(navigation) }
   override fun close() = Unit
 }
 
@@ -256,8 +267,59 @@ class HostServiceTest {
     val services = FakeServices()
     val guest = DogwoodGuest("main" to { _ -> Probe { it.available.size.toString() } })
     startGuest(guest, "main", services = services)
-    assertEquals(5, services.accessorCalls, "one call per accessor, once")
+    // Four, not five: this fake offers no network service, and an accessor for a service the host
+    // did not wire is never called at all. See [FakeServices.offered].
+    assertEquals(4, services.accessorCalls, "one call per offered accessor, once")
     assertEquals(1, services.flags!!.snapshots, "flags are snapshotted once, at start")
+  }
+
+  @Test
+  fun aHostThatWiresNothingStartsAnExperienceRatherThanCrashing() {
+    /*
+     * The property the whole surface is built on -- "every service is optional and its absence is
+     * normal" -- and it did not hold. A null service cannot cross the Zipline boundary: the
+     * accessor throws instead of answering null, taking the experience down at `start`. It went
+     * unnoticed because every host in this repository wired every service, and the first one that
+     * left something out crashed on launch.
+     *
+     * What makes absence normal is asking `available()` first, so this test asserts that no
+     * accessor is called at all -- not that the calls returned null.
+     */
+    val services = FakeServices(
+      log = null,
+      analytics = null,
+      clock = null,
+      flags = null,
+      network = null,
+      navigation = null,
+    )
+    val guest = DogwoodGuest(
+      "main" to { _ ->
+        Probe { "${it.available.size} ${it.nowEpochMillis()} ${it.flag("anything", "none")}" }
+      },
+    )
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(0, services.accessorCalls, "nothing is offered, so nothing may be asked for")
+    assertEquals(0, services.navigationReads)
+    assertEquals(listOf("0 null none"), renderedText(host), "and guest code degrades in place")
+  }
+
+  @Test
+  fun aServiceLeftUnwiredIsSkippedWhileTheRestAreStillResolved() {
+    // Partial absence is the common case -- a host wires logging and the network but never got
+    // round to analytics -- and it must cost nothing but the missing service.
+    val services = FakeServices(analytics = null, network = null)
+    val guest = DogwoodGuest(
+      "main" to { _ -> Probe { "${it.analytics == null} ${it.nowEpochMillis()}" } },
+    )
+    val host = startGuest(guest, "main", services = services)
+
+    assertEquals(listOf("true 1700000000000"), renderedText(host))
+    assertEquals(3, services.accessorCalls, "log, clock and flags; not analytics, not network")
   }
 
   @Test

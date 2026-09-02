@@ -189,7 +189,13 @@ private fun Tabs(onShell: (DogwoodShell?) -> Unit) {
         )
       },
       clock = SystemClock(),
-      featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
+      // Deliberately unwired, and this host is the only one that leaves anything out.
+      //
+      // "Every service is optional and its absence is normal" is the surface's founding claim, and
+      // it was false until this example was written: a null service cannot cross Zipline's
+      // boundary, so the first host to skip one crashed the guest at `start`. Leaving it out here
+      // keeps that path exercised by something someone actually runs.
+      featureFlags = null,
       analytics = CallbackAnalytics { name, properties -> Log.i(TAG, "analytics: $name $properties") },
       // Default-deny, opened for exactly one host. The payload is downloaded and replaceable over
       // the air, so an open network service would be an exfiltration channel with this
