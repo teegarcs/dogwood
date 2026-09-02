@@ -22,6 +22,7 @@ import dev.dogwood.compose.Text
 import dev.dogwood.compose.VerticalList
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.Formats
+import dev.dogwood.compose.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -153,6 +154,23 @@ fun AboutScreen() {
         .background(Color.token(if (expanded) "primaryContainer" else "canvasContrast").animate()),
     )
     Text("arrived $arrivals times")
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Guest logic over the environment",
+      description = "No token, no contract. This screen read darkMode and picked a literal itself.",
+    )
+    // Ordinary Kotlin. The host receives the finished decision -- a plain colour -- and never
+    // learns there was an `if`. Compare the box above it, whose colour is a design-system token.
+    val guestChosen = if (isSystemInDarkTheme()) Color(0xFF7FD8BE) else Color(0xFF8A4FFF)
+    Box(
+      modifier = Modifier.fillMaxWidth().height(24).background(guestChosen),
+    )
+    Text(
+      if (isSystemInDarkTheme()) "guest chose: seafoam, because dark" else "guest chose: violet, because light",
+      color = guestChosen,
+    )
 
     Divider(modifier = Modifier.fillMaxWidth())
 

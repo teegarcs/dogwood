@@ -176,7 +176,9 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         modifier = modifier,
         maxLines = node.int(P2, Int.MAX_VALUE),
         overflow = TextOverflow.Ellipsis,
-        color = palette().ink,
+        // A colour when the guest sent one -- token or literal, the same recipe channel either
+        // way -- and the host's own ink when it did not.
+        color = node.colorOrNull(P5) ?: palette().ink,
         style = textStyle(node.stringOrNull(P3)),
       )
     }
