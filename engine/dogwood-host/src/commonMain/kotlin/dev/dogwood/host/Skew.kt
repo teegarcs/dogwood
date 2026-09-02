@@ -17,6 +17,19 @@ import androidx.compose.runtime.staticCompositionLocalOf
 
 /** One experience's accumulated skew. Not snapshot state: reading it must not drive composition. */
 class SkewReport {
+  /*
+   * These are plain sets, not snapshot state, and that is deliberate rather than an oversight.
+   *
+   * Most of them are written *during composition* -- an unknown colour token is recorded by the
+   * binding that failed to resolve it, and a withheld widget by the guard that declined to draw it.
+   * Writing snapshot state during composition is not allowed and would invalidate the very
+   * composition doing the writing.
+   *
+   * The consequence is that this report must be **sampled, not observed**. A composable that reads
+   * it sees whatever was there when that composition began, so an entry recorded during the same
+   * pass appears only after some later recomposition. That is fine for what this is -- telemetry a
+   * host collects and sends -- and wrong for anything that wants to react to it. Poll it.
+   */
   /** Widget tags this client's dictionary does not carry. Each rendered as a placeholder node. */
   val unknownWidgetTags = mutableSetOf<Int>()
 
