@@ -59,6 +59,8 @@ import okio.FileSystem
  */
 private val TRUSTED_KEYS = mapOf(
   "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
+  // Rolled forward alongside the Android host; see `Slice.kt` for what the second key is for.
+  "dogwood-development-2" to "64fcb07226f6b538ec7d09510f9a5073aeb43a50916cfc625761cc9b9a99b097",
 )
 
 private const val DEV_SERVER = "http://localhost:8080"
