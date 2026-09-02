@@ -47,7 +47,7 @@ import dev.dogwood.host.CallbackAnalytics
 import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodServiceHost
-import dev.dogwood.host.DogwoodSession
+import dev.dogwood.host.DogwoodShell
 import dev.dogwood.host.MapFeatureFlags
 import dev.dogwood.host.OkHttpNetwork
 import dev.dogwood.host.Palette
@@ -73,6 +73,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okio.FileSystem
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
 
 private const val TAG = "DogwoodSlice"
 
@@ -96,20 +101,19 @@ private const val DEV_SERVER = "http://10.0.2.2:8080"
 private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
 
 /**
- * The host names which of the payload's experiences to run.
+ * Entry points this host offers, and a demonstration of both composition models at once.
  *
  * A real application routes on a deep link, a navigation event, or a remote configuration value.
- * The sample offers a toggle, because seeing one payload serve two experiences is the whole point
- * of the entry-point contract.
- */
-/**
- * Entry points this host offers, and a demonstration of both composition models at once.
+ * The sample offers a toggle, because seeing one payload serve several experiences is the whole
+ * point of the entry-point contract.
  *
  * `app` is **Path A**: one experience whose tab bar and navigation are guest Compose. Selecting it
  * mounts a single runtime that never tears down as the user moves between its screens.
  *
  * The rest are **Path B**: an experience per surface, isolated by construction. Switching between
- * them today costs a full teardown and cold start, which Phase 4.5's host shell is planned to fix.
+ * them goes through [DogwoodShell], which keeps them warm -- the switch costs the shell nothing
+ * and the guest is not reloaded. Watch the log: a `load #` line appears once per entry point, not
+ * once per tap.
  */
 private val ENTRY_POINTS = listOf("app", "explore", "about", "feed")
 
@@ -224,6 +228,14 @@ class SliceActivity : ComponentActivity() {
    * session is still constructed with the environment the device is in by then, not the one it
    * was in when composition started.
    */
+  /**
+   * Owns the shell, and keeps it fed with the environment.
+   *
+   * The shell is created once and retains experiences across tab switches. Before it, this
+   * function rebuilt the entire delivery stack on every switch, never closed the session it was
+   * replacing, and opened a second `ZiplineCache` on the same directory -- a leaked interpreter
+   * per tab. Path B is meant to be isolation, not waste.
+   */
   @Composable
   private fun Experience(
     entryPoint: String,
@@ -233,10 +245,12 @@ class SliceActivity : ComponentActivity() {
     onFailure: (String?) -> Unit,
   ) {
     val uiScope = rememberCoroutineScope()
-    var session by remember { mutableStateOf<DogwoodSession?>(null) }
+    var shell by remember { mutableStateOf<DogwoodShell?>(null) }
     val latestConfiguration by rememberUpdatedState(configuration)
 
     // One thread, eight megabytes of stack, and it is the only thread that may touch the guest.
+    // Shared by every experience the shell holds: they are separate heaps, but QuickJS work is
+    // serialized, which is exactly what a single-threaded dispatcher gives.
     val dispatcher = remember {
       Executors.newSingleThreadExecutor { runnable ->
         Thread(null, runnable, "zipline", 8L * 1024 * 1024)
@@ -245,8 +259,7 @@ class SliceActivity : ComponentActivity() {
 
     // Leak detection, on in the development slice because the leak worth catching here is
     // peculiar to this architecture: a retained guest generation holds a whole QuickJS heap, and a
-    // code update while a screen is live is the normal case. Publish twice, watch Logcat, and
-    // either nothing appears or something is wrong.
+    // code update while a screen is live is the normal case.
     val leakDetector = remember(uiScope) {
       dogwoodLeakDetector(uiScope, leakThreshold = 10.seconds) { _, note ->
         Log.w(TAG, "LEAK: $note")
@@ -256,8 +269,7 @@ class SliceActivity : ComponentActivity() {
       onDispose { leakDetector.close() }
     }
 
-    // What this client lets the payload reach. Remembered rather than rebuilt, because switching
-    // entry points restarts the guest and the offer should not change underneath it.
+    // What this client lets the payload reach.
     val serviceHost = remember {
       DogwoodServiceHost(
         log = CallbackLog { level, tag, message ->
@@ -276,12 +288,10 @@ class SliceActivity : ComponentActivity() {
         analytics = CallbackAnalytics { name, properties ->
           Log.i(TAG, "analytics: $name $properties")
         },
-        // Resolved by whatever the application already uses for flags; a map stands in here.
         featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
         // Default-deny, opened for exactly one host. The payload is downloaded and replaceable
         // over the air, so an open network service would be an exfiltration channel with this
-        // application's name on it. Cleartext is named separately so it cannot be switched on
-        // globally and forgotten.
+        // application's name on it.
         network = OkHttpNetwork(
           client = OkHttpClient(),
           allow = allowHosts("10.0.2.2", allowCleartextHosts = setOf("10.0.2.2")),
@@ -291,14 +301,13 @@ class SliceActivity : ComponentActivity() {
 
     LaunchedEffect(configuration) {
       onEnvironment(configuration)
-      session?.updateConfiguration(configuration)
+      shell?.updateEnvironment(configuration)
     }
 
-    LaunchedEffect(entryPoint) {
+    // Built once. Every tab switch reuses it, which is the difference between a warm swap and a
+    // cold start.
+    LaunchedEffect(Unit) {
       try {
-        // Layer 3: fetch over the network, verify the manifest's Ed25519 signature against a key
-        // compiled into this application, cache the modules on disk. The session then keeps
-        // watching, and swaps the running experience whenever new code is published.
         val delivery = withContext(dispatcher) {
           DogwoodDelivery(
             dispatcher = dispatcher,
@@ -311,58 +320,116 @@ class SliceActivity : ComponentActivity() {
             ),
           )
         }
-        val newSession = DogwoodSession(
+        shell = DogwoodShell(
           delivery = delivery,
           applicationName = "dogwood-slice",
           manifestUrl = MANIFEST_URL,
           ziplineDispatcher = dispatcher,
           uiScope = uiScope,
-          initialConfiguration = latestConfiguration,
-          entryPoint = entryPoint,
-          // What the guest cannot know. `10.0.2.2` is this emulator's name for the development
-          // machine; a payload that hard-coded it would work here and nowhere else.
-          launchParams = buildJsonObject {
-            put("city", "Tokyo")
-            put("country", "Japan")
-            put("apiBaseUrl", DEV_SERVER)
-          },
+          environment = latestConfiguration,
           services = serviceHost,
           leakDetector = leakDetector,
-          onFailure = { e ->
-            Log.e(TAG, "load failed", e)
-            onFailure(
-              "could not load the guest from $MANIFEST_URL\n\n" +
-                "Is the development server running?\n" +
-                "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline\n\n" +
-                e.stackTraceToString(),
-            )
-          },
-          onSwap = { swapped ->
+          capacity = 3,
+          onSwap = { entry, swapped ->
             onFailure(null)
             onStatus(swapped)
             Log.i(
               TAG,
-              "load #${swapped.loadCount}: version ${swapped.version}, " +
-                "verified by ${swapped.verifiedByKey}, " +
-                "restored ${swapped.restoredKeys} saved state keys",
+              "[$entry] load #${swapped.loadCount}: restored ${swapped.restoredKeys} keys, " +
+                "warm=${shell?.warm}",
+            )
+          },
+          onEvict = { entry, keys -> Log.i(TAG, "[$entry] evicted, kept $keys state keys") },
+          onFailure = { entry, failure ->
+            Log.e(TAG, "[$entry] load failed", failure)
+            onFailure(
+              "could not load '$entry' from $MANIFEST_URL\n\n" +
+                "Is the development server running?\n" +
+                "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline\n\n" +
+                failure.stackTraceToString(),
             )
           },
         )
-        session = newSession
-        newSession.run()
       } catch (e: CancellationException) {
-        // Ordinary teardown -- this effect left the composition -- not a load failure. Reporting
-        // it as one paints a stack trace over a screen that is simply going away.
         throw e
       } catch (e: Throwable) {
-        Log.e(TAG, "failed to start guest", e)
+        Log.e(TAG, "failed to start the shell", e)
         onFailure(e.stackTraceToString())
       }
     }
 
-    session?.experience?.value?.let { live ->
+    /*
+     * Switch cost, measured rather than claimed.
+     *
+     * The clock starts when the tab is requested and stops on the first frame the host draws
+     * afterwards, because that is the interval a person actually experiences. It deliberately
+     * spans composition and draw rather than just `activate`, which returns immediately and would
+     * flatter every number here. A warm switch should land inside one frame; a cold one pays for
+     * a QuickJS instance, a payload load and a state restore, and should say so.
+     */
+    LaunchedEffect(shell, entryPoint) {
+      val live = shell ?: return@LaunchedEffect
+      val warmAlready = entryPoint in live.warm
+      val startedAt = android.os.SystemClock.elapsedRealtimeNanos()
+      live.activate(
+        entryPoint,
+        launchParams = buildJsonObject {
+          put("city", "Tokyo")
+          put("country", "Japan")
+          put("apiBaseUrl", DEV_SERVER)
+        },
+      )
+      // Two intervals, not one, because they have different owners and only the first is the
+      // shell's to defend. The first is how long until the experience exists and is published,
+      // which for a warm entry point should be zero -- `activate` republishes synchronously. The
+      // second is Compose measuring, laying out and drawing a tree that is already fully applied,
+      // which the shell cannot make faster and which a native tab switch would also pay.
+      //
+      // Reporting only the total would credit the shell with a cost it does not control, and
+      // would make an emulator's draw time look like a Zipline problem.
+      val ready = live.activeEntryPoint.value == entryPoint && live.active.value != null
+      if (!ready) {
+        snapshotFlow { live.activeEntryPoint.value == entryPoint && live.active.value != null }
+          .first { it }
+      }
+      val readyMs = (android.os.SystemClock.elapsedRealtimeNanos() - startedAt) / 1_000_000.0
+      withFrameNanos { }
+      val drawnMs = (android.os.SystemClock.elapsedRealtimeNanos() - startedAt) / 1_000_000.0
+      Log.i(
+        TAG,
+        "[$entryPoint] ${if (warmAlready) "warm" else "cold"} switch: " +
+          "experience ready in ${readyMs.roundToInt()} ms " +
+          "(${if (ready) "synchronously" else "awaited"}), drawn in ${drawnMs.roundToInt()} ms",
+      )
+    }
+
+    /*
+     * The idle claim, audited.
+     *
+     * A hidden experience shares the window's frame clock with the visible one, so nothing about
+     * being off-screen stops it asking for frames. This samples every warm experience twice a
+     * second and reports any hidden one whose count moved, which is the only way to tell a guest
+     * that is genuinely parked from one that is quietly animating into a surface nobody composes.
+     */
+    LaunchedEffect(shell) {
+      var previous = emptyMap<String, Int>()
+      while (true) {
+        delay(500)
+        val current = shell?.frameRequests() ?: continue
+        val busy = current.filter { (key, count) ->
+          key != entryPoint && count > (previous[key] ?: count)
+        }
+        if (busy.isNotEmpty()) Log.w(TAG, "hidden experiences asked for frames: $busy")
+        previous = current
+      }
+    }
+
+    DisposableEffect(shell) {
+      onDispose { shell?.close() }
+    }
+
+    shell?.active?.value?.let { live ->
       // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
-      // Nesting one inside a scrollable parent gives it infinite height and crashes.
       DogwoodSurface(live, Modifier.fillMaxSize())
     }
   }

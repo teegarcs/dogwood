@@ -367,6 +367,100 @@ Two consequences follow:
 
 **The alternative has now been benchmarked, and the snapshot mirror is kept** ([ADR-007](../adrs/layer-5/ADR-007-keep-the-snapshot-mirror.md)). Redwood's host does not recompose at all: `HostProtocolAdapter` mutates widget objects imperatively and then calls `onEndChanges()`. Both designs were built behind a shared `WidgetView` interface and measured at batch sizes 1, 10, 100 and 1,000 on trees of 160 and 1,222 nodes. The imperative applier applies two to four times faster, and it does not matter — the saving is roughly seventy microseconds against the 1.14 milliseconds the guest spends encoding the same batch ([Layer 4 ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md)). What decides it is recomposition: for a **one-property change** on a 1,222-node tree the imperative applier recomposes **801 bindings** and the snapshot mirror recomposes **one**, because a single generation counter at the root cannot say what changed. That is per-frame work proportional to tree size rather than to change size, and steady-state batches of one or two changes are the case it handles worst. No tested cell separated the two on frame-granularity latency, so the decision rests on that scaling argument rather than on a measured failure.
 
+### The Experience Shell: Several Guests, One Host
+
+Everything above describes one experience: one guest payload, one QuickJS runtime, one host tree.
+An application is usually several. Dogwood supports two ways of assembling them, and the choice is
+an organisational one before it is a technical one.
+
+**Guest-owned navigation.** One experience contains its own tab bar and every screen behind it.
+Switching is ordinary recomposition inside a single runtime, so it is free, and screens share state
+directly because they are the same program. The cost is that the whole thing ships as one payload
+owned by one team.
+
+**Host-owned navigation.** Each destination is a separate experience with its own entry point,
+payload, and owning team. Independent delivery is the entire point. The cost is that switching
+means moving between runtimes, and a naive host pays a full cold start every time — 140 to 650
+milliseconds, measured in [ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md).
+
+`DogwoodShell` removes that cost by keeping recently used experiences alive.
+
+```mermaid
+flowchart TD
+    Host["Host navigation (tabs, routes)"] -->|"activate(entryPoint)"| Shell["DogwoodShell"]
+    Shell --> Pool["WarmPool (least-recently-used, capacity N)"]
+    Pool -->|"already warm"| Republish["Publish existing experience (synchronous)"]
+    Pool -->|"not warm"| Start["Start a DogwoodSession"]
+    Pool -->|"over capacity"| Evict["Evict least-recently-used"]
+
+    Evict --> Snap["snapshotState() from the live guest"]
+    Snap --> Close["session.close(): interpreter, heap, composition"]
+    Snap --> Keep["Retained StateSnapshot"]
+    Keep -.->|"restoredState on return"| Start
+
+    Start --> Delivery["Shared DogwoodDelivery / ZiplineCache"]
+    Start --> Session["DogwoodSession (ownsDelivery = false)"]
+    Session --> Experience["DogwoodExperience"]
+    Republish --> Experience
+    Experience --> Active["active: State&lt;DogwoodExperience?&gt;"]
+    Active --> Surface["DogwoodSurface composes the active one only"]
+
+    Experience --> Counter["frameRequests counter"]
+    Counter --> Audit["Idle audit: a hidden experience must ask for nothing"]
+```
+
+#### Diagram Node Definitions
+
+* **Host navigation:** Whatever the native application already uses to choose a destination — a
+  tab bar, a navigation graph, a router. The shell does not replace it and has no opinion about it;
+  it only needs to be told which entry point is current.
+* **`DogwoodShell`:** The host-side owner of several sessions, keyed by entry point. Its whole
+  public surface is `activate`, `trimMemory`, `updateEnvironment`, `close`, and the observability
+  accessors `active`, `activeEntryPoint`, `warm`, and `frameRequests()`.
+* **`WarmPool`:** The eviction policy, kept as a separate class in `commonMain` with no dependency
+  on Zipline or Compose so that it can be tested as pure logic. Least-recently-used, configurable
+  capacity, defaulting to three. Two invariants it enforces rather than documents: the active entry
+  point is never evicted, and the capacity floor is one, because a cap of zero would evict the
+  screen the user is looking at.
+* **Publish existing experience:** The warm path. `activate` sets the published experience before
+  it returns, so a warm switch costs the shell nothing measurable — zero milliseconds, taken
+  synchronously, in every repetition of the ADR-027 measurements. What the user then waits for is
+  Compose measuring, laying out and drawing a tree that is already fully applied, which is host
+  draw cost and not the shell's to remove.
+* **Start a `DogwoodSession`:** The cold path. A session is constructed for the entry point,
+  carrying any retained snapshot as `restoredState`.
+* **Evict least-recently-used:** What happens when activating pushes the pool over capacity.
+* **`snapshotState()` from the live guest:** Taken **before** teardown, because the guest is the
+  only thing that knows its own saveable state and it has to be alive to be asked. Same ordering,
+  and same reason, as the code-update path.
+* **`session.close()`:** Closing is the *point* of evicting. Cancelling the session's coroutine
+  stops the update flow but leaves the interpreter, its heap, and the composition inside it alive,
+  so an eviction without this frees nothing while the pool's bookkeeping continues to look correct.
+  The closed session is then handed to the leak detector, so a retained one is reported rather than
+  assumed absent.
+* **Retained `StateSnapshot`:** The evicted experience's saveable state, held by the shell. It is
+  the reason eviction is a latency cost rather than a data loss: returning is a cold start that
+  restores scroll position and half-typed text exactly as a code update does.
+* **Shared `DogwoodDelivery` / `ZiplineCache`:** One loader and one cache for every session. Sessions
+  are built with `ownsDelivery = false` so that closing one does not take its siblings' loader down.
+* **`DogwoodSession` / `DogwoodExperience`:** Unchanged from the single-experience case. The shell
+  composes them; it does not modify them.
+* **`active` / `DogwoodSurface`:** Only the active experience is composed. The others are alive but
+  have no surface, which is what makes them cheap.
+* **`frameRequests` counter / idle audit:** The design claims a hidden experience costs memory and
+  nothing else. That claim rests on `BroadcastFrameClock` requesting a frame only when something
+  awaits one — true, but a claim about behaviour, so it is counted rather than trusted. Every
+  `requestFrame` arriving at the host is counted per experience and exposed per entry point. With
+  three experiences warm and the application untouched for twenty seconds, hidden experiences
+  requested zero frames. Work already in flight when a user switches away does drain afterwards, so
+  the audit is a **rate** check: a count still climbing seconds after an experience left the screen
+  is a guest bug, and now a visible one.
+
+**Memory is the real constraint, and it is bounded deliberately.** Each warm experience costs
+roughly 9 to 14 megabytes of total proportional set size — interpreter, heap, payload, and host
+tree — so the default capacity of three sits about 20 megabytes above a single experience.
+`trimMemory(keep)` exposes the pool's trim for an Android `onTrimMemory` hook.
+
 ## 4. Interfaces & Boundary
 
 - **Inputs:** Batched `List<Change>` from Layer 4; user interaction from the platform.

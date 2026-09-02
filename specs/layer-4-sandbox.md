@@ -120,6 +120,45 @@ Zipline's QuickJS defaults are not tuned for a long-lived composition, and Layer
 
 **Reclamation is not automatic.** `DogwoodApplier.remove()` and `clear()` must perform a depth-first purge of both the node map and the lambda slot table. Without it, a feed that creates and destroys ten thousand rows retains ten thousand closures, each capturing its row's data. Redwood does exactly this purge in `takeChanges()`.
 
+### Saveable State: What May Cross, and Why It Is Narrow
+
+`rememberSaveable` in guest code writes into a `SaveableStateRegistry` that Layer 4 owns. What it
+holds has to survive the boundary, because the whole point of it is to be handed to a *different*
+guest instance: a replacement payload after a code update, or a fresh runtime after the host's
+warm pool evicted this one ([Layer 5 ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md)).
+So the registry is constructed with a deliberately narrow `canBeSaved` predicate, and a guest that
+tries to save something outside it is told at the call site rather than discovering on the next
+swap that its state quietly vanished.
+
+What crosses:
+
+- `null`, and the primitives `Int`, `Long`, `Float`, `Double`, `Boolean`, `String`.
+- **`MutableState`**, unwrapped and re-wrapped. `rememberSaveable(stateSaver = …)` does not hand the
+  registry a bare value; Compose wraps it in a `MutableState` envelope so the restored state keeps
+  its mutation policy. A predicate that rejected the envelope would fail at composition time with a
+  message about `MutableState` that reads like a mistake at the call site.
+- **Lists**, checked element by element rather than assumed. This is what Compose's own `listSaver`
+  produces and therefore the idiomatic way to save a holder with more than one field.
+- **Maps with string keys**, checked the same way. Keys must be strings because the wire form is a
+  JSON object and JSON object keys are strings.
+
+Everything else is rejected.
+
+**Why maps are not a convenience.** `rememberSaveableStateHolder()` is the standard way to keep an
+off-screen screen's state alive, and it is what a guest that owns its own navigation is built on.
+It does not register one provider per screen. It registers **one** provider whose value is a nested
+`Map<key, Map<providerKey, List<Any?>>>` holding every retained screen at once. A predicate that did
+not admit maps would therefore not merely drop the holder's entry: `performSave` throws on the first
+value it rejects, so one holder anywhere in the tree takes the **entire snapshot** down and every
+unrelated screen's state with it — with nothing on screen to explain why. That is precisely how the
+defect presented before it was fixed: a counter that read zero after a tab switch.
+
+Values are carried as JSON, with `MutableState` and `Map` each written into their own tagged
+envelope so the restore side can tell one from the other without inspecting what is inside. The
+restored map is a plain `Map<String, Any?>`; `SaveableStateHolder` casts it to its own nested
+generic type, which is sound only because Kotlin/JavaScript erases generics — the cast checks
+nothing at runtime, and the shape it assumes is the shape the guest wrote.
+
 ## 4. Interfaces & Boundary
 
 This is Dogwood's real cross-process boundary: a Zipline service boundary serialized with `kotlinx.serialization`. Services are named for the side that **implements** them.

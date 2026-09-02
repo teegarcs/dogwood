@@ -1,0 +1,121 @@
+[dev.dogwood.protocol.DogwoodAnalytics]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun track(kotlin.String, kotlin.collections.Map<kotlin.String,kotlin.String>): kotlin.Unit
+  "0XUfnMcz",
+]
+
+[dev.dogwood.protocol.DogwoodClock]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun nowEpochMillis(): kotlin.Long
+  "b0U9/Ouc",
+
+  # fun timeZoneId(): kotlin.String
+  "9da77zgL",
+]
+
+[dev.dogwood.protocol.DogwoodFeatureFlags]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun snapshot(): kotlin.collections.Map<kotlin.String,kotlin.String>
+  "84u/Hsgh",
+]
+
+[dev.dogwood.protocol.DogwoodGuestUi]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun frame(kotlin.Long): kotlin.Unit
+  "48l+u3RK",
+
+  # fun sendEvent(dev.dogwood.protocol.Event): kotlin.Unit
+  "RyLwAOsE",
+
+  # fun snapshotState(): dev.dogwood.protocol.StateSnapshot
+  "H9VTkU/n",
+
+  # fun start(dev.dogwood.protocol.DogwoodHost, dev.dogwood.protocol.DogwoodServices, kotlin.String, dev.dogwood.protocol.HostEnvironment, kotlinx.serialization.json.JsonElement, kotlin.collections.Map<kotlin.String,kotlin.Int>, dev.dogwood.protocol.StateSnapshot): kotlin.Unit
+  "GoWztWbi",
+
+  # fun updateConfiguration(dev.dogwood.protocol.HostEnvironment): kotlin.Unit
+  "YDIqv9N9",
+]
+
+[dev.dogwood.protocol.DogwoodHost]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun handleUncaughtException(kotlin.Throwable): kotlin.Unit
+  "Hls+uhG7",
+
+  # fun onUnknownEvent(dev.dogwood.protocol.WidgetTag, dev.dogwood.protocol.EventTag): kotlin.Unit
+  "593sx1tm",
+
+  # fun onUnknownEventNode(dev.dogwood.protocol.Id, dev.dogwood.protocol.EventTag): kotlin.Unit
+  "ddEvvI3n",
+
+  # fun requestFrame(): kotlin.Unit
+  "/TkBiP/u",
+
+  # fun sendChanges(kotlin.String): kotlin.Unit
+  "I/raAbCz",
+]
+
+[dev.dogwood.protocol.DogwoodLog]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun log(dev.dogwood.protocol.LogLevel, kotlin.String, kotlin.String): kotlin.Unit
+  "tH9tvaiR",
+]
+
+[dev.dogwood.protocol.DogwoodNetwork]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # suspend fun fetch(dev.dogwood.protocol.HttpRequest): dev.dogwood.protocol.HttpResponse
+  "uyB2GyA4",
+]
+
+[dev.dogwood.protocol.DogwoodServices]
+
+functions = [
+  # fun analytics(): dev.dogwood.protocol.DogwoodAnalytics
+  "QZZG4X2q",
+
+  # fun available(): kotlin.collections.Set<kotlin.String>
+  "AgyVrlUJ",
+
+  # fun clock(): dev.dogwood.protocol.DogwoodClock
+  "f0Rf9Hb5",
+
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun featureFlags(): dev.dogwood.protocol.DogwoodFeatureFlags
+  "lM8eRvid",
+
+  # fun log(): dev.dogwood.protocol.DogwoodLog
+  "VilQt5xD",
+
+  # fun network(): dev.dogwood.protocol.DogwoodNetwork
+  "u68+7btY",
+]

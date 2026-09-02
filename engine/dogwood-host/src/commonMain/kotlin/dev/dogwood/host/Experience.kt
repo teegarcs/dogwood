@@ -82,6 +82,7 @@ class DogwoodExperience(
 
     override fun requestFrame() {
       threads.checkZipline()
+      frameRequests++
       if (frameScheduled) return
       frameScheduled = true
       uiScope.launch {
@@ -116,6 +117,19 @@ class DogwoodExperience(
 
   /** Counted rather than thrown, so the slice can show that the path is exercised. */
   var staleEvents: Int = 0
+    private set
+
+  /**
+   * How many times the guest has asked for a frame.
+   *
+   * This is the number that decides whether keeping an experience warm but hidden is free. The
+   * frame clock this experience awaits belongs to the *window*, not to any surface, so a hidden
+   * guest that keeps asking keeps waking the Zipline thread whether or not anything it draws is
+   * on screen. "It is hidden, so it must be idle" is an assumption; this counter is the evidence,
+   * and a warm experience whose count climbs while it is off-screen is a bug in the idle story
+   * rather than an overhead to tolerate.
+   */
+  var frameRequests: Int = 0
     private set
 
   val unknownEvents = mutableSetOf<Pair<Int, Int>>()

@@ -65,6 +65,22 @@ class DogwoodSession(
    * long-lived screen accumulating interpreters.
    */
   private val leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
+  /**
+   * State to restore into the **first** guest this session starts.
+   *
+   * Normally null: a session begins cold. The shell uses it to bring back an experience it
+   * evicted under memory pressure, which is the same restore path a code update already uses --
+   * pointed at a different reason for the guest having gone away.
+   */
+  private val initialState: StateSnapshot? = null,
+  /**
+   * Whether closing this session closes the delivery it was given.
+   *
+   * True for a session that was handed its own; false when a shell owns one delivery across
+   * several sessions, where closing it with the first session would take the others down and
+   * leave a second `ZiplineCache` open on the same directory.
+   */
+  private val ownsDelivery: Boolean = true,
   private val pollIntervalMs: Long = 5_000,
   private val onSwap: (SessionStatus) -> Unit = {},
   /** Every failed poll, including the first. A silent failure is a blank screen with no cause. */
@@ -93,6 +109,9 @@ class DogwoodSession(
 
   private var status = SessionStatus()
 
+  /** Consumed by the first load only; a later code update carries its own state across. */
+  private var pendingInitialState: StateSnapshot? = initialState
+
   /**
    * Runs until cancelled. Call from the user-interface scope; the Zipline work inside switches
    * dispatchers explicitly rather than relying on where the caller happened to be.
@@ -110,7 +129,8 @@ class DogwoodSession(
 
       // Capture before teardown. The old guest is still alive at this point, which is the only
       // moment its state can be read at all.
-      val carried: StateSnapshot? = previous?.let {
+      val carried: StateSnapshot? = pendingInitialState.also { pendingInitialState = null }
+        ?: previous?.let {
         withContext(ziplineDispatcher) {
           val snapshot = it.snapshotState()
           it.close()
@@ -169,9 +189,18 @@ class DogwoodSession(
     )
   }
 
+  /** How many frames the live guest has asked for; see [DogwoodExperience.frameRequests]. */
+  val frameRequests: Int get() = currentExperience.value?.frameRequests ?: 0
+
+  /** Captures the running guest's saveable state. Must be called off the user-interface thread. */
+  suspend fun snapshotState(): StateSnapshot {
+    val live = currentExperience.value ?: return StateSnapshot()
+    return withContext(ziplineDispatcher) { live.snapshotState() }
+  }
+
   fun close() {
     currentExperience.value?.close()
     currentExperience.value = null
-    delivery.close()
+    if (ownsDelivery) delivery.close()
   }
 }

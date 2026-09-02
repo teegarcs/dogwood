@@ -55,6 +55,33 @@ latency, memory per warm instance (`dumpsys meminfo` deltas), idle-tab frame req
 
 *Estimate: ~2 days. ADR-027.*
 
+✅ **Done.** [ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md). Verified on
+an emulator with four entry points and a warm cap of three:
+
+- **Warm switch: the shell's own cost is 0 ms, taken synchronously**, in every repetition — no
+  reload, no boundary traffic. The 37–74 ms that remains is Compose drawing an already-applied
+  tree, tracks content rather than the shell (the longer list consistently costs more), and a
+  native tab switch of the same content would pay it too. The plan's "one frame" target counted
+  the swap and forgot the draw; what the shell removes is the **140–650 ms of guest cold start**.
+- **Cold + restore: 140–647 ms to ready, 191–716 ms to drawn**, worst on the first ever load.
+- **Memory: +13.5 MB for the second warm experience, +9.3 MB for the third** (total proportional
+  set size), so roughly 9–14 MB each and about 20 MB for the default cap of three.
+- **Idle: zero frame requests** from hidden experiences over twenty untouched seconds. One
+  transient burst was seen immediately after an experience was hidden — in-flight work draining —
+  which is why the audit is a rate check rather than a total.
+
+Two defects were found by running it, neither of them in the pool logic:
+
+1. `evict` cancelled the session's coroutine but never called `session.close()`, leaving the
+   interpreter, its heap and its composition alive. The bookkeeping looked correct and the memory
+   was not freed.
+2. **`rememberSaveableStateHolder()` state could not cross the boundary at all.** The holder
+   registers one provider whose value is a nested map; the guest's `canBeSaved` rejected maps, and
+   `performSave` throws on the first rejection — so the holder took the *entire* snapshot down,
+   losing every unrelated screen's state with it. Fixed in the guest registry, with three tests in
+   `SaveableHolderTest` that fail without the fix and pass with it. This was a Path A defect that
+   only an eviction was ever going to surface.
+
 ### E2. Concurrent surfaces — two experiences visible at once
 
 The side-by-side case: a host layout composing two independent `DogwoodSurface`s (nav rail from
@@ -122,11 +149,15 @@ through the same shell.
 
 ## Part 3 — Open questions to vet at build time, not assume
 
-- Is a warm hidden guest truly zero-cost? (Counter on frame requests while hidden; anything above
-  zero is a bug in the idle story, not a tolerable overhead.)
-- Memory per warm instance on a device — the number that decides the default pool size.
-- One shared Zipline thread for N sessions, or one thread each?
-- Does snapshot-evict-restore round-trip a `LazyListState` position through the shell path the way
-  it already does through code updates? (It should — same machinery — but ADR-014's restore bug
-  says verify.)
-- `onTrimMemory` behaviour under real pressure, not simulated.
+- ✅ **Is a warm hidden guest truly zero-cost?** Yes, in steady state: zero frame requests over
+  twenty idle seconds with three warm. Work already in flight when the user switches away does
+  drain afterwards, so the counter is meaningful as a rate, not as a total. `frameRequests()` on
+  the shell makes this checkable in any host, not just the sample.
+- ✅ **Memory per warm instance on a device.** 9–14 MB. It set the default cap at three.
+- One shared Zipline thread for N sessions, or one thread each? — **still open, E2.** The shell
+  ships with one shared dispatcher, so a guest that blocks it blocks its siblings.
+- ✅ **Does snapshot-evict-restore round-trip state through the shell path?** Yes — verified on
+  device end to end: state set, entry point evicted by the cap, three keys snapshotted, three
+  restored, value back on screen. Getting there required the `canBeSaved` fix above, which is
+  exactly why ADR-014's "same machinery, verify anyway" note was right.
+- `onTrimMemory` behaviour under real pressure, not simulated. — **still open**, folds into EX-B.

@@ -41,3 +41,10 @@ kotlin {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
 }
+
+// Zipline's API validator reads the same generated sources but is not a Kotlin compilation task,
+// so the rule above does not reach it. Without this, `gradle build` fails with a missing implicit
+// dependency the moment the generated directory is stale -- which is every clean checkout.
+tasks.matching { it.name.contains("ZiplineApi") }.configureEach {
+  dependsOn(":dogwood-codegen:generateDesignSystem")
+}

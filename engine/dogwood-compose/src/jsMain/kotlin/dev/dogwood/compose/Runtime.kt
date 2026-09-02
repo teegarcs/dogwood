@@ -354,6 +354,17 @@ private fun canBeSaved(value: Any?): Boolean = when (value) {
   // idiomatic way to save a holder with more than one field. Checked element by element rather
   // than assumed: a list is only saveable if everything in it is.
   is List<*> -> value.all(::canBeSaved)
+  // Maps keyed by string. This is not a convenience: `rememberSaveableStateHolder()` -- the
+  // standard way to keep a screen's state alive while it is off-screen, and what a tabbed guest
+  // is built on -- registers a single provider whose value is a nested
+  // `Map<key, Map<providerKey, List<Any?>>>`. Rejecting it does not merely drop the holder's
+  // entry: `performSave` throws on the first unsaveable value, so one holder anywhere in the tree
+  // takes the whole snapshot down and every other screen's state with it.
+  //
+  // Keys must be strings because the wire form is a JSON object, and JSON object keys are
+  // strings. `SaveableStateProvider` accepts an `Any` key, so a guest that passes a non-string
+  // one is told at the call site rather than losing its state on the next swap.
+  is Map<*, *> -> value.all { (key, entry) -> key is String && canBeSaved(entry) }
   // Deliberately narrow beyond that. A saved value has to survive JSON, and a guest that tries to
   // save something richer should be told at the call site rather than discover on the next code
   // update that its state quietly vanished.
@@ -373,6 +384,14 @@ private fun toJson(value: Any?): JsonElement = when (value) {
   is Double -> JsonPrimitive(value)
   is String -> JsonPrimitive(value)
   is List<*> -> kotlinx.serialization.json.JsonArray(value.map(::toJson))
+  // Tagged, like the `MutableState` envelope above, so the restore side can tell a saved map from
+  // a saved state cell without inspecting the shape of what is inside either one.
+  is Map<*, *> -> buildJsonObject {
+    put(
+      MAP_ENVELOPE,
+      buildJsonObject { value.forEach { (key, entry) -> put(key as String, toJson(entry)) } },
+    )
+  }
   // Unreachable: canBeSaved rejects anything else before it gets here.
   else -> error("guest tried to save an unsupported value")
 }
@@ -380,8 +399,12 @@ private fun toJson(value: Any?): JsonElement = when (value) {
 private fun fromJson(value: JsonElement): Any? {
   if (value is kotlinx.serialization.json.JsonArray) return value.map(::fromJson)
   if (value is JsonObject) {
-    val inner = value[STATE_ENVELOPE] ?: return null
-    return mutableStateOf(fromJson(inner))
+    value[STATE_ENVELOPE]?.let { return mutableStateOf(fromJson(it)) }
+    // The restored map is `Map<String, Any?>`. `SaveableStateHolder` casts it to its own nested
+    // generic type, which is sound here only because Kotlin/JavaScript erases generics -- the cast
+    // checks nothing at runtime and the shape is the one `toJson` wrote.
+    val saved = value[MAP_ENVELOPE] as? JsonObject ?: return null
+    return saved.mapValues { (_, entry) -> fromJson(entry) }
   }
   val primitive = value as? JsonPrimitive ?: return null
   if (primitive is JsonNull) return null
@@ -393,3 +416,4 @@ private fun fromJson(value: JsonElement): Any? {
 }
 
 private const val STATE_ENVELOPE = "s"
+private const val MAP_ENVELOPE = "m"
