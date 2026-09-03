@@ -22,7 +22,9 @@ import dev.dogwood.protocol.DogwoodClock
 import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.DogwoodFeatureFlags
 import dev.dogwood.protocol.DogwoodLog
+import dev.dogwood.protocol.DogwoodNavigation
 import dev.dogwood.protocol.DogwoodNetwork
+import dev.dogwood.protocol.NAVIGATION_MIN_VERSION
 import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.HttpRequest
 import dev.dogwood.protocol.HttpResponse
@@ -39,6 +41,7 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonPrimitive
 
 // ---------------------------------------------------------------------------
 // Fakes. These implement the protocol interfaces directly; nothing crosses Zipline in a unit test.
@@ -84,6 +87,25 @@ private class FakeNetwork(private val response: HttpResponse) : DogwoodNetwork {
   override fun close() = Unit
 }
 
+private class FakeNavigation(
+  private val declared: Set<String> = emptySet(),
+) : DogwoodNavigation {
+  val requests = mutableListOf<Pair<String, JsonObject>>()
+  var routeReads = 0
+    private set
+
+  override fun routes(): Set<String> {
+    routeReads++
+    return declared
+  }
+
+  override fun navigate(route: String, params: JsonObject) {
+    requests += route to params
+  }
+
+  override fun close() = Unit
+}
+
 /** Counts accessor calls, because resolving per composition would leak a proxy pair each time. */
 private class FakeServices(
   val log: FakeLog? = FakeLog(),
@@ -91,8 +113,13 @@ private class FakeServices(
   val clock: FakeClock? = FakeClock(1_700_000_000_000L),
   val flags: FakeFlags? = FakeFlags(mapOf("explore.showWasPrice" to "true")),
   val network: FakeNetwork? = null,
+  val navigation: FakeNavigation? = null,
 ) : DogwoodServices {
   var accessorCalls = 0
+    private set
+
+  /** Separate from [accessorCalls]: the version gate is about this accessor specifically. */
+  var navigationReads = 0
     private set
 
   override fun available(): Set<String> = buildSet {
@@ -101,13 +128,26 @@ private class FakeServices(
     if (clock != null) add(ServiceNames.CLOCK)
     if (flags != null) add(ServiceNames.FEATURE_FLAGS)
     if (network != null) add(ServiceNames.NETWORK)
+    if (navigation != null) add(ServiceNames.NAVIGATION)
   }
 
-  override fun log(): DogwoodLog? { accessorCalls++; return log }
-  override fun clock(): DogwoodClock? { accessorCalls++; return clock }
-  override fun analytics(): DogwoodAnalytics? { accessorCalls++; return analytics }
-  override fun featureFlags(): DogwoodFeatureFlags? { accessorCalls++; return flags }
-  override fun network(): DogwoodNetwork? { accessorCalls++; return network }
+  /*
+   * Throwing on absence is not test pedantry -- it is what the real boundary does.
+   *
+   * Zipline does not carry nullability on a service return, so an accessor for a service the host
+   * did not wire throws rather than answering null. A fake that politely returned null would make
+   * every test pass against a guest that crashes on the first host to leave something unwired,
+   * which is exactly what happened before this was noticed.
+   */
+  private fun <T> offered(service: T?): T =
+    checkNotNull(service) { "this host does not offer that service; ask available() first" }
+
+  override fun log(): DogwoodLog { accessorCalls++; return offered(log) }
+  override fun clock(): DogwoodClock { accessorCalls++; return offered(clock) }
+  override fun analytics(): DogwoodAnalytics { accessorCalls++; return offered(analytics) }
+  override fun featureFlags(): DogwoodFeatureFlags { accessorCalls++; return offered(flags) }
+  override fun network(): DogwoodNetwork { accessorCalls++; return offered(network) }
+  override fun navigation(): DogwoodNavigation { navigationReads++; return offered(navigation) }
   override fun close() = Unit
 }
 
@@ -227,8 +267,59 @@ class HostServiceTest {
     val services = FakeServices()
     val guest = DogwoodGuest("main" to { _ -> Probe { it.available.size.toString() } })
     startGuest(guest, "main", services = services)
-    assertEquals(5, services.accessorCalls, "one call per accessor, once")
+    // Four, not five: this fake offers no network service, and an accessor for a service the host
+    // did not wire is never called at all. See [FakeServices.offered].
+    assertEquals(4, services.accessorCalls, "one call per offered accessor, once")
     assertEquals(1, services.flags!!.snapshots, "flags are snapshotted once, at start")
+  }
+
+  @Test
+  fun aHostThatWiresNothingStartsAnExperienceRatherThanCrashing() {
+    /*
+     * The property the whole surface is built on -- "every service is optional and its absence is
+     * normal" -- and it did not hold. A null service cannot cross the Zipline boundary: the
+     * accessor throws instead of answering null, taking the experience down at `start`. It went
+     * unnoticed because every host in this repository wired every service, and the first one that
+     * left something out crashed on launch.
+     *
+     * What makes absence normal is asking `available()` first, so this test asserts that no
+     * accessor is called at all -- not that the calls returned null.
+     */
+    val services = FakeServices(
+      log = null,
+      analytics = null,
+      clock = null,
+      flags = null,
+      network = null,
+      navigation = null,
+    )
+    val guest = DogwoodGuest(
+      "main" to { _ ->
+        Probe { "${it.available.size} ${it.nowEpochMillis()} ${it.flag("anything", "none")}" }
+      },
+    )
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(0, services.accessorCalls, "nothing is offered, so nothing may be asked for")
+    assertEquals(0, services.navigationReads)
+    assertEquals(listOf("0 null none"), renderedText(host), "and guest code degrades in place")
+  }
+
+  @Test
+  fun aServiceLeftUnwiredIsSkippedWhileTheRestAreStillResolved() {
+    // Partial absence is the common case -- a host wires logging and the network but never got
+    // round to analytics -- and it must cost nothing but the missing service.
+    val services = FakeServices(analytics = null, network = null)
+    val guest = DogwoodGuest(
+      "main" to { _ -> Probe { "${it.analytics == null} ${it.nowEpochMillis()}" } },
+    )
+    val host = startGuest(guest, "main", services = services)
+
+    assertEquals(listOf("true 1700000000000"), renderedText(host))
+    assertEquals(3, services.accessorCalls, "log, clock and flags; not analytics, not network")
   }
 
   @Test
@@ -337,6 +428,105 @@ class HostServiceTest {
  * call resumes long after its caller returned: the write happens with nobody left to notice it,
  * and the screen sits on whatever it was showing until something unrelated happens to arrive.
  */
+/*
+ * Navigation, and the version gate it is the first service to need.
+ *
+ * `DogwoodNavigation` arrived in service surface version 2. An unknown *widget* tag degrades to a
+ * placeholder, but calling a `ZiplineService` method an older host does not implement is an error
+ * at the boundary with nothing to fall back to -- so the guest has to decide not to call, before
+ * calling. These tests pin that decision, because the failure it prevents only appears on the
+ * combination nobody tests by hand: a payload newer than the client running it.
+ */
+class NavigationTest {
+
+  @Composable
+  private fun Probe(body: (HostServices) -> String) {
+    Text(body(services()))
+  }
+
+  private fun renderedText(host: RecordingHost): List<String> =
+    host.decoded().flatMap { it.g }.filterIsInstance<PropertySet>().map { it.v.toString().trim('"') }
+
+  @Test
+  fun anOlderHostIsNeverAskedForANavigationServiceItCannotHave() {
+    // The whole point of the gate. Not "the call returns null" -- the call must not happen.
+    val services = FakeServices(navigation = FakeNavigation(setOf("home")))
+    val guest = DogwoodGuest("main" to { _ -> Probe { it.navigate("home").toString() } })
+    val host = startGuest(guest, "main", services = services, segmentVersions = mapOf(SERVICES_SEGMENT to 1))
+
+    assertEquals(0, services.navigationReads, "a version 1 host has no navigation accessor to call")
+    assertEquals(listOf("false"), renderedText(host), "and the guest degrades rather than throwing")
+    assertEquals(emptyList(), services.navigation!!.requests)
+  }
+
+  @Test
+  fun aCurrentHostRoutesTheRequest() {
+    val navigation = FakeNavigation(setOf("stay", "reviews"))
+    val services = FakeServices(navigation = navigation)
+    val guest = DogwoodGuest(
+      "main" to { _ ->
+        Probe { it.navigate("stay", buildJsonObject { put("id", "42") }).toString() }
+      },
+    )
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(listOf("true"), renderedText(host))
+    assertEquals(1, navigation.requests.size)
+    assertEquals("stay", navigation.requests.single().first)
+    assertEquals("42", navigation.requests.single().second["id"]?.jsonPrimitive?.content)
+    assertEquals(1, navigation.routeReads, "routes are read once at start, not per call")
+  }
+
+  @Test
+  fun anUndeclaredRouteIsRefusedWithoutCrossingTheBoundary() {
+    // A guest asking for a destination this client does not have should learn so locally. Sending
+    // it anyway would mean every stale payload's dead button costs a boundary round trip.
+    val navigation = FakeNavigation(setOf("stay"))
+    val services = FakeServices(navigation = navigation)
+    val guest = DogwoodGuest("main" to { _ -> Probe { it.navigate("reviews").toString() } })
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(listOf("false"), renderedText(host))
+    assertEquals(emptyList(), navigation.requests)
+  }
+
+  @Test
+  fun aHostThatDoesNotEnumerateItsRoutesIsTriedRatherThanRefused() {
+    // An empty set is an absence of information, not a refusal. Reading it as "handles nothing"
+    // would hide every navigating control on every host that resolves routes from a deep-link
+    // table -- which is most of them.
+    val navigation = FakeNavigation(emptySet())
+    val services = FakeServices(navigation = navigation)
+    val guest = DogwoodGuest("main" to { _ -> Probe { it.canNavigate("anything").toString() } })
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(listOf("true"), renderedText(host))
+  }
+
+  @Test
+  fun aHostWithNoNavigationServiceAtAllIsAnOrdinaryBranch() {
+    val services = FakeServices(navigation = null)
+    val guest = DogwoodGuest(
+      "main" to { _ -> Probe { "${it.canNavigate("stay")} ${it.navigate("stay")}" } },
+    )
+    val host = startGuest(
+      guest, "main", services = services,
+      segmentVersions = mapOf(SERVICES_SEGMENT to NAVIGATION_MIN_VERSION),
+    )
+
+    assertEquals(listOf("false false"), renderedText(host))
+  }
+}
+
 class AsynchronousStateTest {
 
   @Test

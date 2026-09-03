@@ -45,6 +45,8 @@ class HostNode(
 
   override fun property(tag: Int): JsonElement? = properties[tag]
 
+  override fun propertyTags(): Set<Int> = properties.keys
+
   override fun children(slot: Int): List<WidgetView> = this.slot(slot)
 
   private val slots = mutableMapOf<Int, SnapshotStateList<HostNode>>()
@@ -72,13 +74,19 @@ class HostTree(
    * and a host that is not investigating a leak should not pay for one. See `Leaks.kt`.
    */
   private val leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
+  /**
+   * Where an unrecognised widget tag is reported.
+   *
+   * Passed in rather than owned, because `Skew.kt` promises one report per experience and a tree
+   * that kept its own set would quietly break that promise: the widget tag is the *most* important
+   * thing a client can fail to recognise, and for a long time it was the one category that never
+   * reached the report anybody actually reads.
+   */
+  val skew: SkewReport = SkewReport(),
 ) {
   val root = HostNode(Id(0), WidgetTag(0))
 
   private val byId = HashMap<Int, HostNode>().apply { put(0, root) }
-
-  /** Node identifiers the client's dictionary did not recognise. Telemetry, not a crash. */
-  val unknownTags = mutableSetOf<Int>()
 
   /** The sequence number of the last batch applied, which every outbound event carries. */
   var appliedSequence: Int = 0
@@ -88,7 +96,7 @@ class HostTree(
     for (change in batch.g) {
       when (change) {
         is Create -> {
-          if (!DogwoodDictionary.knows(change.w)) unknownTags += change.w.value
+          if (!DogwoodDictionary.knows(change.w)) skew.unknownWidgetTags += change.w.value
           byId[change.i.value] = HostNode(change.i, change.w)
         }
         is PropertySet -> node(change.i).properties[change.p.value] = change.v

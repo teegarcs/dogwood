@@ -27,10 +27,25 @@ kotlin {
  * for anyone who clones this. It signs nothing anyone should trust. A real signing key never
  * lives in a repository: pass `-PdogwoodSigningKey=<hex>` or set it in `~/.gradle/gradle.properties`,
  * and rotate the public key in `SliceActivity` to match. Layer 3's key-rotation drill --
- * ship a manifest with two signatures, roll clients forward, retire the old key -- is a Phase 5
- * hardening item and is not exercised here.
+ * ship a manifest with two signatures, roll clients forward, retire the old key -- is exercised
+ * here, and both keys below are throwaway development keys for exactly that reason.
  */
 val developmentSigningKey = "0ca845610dac5a568230ae0b4468004a787b5a541603554a0d3903535dd1f742"
+
+/*
+ * The key being rotated TO, and the reason there are two.
+ *
+ * A rotation only works if a manifest can be signed by the old key and the new one at once, so
+ * that clients holding either can verify it while the fleet rolls forward. Zipline supports it by
+ * skipping signatures whose key name it does not recognise and requiring the first name it *does*
+ * recognise to verify -- which means the order of these entries is part of the contract, not a
+ * detail. `KeyRotationTest` pins the whole sequence against this real manifest.
+ *
+ * Retiring the old key is then deleting its entry here and shipping. A client still holding only
+ * the old key stops accepting updates at that moment, which is what makes the roll-forward step
+ * something to finish rather than start.
+ */
+val rotationSigningKey = "de597b577357a748f319fcd06ddb4994f58f487be0d2118a4dc08e44e4b61862"
 
 zipline {
   mainFunction.set("dev.dogwood.slice.main")
@@ -40,6 +55,14 @@ zipline {
     create("dogwood-development") {
       privateKeyHex.set(
         providers.gradleProperty("dogwoodSigningKey").getOrElse(developmentSigningKey),
+      )
+      algorithmId.set(app.cash.zipline.loader.SignatureAlgorithmId.Ed25519)
+    }
+    // The rotation target. A client that has been rolled forward trusts this one; a client that
+    // has not still verifies against the entry above. Both signatures ride the same manifest.
+    create("dogwood-development-2") {
+      privateKeyHex.set(
+        providers.gradleProperty("dogwoodRotationKey").getOrElse(rotationSigningKey),
       )
       algorithmId.set(app.cash.zipline.loader.SignatureAlgorithmId.Ed25519)
     }

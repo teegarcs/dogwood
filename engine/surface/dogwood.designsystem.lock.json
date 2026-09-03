@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 6,
+    "version": 7,
     "components": [
         {
             "name": "PrimaryButton",
@@ -14,9 +14,15 @@
                 "label": "TextValue",
                 "enabled": "Boolean"
             },
+            "safetyRelevant": [
+                "enabled"
+            ],
             "slots": {},
             "events": {
                 "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
             }
         },
         {
@@ -76,9 +82,15 @@
                 "text": "TextValue",
                 "selected": "Boolean"
             },
+            "safetyRelevant": [
+                "selected"
+            ],
             "slots": {},
             "events": {
                 "onSelectedChange": 1
+            },
+            "eventTypes": {
+                "onSelectedChange": "(Boolean) -> Unit"
             }
         },
         {
@@ -172,9 +184,15 @@
                 "keyboard": "String?",
                 "showCounter": "Boolean"
             },
+            "safetyRelevant": [
+                "enabled"
+            ],
             "slots": {},
             "events": {
                 "onValueChange": 1
+            },
+            "eventTypes": {
+                "onValueChange": "(String, Int) -> Unit"
             }
         },
         {
@@ -195,6 +213,9 @@
             },
             "events": {
                 "onExited": 1
+            },
+            "eventTypes": {
+                "onExited": "(() -> Unit)?"
             }
         }
     ],

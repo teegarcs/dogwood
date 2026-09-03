@@ -114,11 +114,83 @@ Two further consequences the invariant carries, stated so they are chosen rather
 
 Zipline's QuickJS defaults are not tuned for a long-lived composition, and Layer 4 must set them deliberately. Measured from [`QuickJs.kt`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/jniMain/kotlin/app/cash/zipline/QuickJs.kt): `gcThreshold = 256 KiB`, `memoryLimit = -1` (unbounded), `maxStackSize = 512 KiB`. **The stack figure is not what a Dogwood host inherits**, because [`Zipline.create`](https://github.com/cashapp/zipline/blob/1.27.0/zipline/src/hostMain/kotlin/app/cash/zipline/Zipline.kt) immediately raises it: `quickJs.maxStackSize = 6 * 1024 * 1024L`, with the comment "Expect callers to use 8 MiB stack sizes for their calling threads." The effective default is therefore **6 MiB**, and the host thread that calls into the guest must itself be created with a large stack ([ADR-005](../adrs/layer-4/ADR-005-phase-0-harness-resolutions.md)).
 
-- **`gcThreshold`.** QuickJS runs a full, non-generational, stop-the-world mark-and-sweep each time allocation grows by this much. Pause time scales with the *live* set, which here is the Compose slot table, every `MutableState`, the snapshot record chains, the node tree, and the lambda slot table. Raise it substantially (8–16 MB) and call `gc()` explicitly at idle and on memory-pressure callbacks.
+- **`gcThreshold` is not a tuning knob, and an earlier version of this document was wrong to treat it as one.** QuickJS runs a full, non-generational, stop-the-world mark-and-sweep when allocation grows past it, and pause time scales with the *live* set — the Compose slot table, every `MutableState`, the snapshot record chains, the node tree and the lambda slot table. All of that is true. What does not follow is the advice that used to sit here: "raise it substantially (8–16 MB)."
+
+  **The setting does not survive the first collection.** `js_trigger_gc` ends every collection with `rt->malloc_gc_threshold = malloc_size + (malloc_size >> 1)` — one and a half times whatever is live — and `JS_SetGCThreshold` writes that same field, so a host-chosen value governs the *first* collection and is then overwritten forever. Measured in Experiment 0.5 ([`results/allocation-and-gc.md`](../tools/phase0/results/allocation-and-gc.md)): every steady-state collection ratio lands between 1.498 and 1.501, and an interleaved control alternating 16 MiB and 256 KiB shows **no effect at any percentile**. Raising it is inert at best; at 16 MiB the single collection it does govern frees 10.4 MB and becomes the slowest frame in the dataset.
+
+  What actually governs collection frequency is **how much collector-only garbage the guest leaves per frame**, which is a property of the encoder, not of a setting. QuickJS is primarily reference-counted; mark-and-sweep exists to break cycles, so only the part refcounting cannot reclaim drives a collection. Positional encoding leaves 53 bytes per 572-change batch against 617 KB for the rejected named-field encoder — four orders of magnitude, and the reason collections are rare rather than the threshold being large.
 - **`memoryLimit`.** Set a real limit with a defined recovery path — tear down and reload the experience — plus telemetry. Unbounded means any leak runs until the operating system kills the process.
 - **`maxStackSize`.** Composition is deeply recursive, and interpreted frames are heavy. Zipline already raises the QuickJS setting to **6 MiB** and expects host threads to carry an **8 MiB** stack; Redwood independently found **8 MB** necessary, noting it was "experimentally found that's sufficient for our guest programs." Those are the only published datapoints for interpreted Compose composition depth. The Phase 0 harness ran the reference screen at 23 and 50 rows on Zipline's 6 MiB default with 8 MiB host threads and did not overflow; deeper trees are untested.
 
 **Reclamation is not automatic.** `DogwoodApplier.remove()` and `clear()` must perform a depth-first purge of both the node map and the lambda slot table. Without it, a feed that creates and destroys ten thousand rows retains ten thousand closures, each capturing its row's data. Redwood does exactly this purge in `takeChanges()`.
+
+### Saveable State: What May Cross, and Why It Is Narrow
+
+`rememberSaveable` in guest code writes into a `SaveableStateRegistry` that Layer 4 owns. What it
+holds has to survive the boundary, because the whole point of it is to be handed to a *different*
+guest instance: a replacement payload after a code update, or a fresh runtime after the host's
+warm pool evicted this one ([Layer 5 ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md)).
+So the registry is constructed with a deliberately narrow `canBeSaved` predicate, and a guest that
+tries to save something outside it is told at the call site rather than discovering on the next
+swap that its state quietly vanished.
+
+What crosses:
+
+- `null`, and the primitives `Int`, `Long`, `Float`, `Double`, `Boolean`, `String`.
+- **`MutableState`**, unwrapped and re-wrapped. `rememberSaveable(stateSaver = …)` does not hand the
+  registry a bare value; Compose wraps it in a `MutableState` envelope so the restored state keeps
+  its mutation policy. A predicate that rejected the envelope would fail at composition time with a
+  message about `MutableState` that reads like a mistake at the call site.
+- **Lists**, checked element by element rather than assumed. This is what Compose's own `listSaver`
+  produces and therefore the idiomatic way to save a holder with more than one field.
+- **Maps with string keys**, checked the same way. Keys must be strings because the wire form is a
+  JSON object and JSON object keys are strings.
+
+Everything else is rejected.
+
+**Why maps are not a convenience.** `rememberSaveableStateHolder()` is the standard way to keep an
+off-screen screen's state alive, and it is what a guest that owns its own navigation is built on.
+It does not register one provider per screen. It registers **one** provider whose value is a nested
+`Map<key, Map<providerKey, List<Any?>>>` holding every retained screen at once. A predicate that did
+not admit maps would therefore not merely drop the holder's entry: `performSave` throws on the first
+value it rejects, so one holder anywhere in the tree takes the **entire snapshot** down and every
+unrelated screen's state with it — with nothing on screen to explain why. That is precisely how the
+defect presented before it was fixed: a counter that read zero after a tab switch.
+
+Values are carried as JSON, with `MutableState` and `Map` each written into their own tagged
+envelope so the restore side can tell one from the other without inspecting what is inside. The
+restored map is a plain `Map<String, Any?>`; `SaveableStateHolder` casts it to its own nested
+generic type, which is sound only because Kotlin/JavaScript erases generics — the cast checks
+nothing at runtime, and the shape it assumes is the shape the guest wrote.
+
+### The Wire Grammar Lives in One Place, and Rejects What It Cannot Read
+
+The positional format's *vocabulary* — widget tags, property tags — is versioned and locked. Its
+**grammar** is the tuple shapes those tags travel in, and it is governed differently: the
+discriminators and the decoder live once, in `dogwood-protocol`, which both sides depend on and which
+targets JavaScript as well as the Java Virtual Machine and Android. The **encoder does not live
+there**, because [ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md) requires the
+guest to build native JavaScript arrays for QuickJS's own `JSON.stringify`, which is irreducibly
+platform-specific; it imports its discriminators instead of declaring them.
+
+**Every change tuple's arity is checked, and that check is the difference between a loud failure and
+a silent one.** Every interesting element of a change tuple is an integer, so a payload whose tuples
+have shifted by one parses perfectly and means something else — a child identifier read as an
+insertion index, a count read as a position. No exception, no missing field, no report entry; just a
+tree that is quietly wrong while every later batch compounds against it. Since the guest is delivered
+over the air independently of the host, that skew is the normal case rather than an edge one.
+
+**A batch that cannot be decoded is rejected whole, reported, and survived.** Not degraded — and the
+distinction matters, because everywhere else in this system an unrecognised thing degrades. The
+changes in a batch are ordered and interdependent: skip a `Create` and a later `ChildAdd` references
+a node that does not exist; skip a `ChildRemove` and every index after it in that slot is wrong.
+There is nothing to degrade to. So `ProtocolMismatch` is caught at `sendChanges`, the reason is
+recorded in `SkewReport.rejectedBatches`, and **the tree already on screen keeps rendering** — the
+same shape the delivery layer uses when a manifest fails verification, and for the same reason.
+
+See [ADR-009](../adrs/layer-4/ADR-009-one-grammar-one-copy.md), which also records what remains
+unconsolidated: the deferred-expression factory identifiers, still declared in four places, and event
+signatures, which the dictionary lock does not cover.
 
 ## 4. Interfaces & Boundary
 
@@ -187,9 +259,19 @@ Locale is required twice over: for the resources subsystem ([Layer 5](layer-5-ho
 
 **Stale events are expected and must be handled.** The user can tap a node that the guest removed on a frame the host has not yet rendered. The guest must route unresolved events to `onUnknownEventNode` telemetry rather than crashing or silently ignoring them, and each `Event` should carry the change-batch sequence number it was rendered against so the guest can drop stale ones — a double-tapped "Pay" button across a frame boundary is a correctness problem, not a cosmetic one. Redwood handles the unknown-node case but has no sequence number; this is an opportunity to improve on the prior art. The sequence field is `Event.q` in [ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md).
 
-**Lifecycle events, partly designed.** Code update while a screen is live is the *normal* case, since `ZiplineLoader.load()` returns a `Flow`, and it is **implemented**: `DogwoodSession` collects that flow, captures the outgoing guest's `SaveableStateRegistry` through `snapshotState()`, tears it down, and restores into the replacement. Saved values cross the boundary as JSON, which is a real constraint on what a guest may declare saveable. **Backgrounding, process death, and memory pressure remain unaddressed**: the same snapshot mechanism is what they will use, but nothing persists a snapshot beyond the process today.
+**Lifecycle events, partly designed.** Code update while a screen is live is the *normal* case, since `ZiplineLoader.load()` returns a `Flow`, and it is **implemented**: `DogwoodSession` collects that flow, captures the outgoing guest's `SaveableStateRegistry` through `snapshotState()`, tears it down, and restores into the replacement. Saved values cross the boundary as JSON, which is a real constraint on what a guest may declare saveable. **Memory pressure and process death are now addressed too** ([ADR-010](../adrs/layer-4/ADR-010-state-that-outlives-the-process.md)). `DogwoodShell.snapshotAll()` captures every warm experience's state and `restoreAll()` seeds a fresh shell with it; a host persists that between them, from `onStop` — which it must, because reading a live guest's state crosses to the Zipline thread and is suspending, while `onSaveInstanceState` is synchronous on the main thread.
 
-**What the sandbox may reach, it reaches through the service surface.** No filesystem, no sockets, no logger, no flags, no clock it can trust — a guest gets a `DogwoodServices` vendor at `start` with a nullable accessor per service, and a null means this client does not offer it. Absence is normal and guest code degrades rather than fails. `DogwoodNetwork.fetch` is `suspend` because a blocking fetch would stop composition, the frame clock and every pending event until the network answered, and the host implementation is a **policy point**: the payload is downloaded and replaceable over the air, so an open network service would be an exfiltration channel with the host application's name on it. See [Layer 5](layer-5-host.md), "The Host Service Surface".
+**Persisting a snapshot changes what a snapshot is, and that governs the design.** In memory one lives microseconds; on disk it is user data at rest, and it holds whatever the guest declared saveable — measured, for a masked card-number field, as the digits in plain text. So the store writes only to private application storage, bounds age, deletes on read, and refuses an oversized snapshot whole rather than truncating, since a partial restore puts a screen into a state its guest never composed. Nothing in the host can know which fields are too sensitive to survive a process, so the code that declared them decides: `rememberTextFieldState(sensitive = true)` saves a field's shape and not its contents, while still keeping the acknowledged edit count that stops a restored field discarding everything typed next.
+
+**What the guest's snapshot cannot carry is the host's own state.** Which screen is open is the host's, and a host that restores guest state while forgetting its own returns the user to the right data on the wrong page.
+
+**The strength of this sandbox depends on the platform, and the Web profile is weaker.** On Android and iOS it is enforced by QuickJS: there is genuinely no `fetch`, no document, no storage, so a guest that tried to reach past the service surface would find nothing to reach. In a browser the guest is ordinary JavaScript, and enforcement has to be rebuilt — a Web Worker removes the document and the host page, and a Content Security Policy's `connect-src` makes the network allow-list something the browser applies rather than something the host asks for. Even then a Worker shares the page's origin. See [Layer 5 ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md); the sentence below describes the contract, and on the Web it is enforced by the browser rather than by the interpreter.
+
+**What the sandbox may reach, it reaches through the service surface.** No filesystem, no sockets, no logger, no flags, no clock it can trust — a guest gets a `DogwoodServices` vendor at `start` with a nullable accessor per service. Absence is normal and guest code degrades rather than fails — but **a guest learns about absence from `available()`, never from a null return**. A null service cannot cross the boundary; the accessor throws and takes the experience down at `start`, so asking for something this client does not offer is not a way to find out that it does not offer it ([ADR-029](../adrs/layer-5/ADR-029-a-null-service-cannot-cross.md)). `DogwoodNetwork.fetch` is `suspend` because a blocking fetch would stop composition, the frame clock and every pending event until the network answered, and the host implementation is a **policy point**: the payload is downloaded and replaceable over the air, so an open network service would be an exfiltration channel with the host application's name on it. See [Layer 5](layer-5-host.md), "The Host Service Surface".
+
+**The surface is versioned, and that version is the guest's responsibility to check.** `segmentVersions["dogwood.services"]` says which revision of the service surface the client was built against. This matters more here than anywhere else in the protocol, and the asymmetry is the point: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method an older host does not implement is an error at the boundary with **no fallback path**. A guest that wants a method added after revision *N* must decide not to call it, before calling it.
+
+`DogwoodNavigation` (revision 2) is the first service to depend on this, so it is the worked example. The guest's service resolution checks the revision before touching the accessor rather than wrapping it in a `try`, because the thing that fails is the call. A payload is delivered over the air and routinely runs on a client older than itself, so this is an ordinary case rather than an edge one.
 
 - **Inputs:** A live `Zipline` instance from Layer 3; `Event` values; frame signals; a configuration flow.
 - **Outputs:** Batched `List<Change>`; `requestFrame()` calls; telemetry.

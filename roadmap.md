@@ -32,7 +32,7 @@ Two sequencing decisions, recorded in [Layer 5 ADR-006](adrs/layer-5/ADR-006-gue
 | 0.1 | Compile the **Phase 0 probe program** (defined in the harness appendix below — the reference screen plus its state and event handlers; the Phase 1 slice does not exist yet) to Kotlin/JavaScript with `androidx.compose.runtime:runtime-js`, `runtime-saveable-js`, `kotlinx-coroutines-core-js`, and `kotlinx-serialization-json-js` linked in production configuration. Package as `.zipline` bytecode. Measure minified bytes, gzipped bytes, bytecode bytes, on-device module-load time, and `QuickJs.memoryUsage` after load. | ~1 day | Cold-start cost. `runtime-js` alone is 1,777,599 bytes of klib. Cash App's published baseline for a real Kotlin/JavaScript application is 360 ms of QuickJS module loading. |
 | 0.2 | **Start by instrumenting Redwood Treehouse's runnable samples** (`counter`, `emoji-search`) — they already run the real Compose runtime inside Zipline's QuickJS on device ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)); measuring them is hours, not days, and produces the first number anyone has published. Then run a real composition with a trivial Dogwood `Applier` and **Dogwood-shaped stubs** (deferred-expression recording included — a bare `Applier` understates recording cost). Measure initial composition and, separately, recomposition after a single state change, for the **reference screen defined in the harness appendix below**, on the two named devices, warm and cold per the appendix protocol. | ~3 days | **The central unknown is the number, not the existence.** Redwood Treehouse proves Compose composition runs in a JavaScript interpreter; nobody has published a measurement of it. Initial composition being slow is maskable; recomposition being slow is fatal to interactivity. |
 | 0.3 | Encode the reference screen's initial batch (~150 nodes) **in the provisional v0 wire format of [Layer 4 ADR-004](adrs/layer-4/ADR-004-change-event-protocol-v0.md)** through Zipline's `CallChannel`, end to end. Report guest encode, `JSON.stringify`, Java Native Interface (JNI) transcode, host parse, and total bytes, at batch sizes 1 / 10 / 100 / 1,000. The five-pass breakdown requires timing inside Zipline's internal `CallChannel`, so budget a locally patched Zipline build; if that slips, report end-to-end plus total bytes only. | ~2 days | Protocol cost per frame. Every crossing is one JSON string; the cost that matters is per byte. |
-| 0.4 | Measure guest garbage-collection behaviour under 0.2 with `gcThreshold` at Zipline's default 256 KiB and at 8–16 MB. Record collection count, total pause, and maximum pause — via the patched-QuickJS timing hook defined in the harness appendix (Zipline's public Application Programming Interface (API) exposes no garbage-collection hooks). | ~1 day | Whether garbage collection, rather than interpretation, is the source of any jank. |
+| 0.4 | Measure guest garbage-collection behaviour under 0.2 with `gcThreshold` at Zipline's default 256 KiB and at 8–16 MB. Record collection count, total pause, and maximum pause — via the patched-QuickJS timing hook defined in the harness appendix (Zipline's public Application Programming Interface (API) exposes no garbage-collection hooks). **✅ Done, as Experiment 0.5** ([`results/allocation-and-gc.md`](tools/phase0/results/allocation-and-gc.md)). Collections land in frames and roughly double them — 5.2–7.0 ms against a quiet 2.7 ms — but **not one of 41,988 crossings, and no collecting frame, exceeded the 16.7 ms budget** on either host. Garbage collection is not the source of jank here. Two findings the question did not anticipate: **`gcThreshold` does nothing**, because QuickJS resets it to 1.5× live after every collection, so the host's value governs only the first one; and what actually sets collection frequency is how much collector-only garbage the encoder leaves, where positional beats the rejected named-field encoder by four orders of magnitude. | ~1 day | Whether garbage collection, rather than interpretation, is the source of any jank. |
 
 **Gate — stated as a computable budget, because Phase 0 has no host renderer.** The end-to-end tap-to-repaint path is: event decode + guest recomposition (0.2) + batch encode/transcode/parse (0.3) + two vertical-sync intervals + host apply-and-render (built in Phase 1, estimated here as one frame). Proceed only if, on the low-end devices measured:
 
@@ -281,21 +281,42 @@ verifying on a device rather than in a suite:
 
 ## Phase 4.5 — Experience Composition & the Host Shell
 
-**Planned** — [`plans/experience-composition.md`](plans/experience-composition.md). The demo's
-tabs surfaced a question the architecture had only answered implicitly, and both answers must be
-first-class:
+**Complete** — [`plans/experience-composition.md`](plans/experience-composition.md), decided in
+[ADR-027](adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md),
+[ADR-028](adrs/layer-5/ADR-028-guest-initiated-navigation.md) and
+[ADR-029](adrs/layer-5/ADR-029-a-null-service-cannot-cross.md). The demo's tabs surfaced a question
+the architecture had only answered implicitly, and both answers are now first-class:
 
 - **Path A — one experience, many screens**: the guest owns navigation as ordinary Compose; state
   shares freely; already works and costs nothing new.
 - **Path B — many experiences**: independent teams, cadences, or isolation requirements; each its
-  own QuickJS runtime. Works, but **switching pays a full cold start today** (~127 ms p50 on a
-  development machine, worse on device), and the sample's switch leaks the prior session.
+  own QuickJS runtime. Switching used to pay a full cold start and leak the prior session; it now
+  goes through the shell and costs nothing the shell controls.
 
-The plan: a host **shell** that retains warm experiences so switching costs one frame, with
-snapshot-evict-restore under memory pressure riding the existing code-update machinery; a
-**navigation service** so a guest can ask the host to route; and **two reference examples**, one
-per path, that a product team can copy. Precedes the Web host build, which will mount experiences
-through the same shell. Approximately six days.
+Delivered: a host **shell** retaining warm experiences, a **navigation service** so a guest can ask
+the host to route, and **two reference examples** a product team can copy — `AppShell.kt` in the
+guest for Path A, `TabsActivity.kt` in the Android sample for Path B.
+
+**Measured on device.** A warm switch costs the shell **0 ms, taken synchronously**; what remains
+is Compose drawing an already-applied tree, which a native tab switch of the same content would
+also pay. What the shell removes is the **140–650 ms of guest cold start** that made Path B
+unusable. Each warm experience costs **9–14 MB**, which set the default cap at three. Hidden
+experiences requested **zero** frames over twenty idle seconds, so keeping one warm costs memory
+and nothing else. Two experiences render at once from two runtimes on one Zipline thread, with no
+cross-contamination.
+
+The plan's "switching costs one frame" target was optimistic rather than the result being poor: it
+counted the swap and forgot the draw.
+
+**Five defects were found only by running the code**, three of them in subsystems this work was not
+aiming at — a `rememberSaveableStateHolder` whose state could not cross the boundary *at all*, an
+eviction that freed nothing, a host environment derived per window rather than per surface, an
+`onTrimMemory` calling through a null reference, and — the oldest — a **null host service crashing
+the guest at start**, which falsified "every service is optional and its absence is normal", a
+property documented since [ADR-013](adrs/layer-5/ADR-013-host-services-and-entry-points.md) and
+never once exercised because every host in the repository wired every service.
+
+Precedes the Web host build, which will mount experiences through the same shell.
 
 ---
 
@@ -303,9 +324,23 @@ through the same shell. Approximately six days.
 
 **Approximately 4–6 weeks**, dominated by the web-profile design rather than the host itself. Per the platform order above, Web precedes iOS.
 
-1. **Design the web profile as an ADR first.** The guest loads into the browser's JavaScript engine directly — no QuickJS, no `.zipline` bytecode — and delivery and integrity ride ordinary web deployment (same-origin scripts over Hypertext Transfer Protocol Secure (HTTPS)) rather than `ZiplineLoader` and Ed25519 manifests. The dictionary check must still gate loading; specify where it runs.
-2. Bring up the Compose Multiplatform Web host with the unchanged protocol, applier, generated bindings, and registered design-system segments. Constraints verified in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md): **Compose Multiplatform for Web is Beta**, `material3-wasm-js` trails at `1.12.0-alpha03` (less limiting under the design-system-first path, which leans on registered components rather than Material), and community-measured Skiko WebAssembly payloads run ~8 MB uncompressed / ~3 MB compressed — page-weight viability is **unproven** and gates this phase.
-3. Hardening drills that need no new platform: key rotation (ship a manifest with two signatures, roll clients forward, retire the old key), the skew containment drill (build a guest against a newer dictionary; confirm placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback — section 6 of the [specification](high-level-tech-spec-final.md)), and guest state preservation across code update, backgrounding, and process death.
+1. ✅ **The web profile is designed** — [ADR-032](adrs/layer-5/ADR-032-the-web-profile.md). The guest is ordinary JavaScript in a **Web Worker**; the host is Kotlin/WebAssembly with Compose Multiplatform on the main thread; the bridge is `postMessage` carrying the **same positional protocol**, since the measurements show no per-platform transport is justified. The dictionary check moves to a sidecar manifest verified before the Worker is created. Isolation is the Worker (no document) plus a Content Security Policy making the network allow-list browser-enforced, with the specification's sandbox claim amended to say it is weaker here rather than left to imply parity. Integrity is the named gap: HTTPS authenticates the server but does not give what Ed25519 manifest signing gives. Original framing follows.
+
+   **Design the web profile as an ADR first.** The guest loads into the browser's JavaScript engine directly — no QuickJS, no `.zipline` bytecode — and delivery and integrity ride ordinary web deployment (same-origin scripts over Hypertext Transfer Protocol Secure (HTTPS)) rather than `ZiplineLoader` and Ed25519 manifests. The dictionary check must still gate loading; specify where it runs.
+2. ✅ **A Compose Multiplatform Web host runs**, verified in a real browser — `engine/dogwood-web/`, sample and harness at `engine/samples/web-slice/` (`run.sh` asserts rather than prints). A JavaScript guest in a Worker sends the **unchanged positional batch** over `postMessage`; the Wasm host decodes it, applies it to a snapshot mirror, and Compose Multiplatform draws it — asserted on measured glyph boxes and on 2,304 pixels at exactly the colour the guest asked for. The dictionary check refuses a too-new payload with the guest script **never fetched**, let alone executed. **Time to first frame is no longer unmeasured: 331–468 ms** — but over loopback, uncompressed, under SwiftShader, so indicative rather than the adoption number.
+
+   What is **not** built, and the honest scope of that number: no real Kotlin guest (the guest is hand-written JavaScript), no `DogwoodServices`, and no design system — five layout bindings only, so no expression evaluator, palette, lazy containers or text recipes. `dogwood-host` cannot compile for WebAssembly today for four separable reasons: Zipline in its common source set, threading actuals, Coil and OkHttp, and generated bindings that must avoid Java Virtual Machine types. Once those are addressed most of `dogwood-web` deletes itself, because `HostTree`, `WidgetView`, `Bindings`, `Modifiers`, `Expressions` and `Theme` are already platform-neutral Compose.
+
+   Original framing: bring up the Compose Multiplatform Web host with the unchanged protocol, applier, generated bindings, and registered design-system segments. Constraints verified in [Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md): **Compose Multiplatform for Web is Beta**, and `material3-wasm-js` trails at `1.12.0-alpha03` (less limiting under the design-system-first path, which leans on registered components rather than Material).
+
+   **Page weight has now been measured and does not block this phase** — [ADR-030](adrs/layer-5/ADR-030-web-page-weight-measured.md), harness at [`tools/web-weight/`](tools/web-weight/). A Compose Multiplatform page linking Material 3 is **10.23 MB raw, 2.92 MB brotli**, of which **81% is `skiko.wasm`**, a prebuilt JetBrains artifact no amount of Dogwood code discipline can shrink. The community figure was right about compressed and understated raw: ~8 MB uncompressed is the Skiko blob alone, not the page. The practical consequence is that page weight is a **fixed entry toll** rather than something that scales with how much design system a team registers.
+
+   **What still gates the phase is time to first frame**, which is unmeasured. Bytes are only a proxy for waiting, and the harness deliberately reports none — measuring it needs a real browser with a graphics context on a representative machine, and two plausible shortcuts (headless Chrome, `WebAssembly.compile` under Node) each produce numbers that are wrong in the direction that flatters the result. The page carries a `#dogwood-first-frame` probe so that doing it properly needs a browser and a network, not new code.
+3. **Toolchain hazard, found while measuring the bridge and unresolved: Kotlin 2.3.20's production `wasm-opt` pass list silently miscompiles `String.toCharArray()`.** It returns an array of the correct length filled with zeros. Reproduced from a clean build in [`tools/web-weight/bridge/`](tools/web-weight/bridge/): the default pipeline yields `viaBulkCopy = 0` where a per-character read of the same 28-byte input yields `1219597841`; removing `--gufa` from the pass list makes both agree. GUFA does not model the imported `wasm:js-string intoCharCodeArray` builtin as mutating a WasmGC array, and `--closed-world` with `-O3` must precede `--gufa` to trigger it. **It is context-sensitive** — adding an unrelated caller of `toCharArray()` made it vanish and removing that caller brought it back — so it cannot be reasoned about locally, and **the blast radius is unknown**: any WasmGC array written by an imported builtin is a candidate. This is a wrong-answer bug in a release build, not a performance problem, and it must be resolved or bounded before a Web host ships. It is also why the bridge harness carries a correctness gate: without one the run would have reported a fabricated four-times speed-up for the miscompiled path.
+
+4. **The bridge itself is measured and is not a problem** — [`tools/web-weight/results/bridge.md`](tools/web-weight/results/bridge.md). Passing a string from JavaScript into Kotlin/Wasm costs **0.009 µs regardless of size** (flat from 106 bytes to 16 KB), because `kotlin.String` is a `JsString` externref under `builtins: ['js-string']` — there is no transcoding to pay for. String versus bytes is a tie at every size; the only real win is dropping text entirely, and the structured JavaScript-object path that avoids serialisation altogether is the *worst* option, 2.4x behind, because each element read is an imported call. **The mobile conclusion survives as an outcome but not as an argument**: the cost split inverts from encoding 99.4% / transport 1.0% to encoding 44.7% / transport 0.02% / **decoding 55.3%**. A per-platform transport is not justified — the worst path costs 0.71% of a frame and steady state under 0.005% — so one logical protocol stands.
+
+5. Hardening drills that need no new platform: key rotation (ship a manifest with two signatures, roll clients forward, retire the old key), the skew containment drill — ✅ **done** ([`tools/skew-drill/`](tools/skew-drill/)): a version 8 payload served to an installed version 7 client kept index arithmetic across a placeheld unknown widget, ignored an unknown property on a widget with no affordance, and **withheld** a button carrying an unknown property on a widget that owns one, reporting both. It also found that no sample read `SkewReport` at all, so the containment was working and invisible, and that the report must be sampled rather than observed, and guest state preservation across code update, backgrounding, and process death — ✅ **done** ([ADR-010](adrs/layer-4/ADR-010-state-that-outlives-the-process.md)); verified on device by setting state, backgrounding, `adb shell am kill`, and relaunching to find it intact.
 
 ---
 

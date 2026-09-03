@@ -19,6 +19,10 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ScrollView
 import android.widget.TextView
+import dev.dogwood.host.ALLOC_THRESHOLDS
+import dev.dogwood.host.ALLOC_VARIANTS
+import dev.dogwood.host.AllocationGcExperiment
+import dev.dogwood.host.AllocationGcResults
 import dev.dogwood.host.GuestPayload
 import dev.dogwood.host.Phase0Driver
 import dev.dogwood.host.Phase0Results
@@ -77,6 +81,14 @@ class Phase0Activity : Activity() {
     val ziplineDir = stageGuestFromAssets()
     val payload = GuestPayload(ziplineDir)
     val dispatcher = executor.asCoroutineDispatcher()
+
+    // Experiment 0.5 is long and answers a different question, so it is opt-in:
+    //   adb shell am start -n dev.dogwood.host.android/.Phase0Activity --es experiment alloc
+    // With no extra, the activity runs experiments 0.1 through 0.4 exactly as before.
+    if (intent?.getStringExtra("experiment") == "alloc") {
+      runBlocking(dispatcher) { runAllocationGc(payload, dispatcher) }
+      return
+    }
 
     runBlocking(dispatcher) {
       val driver = Phase0Driver(dispatcher, payload, WARMUPS, ITERATIONS)
@@ -153,6 +165,53 @@ class Phase0Activity : Activity() {
       File(outDir, "$slug.md").writeText(renderMarkdown(results))
       report("wrote ${File(outDir, "$slug.md")}")
     }
+  }
+
+  /**
+   * Experiment 0.5: allocation per batch, the tail of a sustained load, and whether a
+   * collection lands inside a frame.
+   *
+   * Iteration counts are lower than the development host's because an emulator or a low-end
+   * device runs the same loops an order of magnitude slower, and a run nobody waits for
+   * produces no numbers at all. They are reported in the result file, so nothing about the
+   * sample size has to be taken on trust.
+   */
+  private fun runAllocationGc(
+    payload: GuestPayload,
+    dispatcher: kotlinx.coroutines.CoroutineDispatcher,
+  ) {
+    val driver = Phase0Driver(dispatcher, payload, WARMUPS, ITERATIONS)
+    val experiment = AllocationGcExperiment(
+      driver = driver,
+      rows = ROW_COUNTS.first(),
+      variants = ALLOC_VARIANTS,
+      smallChanges = 3,
+      bigChanges = 572,
+      // Overridable from the launch command, so a run can be retuned without a rebuild:
+      //   adb shell am start -n ... --es experiment alloc --ei tail-iterations 6000
+      allocIterations = intent.getIntExtra("alloc-iterations", 1000),
+      bigAllocIterations = intent.getIntExtra("big-alloc-iterations", 100),
+      tailIterations = intent.getIntExtra("tail-iterations", 6000),
+      traceIterations = intent.getIntExtra("trace-iterations", 3000),
+      thresholds = ALLOC_THRESHOLDS,
+      phases = (intent.getStringExtra("phases") ?: "alloc,tail,trace")
+        .split(',').map { it.trim() }.toSet(),
+      log = ::report,
+    )
+    report("0.5 allocation and garbage collection")
+    val label = "${Build.MANUFACTURER} ${Build.MODEL} emulator-or-device"
+    val results = experiment.run(
+      label = label,
+      platform = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), " +
+        "${Build.SUPPORTED_ABIS.firstOrNull()}, ${Build.HARDWARE}",
+    )
+    val outDir = File(getExternalFilesDir(null) ?: filesDir, "results").apply { mkdirs() }
+    val slug = label.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+    val file = File(outDir, "alloc-gc-$slug.json")
+    file.writeText(
+      Json { prettyPrint = true }.encodeToString(AllocationGcResults.serializer(), results),
+    )
+    report("wrote $file")
   }
 
   /** Copies the staged `.zipline` modules and manifest out of assets onto the filesystem. */

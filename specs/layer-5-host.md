@@ -68,12 +68,14 @@ flowchart TD
 * **Parsed surface model:** A serializable intermediate representation. Making it serializable matters: it is the single source of truth from which all three outputs are generated, and it can be diffed between Compose versions to see exactly what changed.
 * **Guest stub generator:** Emits `dogwood-compose` — recording functions with signatures identical to the real ones.
 * **Host binding generator:** Emits the host dispatch layer that maps a `WidgetTag` to a real Compose call.
-* **Dictionary emitter:** Emits the versioned artifact naming every API this client build understands, consumed by [Layer 2](layer-2-compiler.md) and by Layer 1's checker. **Format (v0):** one JSON file per client build containing `formatVersion`; a `segments` list — each with `name` (`dogwood.core`, `acme.designsystem`), `segmentId` (the 8-bit tag prefix from [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1), and `version`; and per segment its `widgets` — each with `localTag`, fully-qualified `name`, overload discriminator, and `params`, where every parameter carries `propertyTag` (or `childrenTag`/`eventTag`/`modifier` role), type class (value / deferred-expression / slot / event), `optional`, `defaultResolution` (`guest-const` or `host` — the sentinel rule from overview §7 item 4), and `safetyRelevant` (the overview §6 flag: `enabled`, `checked`, and relatives). This is the minimum field set three layers already depend on; the schema gets its own Architecture Decision Record when the generator lands, but Phase 1's hand-written dictionary uses exactly these fields.
+* **Dictionary emitter:** Emits the versioned artifact naming every API this client build understands, consumed by [Layer 2](layer-2-compiler.md) and by Layer 1's checker. **Format (v0):** one JSON file per client build containing `formatVersion`; a `segments` list — each with `name` (`dogwood.core`, `acme.designsystem`), `segmentId` (the 8-bit tag prefix from [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1), and `version`; and per segment its `widgets` — each with `localTag`, fully-qualified `name`, overload discriminator, and `params`, where every parameter carries `propertyTag` (or `childrenTag`/`eventTag`/`modifier` role), type class (value / deferred-expression / slot / event), `optional`, `defaultResolution` (`guest-const` or `host` — the sentinel rule from overview §7 item 4), and `safetyRelevant` (the overview §6 flag: `enabled`, `checked`, and relatives) — **implemented** in [ADR-031](../adrs/layer-5/ADR-031-safety-relevant-parameters.md) as a per-component set of parameter names, recorded in the dictionary so the side that compiles payloads sees the marking and not only the side that renders them. Marking or unmarking a parameter is a compatibility event and the lock fails a build that does it without raising the segment version. This is the minimum field set three layers already depend on; the schema gets its own Architecture Decision Record when the generator lands, but Phase 1's hand-written dictionary uses exactly these fields.
 * **`HostChangeApplier`:** Applies an inbound batch to the mirror tree. Creates nodes, sets properties, inserts and removes children, updates modifiers.
 * **Host node tree (snapshot state):** The mirror of the guest's tree, held in Compose snapshot state so that mutating it triggers host-side recomposition naturally.
 * **Tag in dictionary? / `MismatchHandler`:** The containment gate, not a feature. Its contract is specified in section 6 of the [overview](../high-level-tech-spec-final.md) and is binding here.
 
   Two corrections to an earlier draft. First, **skipping an unrecognised `Create` is not safe**: Redwood's `HostProtocolAdapter` does `protocol.widget(change.tag) ?: continue`, which registers no node, so any later change on that identifier reaches `checkNotNull(nodes[id.value])` and throws — Redwood's own tests assert this. Dogwood must insert a **placeholder node** instead, so index arithmetic in the rest of the batch stays consistent. Second, `ProtocolMismatchHandler.Throwing` is not test-only in Redwood; it is the **default parameter value** of `HostProtocol.Factory.create`. Dogwood must supply a reporting handler explicitly.
+* **The affordance guard.** Generated alongside the dispatch, and the one place a client stops drawing rather than degrading. A widget whose dictionary entry names any `safetyRelevant` parameter is **withheld** — replaced by the same inert placeholder an unknown widget tag produces, drawn with the guest's own modifier so the gap is the size the guest asked for — when it arrives carrying a property tag this client does not know. Everywhere else, unreadable input degrades appearance; here it would degrade into a control that lies about what it will do. The decision is per widget rather than per property because a client meeting an unknown tag cannot ask what that property meant, and the marking follows what a parameter governs rather than what it is called. See [ADR-031](../adrs/layer-5/ADR-031-safety-relevant-parameters.md).
+
 * **Generated `RenderNode` composable:** A generated `@Composable` that dispatches on `WidgetTag` to the real Compose function, recursing into children slots. This is, structurally, the large dispatch table the project set out to eliminate — the point is that **no human writes or maintains it**.
 * **Deferred expression evaluator:** Resolves non-primitive parameters. See below.
 * **Real Compose Multiplatform:** Layout, measure, draw, animation, accessibility, and text input, all native and full speed.
@@ -224,6 +226,7 @@ flowchart LR
     okhttp["OkHttpClient"]
     flags["the application's own flag system"]
     logsink["Logcat / stdout / telemetry"]
+    router["the application's own navigation"]
   end
   subgraph hostside["dogwood-host"]
     vendor["DogwoodServiceHost"]
@@ -232,6 +235,7 @@ flowchart LR
     cbl["CallbackLog"]
     cba["CallbackAnalytics"]
     mff["MapFeatureFlags"]
+    nav["CallbackNavigation<br/>routes · thread hop · skew"]
     exp["DogwoodExperience.start<br/>entryPoint · launchParams · services"]
   end
   subgraph guestside["Guest — inside QuickJS"]
@@ -250,26 +254,49 @@ flowchart LR
   cbl --> vendor
   cba --> vendor
   mff --> vendor
+  nav --> vendor
   vendor --> exp
   exp --> resolve --> local --> code
   exp --> entry --> code
   code -- "suspend fetch" --> net
+  code -- "navigate(route, params)" --> nav --> router
 ```
 
 #### Diagram Node Definitions
 
-- **`DogwoodServiceHost`.** The vendor. Holds five nullable services and hands them out. A service left null is genuinely absent, reported both by a null accessor and by `available()`, and the guest is expected to carry on without it — an application should be able to ship Dogwood without wiring analytics, and a guest written against one that has analytics should keep running on one that does not. Its `close` deliberately does **not** close what it vended: the guest holds those services for its whole life, and the vendor is finished the moment `start` returns.
+- **`DogwoodServiceHost`.** The vendor. Holds the nullable services and hands them out. A service left null is genuinely absent, reported both by a null accessor and by `available()`, and the guest is expected to carry on without it — an application should be able to ship Dogwood without wiring analytics, and a guest written against one that has analytics should keep running on one that does not. Its `close` deliberately does **not** close what it vended: the guest holds those services for its whole life, and the vendor is finished the moment `start` returns.
 - **`OkHttpNetwork`.** The guest's only route off the device, and the place the host acts as a policy point. It **defaults to refusing every request**. Cleartext is opted into per host rather than by a global switch. Bodies are capped, checked against `Content-Length` and again against what arrived, because a chunked response reports `-1`. Input and output run on `Dispatchers.IO`, because the call arrives on the Zipline thread — the only thread that may touch the guest. Every failure is a value, not an exception, so a guest can render an empty state for "this client will not let me do that".
 - **`SystemClock`.** Not about *reading* a time — QuickJS has `Date.now()`. It is about the host and guest agreeing on one, about a test being able to pin it, and about the time zone, which the guest genuinely cannot obtain because the pinned QuickJS ships no ECMA-402 International application programming interface (`Intl`).
 - **`CallbackLog`, `CallbackAnalytics`, `MapFeatureFlags`.** Adapters onto whatever the application already uses. Flags are a *snapshot* taken when the experience starts; a flag flipped while a screen is open does not reach it, and that limit is stated because its failure mode is silent — the screen keeps working, with the old answer.
+- **`CallbackNavigation`.** The guest's way of asking to go somewhere it cannot go itself, and without it every experience in a multi-experience product is an island. Decision record: [ADR-028](../adrs/layer-5/ADR-028-guest-initiated-navigation.md). Three things it settles.
+
+  **The host interprets routes, and the guest never learns the outcome.** A route may become another Dogwood experience, a native screen, a browser, or nothing at all; that is chrome, and chrome belongs to the side that owns the back stack, the transition, the hardware back button and the deep-link table. Routes are strings for the same reason entry points are — a deep link is a string the host already holds, and a generated enumeration would mean a client build per destination.
+
+  **A guest asks before it draws, not after it taps.** `routes()` is read once at start, and `canNavigate(route)` answers locally with no boundary crossing, because what a guest legitimately needs is whether a control is worth rendering: a "See all reviews" button on a client with no reviews screen is worse than no button, since a dead control makes the user blame the product rather than the build. **An empty route set means "this host does not enumerate", never "this host handles nothing"** — a host resolving routes from a deep-link table cannot list them, and reading an empty set as a refusal would hide every navigating control on every such host.
+
+  **An unknown route is skew.** The host reports it into `SkewReport.unknownRoutes` and stays put, on the same rule as an unknown widget tag. Failing loudly would let a stale payload take a screen down by tapping a button.
+
+  It also makes the hop from the Zipline thread to the user-interface scope itself, because every navigation a host performs touches state Compose reads, and forgetting that hop is a race that appears only under load.
+
+- **The application's own navigation.** Whatever already moves the user around — a navigation graph, a router, `DogwoodShell.activate`. Dogwood does not replace it and has no opinion about it.
 - **`DogwoodExperience.start`.** Carries three new things across: which experience to run, what to launch it with, and what it may reach.
 - **`GuestServices.resolve`.** Called exactly once. Every accessor call crosses the boundary and allocates a service proxy on both sides, so resolving per composition would leak a pair at the rate the screen recomposes.
 - **`LocalDogwoodServices` / `LocalDogwoodLaunch`.** *Static* composition locals, because neither can change while a composition is alive.
 - **The named entry point.** A payload registers several `@Composable (JsonElement) -> Unit` by name and the host chooses one. Named rather than positional, so adding an entry point cannot renumber an existing one and a host holding a deep link can route on a string it already has. **A name the payload does not offer is reported through `handleUncaughtException` carrying both what was asked for and what is on offer**, and nothing is composed — a blank screen would be the same outcome with none of the information.
 
+**A guest must ask `available()` before calling any accessor, and this is not a convenience.** A null service **cannot cross the Zipline boundary**: the accessor throws and takes the whole experience down at `start` rather than answering null. Zipline's plugin tests the service branch first when choosing a serializer, using `IrType.isSubtypeOfClass`, which compares classifiers and ignores nullability — so a member declared `DogwoodLog?` is given the plain non-null `ZiplineServiceAdapter`, and the value meets a null check inside its `serialize`. Nothing warns; it compiles clean, and the generated `api/zipline-api.toml` records these members *without* their question marks, which is an honest rendering of what Zipline does with them. Decision record: [ADR-029](../adrs/layer-5/ADR-029-a-null-service-cannot-cross.md).
+
+The consequence for this layer is small and absolute: the nullable return types describe what a **host** may hold, not what a **guest** may ask for. `HostServices.resolve` gates every accessor on `available()`, and a host implementing `DogwoodServices` directly must never list a service in `available()` that it will then return null for. `DogwoodServiceHost` derives the set from what it was given, so it cannot disagree with itself.
+
+This was invisible for the life of the project because every host here wired every service. The first one that did not — `TabsActivity`, the Path B reference — crashed on launch, which is why that example now deliberately leaves one service unwired: it keeps the path exercised by something people actually run.
+
 **The launch payload is data, decoded by the guest.** The host cannot construct guest types: it was built months before this payload and has never seen its classes. The sample decodes with `ignoreUnknownKeys = true`, which is the additive evolution rule applied to launch parameters.
 
 **The surface is versioned through the dictionary channel**, as `segmentVersions["dogwood.services"]`. It matters more than a widget version, and the asymmetry is the point: an unknown widget tag degrades to a placeholder, but calling a `ZiplineService` method an older host does not implement is an error at the boundary with no fallback. A guest that wants a method added after revision *N* must check the version before calling it.
+
+**Navigation is the first service to actually need that gate**, and it shows what obeying it looks like. `DogwoodNavigation` arrived in revision 2, so the guest's `resolve` checks `version >= NAVIGATION_MIN_VERSION` **before** calling `services.navigation()`, rather than wrapping the call and catching — the failure being prevented is the call itself. The test that pins this asserts the accessor is *not called* on a revision 1 host, not merely that it returned null, because a payload delivered over the air routinely runs on a client older than itself.
+
+**Launch parameters are start-time, and a route cannot change that.** `navigate(route, params)` carries the destination's launch parameters, which are read when a session starts. A host keeping experiences warm will often route to a destination that is already running and therefore never restarts, so it never reads them; `params` mean "what to open this with if it opens", not "a message for it". Telling a *running* experience something needs a pushed value with its own dedupe rules, like `HostEnvironment`, which this is not.
 
 ### Live-State Holders
 
@@ -366,6 +393,131 @@ Two consequences follow:
 - Reuse must be expressed as *key stability*, not object pooling. Redwood pools because platform views are expensive to allocate; Dogwood's host nodes are composables whose state is positional, so the failure mode is lost state rather than lost allocations.
 
 **The alternative has now been benchmarked, and the snapshot mirror is kept** ([ADR-007](../adrs/layer-5/ADR-007-keep-the-snapshot-mirror.md)). Redwood's host does not recompose at all: `HostProtocolAdapter` mutates widget objects imperatively and then calls `onEndChanges()`. Both designs were built behind a shared `WidgetView` interface and measured at batch sizes 1, 10, 100 and 1,000 on trees of 160 and 1,222 nodes. The imperative applier applies two to four times faster, and it does not matter — the saving is roughly seventy microseconds against the 1.14 milliseconds the guest spends encoding the same batch ([Layer 4 ADR-007](../adrs/layer-4/ADR-007-v1-wire-format-positional-json.md)). What decides it is recomposition: for a **one-property change** on a 1,222-node tree the imperative applier recomposes **801 bindings** and the snapshot mirror recomposes **one**, because a single generation counter at the root cannot say what changed. That is per-frame work proportional to tree size rather than to change size, and steady-state batches of one or two changes are the case it handles worst. No tested cell separated the two on frame-granularity latency, so the decision rests on that scaling argument rather than on a measured failure.
+
+### The Experience Shell: Several Guests, One Host
+
+Everything above describes one experience: one guest payload, one QuickJS runtime, one host tree.
+An application is usually several. Dogwood supports two ways of assembling them, and the choice is
+an organisational one before it is a technical one.
+
+Both paths have a reference example in the repository, and reading them side by side is the
+fastest way to see what the choice actually costs: `samples/slice-guest/.../AppShell.kt` for the
+guest-owned path, and `samples/slice-android/.../TabsActivity.kt` for the host-owned one.
+
+**Guest-owned navigation.** One experience contains its own tab bar and every screen behind it.
+Switching is ordinary recomposition inside a single runtime, so it is free, and screens share state
+directly because they are the same program. The cost is that the whole thing ships as one payload
+owned by one team.
+
+**Host-owned navigation.** Each destination is a separate experience with its own entry point,
+payload, and owning team. Independent delivery is the entire point. The cost is that switching
+means moving between runtimes, and a naive host pays a full cold start every time — 140 to 650
+milliseconds, measured in [ADR-027](../adrs/layer-5/ADR-027-the-host-shell-and-warm-experiences.md).
+
+`DogwoodShell` removes that cost by keeping recently used experiences alive.
+
+```mermaid
+flowchart TD
+    Host["Host navigation (tabs, routes)"] -->|"activate(entryPoint)"| Shell["DogwoodShell"]
+    Shell --> Pool["WarmPool (least-recently-used, capacity N)"]
+    Pool -->|"already warm"| Republish["Publish existing experience (synchronous)"]
+    Pool -->|"not warm"| Start["Start a DogwoodSession"]
+    Pool -->|"over capacity"| Evict["Evict least-recently-used"]
+
+    Evict --> Snap["snapshotState() from the live guest"]
+    Snap --> Close["session.close(): interpreter, heap, composition"]
+    Snap --> Keep["Retained StateSnapshot"]
+    Keep -.->|"restoredState on return"| Start
+
+    Start --> Delivery["Shared DogwoodDelivery / ZiplineCache"]
+    Start --> Session["DogwoodSession (ownsDelivery = false)"]
+    Session --> Experience["DogwoodExperience"]
+    Republish --> Experience
+    Experience --> Active["active: State&lt;DogwoodExperience?&gt;"]
+    Active --> Surface["DogwoodSurface composes the active one only"]
+
+    Experience --> Counter["frameRequests counter"]
+    Counter --> Audit["Idle audit: a hidden experience must ask for nothing"]
+```
+
+#### Diagram Node Definitions
+
+* **Host navigation:** Whatever the native application already uses to choose a destination — a
+  tab bar, a navigation graph, a router. The shell does not replace it and has no opinion about it;
+  it only needs to be told which entry point is current.
+* **`DogwoodShell`:** The host-side owner of several sessions, keyed by entry point. Its whole
+  public surface is `activate`, `trimMemory`, `updateEnvironment`, `close`, and the observability
+  accessors `active`, `activeEntryPoint`, `warm`, and `frameRequests()`.
+* **`WarmPool`:** The eviction policy, kept as a separate class in `commonMain` with no dependency
+  on Zipline or Compose so that it can be tested as pure logic. Least-recently-used, configurable
+  capacity, defaulting to three. Two invariants it enforces rather than documents: the active entry
+  point is never evicted, and the capacity floor is one, because a cap of zero would evict the
+  screen the user is looking at.
+* **Publish existing experience:** The warm path. `activate` sets the published experience before
+  it returns, so a warm switch costs the shell nothing measurable — zero milliseconds, taken
+  synchronously, in every repetition of the ADR-027 measurements. What the user then waits for is
+  Compose measuring, laying out and drawing a tree that is already fully applied, which is host
+  draw cost and not the shell's to remove.
+* **Start a `DogwoodSession`:** The cold path. A session is constructed for the entry point,
+  carrying any retained snapshot as `restoredState`.
+* **Evict least-recently-used:** What happens when activating pushes the pool over capacity.
+* **`snapshotState()` from the live guest:** Taken **before** teardown, because the guest is the
+  only thing that knows its own saveable state and it has to be alive to be asked. Same ordering,
+  and same reason, as the code-update path.
+* **`session.close()`:** Closing is the *point* of evicting. Cancelling the session's coroutine
+  stops the update flow but leaves the interpreter, its heap, and the composition inside it alive,
+  so an eviction without this frees nothing while the pool's bookkeeping continues to look correct.
+  The closed session is then handed to the leak detector, so a retained one is reported rather than
+  assumed absent.
+* **Retained `StateSnapshot`:** The evicted experience's saveable state, held by the shell. It is
+  the reason eviction is a latency cost rather than a data loss: returning is a cold start that
+  restores scroll position and half-typed text exactly as a code update does.
+* **Shared `DogwoodDelivery` / `ZiplineCache`:** One loader and one cache for every session. Sessions
+  are built with `ownsDelivery = false` so that closing one does not take its siblings' loader down.
+* **`DogwoodSession` / `DogwoodExperience`:** Unchanged from the single-experience case. The shell
+  composes them; it does not modify them.
+* **`active` / `DogwoodSurface`:** The active experience is the one host navigation last selected.
+  A host may also compose **additional** surfaces at the same time — a navigation rail from one
+  team beside a content pane from another — by calling `mount(entryPoint)` and composing
+  `experience(entryPoint)`. Everything warm but unmounted is alive with no surface, which is what
+  makes it cheap.
+
+  **Being on screen is declared, not inferred.** A companion surface is by construction not the
+  most recently activated entry point, because the user keeps tapping the pane beside it, so
+  least-recently-used ordering alone would make it the coldest thing in the pool and evict it while
+  the user was looking straight at it. Mounted entries are never evicted. Mounting more experiences
+  than the capacity overruns the cap **deliberately**: the alternative is tearing down a surface
+  that is being drawn, which is never the better answer, and `warm` reports the true size so the
+  overrun is visible rather than silent.
+
+  **Each surface carries its own environment.** The host environment describes the slot an
+  experience occupies, not the window it sits inside. Two surfaces sharing a screen have different
+  heights and possibly different width classes and insets, so a single `DogwoodEnvironment`
+  wrapping both tells at least one of them something false — measured, before the fix, as both
+  guests believing they had 426×772 density-independent pixels when each had about half.
+  `updateEnvironment(entryPoint, next)` carries a per-surface environment; an entry point with an
+  override stops receiving the shell-wide one, so the correction cannot be silently undone by the
+  next window-sized update.
+* **`frameRequests` counter / idle audit:** The design claims a hidden experience costs memory and
+  nothing else. That claim rests on `BroadcastFrameClock` requesting a frame only when something
+  awaits one — true, but a claim about behaviour, so it is counted rather than trusted. Every
+  `requestFrame` arriving at the host is counted per experience and exposed per entry point. With
+  three experiences warm and the application untouched for twenty seconds, hidden experiences
+  requested zero frames. Work already in flight when a user switches away does drain afterwards, so
+  the audit is a **rate** check: a count still climbing seconds after an experience left the screen
+  is a guest bug, and now a visible one.
+
+**A guest can ask to move between them.** `DogwoodNavigation` is how an experience requests a
+destination it cannot reach itself, and `DogwoodShell.activate` is a natural thing for a host to
+route into — but only one of many, and the guest is told which one it got: nothing. Composed with
+warm switching, a guest-initiated route into an experience that is already warm costs the shell
+nothing measurable. See "The Host Service Surface" above and
+[ADR-028](../adrs/layer-5/ADR-028-guest-initiated-navigation.md).
+
+**Memory is the real constraint, and it is bounded deliberately.** Each warm experience costs
+roughly 9 to 14 megabytes of total proportional set size — interpreter, heap, payload, and host
+tree — so the default capacity of three sits about 20 megabytes above a single experience.
+`trimMemory(keep)` exposes the pool's trim for an Android `onTrimMemory` hook.
 
 ## 4. Interfaces & Boundary
 

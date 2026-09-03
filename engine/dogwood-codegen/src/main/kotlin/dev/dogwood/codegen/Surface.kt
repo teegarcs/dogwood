@@ -42,6 +42,15 @@ data class ParsedParameter(
   val defaultExpression: String? = null,
   /** Populated when [kind] is `UNSUPPORTED`. The audit's reason, in the generator's words. */
   val rejection: String? = null,
+  /**
+   * Whether this parameter's absence changes what the user is *allowed to do*, not how it looks.
+   *
+   * `enabled`, `checked`, `readOnly`, `selected` and their relatives. Marked with `@Affordance` on
+   * the surface. Section 6 of the technical specification requires the marking, and the reason is
+   * narrow: every other kind of skew degrades cosmetically, while this kind degrades into a
+   * control that lies about what it will do.
+   */
+  val affordance: Boolean = false,
 ) {
   /**
    * Whether the host must resolve this parameter's default itself.
@@ -65,6 +74,9 @@ data class ParsedComponent(
   val slots: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.SLOT }
   val events: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.EVENT }
   val modifier: ParsedParameter? get() = parameters.firstOrNull { it.kind == ParameterKind.MODIFIER }
+
+  /** Value parameters marked `@Affordance`. Their presence changes how this widget degrades. */
+  val affordances: List<ParsedParameter> get() = values.filter { it.affordance }
 }
 
 /**
@@ -108,8 +120,30 @@ data class DictionaryEntry(
    * renders its default. A type change is a compatibility event and the lock now treats it as one.
    */
   val propertyTypes: Map<String, String> = emptyMap(),
+  /**
+   * Property names whose absence changes safety or affordance rather than appearance.
+   *
+   * Required by section 6 of the technical specification. Recorded per widget rather than only
+   * per property because of what a client can actually observe: a client that meets a property tag
+   * it does not know cannot tell whether that property was cosmetic or was the one that turns the
+   * control off -- the tag is from a dictionary it has never seen. So the decision has to be made
+   * at the level of the widget, and this set is what makes it: a widget that owns any affordance
+   * refuses to render at all rather than render an affordance it might have missed.
+   */
+  val safetyRelevant: Set<String> = emptySet(),
   val slots: Map<String, Int>,
   val events: Map<String, Int>,
+  /**
+   * Each event's parameter types, in declaration order.
+   *
+   * Recorded for the same reason [propertyTypes] is, and the gap it closes is identical. An event
+   * tag is not the whole contract: changing `onClick: () -> Unit` to `(Boolean) -> Unit` moves no
+   * tag, adds no component and retypes no property, so every other check in the lock stays silent
+   * -- while the arguments now crossing the wire have a shape the other side does not expect. In
+   * one direction the argument is ignored; in the other the generated reader indexes past the end
+   * of the list and throws on a tap.
+   */
+  val eventTypes: Map<String, String> = emptyMap(),
   /** Parameters the rule rejected, kept so the dictionary records what it declined to bind. */
   val rejected: Map<String, String> = emptyMap(),
 )

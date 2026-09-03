@@ -9,6 +9,15 @@
  * without it, anyone who can answer the manifest request can run arbitrary code inside the
  * application. `ManifestVerifier.NO_SIGNATURE_CHECKS` exists in Zipline for tests; it is
  * deliberately not reachable from here.
+ *
+ * **Common, not Java-Virtual-Machine-only, since Phase 6.** The only thing in here that was ever
+ * platform-specific was the Hypertext Transfer Protocol (HTTP) client, and Zipline already has a
+ * common abstraction for it: `ZiplineLoader`'s public constructor takes a `ZiplineHttpClient`,
+ * and each platform adapts its own stack to that interface -- `OkHttpClient.asZiplineHttpClient()`
+ * on a Java Virtual Machine and Android, `NSURLSession.asZiplineHttpClient()` on iOS. So the
+ * class below takes the abstraction and each platform supplies a factory that takes the concrete
+ * client (see `Delivery.jvmAndroid.kt` and `Delivery.ios.kt`). Nothing an existing caller writes
+ * had to change: those factories carry the defaults the constructor used to.
  */
 package dev.dogwood.host
 
@@ -24,7 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapNotNull
-import okhttp3.OkHttpClient
+import app.cash.zipline.loader.ZiplineHttpClient
 import okio.ByteString.Companion.decodeHex
 import okio.Path
 import okio.Path.Companion.toPath
@@ -79,10 +88,17 @@ class DogwoodDelivery(
   private val dispatcher: CoroutineDispatcher,
   trustedPublicKeys: Map<String, String>,
   private val cache: ZiplineCache,
-  httpClient: OkHttpClient = OkHttpClient(),
+  /**
+   * The platform's Hypertext Transfer Protocol (HTTP) stack, adapted to Zipline's interface.
+   *
+   * Deliberately has no default here, so that a call written as
+   * `DogwoodDelivery(dispatcher, keys, cache)` resolves unambiguously to the platform factory
+   * that does have one.
+   */
+  httpClient: ZiplineHttpClient,
   /** See [REVALIDATE_EVERY_LAUNCH]. Zero revalidates on every launch. */
   private val manifestMaxAgeMs: Long = REVALIDATE_EVERY_LAUNCH,
-  private val nowEpochMs: () -> Long = { System.currentTimeMillis() },
+  private val nowEpochMs: () -> Long = ::hostEpochMillis,
 ) {
   init {
     require(trustedPublicKeys.isNotEmpty()) {
@@ -183,3 +199,12 @@ class DogwoodDelivery(
 
 /** Convenience so a host does not have to import Okio's path builder to name a directory. */
 fun cachePath(directory: String): Path = directory.toPath()
+
+/**
+ * Wall-clock milliseconds, for the manifest freshness window.
+ *
+ * `expect`/`actual` for the same reason `ThreadIdentity` is: the standard library's own
+ * `kotlin.time.Clock` is still experimental at the pinned Kotlin version, and a freshness check
+ * is not the place to take an experimental opt-in that every consumer would inherit.
+ */
+internal expect fun hostEpochMillis(): Long

@@ -45,6 +45,8 @@ class PlainNode(
 
   override fun property(tag: Int): JsonElement? = properties[tag]
 
+  override fun propertyTags(): Set<Int> = properties.keys
+
   override fun children(slot: Int): List<WidgetView> = slot(slot)
 
   internal fun slot(tag: Int): MutableList<PlainNode> = slots.getOrPut(tag) { mutableListOf() }

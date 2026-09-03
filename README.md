@@ -17,11 +17,14 @@ and client, from one source of truth.
 
 **Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 
-> **Status: specification, plus a Phase 0 harness and a Phase 1 vertical slice.** The design
+> **Status: specification, plus a working Android implementation through Phase 4.5.** The design
 > documents remain the substance of this repository, but the load-bearing assumptions are no
 > longer unmeasured. [`tools/phase0/`](tools/phase0/) measures the architecture and
-> [`engine/`](engine/) implements it: a real screen, authored as ordinary Kotlin Compose,
-> executed inside QuickJS, rendered by native Compose Multiplatform, responding to taps.
+> [`engine/`](engine/) implements it: real screens, authored as ordinary Kotlin Compose, executed
+> inside QuickJS, rendered by native Compose Multiplatform, responding to taps — with a generator,
+> nine bespoke subsystems, and a host shell that keeps several separately deployed experiences warm
+> so switching between them costs nothing the shell controls. Phase 5's page-weight gate is
+> [now measured](adrs/layer-5/ADR-030-web-page-weight-measured.md) rather than quoted.
 > **The Phase 0 gate is formally not closed**, and that is now a decision rather than a pending
 > task: the low-end device it is defined on is not available and will not be acquired
 > ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)). Every number was taken
@@ -77,7 +80,8 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`specs/`](specs/) | One deep-dive specification per layer. |
 | [`adrs/`](adrs/) | Architecture Decision Records, by layer. See [`adrs/README.md`](adrs/README.md). |
 | [`engine/`](engine/) | **The implementation.** Guest runtime, host binding layer, and the Phase 1 vertical slice. |
-| [`tools/`](tools/) | The Compose API-surface classifier, and the Phase 0 measurement harness with its results. |
+| [`tools/`](tools/) | The Compose API-surface classifier, the Phase 0 measurement harness with its results, and the [web page-weight harness](tools/web-weight/). |
+| [`plans/`](plans/) | Work plans for phases in flight, kept with their results rather than deleted when done. |
 | [`archive/`](archive/) | Superseded drafts (v1.0 Zipline, v2.0 and v3.0 Wasm), kept for decision history. |
 | [`AGENTS.md`](AGENTS.md) | Authoring rules governing every document here. |
 

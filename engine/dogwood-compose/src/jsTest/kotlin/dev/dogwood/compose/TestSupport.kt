@@ -16,6 +16,7 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.StateSnapshot
 import dev.dogwood.protocol.WidgetTag
+import dev.dogwood.protocol.decodePositional
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 
@@ -64,7 +65,13 @@ internal fun compose(
 }
 
 /**
- * Reads the batches back through the same decoder the host uses, so the test asserts on what
- * genuinely crossed rather than on an in-memory structure that never went through the encoder.
+ * Reads the batches back through **the same decoder the host uses** -- literally the same
+ * function, out of `dogwood-protocol`, not a copy of it.
+ *
+ * It used to be a copy, in a file next to this one, on the reasoning that a shared decoder was
+ * worth building "when a third caller appears". The cost of that was invisible and total: a change
+ * to the encoder plus a matching change to the copy left this suite green while the real host
+ * decoder was wrong, and no test anywhere fed the real encoder's output to the real decoder. Every
+ * assertion below now crosses the actual grammar.
  */
-internal fun RecordingHost.decoded(): List<ChangeBatch> = batches.map { decodeForTest(it) }
+internal fun RecordingHost.decoded(): List<ChangeBatch> = batches.map { decodePositional(it) }

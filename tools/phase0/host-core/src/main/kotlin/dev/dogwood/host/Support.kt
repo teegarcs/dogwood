@@ -41,6 +41,30 @@ class CountingHost : DogwoodHost {
   override fun sendChangesEncoded(json: String) {
     batches++
     encodedBytes += json.length.toLong()
+    // Experiment 0.5 times the steady-state loop by when calls ARRIVE here, because the
+    // guest's own clock is a Zipline crossing costing tens of microseconds -- the same order
+    // as the thing being measured. One `nanoTime` and one bounds check is all this adds, and
+    // it adds the same amount to every sample.
+    val destination = arrivals
+    if (destination != null && arrivalCount < destination.size) {
+      destination[arrivalCount++] = System.nanoTime()
+    }
+  }
+
+  private var arrivals: LongArray? = null
+  private var arrivalCount = 0
+
+  /** Begins timestamping arrivals. Capacity is fixed up front so the loop never allocates. */
+  fun recordArrivals(capacity: Int) {
+    arrivals = LongArray(capacity)
+    arrivalCount = 0
+  }
+
+  /** Stops timestamping and returns the arrival times recorded since [recordArrivals]. */
+  fun takeArrivals(): LongArray {
+    val destination = arrivals ?: return LongArray(0)
+    arrivals = null
+    return destination.copyOf(arrivalCount)
   }
 
   override fun requestFrame() {

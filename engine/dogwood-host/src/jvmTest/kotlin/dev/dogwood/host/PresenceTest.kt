@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.dogwood.protocol.decodePositional
 
 private val TEXT_TAG = DogwoodDictionary.Text.value
 private val PRESENCE = dev.dogwood.protocol.widgetTag(1, 14).value

@@ -25,6 +25,16 @@ interface WidgetView {
 
   fun property(tag: Int): JsonElement?
 
+  /**
+   * Every property tag this node actually carries.
+   *
+   * Needed because "what did the guest send that I do not understand?" is a question no
+   * per-property reader can answer: a reader is asked for a tag it already knows. Skew from a
+   * newer payload arrives as tags nobody asks about, so it is invisible unless something looks at
+   * the whole set. See [unknownProperties].
+   */
+  fun propertyTags(): Set<Int>
+
   fun children(slot: Int): List<WidgetView>
 }
 
@@ -42,6 +52,22 @@ fun WidgetView.boolean(tag: Int, default: Boolean): Boolean =
     ?: default
 
 fun WidgetView.has(tag: Int): Boolean = property(tag) != null
+
+/**
+ * Property tags this node carries that [known] does not name.
+ *
+ * A payload built against a newer dictionary sends properties this client has never heard of. For
+ * most of them, ignoring the value costs appearance and nothing else. For one that governs
+ * affordance -- whether a control is enabled, checked, read-only -- ignoring it renders a control
+ * that lies about what it will do, and the client cannot tell the two cases apart, because the tag
+ * comes from a dictionary it has never seen.
+ *
+ * That asymmetry is why generated bindings consult this only for widgets that own an affordance;
+ * see section 6 of the technical specification and
+ * `adrs/layer-5/ADR-031-safety-relevant-parameters.md`.
+ */
+fun WidgetView.unknownProperties(known: Set<Int>): Set<Int> =
+  propertyTags().filterTo(mutableSetOf()) { it !in known }
 
 /*
  * Absence-reading accessors.

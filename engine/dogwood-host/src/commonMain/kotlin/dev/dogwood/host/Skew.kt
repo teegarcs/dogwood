@@ -17,6 +17,19 @@ import androidx.compose.runtime.staticCompositionLocalOf
 
 /** One experience's accumulated skew. Not snapshot state: reading it must not drive composition. */
 class SkewReport {
+  /*
+   * These are plain sets, not snapshot state, and that is deliberate rather than an oversight.
+   *
+   * Most of them are written *during composition* -- an unknown colour token is recorded by the
+   * binding that failed to resolve it, and a withheld widget by the guard that declined to draw it.
+   * Writing snapshot state during composition is not allowed and would invalidate the very
+   * composition doing the writing.
+   *
+   * The consequence is that this report must be **sampled, not observed**. A composable that reads
+   * it sees whatever was there when that composition began, so an entry recorded during the same
+   * pass appears only after some later recomposition. That is fine for what this is -- telemetry a
+   * host collects and sends -- and wrong for anything that wants to react to it. Poll it.
+   */
   /** Widget tags this client's dictionary does not carry. Each rendered as a placeholder node. */
   val unknownWidgetTags = mutableSetOf<Int>()
 
@@ -41,11 +54,37 @@ class SkewReport {
   /** Plural categories this locale uses that the payload carried no template for. */
   val untranslatedPlurals = mutableSetOf<String>()
 
+  /** Routes a guest asked for that this client does not handle. The host stayed where it was. */
+  val unknownRoutes = mutableSetOf<String>()
+
+  /**
+   * Widget tags replaced by an inert placeholder because they arrived carrying a property this
+   * client could not interpret, on a widget that owns an affordance.
+   *
+   * The most serious entry in this report. Everything else here degraded something; this one
+   * refused to draw a control, because drawing it might have offered the user an action the
+   * payload was trying to withhold.
+   */
+  val withheldWidgets = mutableSetOf<Int>()
+
+  /**
+   * Batches this client refused because it could not decode them, with the reason.
+   *
+   * Distinct from every other entry here in what it costs. The rest name something the client did
+   * not recognise inside a batch it understood, and degraded around it. This names a batch whose
+   * *grammar* disagreed -- a tuple of the wrong length, a kind from a newer protocol -- where
+   * there is nothing to degrade to, because the changes in a batch are ordered and interdependent
+   * and applying half of one leaves a tree the guest never composed.
+   */
+  val rejectedBatches = mutableSetOf<String>()
+
+
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
-      untranslatedPlurals.isEmpty()
+      untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
+      rejectedBatches.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -56,7 +95,10 @@ class SkewReport {
     if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons ")
     if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions ")
     if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
-    if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals")
+    if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
+    if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")
+    if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets ")
+    if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches")
     append(")")
   }
 }

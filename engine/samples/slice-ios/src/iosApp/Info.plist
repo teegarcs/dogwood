@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>DogwoodSlice</string>
+  <key>CFBundleIdentifier</key>
+  <string>dev.dogwood.slice.ios</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>Dogwood</string>
+  <key>CFBundleDisplayName</key>
+  <string>Dogwood</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <!--
+    Compose Multiplatform refuses to start without this, and the refusal is right: without it iOS
+    caps a `CADisplayLink` at 60 Hz on a 120 Hz iPhone, so a Skiko-drawn surface would run at half
+    the display's rate. It is a property of any Compose Multiplatform application, not of Dogwood.
+  -->
+  <key>CADisableMinimumFrameDurationOnPhone</key>
+  <true/>
+  <key>LSRequiresIPhoneOS</key>
+  <true/>
+  <key>MinimumOSVersion</key>
+  <string>15.0</string>
+  <key>UILaunchScreen</key>
+  <dict/>
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <!--
+    App Transport Security refuses cleartext Hypertext Transfer Protocol by default, and the
+    development server that publishes the guest speaks it. The exception is scoped to `localhost`
+    rather than switched on globally, which is the same discipline `allowUrlHosts` applies on the
+    Dogwood side: a production host serves its payloads over HTTPS and needs none of this.
+  -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+    <key>NSExceptionDomains</key>
+    <dict>
+      <key>localhost</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key>
+        <true/>
+      </dict>
+    </dict>
+  </dict>
+</dict>
+</plist>

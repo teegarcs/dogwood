@@ -31,6 +31,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import dev.dogwood.protocol.EventTag
+import dev.dogwood.protocol.decodePositional
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

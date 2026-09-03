@@ -72,8 +72,18 @@ class SurfaceParser {
     val name = name ?: error("a parameter must be named")
     val type = typeReference?.text?.replace(Regex("\\s+"), " ")?.trim() ?: "Unit"
     val default = defaultValue?.text
+    // Read from the surface rather than inferred from the parameter's name. A rule that guessed
+    // from `enabled` would silently miss `interactive`, `locked` or `isEditable`, and the failure
+    // of a guess here is a control that lies about what it will do.
+    val affordance = annotationEntries.any { it.shortName?.asString() == "Affordance" }
     fun of(kind: ParameterKind, rejection: String? = null) =
-      ParsedParameter(name, type, kind, hasDefault = default != null, defaultExpression = default, rejection = rejection)
+      ParsedParameter(
+        name, type, kind,
+        hasDefault = default != null,
+        defaultExpression = default,
+        rejection = rejection,
+        affordance = affordance,
+      )
 
     return when {
       type == "Modifier" -> of(ParameterKind.MODIFIER)

@@ -32,3 +32,6 @@ __pycache__/
 
 # Generated into the source tree by the Zipline Gradle plugin's writeZiplineWebpackConfig task
 tools/phase0/*/webpack.config.d/generated-zipline-webpack-config.js
+
+# Kotlin build-tool state, not source.
+.kotlin/

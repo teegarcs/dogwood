@@ -47,13 +47,14 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       // VerticalList and HorizontalList are hand-written in this same segment, because the
       // generator does not model lazy layouts yet. Their tags are not the generator's to give.
       "--reserved", "10,11",
-      "--version", "6",
+      "--version", "7",
       "--guest-package", "dev.dogwood.compose",
       "--host-package", "dev.dogwood.host",
       "--impl-package", "dev.dogwood.host",
       "--guest-out", File(root, "guest/dev/dogwood/compose/DesignSystemStubs.kt").absolutePath,
       "--host-out", File(root, "host/dev/dogwood/host/DesignSystemBindings.kt").absolutePath,
       "--dictionary-out", File(root, "dictionary/dogwood.designsystem.json").absolutePath,
+      "--wire-out", File(root, "wire/dev/dogwood/protocol/DogwoodSegments.kt").absolutePath,
       // Committed, unlike the generated sources: the lock is the record that tags never moved.
       "--lock", rootProject.file("surface/dogwood.designsystem.lock.json").absolutePath,
     )

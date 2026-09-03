@@ -67,6 +67,9 @@ import dev.dogwood.protocol.WidthClass
 import dev.dogwood.protocol.widthClass
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 private const val TAG = "explore"
 
@@ -158,15 +161,19 @@ private val exploreStrings = StringTable(
   ),
 )
 
+/**
+ * @param onSaved reported upward so a shell above this screen can share the count with its other
+ *   screens. Default is a no-op, so the screen still stands alone as its own entry point.
+ */
 @Composable
-fun ExploreScreen(params: ExploreParams) {
+fun ExploreScreen(params: ExploreParams, onSaved: () -> Unit = {}) {
   CompositionLocalProvider(LocalStringTable provides exploreStrings) {
-    ExploreContent(params)
+    ExploreContent(params, onSaved)
   }
 }
 
 @Composable
-private fun ExploreContent(params: ExploreParams) {
+private fun ExploreContent(params: ExploreParams, onSaved: () -> Unit) {
   // Saveable, so a code update published while someone is mid-browse does not reset them.
   var selectedFilter by rememberSaveable(key = "filter", stateSaver = autoSaver()) {
     mutableStateOf(0)
@@ -226,6 +233,28 @@ private fun ExploreContent(params: ExploreParams) {
         "Return flights, next 3 months"
       },
     )
+
+    /*
+     * Asking the host to go somewhere this experience cannot go itself.
+     *
+     * Two things worth noticing. The control is drawn only when the host says it handles the
+     * route -- a button that does nothing is worse than no button, because the user blames the
+     * product rather than the build. And the guest never learns what happened next: here the route
+     * happens to swap to another experience, but it could push a native screen or open a browser,
+     * and nothing on this screen would be written differently.
+     */
+    if (host.canNavigate("experience/feed")) {
+      PrimaryButton(
+        label = "Browse all stays →",
+        modifier = Modifier.fillMaxWidth().padding(4),
+        onClick = {
+          host.navigate(
+            "experience/feed",
+            buildJsonObject { put("from", JsonPrimitive("explore")) },
+          )
+        },
+      )
+    }
 
     when (val current = state) {
       FeedState.Loading -> Text("Loading…")
@@ -324,6 +353,7 @@ private fun ExploreContent(params: ExploreParams) {
             thumbnailDp = if (environment.widthClass == WidthClass.Compact) 96 else 128,
             onSave = {
               savedStays += 1
+              onSaved()
               host.track(
                 "explore.save",
                 mapOf("stay" to stay.name, "at" to (host.nowEpochMillis()?.toString() ?: "")),

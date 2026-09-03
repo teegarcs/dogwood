@@ -18,14 +18,18 @@ import dev.dogwood.protocol.DogwoodAnalytics
 import dev.dogwood.protocol.DogwoodClock
 import dev.dogwood.protocol.DogwoodFeatureFlags
 import dev.dogwood.protocol.DogwoodLog
+import dev.dogwood.protocol.DogwoodNavigation
 import dev.dogwood.protocol.DogwoodNetwork
 import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.HttpRequest
 import dev.dogwood.protocol.HttpResponse
 import dev.dogwood.protocol.LogLevel
+import dev.dogwood.protocol.NAVIGATION_MIN_VERSION
 import dev.dogwood.protocol.SERVICES_SEGMENT
+import dev.dogwood.protocol.ServiceNames
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 
 /**
  * What this host offers, resolved once.
@@ -46,6 +50,15 @@ class HostServices(
   val clock: DogwoodClock?,
   val analytics: DogwoodAnalytics?,
   val network: DogwoodNetwork?,
+  /** Null on a host older than [NAVIGATION_MIN_VERSION], or one that offers no navigation. */
+  val navigation: DogwoodNavigation?,
+  /**
+   * Routes the host declared, resolved once at start.
+   *
+   * Empty means the host does not enumerate its routes, **not** that it handles none. See
+   * [canNavigate], which is where that distinction is turned into an answer.
+   */
+  val routes: Set<String>,
   /**
    * Flags as they stood when the experience started.
    *
@@ -74,6 +87,33 @@ class HostServices(
   fun nowEpochMillis(): Long? = clock?.nowEpochMillis()
 
   /**
+   * Whether it is worth showing a control that goes to [route].
+   *
+   * The point of asking before drawing: a guest running on a client that has no reviews screen
+   * should not render a "See all reviews" button that does nothing when tapped. A dead control is
+   * worse than an absent one, because the user blames the product rather than the build.
+   *
+   * Optimistic when the host does not enumerate its routes, because an empty set is an absence of
+   * information and refusing on it would hide every control on every such host.
+   */
+  fun canNavigate(route: String): Boolean =
+    navigation != null && (routes.isEmpty() || route in routes)
+
+  /**
+   * Asks the host to go to [route].
+   *
+   * Returns whether the request was **sent**, not whether the host went anywhere: where a route
+   * leads is the host's business, and a guest that branched on the outcome would be depending on
+   * chrome it does not own. False means this client cannot route at all, or declares routes and
+   * does not declare this one -- either way, a branch the guest can write.
+   */
+  fun navigate(route: String, params: JsonObject = JsonObject(emptyMap())): Boolean {
+    if (!canNavigate(route)) return false
+    navigation?.navigate(route, params) ?: return false
+    return true
+  }
+
+  /**
    * Fetches, or returns a refusal.
    *
    * Never throws for a network outcome: a host that declines the request answers with
@@ -88,17 +128,47 @@ class HostServices(
 
   companion object {
     /** What a composition sees when nothing provided services — tests, and hosts that offer none. */
-    val None = HostServices(0, emptySet(), null, null, null, null, emptyMap())
+    val None = HostServices(0, emptySet(), null, null, null, null, null, emptySet(), emptyMap())
 
+    /*
+     * Two gates, for two different ways an accessor call can fail, and neither can be replaced by
+     * catching around the call.
+     *
+     * **The version gate.** Calling a `ZiplineService` method an older host does not implement is
+     * an error at the boundary with no fallback -- unlike an unknown widget tag, which degrades to
+     * a placeholder. A payload is delivered over the air and routinely runs on a client older than
+     * itself, so the guard is before the call.
+     *
+     * **The availability gate.** A service the host did not wire cannot cross as null. Zipline
+     * does not carry nullability on a service return -- its own API validator renders
+     * `fun featureFlags(): DogwoodFeatureFlags` for a member declared `DogwoodFeatureFlags?` --
+     * and calling such an accessor throws, taking the whole experience down at `start`. So
+     * [DogwoodServices.available] is not the convenience its own documentation once called it: it
+     * is the only safe way to ask, and every accessor here is gated on it.
+     *
+     * This went unnoticed for a long time because every host in this repository wires every
+     * service. The first one that did not crashed instantly.
+     */
     internal fun resolve(services: DogwoodServices, version: Int): HostServices {
-      val flagService: DogwoodFeatureFlags? = services.featureFlags()
+      val available = services.available()
+
+      val flagService: DogwoodFeatureFlags? =
+        if (ServiceNames.FEATURE_FLAGS in available) services.featureFlags() else null
+      val navigationService: DogwoodNavigation? =
+        if (version >= NAVIGATION_MIN_VERSION && ServiceNames.NAVIGATION in available) {
+          services.navigation()
+        } else {
+          null
+        }
       return HostServices(
         version = version,
-        available = services.available(),
-        log = services.log(),
-        clock = services.clock(),
-        analytics = services.analytics(),
-        network = services.network(),
+        available = available,
+        log = if (ServiceNames.LOG in available) services.log() else null,
+        clock = if (ServiceNames.CLOCK in available) services.clock() else null,
+        analytics = if (ServiceNames.ANALYTICS in available) services.analytics() else null,
+        network = if (ServiceNames.NETWORK in available) services.network() else null,
+        navigation = navigationService,
+        routes = navigationService?.routes() ?: emptySet(),
         flags = flagService?.snapshot() ?: emptyMap(),
       )
     }

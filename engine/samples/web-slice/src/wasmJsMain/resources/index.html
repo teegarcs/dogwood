@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dogwood web slice</title>
+  <!--
+    The Content Security Policy is the second half of ADR-032's isolation story, and it is set on
+    the page rather than in the host code because a policy the page can rewrite is not a policy.
+
+    A Worker inherits the policy of the document that created it, and `connect-src` is applied by
+    the browser to `fetch` from inside that Worker. That is what turns the network allow-list from
+    advice back into enforcement: on mobile QuickJS gives the guest no `fetch` at all, and here the
+    guest has one, so the only thing that can stop it reaching an origin the deployment did not
+    name is the browser.
+
+    `'self'` is the whole allow-list for this sample. `'wasm-unsafe-eval'` is required by
+    Kotlin/WebAssembly -- instantiating a module counts as evaluation -- and `'unsafe-inline'` by
+    Skiko, which installs styles for its canvas.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <style>
+    html, body { margin: 0; height: 100%; background: #ffffff; }
+  </style>
+</head>
+<body>
+<script src="app.js"></script>
+</body>
+</html>

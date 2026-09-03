@@ -19,6 +19,8 @@ import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.StateSnapshot
 import dev.dogwood.protocol.WidgetTag
+import dev.dogwood.protocol.decodePositional
+import dev.dogwood.protocol.ProtocolMismatch
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -42,15 +44,16 @@ class DogwoodExperience(
   /** Off by default. See `Leaks.kt` for what is worth watching in a host, and why. */
   leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
 ) {
-  val tree = HostTree(leakDetector)
-
   /**
    * Everything this client failed to recognise while rendering this guest.
    *
    * One report per experience, because skew is a property of the pairing between a payload and a
-   * client, not of the client alone. See `Skew.kt`.
+   * client, not of the client alone. See `Skew.kt`. Declared before [tree] because the tree
+   * reports into it.
    */
   val skew = SkewReport()
+
+  val tree = HostTree(leakDetector, skew)
 
   /**
    * The threading contract.
@@ -73,7 +76,21 @@ class DogwoodExperience(
       // Decoding is cheap enough to do on this thread -- 0.17 ms for a whole-screen batch,
       // measured in Phase 0 -- but applying it touches state Compose reads, so the apply is
       // posted to the user-interface dispatcher.
-      val batch = decodePositional(positionalBatch)
+      //
+      // A batch whose grammar this client does not share is skew, and is contained the way every
+      // other kind of skew is: reported, and survivable. It is contained by rejecting the batch
+      // WHOLE and keeping the tree that is already on screen -- the same shape the delivery layer
+      // uses when a manifest fails verification, and for the same reason. Applying the prefix of a
+      // batch would leave a tree the guest never composed, and every later batch would compound
+      // against it.
+      val batch = try {
+        decodePositional(positionalBatch)
+      } catch (mismatch: ProtocolMismatch) {
+        // Posted rather than written here: the report is read on the user-interface thread while
+        // this runs on the Zipline thread.
+        uiScope.launch { skew.rejectedBatches += mismatch.message ?: "undecodable batch" }
+        return
+      }
       uiScope.launch {
         threads.checkUi()
         tree.apply(batch)
@@ -82,6 +99,7 @@ class DogwoodExperience(
 
     override fun requestFrame() {
       threads.checkZipline()
+      frameRequests++
       if (frameScheduled) return
       frameScheduled = true
       uiScope.launch {
@@ -116,6 +134,19 @@ class DogwoodExperience(
 
   /** Counted rather than thrown, so the slice can show that the path is exercised. */
   var staleEvents: Int = 0
+    private set
+
+  /**
+   * How many times the guest has asked for a frame.
+   *
+   * This is the number that decides whether keeping an experience warm but hidden is free. The
+   * frame clock this experience awaits belongs to the *window*, not to any surface, so a hidden
+   * guest that keeps asking keeps waking the Zipline thread whether or not anything it draws is
+   * on screen. "It is hidden, so it must be idle" is an assumption; this counter is the evidence,
+   * and a warm experience whose count climbs while it is off-screen is a bug in the idle story
+   * rather than an overhead to tolerate.
+   */
+  var frameRequests: Int = 0
     private set
 
   val unknownEvents = mutableSetOf<Pair<Int, Int>>()

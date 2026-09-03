@@ -1,0 +1,9 @@
+{
+  "_comment": "The sidecar Layer 5 ADR-032 puts the dictionary check in. Fetched from the guest script's origin and verified on the main thread BEFORE the Worker is created, because a payload built against a dictionary this client does not have renders a mostly-empty screen and says nothing.",
+  "envelopeRevision": 1,
+  "guestScript": "guest.js",
+  "segmentVersions": {
+    "androidx.layout": 1
+  },
+  "guestScriptSha256": null
+}

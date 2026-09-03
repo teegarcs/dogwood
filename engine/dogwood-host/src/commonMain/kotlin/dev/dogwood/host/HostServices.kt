@@ -16,10 +16,14 @@ import dev.dogwood.protocol.DogwoodAnalytics
 import dev.dogwood.protocol.DogwoodClock
 import dev.dogwood.protocol.DogwoodFeatureFlags
 import dev.dogwood.protocol.DogwoodLog
+import dev.dogwood.protocol.DogwoodNavigation
 import dev.dogwood.protocol.DogwoodNetwork
 import dev.dogwood.protocol.DogwoodServices
 import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.ServiceNames
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 
 /**
  * What this client offers a guest.
@@ -35,6 +39,7 @@ class DogwoodServiceHost(
   private val analytics: DogwoodAnalytics? = null,
   private val featureFlags: DogwoodFeatureFlags? = null,
   private val network: DogwoodNetwork? = null,
+  private val navigation: DogwoodNavigation? = null,
 ) : DogwoodServices {
 
   private val names: Set<String> = buildSet {
@@ -43,6 +48,7 @@ class DogwoodServiceHost(
     if (analytics != null) add(ServiceNames.ANALYTICS)
     if (featureFlags != null) add(ServiceNames.FEATURE_FLAGS)
     if (network != null) add(ServiceNames.NETWORK)
+    if (navigation != null) add(ServiceNames.NAVIGATION)
   }
 
   override fun available(): Set<String> = names
@@ -56,6 +62,8 @@ class DogwoodServiceHost(
   override fun featureFlags(): DogwoodFeatureFlags? = featureFlags
 
   override fun network(): DogwoodNetwork? = network
+
+  override fun navigation(): DogwoodNavigation? = navigation
 
   /**
    * Closing the vendor does **not** close the services it handed out.
@@ -93,6 +101,46 @@ class CallbackAnalytics(
  */
 class MapFeatureFlags(private val values: Map<String, String>) : DogwoodFeatureFlags {
   override fun snapshot(): Map<String, String> = values
+
+  override fun close() = Unit
+}
+
+/**
+ * Routes guest navigation requests into whatever the application already uses to move around.
+ *
+ * Two things this class exists to get right, both of which an application would otherwise have to
+ * remember on its own.
+ *
+ * **The thread.** A guest calls `navigate` on the Zipline thread, and every navigation a host
+ * performs -- swapping an experience, pushing a screen, opening a browser -- touches state Compose
+ * reads. The hop to [uiScope] happens here so that no application has to know it was needed, and
+ * so that forgetting it is not a race that appears only under load.
+ *
+ * **The unknown route.** A payload built against a newer client will ask for destinations this
+ * client has never heard of. That is skew, not a bug, and it is handled on the same rule as an
+ * unknown widget tag: report it and stay put. Failing loudly here would mean a stale payload could
+ * take a screen down by tapping a button.
+ *
+ * @param routes what this host handles. Empty means "this host does not enumerate its routes" --
+ *   every route is then accepted and passed to [onNavigate], which becomes the only thing that can
+ *   recognise it. A host that enumerates gets the checking; one that cannot, does not.
+ */
+class CallbackNavigation(
+  private val routes: Set<String> = emptySet(),
+  private val uiScope: CoroutineScope,
+  private val onNavigate: (String, JsonObject) -> Unit,
+  private val onUnknownRoute: (String) -> Unit = {},
+) : DogwoodNavigation {
+
+  override fun routes(): Set<String> = routes
+
+  override fun navigate(route: String, params: JsonObject) {
+    if (routes.isNotEmpty() && route !in routes) {
+      onUnknownRoute(route)
+      return
+    }
+    uiScope.launch { onNavigate(route, params) }
+  }
 
   override fun close() = Unit
 }

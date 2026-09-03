@@ -50,7 +50,13 @@ class SignatureTest {
       manifest.signatures.isNotEmpty(),
       "the manifest carries no signature at all; Layer 3 would have nothing to verify",
     )
-    assertEquals(setOf("dogwood-development"), manifest.signatures.keys)
+    // Two, and in this order. The rotation drill depends on both the count and the sequence --
+    // Zipline verifies against the *first* key name it recognises -- so this is pinned here and
+    // exercised in `KeyRotationTest`.
+    assertEquals(
+      listOf("dogwood-development", "dogwood-development-2"),
+      manifest.signatures.keys.toList(),
+    )
   }
 
   @Test

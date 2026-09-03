@@ -28,6 +28,20 @@
       </intent-filter>
     </activity>
 
+    <!--
+      The Path B reference: navigation the host owns, one experience per tab, over the warm shell.
+      Its counterpart is AppShell.kt in the guest, which is Path A. Launch with:
+        adb shell am start -n dev.dogwood.slice.android/.TabsActivity
+
+      Same configChanges as the slice, and for the same reason: letting Android recreate the
+      activity would tear down every warm interpreter the shell exists to keep.
+    -->
+    <activity
+        android:name=".TabsActivity"
+        android:exported="true"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
+        android:theme="@style/Theme.Dogwood" />
+
     <!-- roadmap.md Phase 1 step 7. Launch with:
          adb shell am start -n dev.dogwood.slice.android/.RenderBenchActivity -->
     <activity

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.dogwood.protocol.decodePositional
 
 private val TEXT = DogwoodDictionary.Text.value
 private val SPACER = DogwoodDictionary.Spacer.value

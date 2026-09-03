@@ -32,6 +32,8 @@ import dev.dogwood.compose.Box
 import dev.dogwood.compose.Color
 import dev.dogwood.compose.Keyboards
 import dev.dogwood.compose.PrimaryButton
+import dev.dogwood.compose.padding
+import kotlinx.serialization.json.JsonObject
 import dev.dogwood.compose.animate
 import dev.dogwood.compose.animateDp
 import dev.dogwood.compose.oscillate
@@ -187,6 +189,36 @@ fun AboutScreen() {
 
     SectionHeader(title = "Launch", description = null)
     Text(launch.toString())
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Navigation",
+      description = "Where this client will let a guest ask to go. The host interprets these; " +
+        "this screen never learns what a route actually does.",
+    )
+    Text(
+      if (host.routes.isEmpty()) {
+        if (host.navigation == null) {
+          "this client offers no navigation service"
+        } else {
+          "this client does not enumerate its routes, so any route may be tried"
+        }
+      } else {
+        host.routes.sorted().joinToString(", ")
+      },
+    )
+    // Deliberately bypasses `canNavigate`, which would refuse this locally. That is the point:
+    // it simulates a payload built against a client with more destinations than this one, and
+    // shows that the host reports the skew and stays put rather than failing. A real screen asks
+    // first and does not draw the control -- see the button on the explore screen.
+    PrimaryButton(
+      label = "Ask for a route this client does not have",
+      modifier = Modifier.fillMaxWidth().padding(4),
+      onClick = {
+        host.navigation?.navigate("experience/nowhere", JsonObject(emptyMap()))
+      },
+    )
 
     Divider(modifier = Modifier.fillMaxWidth())
 

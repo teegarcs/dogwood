@@ -9,10 +9,12 @@ package dev.dogwood.host
 
 import dev.dogwood.protocol.Segments
 import dev.dogwood.protocol.widgetTag
+import dev.dogwood.protocol.decodePositional
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Builds a positional payload by hand, so the decoder is tested against the format, not itself. */
@@ -139,9 +141,15 @@ class HostTreeApplyTest {
     assertEquals("before", children[0].string(1))
     assertEquals("after", children[2].string(1), "the sibling after it keeps its index")
     assertTrue(
-      fromTheFuture in tree.unknownTags,
+      fromTheFuture in tree.skew.unknownWidgetTags,
       "an unrecognised tag is telemetry the client should report, not a silent gap",
     )
+    // Into the report a host actually reads, not a set beside it. The tree kept its own private
+    // collection for a long time while `SkewReport.unknownWidgetTags` -- the field named in
+    // `Skew.kt`'s promise of "one readable report" -- was never written by anything at all, which
+    // meant the single most important category of skew was the one category invisible downstream.
+    assertFalse(tree.skew.isEmpty, "an unknown widget must make the report non-empty")
+    assertTrue(tree.skew.toString().contains("widgets="))
   }
 
   @Test

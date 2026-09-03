@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.dogwood.protocol.decodePositional
 
 /** `Price` is local tag 7 in the design-system segment; property 1 is its price. */
 private val PRICE = widgetTagValue(1, 7)

@@ -107,6 +107,32 @@ Flags for `:host-jvm:run` (all optional): `--label`, `--rows` (default `23,50`),
 (20), `--iterations` (200), `--composition-iterations` (50), `--cold-runs` (10), `--churn`
 (500), `--out`.
 
+Experiment 0.5 is a separate, longer run, because it answers a different question and takes
+thousands of iterations to answer it:
+
+```bash
+# Development host.
+./gradlew :host-jvm:allocGc --args="--label 'my machine'"
+
+# On device or emulator. Opt in with an intent extra; without it the activity runs 0.1-0.4.
+./gradlew :host-android:assembleDebug
+adb install -r host-android/build/outputs/apk/debug/host-android-debug.apk
+adb shell am start -n dev.dogwood.host.android/.Phase0Activity --es experiment alloc
+```
+
+Flags for `:host-jvm:allocGc`: `--label`, `--rows`, `--alloc-iterations` (2000),
+`--big-alloc-iterations` (200), `--tail-iterations` (8000), `--trace-iterations` (2000),
+`--thresholds` (kibibytes, comma-separated; repeats allowed so two thresholds can be
+interleaved and an ordering effect told apart from a threshold effect), `--phases`
+(`alloc,tail,trace`), `--out`. The Android host reads the same knobs as intent extras:
+`--ei tail-iterations 6000`, `--es phases alloc`.
+
+Experiment 0.5 is timed on the **host**, not in the guest. One `MonotonicClock` round trip
+costs tens of microseconds — the same order as the crossing being measured — so the
+sustained loops are timed by timestamping arrivals at `sendChangesEncoded`, and the traced
+loop by bracketing one call. Results go to `results/alloc-gc-*.json`; the written-up findings
+are in [results/allocation-and-gc.md](results/allocation-and-gc.md).
+
 ## What is gate-valid, and what is not
 
 The Phase 0 gate is defined on **a low-end Android device of roughly 2022 entry tier**. No
@@ -126,6 +152,7 @@ so the thresholds cannot be reinterpreted after the numbers are seen.
 | 0.2 | Monotonic-clock overhead, initial composition, recomposition after a one-node and a two-node state change | `Phase0Driver.experiment02` |
 | 0.3 | Batch build, three encodings, transport-only crossing, and the real `sendChanges` crossing, at 1 / 10 / 100 / 1000 changes and at the reference screen's initial batch | `Phase0Driver.experiment03` |
 | 0.4 | Recomposition tail and forced collection pauses at `gcThreshold` 256 KiB, 8 MB, and 16 MB | `Phase0Driver.experiment04` |
+| 0.5 | Allocation per batch by encoding, the tail of a sustained steady-state stream (p99, p99.9, maximum), and whether a collection lands inside a frame | `AllocationGcExperiment` |
 
 ### Timing rules
 

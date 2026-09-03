@@ -19,31 +19,10 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import dev.dogwood.protocol.ExpressionFactories
+import dev.dogwood.protocol.ModifierTags
 
 /** Factory identifiers. A closed, versioned set; the host refuses anything it does not know. */
-internal object ExpressionFactories {
-  const val ROUNDED_CORNER = 1
-  const val CIRCLE = 2
-  const val COLOR_ARGB = 3
-  const val COLOR_TOKEN = 4
-
-  // Text the guest cannot produce. The pinned QuickJS ships no ECMA-402 `Intl`, so a guest has no
-  // locale-aware number, currency or date formatting at all -- not a slow one, none.
-  const val TEXT_NUMBER = 5
-  const val TEXT_CURRENCY = 6
-  const val TEXT_PERCENT = 7
-  const val TEXT_DATE = 8
-  const val TEXT_TIME = 9
-  const val TEXT_DATE_TIME = 10
-  const val TEXT_RELATIVE_TIME = 11
-
-  // Values that change with the host's clock. `ANIMATED_NUMBER` is ADR-020's declared target;
-  // these two extend the same idea to colour and to motion that repeats.
-  const val ANIMATED_NUMBER = 12
-  const val ANIMATED_COLOR = 14
-  const val OSCILLATE = 15
-  const val TEXT_PLURAL = 16
-}
 
 /**
  * The wire form of a host-resolved value: a factory and its arguments.
