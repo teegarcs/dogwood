@@ -455,7 +455,21 @@ has to reconcile. Sequence it with that work (Layer 5 Milestone 14), not before.
   validate-then-apply (two passes over the batch; cheap given 0.17 ms decode), or document the
   narrower guarantee. Gate: decision ADR with the measured cost of the chosen option; if
   validate-then-apply, a test where a mid-batch dangling reference leaves the tree untouched.
-- **Guest-controlled crash values** (`maxLines ≤ 0`, negative padding, `weight ≤ 0` throw inside
+- ✅ **Guest-controlled crash values — done (PR #13), [ADR-035](../adrs/layer-5/ADR-035-hostile-property-values.md).**
+  Confirmed first, then fixed. `HostileValueTest` drives real batches through the real tree and the
+  real renderer: five of its seven cases crashed the render before the change. Clamp-and-report
+  now lives in the readers (`intClamped`, `floatClamped`, `clampModifierValue`), applied to
+  `Text.maxLines`, `padding`, `weight`, `size`, `width` and `height`, with every clamp recorded in
+  `SkewReport.clampedValues` carrying the value that arrived and the range it was forced into.
+  Run end to end on both mobile hosts against a real payload —
+  [the hostile-value drill](../tools/hostile-value-drill/README.md) — where the pre-fix builds both
+  died (`FATAL EXCEPTION` on Android, `Uncaught Kotlin exception` on iOS) and the post-fix builds
+  rendered all three widgets and reported all three clamps. The drill also found that the Tabs
+  sample's `skew` variable was dead — declared, never written, never shown — so containment was
+  again invisible; both samples now poll the report. **Still open:** the clamp is hand-written per
+  site. A range declared on the surface, so the generator emits it for every property whose bounds
+  it knows, is the durable fix and is named as an unstated assumption in ADR-035. *Original entry:*
+  (`maxLines ≤ 0`, negative padding, `weight ≤ 0` throw inside
   composition on both hosts). Investigate the full surface by fuzzing property values through the
   generated bindings in the JVM host tests. Likely fix: clamp-and-report at the reader layer
   (`WidgetView.int(tag, default, min, max)`) so it is generator-wide, not per-binding. Gate: the

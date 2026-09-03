@@ -304,6 +304,10 @@ private fun SliceHost(configuration: HostEnvironment) {
       current = entry
       kotlinx.coroutines.delay(4_000)
       println("DRILL activated=$entry warm=${live.warm}")
+      // Sampled rather than observed: `SkewReport` is plain sets written during composition, so
+      // nothing invalidates when an entry lands. Reading it after the tab has settled is the only
+      // way to see what the client had to contain.
+      live.active.value?.skew?.takeIf { !it.isEmpty }?.let { println("DRILL skew=$it") }
     }
 
     // Back to one that is still warm: this must not produce another `loaded` line.

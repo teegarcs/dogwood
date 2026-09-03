@@ -83,10 +83,12 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
       }
 
     modifier = when (element.t.local) {
-      ModifierTags.PADDING -> modifier.padding(number(0f).dp)
+      ModifierTags.PADDING ->
+        modifier.padding(clampModifierValue(number(0f), min = 0f, what = "padding").dp)
       ModifierTags.FILL_MAX_WIDTH -> modifier.fillMaxWidth(value.floatOrNull ?: 1f)
       ModifierTags.WEIGHT -> {
-        val weight = value.floatOrNull ?: 1f
+        // `weight` requires a positive value; zero and negatives throw.
+        val weight = clampModifierValue(value.floatOrNull ?: 1f, min = Float.MIN_VALUE, what = "weight")
         when {
           scope.row != null -> with(scope.row) { modifier.weight(weight) }
           scope.column != null -> with(scope.column) { modifier.weight(weight) }
@@ -113,9 +115,12 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
           ?.let { androidx.compose.runtime.key(index, element.t.value) { resolveColor(it) } }
           ?: evaluator.color(element.v, palette),
       )
-      ModifierTags.SIZE -> modifier.size(number(0f).dp)
-      ModifierTags.WIDTH -> modifier.width(number(0f).dp)
-      ModifierTags.HEIGHT -> modifier.height(number(0f).dp)
+      ModifierTags.SIZE ->
+        modifier.size(clampModifierValue(number(0f), min = 0f, what = "size").dp)
+      ModifierTags.WIDTH ->
+        modifier.width(clampModifierValue(number(0f), min = 0f, what = "width").dp)
+      ModifierTags.HEIGHT ->
+        modifier.height(clampModifierValue(number(0f), min = 0f, what = "height").dp)
       ModifierTags.ALPHA -> modifier.alpha(number(1f))
       ModifierTags.ROTATE -> modifier.rotate(number(0f))
       ModifierTags.SCALE -> modifier.scale(number(1f))

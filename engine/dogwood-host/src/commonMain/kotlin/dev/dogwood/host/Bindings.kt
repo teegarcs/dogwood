@@ -177,7 +177,8 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       Text(
         text = text,
         modifier = modifier,
-        maxLines = node.int(P2, Int.MAX_VALUE),
+        // Compose throws below 1 rather than clamping, and the throw is inside composition.
+        maxLines = node.intClamped(P2, Int.MAX_VALUE, min = 1, what = "Text.maxLines"),
         overflow = TextOverflow.Ellipsis,
         // A colour when the guest sent one -- token or literal, the same recipe channel either
         // way -- and the host's own ink when it did not.

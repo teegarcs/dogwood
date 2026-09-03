@@ -16,6 +16,7 @@ import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.WidgetTag
 import kotlinx.serialization.json.JsonElement
+import androidx.compose.runtime.Composable
 
 /** One node, as a binding sees it. Absence is always the "use host default" sentinel. */
 interface WidgetView {
@@ -116,4 +117,53 @@ class RenderCounter {
   fun reset() {
     count = 0
   }
+}
+
+/*
+ * Clamping readers.
+ *
+ * Every other containment rule in this system is about *names* a client does not recognise. These
+ * are about values it recognises perfectly and cannot use. Compose rejects a negative padding, a
+ * `maxLines` below one and a weight of zero by throwing, and the throw lands **inside composition**
+ * -- so an off-by-one in a payload delivered over the air is not a degraded screen, it is no screen,
+ * on every client that receives it, at once.
+ *
+ * Clamping keeps the screen up. Reporting is what stops the clamp from becoming a silent
+ * difference between what the payload asked for and what the user sees: a designer wondering why
+ * their spacing is ignored should find the answer in the skew report rather than in a debugger.
+ *
+ * These are the hand-written half. A range declared on the surface, so the generator emits the same
+ * clamp for every property it knows the bounds of, is the fuller answer and is not built --
+ * see `ADR-035`.
+ */
+
+/** Reads an integer and forces it into `min..max`, reporting anything it had to move. */
+@Composable
+fun WidgetView.intClamped(tag: Int, default: Int, min: Int, max: Int = Int.MAX_VALUE, what: String): Int {
+  val raw = int(tag, default)
+  if (raw in min..max) return raw
+  LocalSkewReport.current.clampedValues += "$what=$raw outside $min..$max"
+  return raw.coerceIn(min, max)
+}
+
+/** Reads a float and forces it into `min..max`, reporting anything it had to move. */
+@Composable
+fun WidgetView.floatClamped(tag: Int, default: Float, min: Float, max: Float = Float.MAX_VALUE, what: String): Float {
+  val raw = float(tag, default)
+  if (raw in min..max) return raw
+  LocalSkewReport.current.clampedValues += "$what=$raw outside $min..$max"
+  return raw.coerceIn(min, max)
+}
+
+/**
+ * Forces an already-read number into range, for the modifier chain.
+ *
+ * Separate from the readers above because a modifier argument is not a property: it arrives as an
+ * element of a chain rather than under a tag, so there is nothing to read it *by*.
+ */
+@Composable
+fun clampModifierValue(raw: Float, min: Float, max: Float = Float.MAX_VALUE, what: String): Float {
+  if (raw in min..max) return raw
+  LocalSkewReport.current.clampedValues += "$what=$raw outside $min..$max"
+  return raw.coerceIn(min, max)
 }
