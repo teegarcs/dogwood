@@ -24,7 +24,15 @@ three findings in ADR-010 were invisible until the code ran.
 
 ---
 
-### R1. Network policy parity on iOS *(high; ~1 day)*
+### R1. Network policy parity on iOS — ✅ **done** (PR #5)
+
+*Body cap now streaming and bounded; resource timeout set. The gate landed differently than planned and
+the difference is recorded in the ADR: the tests drive `PolicedSessionDelegate` directly rather than
+through a loopback server, which covers our logic exhaustively and does not cover Foundation's
+wiring — that is exercised for real by the sample on every launch. A stubbed `NSURLProtocol` was
+built and abandoned as fragile scaffolding for coverage of Apple's code rather than ours.*
+
+#### Original entry
 
 **Problem.** `UrlSessionNetwork.fetch` (`dogwood-host/src/iosMain/.../PlatformServices.ios.kt`)
 uses the completion-handler API — `session.dataTaskWithRequest(built) { data, response, error -> }`
@@ -68,7 +76,14 @@ lands — run them first, watch them fail, then fix.
 
 ---
 
-### R2. Redirects re-checked against the allow rule, both platforms *(high; ~0.5 day)*
+### R2. Redirects re-checked against the allow rule, both platforms — ✅ **done** (PR #5)
+
+*Both platforms now re-apply the allow rule per hop. On the JVM the client no longer follows
+redirects at all; a bounded manual loop does, so the policy lives in the same file as the rule. The
+JVM gate is the planned one — a loopback server asserting the disallowed target records **zero**
+connections — and it failed before the fix, as required.*
+
+#### Original entry
 
 **Problem.** The allow rule runs once, pre-flight, on the original URL. Both defaults follow
 redirects (`NSURLSession.sharedSession`; `OkHttpClient()` has `followRedirects = true`), so any

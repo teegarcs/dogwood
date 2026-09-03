@@ -60,10 +60,34 @@ class SystemClock : DogwoodClock {
  *    boundary error rather than as something a screen can render an empty state for.
  */
 class OkHttpNetwork(
-  private val client: OkHttpClient,
+  client: OkHttpClient,
   private val maxBodyBytes: Long = 1L * 1024 * 1024,
   private val allow: (HttpUrl) -> Boolean = { false },
+  /**
+   * How many redirects to follow before giving up.
+   *
+   * Bounded because the loop below follows them by hand; the client is configured not to.
+   */
+  private val maxRedirects: Int = 5,
 ) : DogwoodNetwork {
+
+  /**
+   * Redirects are followed here, not by the client, so that the allow rule sees every hop.
+   *
+   * The policy used to run once, on the URL the guest named, and the client followed redirects on
+   * its own -- so a guest naming an allowed host with an open-redirect endpoint reached whatever
+   * that endpoint pointed at and read up to [maxBodyBytes] from it. The allow list is the
+   * exfiltration boundary for code delivered over the air without a store review, and a boundary
+   * checked only at the front door is not one.
+   *
+   * Following by hand rather than with an interceptor is deliberate: an interceptor sees the
+   * redirect *response*, after the decision to follow has been made elsewhere, which puts the
+   * policy in a different file from the rule it enforces.
+   */
+  private val client: OkHttpClient = client.newBuilder()
+    .followRedirects(false)
+    .followSslRedirects(false)
+    .build()
 
   override suspend fun fetch(request: HttpRequest): HttpResponse {
     val url = request.url.toHttpUrlOrNull()
@@ -74,46 +98,101 @@ class OkHttpNetwork(
 
     return withContext(Dispatchers.IO) {
       try {
-        val body = request.body?.toRequestBody()
-        val built = Request.Builder()
-          .url(url)
-          .method(request.method, body)
-          .apply { request.headers.forEach { (name, value) -> header(name, value) } }
-          .build()
-
-        client.newCall(built).execute().use { response ->
-          val length = response.body?.contentLength() ?: -1L
-          if (length > maxBodyBytes) {
-            return@use HttpResponse(
+        var target = url
+        var hops = 0
+        while (true) {
+          val outcome = attempt(request, target)
+          val next = outcome.redirectTo
+            ?: return@withContext outcome.response
+          if (++hops > maxRedirects) {
+            return@withContext HttpResponse(
               code = 0,
-              failure = "response of $length bytes exceeds this client's $maxBodyBytes byte limit",
+              failure = "too many redirects (more than $maxRedirects) from ${request.url}",
             )
           }
-          // contentLength() is -1 for a chunked response, so the cap is enforced again on what
-          // actually arrived. Reading at most one byte past the limit is what makes the check
-          // meaningful rather than advisory.
-          val source = response.body?.source()
-          val text = source?.let {
-            it.request(maxBodyBytes + 1)
-            if (it.buffer.size > maxBodyBytes) {
-              return@use HttpResponse(
-                code = 0,
-                failure = "response body exceeds this client's $maxBodyBytes byte limit",
-              )
-            }
-            it.readUtf8()
-          }.orEmpty()
-
-          HttpResponse(
-            code = response.code,
-            headers = response.headers.toMultimap().mapValues { (_, v) -> v.joinToString(",") },
-            body = text,
-          )
+          val resolved = target.resolve(next)
+            ?: return@withContext HttpResponse(
+              code = 0,
+              failure = "redirect to an unusable location: $next",
+            )
+          // The whole point: every hop is checked, not just the first.
+          if (!allow(resolved)) {
+            return@withContext HttpResponse(
+              code = 0,
+              failure = "this client does not allow requests to ${resolved.host}",
+            )
+          }
+          target = resolved
         }
+        @Suppress("UNREACHABLE_CODE") HttpResponse(code = 0, failure = "unreachable")
       } catch (e: IOException) {
         HttpResponse(code = 0, failure = "${e::class.simpleName}: ${e.message}")
       }
     }
+  }
+
+  /** One hop. Returns either a finished response or where the server wants us to go next. */
+  private class Attempt(val response: HttpResponse, val redirectTo: String?)
+
+  private fun attempt(request: HttpRequest, url: HttpUrl): Attempt {
+    val body = request.body?.toRequestBody()
+    val built = Request.Builder()
+      .url(url)
+      .method(request.method, body)
+      .apply { request.headers.forEach { (name, value) -> header(name, value) } }
+      .build()
+
+    client.newCall(built).execute().use { response ->
+      // A redirect is not read; it is a question about where to go next, answered by the caller
+      // against the allow rule. Reading the body here would be reading a body from a host that
+      // has not yet been permitted.
+      if (response.isRedirect) {
+        val location = response.header("Location")
+        if (location != null) return Attempt(EMPTY, location)
+      }
+
+      val length = response.body?.contentLength() ?: -1L
+      if (length > maxBodyBytes) {
+        return Attempt(
+          HttpResponse(
+            code = 0,
+            failure = "response of $length bytes exceeds this client's $maxBodyBytes byte limit",
+          ),
+          null,
+        )
+      }
+      // contentLength() is -1 for a chunked response, so the cap is enforced again on what
+      // actually arrived. Reading at most one byte past the limit is what makes the check
+      // meaningful rather than advisory.
+      val source = response.body?.source()
+      val text = source?.let {
+        it.request(maxBodyBytes + 1)
+        if (it.buffer.size > maxBodyBytes) {
+          return Attempt(
+            HttpResponse(
+              code = 0,
+              failure = "response body exceeds this client's $maxBodyBytes byte limit",
+            ),
+            null,
+          )
+        }
+        it.readUtf8()
+      }.orEmpty()
+
+      return Attempt(
+        HttpResponse(
+          code = response.code,
+          headers = response.headers.toMultimap().mapValues { (_, v) -> v.joinToString(",") },
+          body = text,
+        ),
+        null,
+      )
+    }
+  }
+
+  private companion object {
+    /** Placeholder for a hop that redirected; the caller never returns it. */
+    val EMPTY = HttpResponse(code = 0, failure = "redirected")
   }
 
   override fun close() = Unit
