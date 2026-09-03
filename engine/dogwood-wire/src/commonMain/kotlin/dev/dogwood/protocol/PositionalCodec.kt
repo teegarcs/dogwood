@@ -36,6 +36,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The change-kind discriminators, declared once.
@@ -61,7 +62,7 @@ object ChangeKind {
    * a correct one. Arity is the only thing that distinguishes "a batch I understand" from "a batch
    * that happens to parse".
    */
-  internal val arity = intArrayOf(3, 4, 3, 5, 5, 6)
+  val arity: IntArray = intArrayOf(3, 4, 3, 5, 5, 6)
 }
 
 /**
@@ -83,13 +84,29 @@ private val PositionalJson = Json { ignoreUnknownKeys = true }
  * against it. The delivery layer already settled this shape for the same reason -- a manifest that
  * fails verification is rejected whole and the last validated payload keeps serving.
  */
-fun decodePositional(payload: String): ChangeBatch {
+fun decodePositional(payload: String): ChangeBatch = try {
+  decodeChecked(payload)
+} catch (mismatch: ProtocolMismatch) {
+  throw mismatch
+} catch (other: Exception) {
+  /*
+   * Everything that is not already typed becomes typed here.
+   *
+   * The contract this file states -- an undecodable batch is a refusal the host contains, never a
+   * raw throw -- held only for inputs malformed in the ways the checks below anticipate. A
+   * `NumberFormatException` from an out-of-range integer, or a `SerializationException` from JSON
+   * that is not JSON, escaped `sendChanges`' catch and killed the screen. The guarantee has to
+   * cover every input, not just the shapely ones.
+   */
+  throw ProtocolMismatch("this batch could not be decoded: ${other::class.simpleName}: ${other.message}")
+}
+
+private fun decodeChecked(payload: String): ChangeBatch {
   val root = PositionalJson.parseToJsonElement(payload).jsonArray
   if (root.size != 2) {
     throw ProtocolMismatch("a batch is [sequence, changes]; this one has ${root.size} elements")
   }
-  val sequence = root[0].jsonPrimitive.intOrNull
-    ?: throw ProtocolMismatch("a batch's first element must be a sequence number")
+  val sequence = root.structuralInt(0, "a batch's sequence number")
   return ChangeBatch(sequence, root[1].jsonArray.map { decodeChange(it.jsonArray) })
 }
 
@@ -116,9 +133,34 @@ fun decodePositionalInterned(payload: String): ChangeBatch {
   return ChangeBatch(sequence, changes)
 }
 
+/**
+ * A structural integer: unquoted, and in range.
+ *
+ * `jsonPrimitive.int` accepts a *quoted* number, so `["7",[[0,"1","1"]]]` decoded here and was
+ * refused by the web host's fast path -- two decoders disagreeing about the grammar, which is the
+ * situation ADR-009 exists to prevent. Nothing that has ever shipped emits quoted structural
+ * numbers: the guest builds native JavaScript arrays of numbers and hands them to `JSON.stringify`.
+ * So the strict reading is the correct one, and tightening the reference is safe where loosening
+ * the fast path would have widened the grammar to fit an accident.
+ *
+ * It also converts overflow from a `NumberFormatException` escaping the boundary into an ordinary
+ * typed refusal -- see the note on [decodePositional].
+ */
+private fun JsonArray.structuralInt(index: Int, what: String): Int {
+  val primitive = getOrNull(index) as? JsonPrimitive
+    ?: throw ProtocolMismatch("$what must be a number")
+  if (primitive.isString) {
+    throw ProtocolMismatch("$what must be an unquoted number; got a string")
+  }
+  return primitive.content.toIntOrNull()
+    ?: throw ProtocolMismatch("$what is not an integer this protocol can represent")
+}
+
 private fun decodeChange(fields: JsonArray): Change {
-  val kind = fields.getOrNull(0)?.jsonPrimitive?.intOrNull
-    ?: throw ProtocolMismatch("a change must begin with a kind discriminator")
+  // The discriminator is structural too. It was the one position still read loosely, which the
+  // parity suite caught immediately: `["0",1,2]` decoded here and was refused by the fast path.
+  if (fields.isEmpty()) throw ProtocolMismatch("a change must begin with a kind discriminator")
+  val kind = fields.structuralInt(0, "a change kind discriminator")
   if (kind !in ChangeKind.arity.indices) {
     throw ProtocolMismatch("unknown change kind $kind; this payload is newer than this client")
   }
@@ -130,7 +172,7 @@ private fun decodeChange(fields: JsonArray): Change {
     )
   }
 
-  fun int(index: Int): Int = fields[index].jsonPrimitive.int
+  fun int(index: Int): Int = fields.structuralInt(index, "field $index of change kind $kind")
   return when (kind) {
     ChangeKind.CREATE -> Create(Id(int(1)), WidgetTag(int(2)))
     ChangeKind.PROPERTY -> PropertySet(Id(int(1)), PropertyTag(int(2)), fields[3])
@@ -146,5 +188,5 @@ private fun decodeChain(elements: JsonArray): List<ModifierElem> = elements.map 
   if (pair.size != 2) {
     throw ProtocolMismatch("a modifier element is [tag, value]; this one has ${pair.size}")
   }
-  ModifierElem(ModifierTag(pair[0].jsonPrimitive.int), pair[1] as JsonElement)
+  ModifierElem(ModifierTag(pair.structuralInt(0, "a modifier tag")), pair[1] as JsonElement)
 }

@@ -266,7 +266,12 @@ class FastPositionalDecoder {
       negative = true
       at++
     }
-    var value = 0
+    // Accumulated as a Long and range-checked, because the obvious `Int` accumulator wraps in
+    // silence. An identifier of 2^32 + 1 became 1, and the change was then applied to a different
+    // *live* node -- a corrupted tree with no exception and no report, which is the exact class
+    // ADR-009 exists to close. The reference decoder refuses the same input, and after this so
+    // does the fast path.
+    var value = 0L
     var digits = 0
     while (at < end) {
       val c = chars[at]
@@ -274,9 +279,16 @@ class FastPositionalDecoder {
       value = value * 10 + (c.code - '0'.code)
       digits++
       at++
+      if (value > OVERFLOW_GUARD) {
+        throw ProtocolMismatch("integer at offset $start is out of range for this protocol")
+      }
     }
     if (digits == 0) throw ProtocolMismatch("expected an integer at offset $start")
-    return if (negative) -value else value
+    val signed = if (negative) -value else value
+    if (signed > Int.MAX_VALUE.toLong() || signed < Int.MIN_VALUE.toLong()) {
+      throw ProtocolMismatch("integer at offset $start is out of range for this protocol")
+    }
+    return signed.toInt()
   }
 
   /**
@@ -491,4 +503,10 @@ class FastPositionalDecoder {
  * shows up there as a batch that decodes differently, which is a failure rather than a silently
  * wrong tree.
  */
-private val ChangeArity = intArrayOf(3, 4, 3, 5, 5, 6)
+// The arity table is NOT restated here. It was, and that made the fast path a second copy of the
+// grammar in exactly the sense ADR-009 abolished -- two tables nothing compared, one of which
+// would have drifted the first time a change kind gained a field.
+/** Bail out before a Long could itself wrap; any real identifier is far below this. */
+private const val OVERFLOW_GUARD = Int.MAX_VALUE.toLong() + 1L
+
+private val ChangeArity get() = ChangeKind.arity
