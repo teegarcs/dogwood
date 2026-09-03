@@ -366,7 +366,14 @@ Each item: problem → implementation → gate, one line each.
 
 ---
 
-### R9. Documentation debt *(medium; ~1 day)*
+### R9. Documentation debt — ✅ **done** (PR #11)
+
+*ADR-033 written and indexed; Milestone 14 corrected and Milestone 15 added; the upstream reports
+drafted in `tools/upstream-reports/`. **Filing them is deliberately left to a person** — publishing
+this project's name and a reproduction against a vendor's product is an outward-facing act, so
+ADR-032 now says "drafted, not filed", which is the honest tense.*
+
+#### Original entry
 
 **Problem.** AGENTS.md requires ADRs for maintenance-phase decisions; Phase 6 made several with
 none (NSURLSession policy, the 8 MB `NSThread`, the `commonMain` moves, Ktor images). Layer 5's

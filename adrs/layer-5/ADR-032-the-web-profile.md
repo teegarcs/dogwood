@@ -142,8 +142,10 @@ This is accepted with two conditions rather than as a clean fix. The bug is **co
 adding an unrelated caller of `toCharArray()` made it vanish and removing that caller brought it back
 — so it cannot be reasoned about locally, and its blast radius is unknown: any WasmGC array written by
 an imported builtin is a candidate. So the build keeps a **correctness gate** that fails if the output
-disagrees with a reference implementation, and the defect is **reported upstream** with the
-reproduction. Losing `--gufa` costs some optimisation; against a page that is 81% prebuilt Skiko, that
+disagrees with a reference implementation, and the defect is **drafted for upstream but not yet
+filed** — the text and the reproduction are in [`tools/upstream-reports/`](../../tools/upstream-reports/),
+and filing it publishes this project's name against a vendor's product, which is a person's decision
+rather than an automated one. Losing `--gufa` costs some optimisation; against a page that is 81% prebuilt Skiko, that
 is not a number worth defending.
 
 **The gate is unexercised, and that is a real caveat rather than a footnote.** Building the web
