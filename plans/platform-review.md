@@ -280,7 +280,14 @@ actually failing when `--gufa` is injected back into the args in a scratch build
 
 ---
 
-### R7. Run the moved machinery on iOS *(medium; ~1.5 days)*
+### R7. Run the moved machinery on iOS — ✅ **done** (PR #9)
+
+*All gates met on the simulator. Running it found what compiling it could not: `Shell.evict()` closed
+a guest from the user-interface thread, which the Java Virtual Machine tolerated and Kotlin/Native
+aborts on — teardown now crosses to the Zipline thread and `DogwoodExperience.close()` asserts it.
+The gates are driven by a `--dogwood-drill` launch argument, because `simctl` cannot tap.*
+
+#### Original entry
 
 **Problem.** `Session`, `Shell`, `StateStore` and the code-update flow moved to `commonMain`,
 compile for iOS, and have never executed there — `slice-ios/Main.kt` drives a raw

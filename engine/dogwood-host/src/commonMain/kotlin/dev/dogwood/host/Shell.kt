@@ -277,7 +277,10 @@ class DogwoodShell(
   fun close() {
     for (entry in entries.values) {
       entry.job?.cancel()
-      entry.session?.close()
+      // Closing a guest is a call into the interpreter, so it goes to the Zipline thread like
+      // every other one. Launched rather than awaited because `close()` is not suspending and a
+      // host calling it is usually on its way out.
+      entry.session?.let { live -> uiScope.launch { live.close() } }
     }
     entries.clear()
     pool.clear()

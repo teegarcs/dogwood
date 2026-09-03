@@ -98,8 +98,16 @@ evicted nothing.
 - **A day is the right staleness bound.** Chosen, not measured. Returning to a form a day later and
   finding it half-filled is stranger than finding it empty.
 - **The store is not encrypted.** Deliberate, given the above, and the reason `sensitive` exists.
-- **Only Android is wired.** The seam is platform-neutral; desktop and Web hosts have their own
-  lifecycles and neither is wired yet.
+- **iOS is now wired too, and it changed one of the assumptions above.** The store lives in
+  `Library/Application Support`, and everything on iOS outside `Caches/` is **iCloud-backed by
+  default** — so the plain-text saved state this record refuses to let leave the device would have
+  left it, on a platform this record did not consider. `excludeFromBackup` is a platform seam
+  (`NSURLIsExcludedFromBackupKey`, which Okio cannot express) applied after every write, because the
+  flag belongs to the file and a recreated file is a new one. Verified on the simulator by reading
+  the `com.apple.metadata:com_apple_backup_excludeItem` attribute off the written file. Backgrounding
+  is `UIApplicationDidEnterBackgroundNotification` and memory pressure is the matching notification —
+  the same reasoning as `onStop` and `onTrimMemory`, arriving by a different mechanism.
+- **Desktop and Web are still unwired.** Both have their own lifecycles and neither is done.
 - **Concurrent processes are not considered.** One activity, one store, last write wins.
 
 ## 5. Updated Documents

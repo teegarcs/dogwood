@@ -36,4 +36,10 @@ fun DogwoodDelivery(
 
 internal actual fun hostEpochMillis(): Long = System.currentTimeMillis()
 
+/**
+ * No-op. Android's equivalent is `allowBackup="false"` in the manifest, which is a declaration
+ * about the whole application rather than a property of one file, and the sample sets it.
+ */
+internal actual fun excludeFromBackup(path: okio.Path) = Unit
+
 internal actual fun platformFileSystem(): okio.FileSystem = okio.FileSystem.SYSTEM

@@ -198,9 +198,17 @@ class DogwoodSession(
     return withContext(ziplineDispatcher) { live.snapshotState() }
   }
 
-  fun close() {
-    currentExperience.value?.close()
+  /**
+   * Tears the session down, crossing to the Zipline thread to do it.
+   *
+   * Suspending, because [DogwoodExperience.close] talks to the interpreter and the interpreter has
+   * one thread. This used to be an ordinary function called from wherever the caller happened to
+   * be, which meant the shell's eviction path closed a guest from the user-interface thread.
+   */
+  suspend fun close() {
+    val live = currentExperience.value
     currentExperience.value = null
+    if (live != null) withContext(ziplineDispatcher) { live.close() }
     if (ownsDelivery) delivery.close()
   }
 }

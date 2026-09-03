@@ -54,6 +54,20 @@ private class PersistedState(
  * hosts that have one resolve to exactly the same object this parameter defaulted to before it
  * moved out of `jvmAndroidMain`.
  */
+/**
+ * Keeps [path] out of the platform's cloud backup, where the platform has such a thing.
+ *
+ * ADR-010 argues that a persisted snapshot is user data at rest and reasons about it in Android's
+ * terms: private storage, device encryption, `allowBackup=false`. iOS reopens the question, because
+ * everything outside `Caches/` is **iCloud-backed by default** -- so the plain-text saveable state
+ * that ADR-010 refuses to let leave the device would leave the device, silently, on a platform the
+ * ADR did not consider.
+ *
+ * A seam rather than an Okio call because Okio cannot express it: the exclusion is a resource value
+ * on an `NSURL`, not a filesystem operation. No-op where the concept does not exist.
+ */
+internal expect fun excludeFromBackup(path: okio.Path)
+
 internal expect fun platformFileSystem(): FileSystem
 
 class DogwoodStateStore(
@@ -90,6 +104,9 @@ class DogwoodStateStore(
     runCatching {
       file.parent?.let { fileSystem.createDirectories(it) }
       fileSystem.write(file) { writeUtf8(encoded) }
+      // After the write, because the exclusion is a property of the file and a recreated file is a
+      // new one. Where the platform has no such concept this is a no-op.
+      excludeFromBackup(file)
     }.onFailure { onProblem("could not write saved state: ${it.message}") }
   }
 

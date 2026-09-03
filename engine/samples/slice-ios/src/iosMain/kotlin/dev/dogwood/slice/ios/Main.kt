@@ -85,6 +85,23 @@ import platform.UIKit.UIResponder
 import platform.UIKit.UIResponderMeta
 import platform.UIKit.UIScreen
 import platform.UIKit.UIWindow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.unit.dp
+import dev.dogwood.host.DogwoodShell
+import dev.dogwood.host.DogwoodStateStore
+import kotlinx.coroutines.launch
+import platform.Foundation.NSApplicationSupportDirectory
+import platform.Foundation.NSDate
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.timeIntervalSince1970
+import platform.UIKit.UIApplicationDidEnterBackgroundNotification
+import platform.UIKit.UIApplicationDidReceiveMemoryWarningNotification
+import platform.Foundation.NSProcessInfo
 
 /**
  * The public half of the key that signs the guest -- the same two keys the desktop and Android
@@ -166,69 +183,95 @@ private fun SliceApp() {
   }
 }
 
+/**
+ * Entry points this host offers, as tabs.
+ *
+ * The same shape `TabsActivity` has on Android, and for the same reason: the machinery worth
+ * exercising is the shell, and a single-screen host never touches it.
+ */
+private val TABS = listOf(
+  "explore" to "Explore",
+  "feed" to "Stays",
+  "app" to "Trips",
+  "about" to "Account",
+)
+
 @Composable
 private fun SliceHost(configuration: HostEnvironment) {
   val uiScope = rememberCoroutineScope()
-  var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
+  var shell by remember { mutableStateOf<DogwoodShell?>(null) }
+  var current by remember { mutableStateOf(TABS.first().first) }
   var failure by remember { mutableStateOf<String?>(null) }
+  var note by remember { mutableStateOf("starting…") }
   val latestConfiguration by rememberUpdatedState(configuration)
-
-  // Rotating the device, or the operating system flipping to dark mode, pushes the new
-  // environment into the running guest. Equal values are dropped inside the experience.
-  LaunchedEffect(configuration, experience) {
-    experience?.updateConfiguration(configuration)
-  }
 
   // The only thread allowed to touch the guest, with an eight-megabyte stack. See
   // `DogwoodZiplineDispatcher`: Apple's 512-kibibyte default is not enough for QuickJS.
   val dispatcher = remember { DogwoodZiplineDispatcher() }
 
+  /*
+   * Saved state, read exactly once per process.
+   *
+   * Read outside the composition for the reason ADR-010 records: `consume` deletes what it
+   * returns, so a `LaunchedEffect` cannot promise it runs once -- and on Android it demonstrably
+   * did not, restoring into a shell that was then thrown away while both halves reported success.
+   */
+  val store = remember {
+    DogwoodStateStore(
+      file = cachePath("${applicationSupportDirectory()}/dogwood-saved-state.json"),
+      onProblem = { println("dogwood: saved state: $it") },
+    )
+  }
+  val carried = remember { store.consume(nowEpochMillis) }
+
+  LaunchedEffect(configuration, shell) { shell?.updateEnvironment(configuration) }
+
   LaunchedEffect(Unit) {
     try {
-      val delivered = withContext(dispatcher) {
+      val delivery = withContext(dispatcher) {
         DogwoodDelivery(
           dispatcher = dispatcher,
           trustedPublicKeys = TRUSTED_KEYS,
-          // The same Layer 3 path Android and desktop run. Only the cache directory differs,
-          // because naming a per-application cache directory is a platform question.
           cache = ZiplineCache(
             fileSystem = FileSystem.SYSTEM,
             directory = cachePath("${cachesDirectory()}/dogwood-cache"),
             maxSizeInBytes = 32L * 1024 * 1024,
           ),
-        ).load(applicationName = "dogwood-slice", manifestUrl = MANIFEST_URL)
-      }
-      println("loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
-      // Constructed here, on the user-interface thread, because that is the thread it binds.
-      val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
-      withContext(dispatcher) {
-        created.start(
-          entryPoint = "explore",
-          services = DogwoodServiceHost(
-            log = CallbackLog { level, tag, message -> println("[$level] $tag: $message") },
-            clock = NSDateClock(),
-            analytics = CallbackAnalytics { name, properties -> println("analytics: $name $properties") },
-            featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
-            // Default-deny, opened for the development server only, and cleartext named
-            // explicitly. App Transport Security has to agree as well -- see `Info.plist`.
-            network = UrlSessionNetwork(
-              allow = allowUrlHosts("localhost", allowCleartextHosts = setOf("localhost")),
-            ),
-          ),
-          configuration = latestConfiguration,
-          launchParams = buildJsonObject {
-            put("city", "Tokyo")
-            put("country", "Japan")
-            put("apiBaseUrl", DEV_SERVER)
-          },
         )
       }
-      experience = created
-      // The Phase 6 accessibility evidence: wait for the first tree to be applied and drawn, then
-      // print what `UIAccessibility` exposes. See `Accessibility.kt` for what this does and does
-      // not settle.
-      kotlinx.coroutines.delay(2_000)
-      UIApplication.sharedApplication.keyWindow?.let { dumpAccessibilityTree(it) }
+      val built = DogwoodShell(
+        delivery = delivery,
+        applicationName = "dogwood-slice",
+        manifestUrl = MANIFEST_URL,
+        ziplineDispatcher = dispatcher,
+        uiScope = uiScope,
+        environment = latestConfiguration,
+        services = DogwoodServiceHost(
+          log = CallbackLog { level, tag, message -> println("[$level] $tag: $message") },
+          clock = NSDateClock(),
+          analytics = CallbackAnalytics { name, properties -> println("analytics: $name $properties") },
+          featureFlags = MapFeatureFlags(mapOf("explore.showWasPrice" to "true")),
+          network = UrlSessionNetwork(
+            allow = allowUrlHosts("localhost", allowCleartextHosts = setOf("localhost")),
+          ),
+        ),
+        capacity = 3,
+        onSwap = { entry, status ->
+          note = "[$entry] loaded, restored ${status.restoredKeys} state keys"
+          println("dogwood: $note")
+        },
+        onEvict = { entry, keys ->
+          note = "[$entry] evicted, kept $keys state keys"
+          println("dogwood: $note")
+        },
+        onFailure = { entry, e -> println("dogwood: [$entry] failed: ${e.message}") },
+      )
+      if (carried.isNotEmpty()) {
+        built.restoreAll(carried)
+        note = "restored state for ${carried.keys} from a previous process"
+        println("dogwood: $note")
+      }
+      shell = built
     } catch (e: Throwable) {
       failure = "could not load the guest: ${e.message}\n\n" +
         "Is the development server running?\n" +
@@ -238,22 +281,127 @@ private fun SliceHost(configuration: HostEnvironment) {
     }
   }
 
-  failure?.let { Text(it, Modifier.fillMaxSize()) }
-  experience?.let {
-    Column(Modifier.fillMaxSize()) {
-      Text(
-        "${configuration.viewportWidthDp}×${configuration.viewportHeightDp}dp " +
-          "(${configuration.widthClass}) · ${if (configuration.darkMode) "dark" else "light"} · " +
-          "${configuration.locale}",
-        style = MaterialTheme.typography.labelSmall,
-      )
-      // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
-      DogwoodSurface(it, Modifier.fillMaxSize())
+  /*
+   * The verification drill, run only when asked for.
+   *
+   * `xcrun simctl` cannot tap or type, so the shell's behaviour on this platform cannot be driven
+   * the way the Android drills drive it. Rather than assert nothing, the sample exercises the
+   * shell directly when launched with `--dogwood-drill` and prints what happened -- the same
+   * arrangement the Phase 0 harness uses, and the same reason: a property nobody can observe is a
+   * property nobody has verified.
+   *
+   * It is opt-in so that an ordinary launch is an ordinary launch.
+   */
+  LaunchedEffect(shell) {
+    val live = shell ?: return@LaunchedEffect
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-drill")) return@LaunchedEffect
+    kotlinx.coroutines.delay(3_000)
+    println("DRILL warm-after-first=${live.warm}")
+
+    // Visit every tab, which at a capacity of three must evict the least recently used.
+    for ((entry, _) in TABS) {
+      current = entry
+      kotlinx.coroutines.delay(4_000)
+      println("DRILL activated=$entry warm=${live.warm}")
+    }
+
+    // Back to one that is still warm: this must not produce another `loaded` line.
+    current = live.warm.first()
+    kotlinx.coroutines.delay(2_000)
+    println("DRILL returned-to=${current} warm=${live.warm}")
+
+    // Memory pressure, and then what the store actually writes.
+    live.trimMemory(keep = 1)
+    kotlinx.coroutines.delay(1_500)
+    println("DRILL after-trim warm=${live.warm}")
+
+    val states = live.snapshotAll()
+    store.write(states, nowEpochMillis)
+    println("DRILL wrote-state-for=${states.keys}")
+    println("DRILL state-file=${applicationSupportDirectory()}/dogwood-saved-state.json")
+  }
+
+  LaunchedEffect(shell, current) {
+    shell?.activate(
+      current,
+      launchParams = buildJsonObject {
+        put("city", "Tokyo")
+        put("country", "Japan")
+        put("apiBaseUrl", DEV_SERVER)
+      },
+    )
+  }
+
+  /*
+   * Backgrounding and memory pressure, which on iOS arrive as notifications rather than callbacks.
+   *
+   * `didEnterBackground` is the last moment guaranteed before the system may reclaim the process,
+   * so it is where the snapshot has to be taken -- the same reasoning that put it in `onStop` on
+   * Android, and equally unable to live anywhere synchronous, since reading a live guest's state
+   * crosses to the Zipline thread.
+   */
+  DisposableEffect(shell) {
+    val live = shell
+    val centre = NSNotificationCenter.defaultCenter
+    val background = centre.addObserverForName(
+      name = UIApplicationDidEnterBackgroundNotification,
+      `object` = null,
+      queue = null,
+    ) { _ ->
+      val target = live ?: return@addObserverForName
+      uiScope.launch {
+        val states = target.snapshotAll()
+        store.write(states, nowEpochMillis)
+        println("dogwood: saved state for ${states.keys} on background")
+      }
+      Unit
+    }
+    val memory = centre.addObserverForName(
+      name = UIApplicationDidReceiveMemoryWarningNotification,
+      `object` = null,
+      queue = null,
+    ) { _ ->
+      println("dogwood: memory warning; dropping all but the visible experience")
+      live?.trimMemory(keep = 1)
+      Unit
+    }
+    onDispose {
+      centre.removeObserver(background)
+      centre.removeObserver(memory)
+      // The shell this effect was keyed on, not whatever the variable holds now -- the mistake
+      // that, on Android, closed the shell seconds after it was built and discarded the state
+      // restored into it.
+      live?.close()
+    }
+  }
+
+  Column(Modifier.fillMaxSize()) {
+    failure?.let { Text(it, Modifier.padding(16.dp)) }
+    shell?.active?.value?.let { live ->
+      DogwoodSurface(live, Modifier.fillMaxWidth().weight(1f))
+    }
+    Text("warm: ${shell?.warm?.joinToString(", ") ?: "—"}", Modifier.padding(horizontal = 16.dp))
+    Text(note, Modifier.padding(horizontal = 16.dp))
+    Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+      for ((entry, label) in TABS) {
+        Text(
+          if (entry == current) "● $label" else label,
+          Modifier.clickable { current = entry }.padding(8.dp),
+        )
+      }
     }
   }
 }
 
-/** The application's own caches directory, which is where a downloaded payload belongs. */
+/** Where saved state lives: application support, which is neither purgeable nor a cache. */
+private fun applicationSupportDirectory(): String =
+  NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, true)
+    .first() as String
+
 private fun cachesDirectory(): String =
   NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true)
     .first() as String
+
+/** Milliseconds since the epoch, from the platform clock the rest of this file already uses. */
+private val nowEpochMillis: Long
+  get() = (NSDate().timeIntervalSince1970 * 1000.0).toLong()
