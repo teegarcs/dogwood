@@ -32,6 +32,8 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSThread
 import platform.Foundation.NSURLSession
 import platform.Foundation.timeIntervalSince1970
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.alloc
 
 /**
  * See [DogwoodDelivery].
@@ -58,6 +60,31 @@ fun DogwoodDelivery(
 internal actual fun hostEpochMillis(): Long = (NSDate().timeIntervalSince1970 * 1000.0).toLong()
 
 internal actual fun platformFileSystem(): okio.FileSystem = okio.FileSystem.SYSTEM
+
+/**
+ * Marks the file as excluded from iCloud and iTunes backup.
+ *
+ * The one place ADR-010's at-rest reasoning does not carry across from Android. Everything outside
+ * `Caches/` is backed up by default here, so saved state -- which measurably contains a masked
+ * card field's digits in plain text -- would be copied off the device unless this is set. It is a
+ * resource value on the URL rather than a filesystem attribute, which is why Okio cannot do it and
+ * why this seam exists.
+ *
+ * Applied after every write: the flag lives on the file, so a file recreated by a later write is a
+ * new file without it.
+ */
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+internal actual fun excludeFromBackup(path: okio.Path) {
+  val url = platform.Foundation.NSURL.fileURLWithPath(path.toString())
+  kotlinx.cinterop.memScoped {
+    val error = alloc<kotlinx.cinterop.ObjCObjectVar<platform.Foundation.NSError?>>()
+    url.setResourceValue(
+      value = platform.Foundation.NSNumber(bool = true),
+      forKey = platform.Foundation.NSURLIsExcludedFromBackupKey,
+      error = error.ptr,
+    )
+  }
+}
 
 /** Eight megabytes, the same figure the desktop and Android hosts pass to their thread factories. */
 const val ZIPLINE_THREAD_STACK_SIZE: Int = 8 * 1024 * 1024

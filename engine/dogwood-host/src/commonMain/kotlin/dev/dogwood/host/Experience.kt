@@ -219,7 +219,18 @@ class DogwoodExperience(
     }
   }
 
+  /**
+   * Tears the guest down. **Must be called on the Zipline dispatcher.**
+   *
+   * `guest.close()` and `zipline.close()` are calls into the interpreter, and the interpreter is
+   * single-threaded: the same rule that governs `frame` and `sendEvent` governs teardown. It was
+   * called from the user-interface thread by the shell's eviction path, which the Java Virtual
+   * Machine tolerated and Kotlin/Native does not -- the iOS host aborted the moment the warm cap
+   * first evicted anything. Tolerated is not the same as correct; the JVM was getting away with a
+   * data race on the guest heap.
+   */
   fun close() {
+    threads.checkZipline()
     guest?.close()
     guest = null
     zipline.close()
