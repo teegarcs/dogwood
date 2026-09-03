@@ -16,6 +16,8 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
 
 class NetworkPolicyTest {
 
@@ -78,5 +80,93 @@ class NetworkPolicyTest {
     assertTrue(allow("http://10.0.2.2:8080/explore.json".toHttpUrl()))
     assertTrue(allow("https://api.example.com/v1".toHttpUrl()))
     assertFalse(allow("http://api.example.com/v1".toHttpUrl()))
+  }
+}
+
+/*
+ * Redirects, which the allow rule did not see.
+ *
+ * The policy runs once, before the request, on the URL the guest named. Both platforms' clients
+ * follow redirects by default, so a guest that names an allowed host with an open-redirect
+ * endpoint reaches whatever that endpoint points at -- and reads up to the body cap from it, with
+ * headers of the guest's choosing. The allow list is the exfiltration boundary for code delivered
+ * over the air without a store review, and a boundary checked only at the front door is not one.
+ *
+ * These use a loopback server so the assertion can be made from the side that matters: whether the
+ * disallowed host was ever *contacted*. A test that only inspected the returned value could pass
+ * while the request had already happened.
+ */
+class RedirectPolicyTest {
+
+  /** A server that 302s to [target], and a second that records whether it was ever reached. */
+  private fun servers(target: (Int) -> String): Triple<HttpServer, HttpServer, () -> Int> {
+    val forbidden = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    val hits = java.util.concurrent.atomic.AtomicInteger()
+    forbidden.createContext("/") { exchange ->
+      hits.incrementAndGet()
+      val body = "secret".toByteArray()
+      exchange.sendResponseHeaders(200, body.size.toLong())
+      exchange.responseBody.use { it.write(body) }
+    }
+    forbidden.start()
+
+    val allowed = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    allowed.createContext("/redirect") { exchange ->
+      exchange.responseHeaders.add("Location", target(forbidden.address.port))
+      exchange.sendResponseHeaders(302, -1)
+      exchange.close()
+    }
+    allowed.createContext("/ok") { exchange ->
+      val body = "fine".toByteArray()
+      exchange.sendResponseHeaders(200, body.size.toLong())
+      exchange.responseBody.use { it.write(body) }
+    }
+    allowed.start()
+    return Triple(allowed, forbidden, hits::get)
+  }
+
+  @Test
+  fun aRedirectToADisallowedHostIsNotFollowed() = runBlocking {
+    val (allowed, forbidden, hits) = servers { port -> "http://127.0.0.1:$port/" }
+    try {
+      // Only the redirecting host is named. `127.0.0.1` covers both servers by host, so the
+      // *port* is what differs -- which is exactly the case a host-only allow list must still
+      // refuse, and the reason the rule is given the whole URL rather than a hostname.
+      val network = OkHttpNetwork(
+        client = OkHttpClient(),
+        allow = { url -> url.port == allowed.address.port },
+      )
+      val response = network.fetch(
+        HttpRequest(url = "http://127.0.0.1:${allowed.address.port}/redirect"),
+      )
+      assertEquals(0, hits(), "the disallowed target must never be contacted")
+      assertFalse(response.isSuccessful, "a refused redirect is not a success")
+      assertTrue(
+        response.body != "secret",
+        "the disallowed body must not reach the guest; got ${response.body}",
+      )
+    } finally {
+      allowed.stop(0); forbidden.stop(0)
+    }
+  }
+
+  @Test
+  fun aRedirectWithinTheAllowListIsStillFollowed() = runBlocking {
+    // The control. Without it the test above would pass against a client that refused every
+    // redirect, or every request.
+    val (allowed, forbidden, _) = servers { _ -> "/ok" }
+    try {
+      val network = OkHttpNetwork(
+        client = OkHttpClient(),
+        allow = { url -> url.port == allowed.address.port },
+      )
+      val response = network.fetch(
+        HttpRequest(url = "http://127.0.0.1:${allowed.address.port}/redirect"),
+      )
+      assertTrue(response.isSuccessful, "an allowed redirect must still work: ${response.failure}")
+      assertEquals("fine", response.body)
+    } finally {
+      allowed.stop(0); forbidden.stop(0)
+    }
   }
 }

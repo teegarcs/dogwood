@@ -42,6 +42,17 @@ import platform.Foundation.setHTTPBody
 import platform.Foundation.setHTTPMethod
 import platform.Foundation.setValue
 import platform.Foundation.timeIntervalSince1970
+import platform.Foundation.NSMutableData
+import platform.Foundation.NSURLSessionConfiguration
+import platform.Foundation.NSURLSessionDataDelegateProtocol
+import platform.Foundation.NSURLSessionDataTask
+import platform.Foundation.NSURLSessionTask
+import platform.Foundation.NSURLSessionResponseAllow
+import platform.Foundation.NSURLSessionResponseCancel
+import platform.Foundation.NSURLSessionResponseDisposition
+import platform.Foundation.appendData
+import platform.darwin.NSObject
+import platform.Foundation.NSURLRequest
 
 /**
  * The platform clock.
@@ -68,6 +79,17 @@ class UrlSessionNetwork(
   private val session: NSURLSession = NSURLSession.sharedSession,
   private val maxBodyBytes: Long = 1L * 1024 * 1024,
   private val allow: (NSURL) -> Boolean = { false },
+  /**
+   * Last chance to adjust the session configuration before a request goes out.
+   *
+   * Exists so a test can install an `NSURLProtocol` and drive the loading system directly. That
+   * matters more here than convenience: the properties worth asserting are that an oversized body
+   * is refused *before* the host buffers it and that a disallowed redirect is never followed, and
+   * neither can be observed from the client -- a client with an unbounded buffer reports a tidy
+   * refusal right up until the process dies. A stub protocol can report how much it was allowed
+   * to deliver before being cancelled, which is the boundedness proof itself.
+   */
+  private val configure: (NSURLSessionConfiguration) -> Unit = {},
 ) : DogwoodNetwork {
 
   @OptIn(ExperimentalForeignApi::class)
@@ -92,35 +114,43 @@ class UrlSessionNetwork(
     }
 
     return suspendCancellableCoroutine { continuation ->
-      val task = session.dataTaskWithRequest(built) { data: NSData?, response: NSURLResponse?, error: NSError? ->
-        if (error != null) {
-          continuation.resume(
-            HttpResponse(code = 0, failure = "${error.domain}: ${error.localizedDescription}"),
-          )
-          return@dataTaskWithRequest
-        }
-        val http = response as? NSHTTPURLResponse
-        val length = data?.length?.toLong() ?: 0L
-        // The response crosses the boundary as a `String`, so an unbounded body is an unbounded
-        // allocation in the host *and* in QuickJS. Over the cap is a refusal, not a truncation.
-        if (length > maxBodyBytes) {
-          continuation.resume(
-            HttpResponse(
-              code = 0,
-              failure = "response body exceeds this client's $maxBodyBytes byte limit",
-            ),
-          )
-          return@dataTaskWithRequest
-        }
-        val text = data?.utf8().orEmpty()
-        val headers = buildMap {
-          http?.allHeaderFields?.forEach { (k, v) -> put(k.toString(), v.toString()) }
-        }
-        continuation.resume(
-          HttpResponse(code = http?.statusCode?.toInt() ?: 0, headers = headers, body = text),
-        )
+      /*
+       * A delegate rather than the completion-handler API, and the difference is the whole cap.
+       *
+       * `dataTaskWithRequest(request) { data, ... }` hands back a finished `NSData`, which means
+       * Foundation has already buffered the entire body in memory before any check of ours can
+       * run: a refusal after the fact bounds what the guest sees and not what the host allocates,
+       * so a large enough response kills the application before the limit is consulted. The Java
+       * Virtual Machine side never had that problem -- it refuses on the declared length and then
+       * reads at most one byte past the cap -- and this restores the same two teeth here.
+       *
+       * The delegate also owns redirects, which is the other half: the allow rule ran once, on the
+       * URL the guest named, while NSURLSession quietly followed 302s to anywhere.
+       */
+      val delegate = PolicedSessionDelegate(
+        maxBodyBytes = maxBodyBytes,
+        allow = allow,
+        onOutcome = { outcome -> if (continuation.isActive) continuation.resume(outcome) },
+      )
+      val configuration = NSURLSessionConfiguration.ephemeralSessionConfiguration().apply {
+        // `timeoutInterval` on the request is an *inter-byte* timer, so a server dripping one byte
+        // under the interval holds the request open indefinitely; the resource timeout is the one
+        // that bounds the whole exchange, and its default is seven days.
+        setTimeoutIntervalForRequest(60.0)
+        setTimeoutIntervalForResource(60.0)
+        configure(this)
       }
-      continuation.invokeOnCancellation { task.cancel() }
+      val session = NSURLSession.sessionWithConfiguration(
+        configuration,
+        delegate,
+        delegateQueue = null,
+      )
+      val task = session.dataTaskWithRequest(built)
+      continuation.invokeOnCancellation {
+        task.cancel()
+        session.finishTasksAndInvalidate()
+      }
+      delegate.onFinished = { session.finishTasksAndInvalidate() }
       task.resume()
     }
   }
@@ -182,4 +212,107 @@ private fun NSData.utf8(): String {
   if (length == 0) return ""
   val pointer = this.bytes ?: return ""
   return pointer.readBytes(length).decodeToString()
+}
+
+/**
+ * Applies this client's network policy to a response as it arrives, rather than after it has.
+ *
+ * Three jobs, all of which the completion-handler API made impossible:
+ *
+ *  - refuse on the **declared** length before a byte of body is read;
+ *  - keep a running count and cancel the moment the body passes the cap, so host memory is bounded
+ *    by the limit rather than by what a server chooses to send;
+ *  - re-apply the allow rule to **every redirect**, because a policy checked only at the front
+ *    door lets any allowed host with an open-redirect endpoint forward a guest anywhere.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal class PolicedSessionDelegate(
+  private val maxBodyBytes: Long,
+  private val allow: (NSURL) -> Boolean,
+  private val onOutcome: (HttpResponse) -> Unit,
+) : NSObject(), NSURLSessionDataDelegateProtocol {
+
+  private val buffer = NSMutableData()
+  private var status: Long = 0
+  private var headers: Map<String, String> = emptyMap()
+  private var settled = false
+  var onFinished: (() -> Unit)? = null
+
+  private fun settle(response: HttpResponse) {
+    if (settled) return
+    settled = true
+    onOutcome(response)
+    onFinished?.invoke()
+  }
+
+  override fun URLSession(
+    session: NSURLSession,
+    dataTask: NSURLSessionDataTask,
+    didReceiveResponse: NSURLResponse,
+    completionHandler: (NSURLSessionResponseDisposition) -> Unit,
+  ) {
+    val http = didReceiveResponse as? NSHTTPURLResponse
+    status = http?.statusCode ?: 0
+    headers = buildMap {
+      http?.allHeaderFields?.forEach { (k, v) -> put(k.toString(), v.toString()) }
+    }
+    val declared = didReceiveResponse.expectedContentLength
+    if (declared > maxBodyBytes) {
+      completionHandler(NSURLSessionResponseCancel)
+      settle(
+        HttpResponse(
+          code = 0,
+          failure = "response declares $declared bytes, over this client's $maxBodyBytes byte limit",
+        ),
+      )
+      return
+    }
+    completionHandler(NSURLSessionResponseAllow)
+  }
+
+  override fun URLSession(session: NSURLSession, dataTask: NSURLSessionDataTask, didReceiveData: NSData) {
+    if (settled) return
+    buffer.appendData(didReceiveData)
+    if (buffer.length.toLong() > maxBodyBytes) {
+      dataTask.cancel()
+      settle(
+        HttpResponse(
+          code = 0,
+          failure = "response body exceeds this client's $maxBodyBytes byte limit",
+        ),
+      )
+    }
+  }
+
+  override fun URLSession(
+    session: NSURLSession,
+    task: NSURLSessionTask,
+    willPerformHTTPRedirection: NSHTTPURLResponse,
+    newRequest: NSURLRequest,
+    completionHandler: (NSURLRequest?) -> Unit,
+  ) {
+    val next = newRequest.URL
+    if (next == null || !allow(next)) {
+      // Refusing to follow rather than failing the task: the 3xx itself is a perfectly ordinary
+      // response for a guest to see, and a refusal that looked like a transport error would be
+      // indistinguishable from the server being down.
+      completionHandler(null)
+      return
+    }
+    completionHandler(newRequest)
+  }
+
+  override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
+    if (settled) return
+    if (didCompleteWithError != null) {
+      settle(
+        HttpResponse(
+          code = 0,
+          failure = "${didCompleteWithError.domain}: ${didCompleteWithError.localizedDescription}",
+        ),
+      )
+      return
+    }
+    settle(HttpResponse(code = status.toInt(), headers = headers, body = buffer.utf8()))
+  }
 }
