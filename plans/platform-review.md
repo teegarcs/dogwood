@@ -417,9 +417,35 @@ upstream"` finds no unbacked claim.
 - **The Phase 0 gate device** remains unacquired (Layer 4 ADR-008 stands; nothing here reopens it,
   but R10's iOS numbers make the case for finally buying the phone).
 
+### R11. Deferred deliberately, and why *(carried, not forgotten)*
+
+Three things this review chose **not** to do. They are recorded here so the choice stays visible
+rather than turning into an omission nobody can date.
+
+**Upstream bug reports stay drafted and unfiled — a standing decision, not a pending task.**
+`tools/upstream-reports/` holds finished text and reproductions for both toolchain defects: the
+GUFA miscompilation of `String.toCharArray()`, and the incremental Kotlin/Wasm klib crash. Filing
+them publishes this project's name and a reproduction against a vendor's product, and the owner has
+decided that is not something to do from here. The drafts stay current so anyone who *does* file
+them has the work already done; ADR-032 and ADR-033 say "drafted, not filed", which is the honest
+tense and should stay that way rather than drifting back to "reported".
+
+**iOS plural rules stay English-only until the cost is known.** Android reaches real Unicode plural
+rules by reflection; iOS does not, so one payload gets correct Polish `few` on Android and the wrong
+category on iOS. It is not silent — `SkewReport.untranslatedPlurals` reports the fallback — but it is
+a genuine divergence in what a user reads. Fixing it means either `NSString` plural formatting or
+vendoring CLDR category data for the locales a product actually ships, and that is a sizing exercise
+before it is a code change. Cost it out; then decide. Do not "just add Polish".
+
+**The web `SkewReport` analogue waits for the host migration.** Web skew is freeform report lines
+rather than the aggregated structure mobile has. The fix wants a `WireSkew` in `dogwood-wire` that
+`SkewReport` embeds — which is genuinely the *first step of moving `dogwood-host` onto WebAssembly*,
+not a ledger item. Doing it standalone would build a second reporting type that the migration then
+has to reconcile. Sequence it with that work (Layer 5 Milestone 14), not before.
+
 ## Part 2 — Investigate before deciding (outcome is a decision + ADR, not code)
 
-- **Coil as a second, unpoliced network channel (all platforms).** Guest image URLs bypass the
+- ✅ **Coil as a second, unpoliced network channel — done (PR #12), [ADR-034](../adrs/layer-5/ADR-034-images-are-a-network-channel.md).** Images got their own default-deny rule rather than sharing the data one, because a content delivery network should serve pictures without also being allowed to answer data requests. Verified on device that the interceptor is genuinely installed, which no unit test can show. iOS and desktop samples are still unwired. *Original entry:* Guest image URLs bypass the
   allow rule entirely. Investigate: can Coil 3's `ImageLoader` take an interceptor applying the
   same `allow` lambda (it can — `components { add(Interceptor) }`) and what should image policy
   *be* — same allowlist as data, a separate one, or host-app-owned? Gate: an ADR deciding it,
