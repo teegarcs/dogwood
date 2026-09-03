@@ -78,11 +78,21 @@ const val ZIPLINE_THREAD_STACK_SIZE: Int = 8 * 1024 * 1024
 class DogwoodZiplineDispatcher(
   name: String = "dogwood-zipline",
   stackSize: Int = ZIPLINE_THREAD_STACK_SIZE,
+  /**
+   * Where a block that throws out of the guest thread is reported.
+   *
+   * The drain loop used to have no catch at all, so one throwing block exited it while leaving the
+   * channel **open** -- every later dispatch then succeeded into a queue nobody was reading. That
+   * is indistinguishable from a hung guest and produces no diagnostic whatsoever.
+   */
+  private val onUncaught: (Throwable) -> Unit = {},
 ) : CloseableCoroutineDispatcher() {
   /** Non-null while this dispatcher is accepting work. */
   private var sendChannel: SendChannel<Runnable>?
 
   /** Non-null while this dispatcher is running work. */
+  private val dispatcherName: String = name
+
   var thread: NSThread? = null
     private set
 
@@ -96,6 +106,11 @@ class DogwoodZiplineDispatcher(
               channel.receive().run()
             } catch (e: ClosedReceiveChannelException) {
               break
+            } catch (t: Throwable) {
+              // Report and keep draining. A host-service callback that throws must not take the
+              // interpreter's thread down with it, silently, leaving every later dispatch to
+              // queue into nothing.
+              onUncaught(t)
             }
           }
         } finally {
@@ -115,11 +130,29 @@ class DogwoodZiplineDispatcher(
   }
 
   override fun dispatch(context: CoroutineContext, block: Runnable) {
-    sendChannel?.trySend(block)
+    /*
+     * Loud, because the silent alternative is unrecoverable.
+     *
+     * A dropped block is a dropped *continuation*. Everything that reaches the guest crosses here
+     * -- the session swap, `snapshotState`, the shell's eviction -- so a block discarded during or
+     * after a close leaves that coroutine suspended forever. Cancelling it does not help either:
+     * the cancellation resume is dispatched to the same closed channel and dropped in turn, so the
+     * job can never complete, and it holds a `DogwoodExperience`, an interpreter and an
+     * eight-megabyte stack. Failing the caller is recoverable; hanging it is not.
+     */
+    val channel = sendChannel
+      ?: throw IllegalStateException("$dispatcherName is closed; it cannot accept more work")
+    if (channel.trySend(block).isFailure) {
+      throw IllegalStateException("$dispatcherName is closed; it cannot accept more work")
+    }
   }
 
   override fun close() {
-    sendChannel?.close()
+    // Nulled *before* the channel closes, so a dispatch racing this cannot see a live reference to
+    // a channel that is about to refuse it. Either it fails on the null or it fails on the send;
+    // both are the loud path.
+    val channel = sendChannel
     sendChannel = null
+    channel?.close()
   }
 }

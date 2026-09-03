@@ -90,6 +90,9 @@ kotlin {
     iosTest {
       dependencies {
         implementation(kotlin("test"))
+        // The dispatcher tests drive real coroutines across a real thread; `runTest` is how you
+        // await one without blocking the test thread the dispatcher is not running on.
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
       }
     }
     jvmTest {
