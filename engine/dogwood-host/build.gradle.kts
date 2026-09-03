@@ -19,19 +19,31 @@ kotlin {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
   }
+  // Phase 6. Zipline, `zipline-loader`, Okio, Coil 3, `redwood-leak-detector` and Compose
+  // Multiplatform all publish Kotlin/Native iOS artifacts at the pinned versions; the one
+  // dependency that does not is `coil-network-okhttp`, which is why it moved down into
+  // `jvmAndroidMain` below.
+  iosArm64()
+  iosSimulatorArm64()
+  iosX64()
 
   applyDefaultHierarchyTemplate()
 
   sourceSets {
-    // Both current host targets run on a Java Virtual Machine, and the threading assertions
-    // need thread identity, which common Kotlin does not expose. When the iOS and Web hosts
-    // arrive they supply their own actuals rather than inheriting this.
+    // The two Java-Virtual-Machine host targets share an implementation of everything that needs
+    // a Java Virtual Machine: thread identity, `java.text` formatting, and OkHttp. iOS supplies
+    // its own actuals in `iosMain` rather than inheriting these.
     val jvmAndroidMain by creating {
       dependsOn(commonMain.get())
       dependencies {
         // ZiplineLoader's Java-Virtual-Machine bindings take an OkHttp client and an Okio file
         // system; both are host-side concerns the guest never sees.
         api(libs.okhttp)
+        // Coil's OkHttp network fetcher. Java Virtual Machine and Android only -- there is no
+        // `coil-network-okhttp-iosarm64` artifact at 3.4.0, because OkHttp is a Java library.
+        // It registers itself through Coil's service loader, so no Dogwood code imports it and
+        // moving it changes nothing about what `AsyncImage` does on Android.
+        api(libs.coil.network)
       }
     }
 
@@ -60,12 +72,24 @@ kotlin {
         // classpath. See Leaks.kt.
         implementation(libs.redwood.leak.detector)
         api(libs.coil.compose)
-        api(libs.coil.network)
+      }
+    }
+    iosMain {
+      dependencies {
+        // Coil's multiplatform network fetcher, so `AsyncImage(url)` fetches a picture on iOS
+        // exactly as it does on Android. Ktor's Darwin engine is NSURLSession underneath.
+        implementation(libs.coil.network.ktor)
+        implementation(libs.ktor.client.darwin)
       }
     }
     androidMain {
       dependencies {
         implementation(libs.coroutines.android)
+      }
+    }
+    iosTest {
+      dependencies {
+        implementation(kotlin("test"))
       }
     }
     jvmTest {

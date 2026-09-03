@@ -46,9 +46,19 @@ private class PersistedState(
  * @param maxAgeMillis ignore state older than this on read. Returning to a form a day later and
  *   finding it half-filled is stranger than finding it empty.
  */
+/**
+ * The device's own file system.
+ *
+ * `expect`/`actual` rather than `FileSystem.SYSTEM` directly: Okio declares `SYSTEM` per platform
+ * and not in its common source set, because there are platforms it has no file system for. Both
+ * hosts that have one resolve to exactly the same object this parameter defaulted to before it
+ * moved out of `jvmAndroidMain`.
+ */
+internal expect fun platformFileSystem(): FileSystem
+
 class DogwoodStateStore(
   private val file: Path,
-  private val fileSystem: FileSystem = FileSystem.SYSTEM,
+  private val fileSystem: FileSystem = platformFileSystem(),
   private val maxBytes: Long = 256L * 1024,
   private val maxAgeMillis: Long = 24L * 60 * 60 * 1000,
   private val onProblem: (String) -> Unit = {},
