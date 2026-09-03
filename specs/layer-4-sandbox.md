@@ -188,6 +188,21 @@ There is nothing to degrade to. So `ProtocolMismatch` is caught at `sendChanges`
 recorded in `SkewReport.rejectedBatches`, and **the tree already on screen keeps rendering** — the
 same shape the delivery layer uses when a manifest fails verification, and for the same reason.
 
+**The same is now true of applying it** ([ADR-011](../adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md)).
+Decoding was all-or-nothing; applying was not, and the difference mattered for exactly the reason
+above. Changes land strictly in order, so a reference to a node nobody created — or a removal running
+off the end of a slot — could fail at the eleventh change *after the first ten had already landed*.
+What remained on screen was then neither the old tree nor the new one but a **tree the guest never
+composed**, and because the guest goes on sending diffs against the tree it believes the host has,
+that divergence compounds rather than heals. Every applier — the mobile host, its plain-tree
+comparison, and the web host — therefore checks the whole batch against a copy-on-write *shadow*
+before it writes anything, and rejects it whole if the shadow does not survive. The check costs
+about 0.06 ms on a 600-change batch, roughly a quarter of decoding the same batch.
+
+Containment is not repair. A rejected batch leaves the host's tree older than the guest believes it
+to be, and nothing resynchronises them; what the rule buys is that the divergence is **recorded and
+bounded** instead of silent and compounding. A resynchronisation protocol is not built.
+
 See [ADR-009](../adrs/layer-4/ADR-009-one-grammar-one-copy.md), which also records what remains
 unconsolidated: the deferred-expression factory identifiers, still declared in four places, and event
 signatures, which the dictionary lock does not cover.

@@ -93,7 +93,15 @@ class DogwoodExperience(
       }
       uiScope.launch {
         threads.checkUi()
-        tree.apply(batch)
+        // The apply is all-or-nothing too, not only the decode. A batch that refers to a node it
+        // never created, or removes past the end of a slot, is rejected whole and the tree already
+        // on screen keeps drawing -- rather than being left half-applied, which is a tree the guest
+        // never composed and every later diff would compound against. See `BatchValidation.kt`.
+        try {
+          tree.apply(batch)
+        } catch (mismatch: ProtocolMismatch) {
+          skew.rejectedBatches += "batch ${batch.q}: ${mismatch.message}"
+        }
       }
     }
 
