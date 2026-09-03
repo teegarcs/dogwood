@@ -197,7 +197,14 @@ specifically (verify by reverting). `GrammarTest` on mobile gains an overflow ca
 
 ---
 
-### R5. Worker lifecycle *(high; ~1 day)*
+### R5. Worker lifecycle — ✅ **done** (PR #8)
+
+*`onerror` now fails everything outstanding; correlated requests time out; a malformed snapshot is a
+reported failure rather than an empty success; configuration is tracked per bridge; `close()` clears
+the tree. `onmessageerror` is not on Kotlin/Wasm's `Worker` type, so that half is unimplemented and
+said so here rather than claimed.*
+
+#### Original entry
 
 **Problem.** `WorkerBridge` installs only `onmessage`. No `onerror`, no `onmessageerror`, no
 timeout on correlated requests: a 404'd guest script reports `Started` and renders silence;
@@ -236,7 +243,15 @@ hang (harness asserts elapsed time). The existing render/refusal/screenshot runs
 
 ---
 
-### R6. Make the `--gufa` gate real *(medium; ~0.5 day)*
+### R6. Make the `--gufa` gate real — ✅ **done** (PR #8)
+
+*The tautological check now asserts the outcome; enforcement moved into `attach()` so consumers
+cannot forget it; and the detector is validated against the one known-miscompiled binary — the
+smoke alarm has now been held under a match. Scope: that validates the gate's **first stage**; its
+decoder-agreement stages remain unexercised by a real miscompilation, because this defect does not
+reach them.*
+
+#### Original entry
 
 **Problem.** Three layers, all soft. The build-time `check` in `samples/web-slice/build.gradle.kts`
 is tautological — `without.size < binaryenArgs.size || !binaryenArgs.contains("--gufa")` cannot be

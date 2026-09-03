@@ -88,3 +88,64 @@ for v in default gufa-safe; do
   echo "############ $v"
   python3 bridge/harness/report.py "results/bridge-$v.json"
 done
+
+# ---------------------------------------------------------------------------------------------
+# The gate for the gate.
+#
+# `dogwood-web`'s BulkCopyGate refuses to render when this toolchain miscompiles
+# `String.toCharArray()`. Until now nobody had ever seen it fire: the web sample builds without
+# `--gufa`, so the detector ran only against binaries that were already correct -- a smoke alarm
+# nobody had held a match under, which ADR-032 recorded as an open item.
+#
+# This is the match. The two builds above differ by exactly that pass, and the probe below is the
+# same primitive check the shipped gate performs, so asserting it FAILS on the default pipeline and
+# PASSES without it is what makes the detector trustworthy rather than merely present.
+#
+# Scope, stated honestly: this validates the gate's first stage. Its later stages -- fast decoder
+# against the reference -- remain unexercised by a real miscompilation, because this defect does
+# not reach them.
+# ---------------------------------------------------------------------------------------------
+echo
+echo "############ detector validation"
+python3 - <<'PY'
+import json, sys
+
+def probe(path):
+    def find(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k == "bulkCopyProbe":
+                    return v
+                found = find(v)
+                if found is not None:
+                    return found
+        return None
+    with open(path) as f:
+        return find(json.load(f))
+
+bad = probe("results/bridge-default.json")
+good = probe("results/bridge-gufa-safe.json")
+failures = []
+if bad is None or good is None:
+    failures.append("a probe result is missing; the runs above did not complete")
+else:
+    if bad["ok"]:
+        failures.append(
+            "the default pipeline did NOT reproduce the miscompilation -- either the toolchain "
+            "fixed it (check the Kotlin version, then simplify ADR-032) or this harness stopped "
+            "exercising it, which would leave the detector unvalidated again"
+        )
+    if not good["ok"]:
+        failures.append("the gufa-free build is ALSO wrong; the workaround no longer works")
+    if bad is not None and good is not None and bad.get("viaPerChar") != good.get("viaPerChar"):
+        failures.append("the two builds disagree on the per-character control, so neither is trustworthy")
+
+if failures:
+    print("  DETECTOR VALIDATION FAILED")
+    for f in failures:
+        print(f"    - {f}")
+    sys.exit(1)
+print(f"  default pipeline:  viaBulkCopy={bad['viaBulkCopy']} viaPerChar={bad['viaPerChar']} -> detected")
+print(f"  gufa-free build:   viaBulkCopy={good['viaBulkCopy']} viaPerChar={good['viaPerChar']} -> clean")
+print("  the detector fires on the known-bad binary and not on the good one")
+PY

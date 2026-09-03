@@ -22,6 +22,7 @@ import dev.dogwood.protocol.StateSnapshot
 import kotlinx.serialization.json.Json
 import org.w3c.dom.MessageEvent
 import org.w3c.dom.Worker
+import kotlinx.browser.window
 
 /** Builds the three-field envelope object that actually crosses. */
 private fun envelope(t: String, c: Int, p: String): JsAny = js("({ t: t, c: c, p: p })")
@@ -80,6 +81,14 @@ interface WorkerBridgeListener {
 class WorkerBridge(
   private val worker: Worker,
   private val listener: WorkerBridgeListener,
+  /**
+   * Called once when the Worker itself fails, as distinct from the guest reporting an error.
+   *
+   * The host needs this to tear down and report: a Worker whose script never loaded produces no
+   * messages at all, so silence is the only symptom and it looks exactly like a guest with
+   * nothing to say.
+   */
+  private val onWorkerFailure: (String) -> Unit = {},
 ) {
   /**
    * Correlation identifiers the host allocates, for host-initiated requests.
@@ -102,7 +111,45 @@ class WorkerBridge(
 
   init {
     worker.onmessage = { event: MessageEvent -> receive(event.data); Unit }
+    /*
+     * A Worker can die in ways `onmessage` never mentions.
+     *
+     * `new Worker(url)` succeeds even when the script 404s or is refused by a Content Security
+     * Policy -- the failure arrives as an `error` event, and with nobody listening it arrived
+     * nowhere. A deployment that shipped a manifest naming a missing guest reported a clean start
+     * and rendered an empty box forever, which is indistinguishable from a guest that simply has
+     * nothing to say.
+     */
+    worker.onerror = { event ->
+      failEverything("the guest Worker failed to start or crashed")
+      Unit
+    }
   }
+
+  /**
+   * Fails every outstanding request, and tells the host once.
+   *
+   * Shared by the error events and by [close] because the caller's problem is identical in all
+   * three cases: something it is waiting for is never going to arrive, and waiting forever is the
+   * one outcome that leaks an experience rather than reporting one.
+   */
+  private fun failEverything(reason: String) {
+    val failures = pendingFailures.values.toList()
+    pending.clear()
+    pendingFailures.clear()
+    timeouts.values.forEach { window.clearTimeout(it) }
+    timeouts.clear()
+    for (failure in failures) failure(reason)
+    if (!notifiedFailure) {
+      notifiedFailure = true
+      onWorkerFailure(reason)
+    }
+  }
+
+  private var notifiedFailure = false
+
+  /** Timeout handles, so an answered request stops its own alarm. */
+  private val timeouts = HashMap<Int, Int>()
 
   // ---------------------------------------------------------------------------------------------
   // Host to guest.
@@ -138,25 +185,44 @@ class WorkerBridge(
    * [WorkerBridgeListener.onGuestError] exists: an eviction that waits forever on a dead guest
    * leaks the whole experience.
    */
-  fun snapshotState(onResult: (StateSnapshot) -> Unit, onFailure: (String) -> Unit) {
+  fun snapshotState(
+    timeoutMillis: Int = SNAPSHOT_TIMEOUT_MILLIS,
+    onResult: (StateSnapshot) -> Unit,
+    onFailure: (String) -> Unit,
+  ) {
     val correlation = allocateHostCorrelation()
     pending[correlation] = { payload ->
-      onResult(
-        runCatching { BridgeJson.decodeFromString<StateSnapshot>(payload) }
-          .getOrElse { StateSnapshot() },
+      val decoded = runCatching { BridgeJson.decodeFromString<StateSnapshot>(payload) }
+      // A snapshot that will not decode is a FAILURE, not an empty snapshot. It used to become
+      // `StateSnapshot()`, which the eviction path would then persist -- wiping the user's saved
+      // state with no signal at all, while a transport failure of the same call was reported.
+      // "Could not read the guest" and "the guest has nothing saved" are different facts.
+      decoded.fold(
+        onSuccess = onResult,
+        onFailure = { fail(correlation, "the guest's saved state could not be decoded") },
       )
     }
     pendingFailures[correlation] = onFailure
+    // Without this a crashed guest leaves the caller suspended forever. The sample survived only
+    // because its own poll loop timed out -- a mitigation living one layer above the problem.
+    timeouts[correlation] = window.setTimeout({
+      fail(correlation, "the guest did not answer within ${'$'}timeoutMillis ms")
+      null
+    }, timeoutMillis)
     post(WorkerMessages.SNAPSHOT_STATE, correlation, "")
+  }
+
+  /** Fails one outstanding request and forgets it. */
+  private fun fail(correlation: Int, reason: String) {
+    timeouts.remove(correlation)?.let { window.clearTimeout(it) }
+    pending.remove(correlation)
+    pendingFailures.remove(correlation)?.invoke(reason)
   }
 
   /** Stops the guest. Everything still outstanding is failed rather than abandoned. */
   fun close() {
     worker.terminate()
-    val failures = pendingFailures.values.toList()
-    pending.clear()
-    pendingFailures.clear()
-    for (failure in failures) failure("the guest Worker was terminated")
+    failEverything("the guest Worker was terminated")
   }
 
   private fun allocateHostCorrelation(): Int {
@@ -221,3 +287,6 @@ class WorkerBridge(
     }
   }
 }
+
+/** How long a correlated request waits before it is failed rather than left outstanding. */
+private const val SNAPSHOT_TIMEOUT_MILLIS = 10_000
