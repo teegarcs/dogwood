@@ -112,7 +112,14 @@ succeeds within the hop bound. Both new tests must fail against today's code fir
 
 ---
 
-### R3. The iOS dispatcher must not silently drop work *(high; ~0.5 day)*
+### R3. The iOS dispatcher must not silently drop work — ✅ **done** (PR #6)
+
+*All three planned gates landed, plus the ordering/reentrancy regression guard. One harness note
+worth carrying forward: `runTest` drives virtual time, which fast-forwards past timeouts while the
+work being awaited runs on a real thread — the awaits must sit inside `withContext(Dispatchers.Default)`
+or the test passes instantly and proves nothing. Cost two failing runs to notice.*
+
+#### Original entry
 
 **Problem.** `DogwoodZiplineDispatcher.dispatch` (`Delivery.ios.kt`) is
 `sendChannel?.trySend(block)` with the result discarded. After `close()` — or racing it — a
