@@ -21,6 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "dogwood"
 
+include(":dogwood-wire")
 include(":dogwood-protocol")
 include(":dogwood-compose")
 include(":dogwood-host")

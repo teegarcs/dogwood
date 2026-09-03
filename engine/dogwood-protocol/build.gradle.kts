@@ -21,6 +21,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(project(":dogwood-wire"))
         api(libs.zipline)
         api(libs.serialization.json)
         api(libs.coroutines.core)
