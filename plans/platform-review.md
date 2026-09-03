@@ -151,7 +151,13 @@ Plus the existing four leak tests keep passing — the cycle-break in `close()` 
 
 ---
 
-### R4. Web decoder grammar parity *(high; ~1 day)*
+### R4. Web decoder grammar parity — ✅ **done** (PR #7)
+
+*All five sub-items landed. The grammar question was decided by tightening the reference (nothing
+that ships emits quoted structural numbers), and the new parity suite immediately caught a position
+the tightening had missed — the kind discriminator itself. `dogwood-web` now has a test source set.*
+
+#### Original entry
 
 **Problem.** `FastPositionalDecoder.readInt` (`dogwood-web/.../FastPositionalDecoder.kt:261-284`)
 does `value = value * 10 + digit` with no range check: an id of 2^32+1 wraps to 1 and the change

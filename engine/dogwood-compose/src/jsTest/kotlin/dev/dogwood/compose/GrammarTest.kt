@@ -118,6 +118,18 @@ class GrammarTest {
   }
 
   @Test
+  fun anOutOfRangeIntegerIsATypedRefusalNotARawThrow() {
+    // Found by comparing the mobile decoder against the web one. An identifier past Int range made
+    // kotlinx throw `NumberFormatException`, which is not a `ProtocolMismatch` -- so it escaped
+    // `sendChanges`' catch entirely and took the screen down, on input the web host merely
+    // refused. The contract is that an undecodable batch is contained, and a contract that holds
+    // only for inputs malformed in anticipated ways is not one.
+    assertFailsWith<ProtocolMismatch> { decodePositional("[1,[[0,4294967297,2]]]") }
+    assertFailsWith<ProtocolMismatch> { decodePositional("this is not json at all") }
+    assertFailsWith<ProtocolMismatch> { decodePositional("[1,[[0,\"1\",2]]]") }
+  }
+
+  @Test
   fun aWellFormedBatchIsStillAccepted() {
     // The control. Without it, every assertion above would pass against a decoder that rejected
     // everything.
