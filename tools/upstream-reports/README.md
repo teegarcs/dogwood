@@ -14,7 +14,7 @@ is the honest tense.
 | # | Defect | Reproduction | Workaround in this repo |
 |---|---|---|---|
 | 1 | `wasm-opt` GUFA miscompiles `String.toCharArray()` | `tools/web-weight/bridge/run.sh` | `--gufa` filtered from the pass list |
-| 2 | Incremental Kotlin/Wasm klib crash | any rebuild after an edit | `kotlin.incremental.js.klib=false` |
+| 2 | Kotlin/Wasm klib checker crash | any rebuild after an edit to a source set | clear `build/kotlin` and `build/classes` (the documented flag is **not** enough — see the correction) |
 
 ---
 
@@ -67,3 +67,32 @@ source edit fails while reading incremental metadata. A clean build always succe
 **Workaround.** `kotlin.incremental.js.klib=false` in `gradle.properties`. Note that the
 per-task `incremental` property does not reach the klib path, and `incrementalJsKlib` is `internal`,
 so the global flag is the only reachable switch.
+
+**Correction, 2026-09-03: that workaround is incomplete, and the stack above was recorded
+imprecisely.** The flag has been set in `engine/gradle.properties` since it was written, and the
+crash reproduced anyway while adding a test to `dogwood-web`. It is deterministic:
+
+```
+:dogwood-web:compileTestKotlinWasmJs   # first build of the source set -- succeeds
+<edit any file in wasmJsTest>
+:dogwood-web:compileTestKotlinWasmJs   # fails
+```
+
+The real stack names a different package and a different caller than the one recorded above — the
+klib *checker*, not the incremental compiler's own metadata read, which is why disabling incremental
+klib compilation does not prevent it:
+
+```
+java.lang.ArrayIndexOutOfBoundsException: Index 0 out of bounds for length 0
+  at org.jetbrains.kotlin.ir.backend.js.wasm.WasmIrFileMetadata$Companion.fromByteArray(WasmIrFileMetadata.kt:33)
+  at org.jetbrains.kotlin.ir.backend.js.wasm.WasmKlibExportingDeclaration$Companion.collectDeclarations(WasmKlibExportingDeclaration.kt:43)
+  at org.jetbrains.kotlin.ir.backend.js.wasm.WasmKlibCheckers$makeChecker$1.visitModuleFragment(WasmKlibCheckers.kt:31)
+  at org.jetbrains.kotlin.backend.common.serialization.SerializeModuleIntoKlibKt.runIrLevelCheckers(serializeModuleIntoKlib.kt:223)
+```
+
+**The workaround that does work:** `rm -rf <module>/build/classes <module>/build/kotlin`, then
+rebuild. Worth knowing before assuming a Kotlin/WebAssembly compile error is in your own code — this
+one arrives with no source location and no message beyond an array index.
+
+This correction is why the entry is worth keeping rather than closing: the original text would have
+sent a reader to a flag that is already on.

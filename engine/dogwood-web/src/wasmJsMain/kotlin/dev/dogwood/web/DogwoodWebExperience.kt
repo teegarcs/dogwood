@@ -229,6 +229,11 @@ class DogwoodWebExperience(
     }
     try {
       tree.apply(decoded)
+    } catch (mismatch: ProtocolMismatch) {
+      // Rejected whole, and nothing of it applied: `WebTree` validates before it mutates, so the
+      // tree on screen is the last one that applied cleanly rather than a partial of this one.
+      report("rejected batch ${decoded.q}: ${mismatch.message}")
+      return
     } catch (failure: Throwable) {
       report("failed to apply batch ${decoded.q}: ${failure.message}")
       return

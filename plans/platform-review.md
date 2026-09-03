@@ -450,7 +450,24 @@ has to reconcile. Sequence it with that work (Layer 5 Milestone 14), not before.
   same `allow` lambda (it can — `components { add(Interceptor) }`) and what should image policy
   *be* — same allowlist as data, a separate one, or host-app-owned? Gate: an ADR deciding it,
   plus (if adopted) an interceptor test proving a disallowed image URL never opens a connection.
-- **Non-transactional apply, both platforms.** Options: snapshot-global-write rollback around
+- ✅ **Non-transactional apply — done (PR #14), [ADR-011](../adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md).**
+  Validate-then-apply, chosen over the other two options for reasons the review had not surfaced:
+  snapshot rollback is not merely expensive but **incorrect here**, because `byId`, the per-node
+  `slots` map and `appliedSequence` are plain fields and would keep the failed batch's edits; an
+  undo journal duplicates the applier's semantics on the path least likely to be exercised, and
+  mutates first, so the leak detector would report undone removals as leaks. The shared rule lives
+  in `dogwood-wire` (`BatchValidation.kt`, one `TreeShape` interface) so all three appliers — mobile,
+  the plain-tree comparison, and web — cannot drift on what "will apply cleanly" means.
+  **Measured:** validation costs 59–68 µs on a 600-change batch against 181–257 µs to decode the
+  same batch, roughly a quarter of decode and well inside a frame; the test asserts a ceiling
+  relative to decode rather than a fixed number, and prints the measurement. Nine mobile tests and
+  four web tests, including the case a size-only validator would miss (a reference into a subtree
+  the same batch removed). Run on all three hosts against real payloads, because the risk is
+  false *rejection*, not false acceptance: Android every tab twice plus list flings, iOS the full
+  drill, web 2 batches and an event round-trip — no rejections anywhere. **Still open:** containment
+  is not repair. A rejected batch leaves the host's tree older than the guest believes and nothing
+  resynchronises them; a resynchronisation protocol is named in the ADR and not built.
+  *Original entry:* Options: snapshot-global-write rollback around
   `tree.apply` (Compose `Snapshot.takeMutableSnapshot` — plausible on host, measure cost),
   validate-then-apply (two passes over the batch; cheap given 0.17 ms decode), or document the
   narrower guarantee. Gate: decision ADR with the measured cost of the chosen option; if

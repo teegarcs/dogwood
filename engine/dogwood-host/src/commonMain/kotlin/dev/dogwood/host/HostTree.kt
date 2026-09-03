@@ -26,6 +26,9 @@ import dev.dogwood.protocol.ModifierElem
 import dev.dogwood.protocol.ModifierSet
 import dev.dogwood.protocol.PropertySet
 import dev.dogwood.protocol.WidgetTag
+import dev.dogwood.protocol.ProtocolMismatch
+import dev.dogwood.protocol.TreeShape
+import dev.dogwood.protocol.rejection
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -55,6 +58,17 @@ class HostNode(
 
   /** All slots, for the depth-first purge on removal. */
   internal fun allSlots(): Collection<SnapshotStateList<HostNode>> = slots.values
+
+  /**
+   * Reads a slot without creating one.
+   *
+   * Validation must not leave a trace: the ordinary accessor materialises an empty slot on first
+   * mention, which would make a rejected batch visible in the tree it was rejected from.
+   */
+  internal fun slotOrNull(tag: Int): List<HostNode>? = slots[tag]
+
+  /** The slot tags this node holds children under. Validation walks them to model a removal. */
+  internal fun slotTags(): Set<Int> = slots.keys
 
 }
 
@@ -92,7 +106,32 @@ class HostTree(
   var appliedSequence: Int = 0
     private set
 
+
+  /*
+   * The shape validation reads. Read-only, and answered from the live tree: the shadow copies out
+   * of it lazily, so a batch that touches one slot costs one list copy rather than a tree walk.
+   */
+  private val shape = object : TreeShape {
+    override fun exists(id: Int): Boolean = byId.containsKey(id)
+
+    override fun slotTags(id: Int): Set<Int> = byId[id]?.slotTags() ?: emptySet()
+
+    override fun childIds(id: Int, slot: Int): List<Int> =
+      byId[id]?.slotOrNull(slot)?.map { it.id.value } ?: emptyList()
+  }
+
+  /**
+   * Rejects the whole batch rather than applying a prefix of it.
+   *
+   * Changes are applied strictly in order, so the eleventh can fail after the first ten have
+   * landed -- and what is left on screen is then a tree the guest never composed, which every
+   * later diff compounds against. Checking first costs a pass over the change list with no nodes
+   * built and no state written; the alternative costs a silently desynchronised tree. See
+   * `BatchValidation.kt`.
+   */
   fun apply(batch: ChangeBatch) {
+    batch.rejection(shape)?.let { throw ProtocolMismatch(it) }
+
     for (change in batch.g) {
       when (change) {
         is Create -> {
