@@ -61,6 +61,8 @@ import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.allowHosts
 import dev.dogwood.host.cachePath
 import dev.dogwood.host.dogwoodLeakDetector
+import dev.dogwood.host.withDogwoodImagePolicy
+import dev.dogwood.host.allowImageHosts
 import dev.dogwood.protocol.HostEnvironment
 import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.widthClass
@@ -117,12 +119,33 @@ private val ENTRY_POINTS = listOf("app", "explore", "about", "feed")
  */
 private const val SPLIT_COMPANION = "about"
 
+/**
+ * Installs the image policy for the whole application.
+ *
+ * Images were the one guest-controlled channel with no rule on it: `AsyncImage(url)` reached
+ * whatever the guest named, so a payload could exfiltrate through a URL alone without ever calling
+ * `fetch`. The rule is separate from the data one on purpose -- a content delivery network should
+ * be able to serve pictures without also being allowed to answer data requests -- and it defaults
+ * to refusing, so forgetting to widen it costs images rather than costing containment.
+ */
+private fun installImagePolicy(context: android.content.Context, onRefused: (String) -> Unit) {
+  coil3.SingletonImageLoader.setSafe { platformContext ->
+    coil3.ImageLoader.Builder(platformContext)
+      .withDogwoodImagePolicy(
+        allow = allowImageHosts("10.0.2.2", "images.unsplash.com", allowCleartextHosts = setOf("10.0.2.2")),
+        onRefused = onRefused,
+      )
+      .build()
+  }
+}
+
 class SliceActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     // Edge to edge, so the safe-area insets the host environment reports are real rather than
     // always zero. A guest that is never told about the status bar cannot avoid drawing under it.
     enableEdgeToEdge()
+    installImagePolicy(this) { url -> Log.w(TAG, "image refused: $url") }
     setContent {
       val dark = isSystemInDarkTheme()
       val palette = if (dark) Palette.Dark else Palette.Light

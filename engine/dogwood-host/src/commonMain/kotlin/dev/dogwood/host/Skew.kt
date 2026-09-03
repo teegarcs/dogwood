@@ -78,13 +78,23 @@ class SkewReport {
    */
   val rejectedBatches = mutableSetOf<String>()
 
+  /**
+   * Image requests refused because the host does not allow that origin.
+   *
+   * Reported for the same reason every other entry here is: the visible symptom is a blank space,
+   * and a blank space with no record is indistinguishable from a slow network, a broken content
+   * delivery network, or a guest bug. A team that has widened its data allow list and forgotten its
+   * image one should be able to see that rather than deduce it.
+   */
+  val refusedImages = mutableSetOf<String>()
+
 
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
       untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
-      rejectedBatches.isEmpty()
+      rejectedBatches.isEmpty() && refusedImages.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -98,7 +108,8 @@ class SkewReport {
     if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
     if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")
     if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets ")
-    if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches")
+    if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches ")
+    if (refusedImages.isNotEmpty()) append("refusedImages=$refusedImages")
     append(")")
   }
 }
