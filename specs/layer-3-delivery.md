@@ -83,6 +83,30 @@ This layer crosses no Foreign Function Interface (FFI) boundary. It runs in the 
 - **Outputs:** A live `Zipline` instance with the guest's service taken, handed to Layer 4.
 - **Memory ownership:** Module bytes live on the host heap and on disk until loaded. The `Zipline` instance owns the QuickJS runtime thereafter, and closing it reclaims the guest heap. Every Zipline service must be closed through a `ZiplineScope` or the guest-side proxy and its host reference both leak.
 
+### The Web Delivery Path Is Not This One
+
+Everything above describes an embedded interpreter fed by `ZiplineLoader`: a signed manifest, Ed25519
+verification against keys compiled into the binary, per-module hashes, and a cache that survives
+offline. **None of it applies on the Web**, where the guest is ordinary JavaScript the browser loads
+over same-origin Hypertext Transfer Protocol Secure (HTTPS). Decision record:
+[Layer 5 ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md).
+
+Two things still have to happen, and they move rather than disappear.
+
+**The dictionary check runs before the guest executes**, in the host, on the main thread: fetch a
+sidecar manifest from the guest script's origin, compare its segment-version vector against
+`DogwoodDictionary.segmentVersions`, and refuse to create the Worker on a version this client does
+not implement. Without it, a payload built against a dictionary the client lacks renders a
+mostly-empty screen — the failure this check exists to prevent, and the reason it cannot be deferred
+to render time.
+
+**Integrity is weaker, and this is the honest statement of it.** HTTPS gives transport integrity and
+authenticates the server. It does **not** give what manifest signing gives on mobile: that a
+compromised or substituted server cannot make a client run code the signing key never approved. A
+product wanting parity must fetch the script, verify a hash carried in the sidecar, and construct the
+Worker from a blob — `new Worker(url)` accepts no Subresource Integrity attribute, so the check has to
+be explicit. That is unbuilt, and it is the gap.
+
 ## 5. Implementation Roadmap
 
 1. **Milestone 1 — Loader integration.** Add `zipline-loader` to the Android host application (and the desktop development host; iOS follows in roadmap Phase 6) and load a hand-built payload end to end. No fork is required; if forking appears necessary, revisit [Layer 4 ADR-002](../adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md) before proceeding.
