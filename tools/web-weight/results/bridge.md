@@ -20,6 +20,14 @@ because Compose draws through Skiko, Skiko needs a WebGL context, and headless C
 A bridge measurement needs no graphics at all, so dropping both makes a real-browser run possible.
 The only dependency is the Kotlin/WebAssembly standard library.
 
+**Correction (2026-09-03).** The claim above that headless Chrome refuses the WebGL context Skiko
+needs is **wrong**, and it was wrong when written. `--enable-unsafe-swiftshader` together with the
+throttling flags gives a working context, and `engine/samples/web-slice/run.sh` renders Compose
+Multiplatform headlessly and asserts on measured glyph boxes and on individual pixel colours. The
+failure mode that produced the mistaken conclusion is worth knowing: without those flags the page
+never paints and the screenshot comes back uniformly white, which is **indistinguishable from a
+broken host**. A run that "shows nothing" is not evidence that nothing can be shown.
+
 The module exports one function per candidate transport. A page generates representative diffs,
 times every export against them, and posts the results back.
 

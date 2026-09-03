@@ -94,6 +94,14 @@ Two approaches were tried and both were rejected rather than reported badly:
   because V8 caches compiled modules by content across iterations. Every one of those numbers is
   wrong in a way that flatters the result.
 
+**Correction (2026-09-03).** The claim above that headless Chrome refuses the WebGL context Skiko
+needs is **wrong**, and it was wrong when written. `--enable-unsafe-swiftshader` together with the
+throttling flags gives a working context, and `engine/samples/web-slice/run.sh` renders Compose
+Multiplatform headlessly and asserts on measured glyph boxes and on individual pixel colours. The
+failure mode that produced the mistaken conclusion is worth knowing: without those flags the page
+never paints and the screenshot comes back uniformly white, which is **indistinguishable from a
+broken host**. A run that "shows nothing" is not evidence that nothing can be shown.
+
 Measuring this properly means a real browser on a real machine with a graphics context, ideally
 throttled to a representative network and CPU. **Phase 5 should not be considered unblocked until
 someone does it.**

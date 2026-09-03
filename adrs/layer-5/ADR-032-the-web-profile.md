@@ -146,6 +146,16 @@ disagrees with a reference implementation, and the defect is **reported upstream
 reproduction. Losing `--gufa` costs some optimisation; against a page that is 81% prebuilt Skiko, that
 is not a number worth defending.
 
+**The gate is unexercised, and that is a real caveat rather than a footnote.** Building the web
+sample's WebAssembly with Kotlin's full default pass list — `--gufa` included — and swapping it in
+produces a passing gate and a correctly rendered tree. So the miscompilation does **not** reproduce
+in that module, which is consistent with this record's own claim that the defect is
+context-sensitive, and which means the gate's *detection* path has never been observed to fire on a
+real miscompilation. It is a smoke alarm nobody has held a match under. Two things follow: removing
+`--gufa` remains correct precisely because the defect cannot be reasoned about locally, and the gate
+should be validated against the known reproduction in `tools/web-weight/bridge/` before anyone
+relies on it to catch a recurrence.
+
 ## 4. Unstated Assumptions
 
 - **Compose Multiplatform for Web is Beta**, and `material3-wasm-js` trails at `1.12.0-alpha03`. The

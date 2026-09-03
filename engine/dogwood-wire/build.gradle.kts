@@ -39,6 +39,9 @@ kotlin {
   applyDefaultHierarchyTemplate()
 
   sourceSets {
+    // The generated segment-version vector. Not committed, like every other generated source.
+    commonMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/wire"))
+
     commonMain {
       dependencies {
         api(libs.serialization.json)
@@ -56,4 +59,8 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+  dependsOn(":dogwood-codegen:generateDesignSystem")
 }

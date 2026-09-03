@@ -54,6 +54,7 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       "--guest-out", File(root, "guest/dev/dogwood/compose/DesignSystemStubs.kt").absolutePath,
       "--host-out", File(root, "host/dev/dogwood/host/DesignSystemBindings.kt").absolutePath,
       "--dictionary-out", File(root, "dictionary/dogwood.designsystem.json").absolutePath,
+      "--wire-out", File(root, "wire/dev/dogwood/protocol/DogwoodSegments.kt").absolutePath,
       // Committed, unlike the generated sources: the lock is the record that tags never moved.
       "--lock", rootProject.file("surface/dogwood.designsystem.lock.json").absolutePath,
     )

@@ -2,7 +2,8 @@
  * Project Dogwood -- what a tree-diff costs to cross the JavaScript/WebAssembly boundary.
  *
  * Deliberately NOT a Compose Multiplatform module. Compose draws through Skiko, which needs a
- * WebGL context that headless Chrome refuses; measuring the bridge needs neither, so dropping
+ * WebGL context (which headless Chrome does give, with --enable-unsafe-swiftshader -- an
+ * earlier note here said otherwise and was wrong); measuring the bridge needs neither, so dropping
  * both is what makes this harness runnable in a real browser at all. The only dependency is the
  * Kotlin/WebAssembly standard library.
  */

@@ -131,16 +131,17 @@ object DogwoodDictionary {
 
   /** Per-segment versions, handed to the guest so it can branch on client capability. */
   val segmentVersions: Map<String, Int> = mapOf(
-    "androidx.layout" to 1,
-    // Read from the generated dictionary rather than typed here. This was a hand-written `6`
-    // until the affordance markings raised the lock to 7 and the two disagreed -- a client
-    // telling guests it was one version while binding another, which is precisely the confusion
-    // the version exists to prevent.
-    "dogwood.designsystem" to DogwoodDesignSystemVersion,
-    // The host service surface is versioned through the same channel, because a guest has the
-    // same question about it: what does this client know how to do? It matters more here — an
-    // unknown widget tag becomes a placeholder, but calling a service method an older host does
-    // not implement is an error at the boundary with no fallback.
+    // Both dictionary segments come from the generated vector in `dogwood-wire`, so a host that
+    // cannot see `dogwood-host` -- the Web one -- reads the same numbers rather than a second copy
+    // of them. The design-system version was already generated for this reason after a hand-typed
+    // `6` disagreed with a lock that said 7; the layout version had the same shape of exposure and
+    // simply had not moved yet.
+    dev.dogwood.protocol.DogwoodSegments.LAYOUT to
+      dev.dogwood.protocol.DogwoodSegments.LAYOUT_VERSION,
+    dev.dogwood.protocol.DogwoodSegments.DESIGN_SYSTEM to
+      dev.dogwood.protocol.DogwoodSegments.DESIGN_SYSTEM_VERSION,
+    // The host service surface is versioned through the same channel but is not a dictionary
+    // segment: it describes Zipline services, which the Web profile has none of.
     dev.dogwood.protocol.SERVICES_SEGMENT to dev.dogwood.protocol.SERVICES_VERSION,
   )
 }

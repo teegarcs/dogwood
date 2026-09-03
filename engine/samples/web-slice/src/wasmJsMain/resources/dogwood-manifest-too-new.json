@@ -1,0 +1,9 @@
+{
+  "_comment": "The refusal case, kept in the sample rather than in a test, because the property being demonstrated is that the guest script never executes -- and only a real browser and a real server can show that. Two refusals at once: a segment this client has never heard of, and a version of one it has that is ahead of it.",
+  "envelopeRevision": 1,
+  "guestScript": "guest.js",
+  "segmentVersions": {
+    "androidx.layout": 2,
+    "dogwood.designsystem": 7
+  }
+}
