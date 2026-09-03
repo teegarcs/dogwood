@@ -108,10 +108,7 @@ import platform.Foundation.NSProcessInfo
  * hosts trust, because it is the same payload. Serve it with
  * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
  */
-private val TRUSTED_KEYS = mapOf(
-  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
-  "dogwood-development-2" to "64fcb07226f6b538ec7d09510f9a5073aeb43a50916cfc625761cc9b9a99b097",
-)
+private val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
 
 /**
  * `localhost` reaches the development machine from the simulator, which shares its network stack.
@@ -208,6 +205,10 @@ private fun SliceHost(configuration: HostEnvironment) {
   // The only thread allowed to touch the guest, with an eight-megabyte stack. See
   // `DogwoodZiplineDispatcher`: Apple's 512-kibibyte default is not enough for QuickJS.
   val dispatcher = remember { DogwoodZiplineDispatcher() }
+  // Disposed, because this file offers itself as the thing a product copies. An undisposed
+  // dispatcher holds an eight-megabyte thread; moot for a single-screen sample and wrong in the
+  // template it is meant to be.
+  DisposableEffect(dispatcher) { onDispose { dispatcher.close() } }
 
   /*
    * Saved state, read exactly once per process.

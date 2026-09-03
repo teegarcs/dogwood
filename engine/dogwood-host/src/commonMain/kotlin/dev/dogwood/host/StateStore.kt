@@ -30,6 +30,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okio.FileSystem
 import okio.Path
+import okio.ByteString.Companion.encodeUtf8
 
 @Serializable
 private class PersistedState(
@@ -94,10 +95,14 @@ class DogwoodStateStore(
       onProblem("could not encode saved state: ${it.message}")
       return
     }
-    if (encoded.length > maxBytes) {
+    // Bytes, not characters. `encoded.length` counts UTF-16 units while the file is written with
+    // `writeUtf8`, so non-Latin state overran the cap it claimed to enforce by three or four
+    // times -- and the message below reported characters as bytes while doing it.
+    val size = encoded.encodeUtf8().size.toLong()
+    if (size > maxBytes) {
       // Deliberately not truncated. A partial snapshot restores a screen into a state its guest
       // never composed, which is worse than restoring nothing.
-      onProblem("saved state is ${encoded.length} bytes, over the ${maxBytes} byte cap; dropped")
+      onProblem("saved state is $size bytes, over the $maxBytes byte cap; dropped")
       clear()
       return
     }

@@ -83,6 +83,22 @@ class StateStoreTest {
   }
 
   @Test
+  fun theCapIsBytesNotCharacters() {
+    // `maxBytes` was checked against `encoded.length` -- the number of UTF-16 characters -- while
+    // the file is written with `writeUtf8`. Non-Latin state therefore overran the cap it claimed
+    // to enforce by up to three or four times, and the refusal message reported characters as
+    // bytes. The cap exists to stop a guest bug becoming a disk problem, so counting the wrong
+    // unit is the whole failure.
+    val fs = FakeFileSystem()
+    val problems = mutableListOf<String>()
+    // 200 characters of Japanese: 200 by `length`, 600 by UTF-8.
+    val text = "\u3042".repeat(200)
+    store(fs, maxBytes = 400, onProblem = { problems += it }).write(mapOf("e" to snapshot("k" to text)), NOW)
+    assertTrue(store(fs).consume(NOW).isEmpty(), "a 600-byte payload must not pass a 400-byte cap")
+    assertTrue(problems.any { "over the" in it }, problems.toString())
+  }
+
+  @Test
   fun anUnreadableStoreDegradesToNoStateRatherThanThrowing() {
     // A snapshot written by a build whose format has since changed. Skew, not a crash: the user
     // loses their half-typed form, which is exactly what happened before any of this existed.

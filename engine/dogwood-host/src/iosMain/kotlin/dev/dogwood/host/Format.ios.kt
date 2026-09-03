@@ -77,7 +77,11 @@ actual fun formatNumber(
 /**
  * The Unicode plural category.
  *
- * **English, and wrong for most languages** -- the same limitation the desktop Java Virtual
+ * **English, and wrong for most languages.** The peer to compare against is *Android*, not the
+ * desktop Java Virtual Machine: Android reaches real Unicode plural rules by reflection, so one
+ * payload gets correct Polish `few` on Android and the wrong category here. That divergence is
+ * real, it is silent, and it is reported through `SkewReport.untranslatedPlurals` rather than left
+ * to be discovered by a reader of Polish. The same limitation the desktop Java Virtual
  * Machine actual carries and for the same reason: Foundation applies plural rules internally when
  * it renders a `.stringsdict` entry but exposes no way to ask which category a count falls into.
  * There is no public equivalent of `android.icu.text.PluralRules.select`. A product shipping iOS
