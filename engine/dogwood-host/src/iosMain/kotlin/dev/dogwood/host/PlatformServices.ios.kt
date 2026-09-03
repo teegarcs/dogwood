@@ -144,7 +144,19 @@ fun allowUrlHosts(
   val permitted = hosts.toSet()
   return { url ->
     val host = url.host
-    host in permitted && (url.scheme == "https" || host in allowCleartextHosts)
+    val scheme = url.scheme?.lowercase()
+    /*
+     * The scheme is constrained explicitly, and on iOS that is load-bearing rather than pedantic.
+     * On the Java Virtual Machine, `toHttpUrlOrNull()` returns null for anything that is not
+     * http(s), so other schemes are structurally unreachable and the policy never sees them.
+     * `NSURL` parses any scheme, and NSURLSession natively serves `file:`, `data:` and `ftp:` --
+     * so the original transliteration, which only waived "must be https" for cleartext hosts,
+     * passed `file://localhost/<anything in the app container>` the moment `localhost` was named
+     * for cleartext. The waiver must name the scheme it waives, not merely excuse the one it
+     * prefers: cleartext opt-in means http, never "anything that is not https".
+     */
+    host in permitted &&
+      (scheme == "https" || (scheme == "http" && host in allowCleartextHosts))
   }
 }
 
