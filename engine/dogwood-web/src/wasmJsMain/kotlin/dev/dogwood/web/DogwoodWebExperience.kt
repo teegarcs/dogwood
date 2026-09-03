@@ -105,7 +105,15 @@ class DogwoodWebExperience(
   private var environment: HostEnvironment = environment
 
   /** Guards against sending the environment twice when readiness and attachment race. */
-  private var configurationSent = false
+  /**
+   * Whether *this* bridge has been configured.
+   *
+   * Held against the bridge rather than as a bare flag, because the flag never reset: a host that
+   * tore down a crashed guest and attached a fresh one found the replacement's READY arriving,
+   * `sendConfiguration` returning at the latch, and the new guest never learning its viewport --
+   * composing nothing, forever.
+   */
+  private var configuredBridge: WorkerBridge? = null
 
   /**
    * Frame requests waiting for the host's display.
@@ -129,9 +137,31 @@ class DogwoodWebExperience(
    * report through.
    */
   fun attach(bridge: WorkerBridge) {
+    /*
+     * The correctness gate runs here, in the module, and refuses.
+     *
+     * It used to be called from the sample's `main()` and nowhere else, so every consumer of this
+     * module had to know to run it. A second product linking `dogwood-web` with Kotlin's stock
+     * `wasm-opt` pass list would decode every batch as empty and render a blank screen with no
+     * diagnostic whatsoever -- which is precisely the failure the gate exists to prevent, reached
+     * by forgetting a step nobody was told about. Enforcement belongs where it cannot be
+     * forgotten; the sample keeps its own early call for a louder, earlier message.
+     */
+    val gate = gateResult ?: BulkCopyGate.check().also { gateResult = it }
+    if (gate is GateResult.Failed) {
+      report(
+        "refusing to render: this build's WebAssembly is miscompiled (${'$'}{gate.reason}). " +
+          "Remove --gufa from the wasm-opt pass list; see ADR-032.",
+      )
+      bridge.close()
+      return
+    }
     this.bridge = bridge
     if (bridge.isReady) sendConfiguration()
   }
+
+  /** Checked once per page, not once per attach. */
+  private var gateResult: GateResult? = null
 
   fun updateEnvironment(environment: HostEnvironment) {
     this.environment = environment
@@ -153,15 +183,26 @@ class DogwoodWebExperience(
       onResult(StateSnapshot())
       return
     }
-    bridge.snapshotState(onResult) { failure ->
-      report("snapshotState failed: $failure")
-      onResult(StateSnapshot())
-    }
+    bridge.snapshotState(
+      onResult = onResult,
+      onFailure = { failure ->
+        // Reported AND answered: a caller that waits forever leaks the experience, so the empty
+        // snapshot is the least-bad answer -- but it is only ever produced here, where the
+        // failure is on the record, never silently inside the decode.
+        report("snapshotState failed: $failure")
+        onResult(StateSnapshot())
+      },
+    )
   }
 
   fun close() {
     bridge?.close()
     bridge = null
+    // Cleared with the bridge. Leaving the tree populated meant a re-attach rendered the previous
+    // guest's screen until the new one produced its first batch, and the configuration flag was
+    // still set against a bridge that no longer existed.
+    configuredBridge = null
+    tree.clear()
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -207,9 +248,9 @@ class DogwoodWebExperience(
   }
 
   private fun sendConfiguration() {
-    if (configurationSent) return
+    if (configuredBridge === bridge) return
     val bridge = this.bridge ?: return
-    configurationSent = true
+    configuredBridge = bridge
     bridge.updateConfiguration(environment)
   }
 

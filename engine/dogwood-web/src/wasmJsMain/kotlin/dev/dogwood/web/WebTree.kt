@@ -101,6 +101,18 @@ class WebTree {
 
   private val byId = HashMap<Int, WebNode>().apply { put(0, root) }
 
+  /**
+   * Drops every node, so a re-attached guest starts from an empty screen.
+   *
+   * Without it, closing an experience left the previous guest's tree rendered until its
+   * replacement produced a first batch -- a screen showing one guest's content while another one
+   * was starting.
+   */
+  fun clear() {
+    root.slot(1).clear()
+    byId.keys.retainAll(setOf(0))
+  }
+
   val unknownWidgetTags = mutableSetOf<Int>()
 
   /** The sequence number of the last batch applied, which every outbound event carries. */

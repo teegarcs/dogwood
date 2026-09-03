@@ -59,8 +59,12 @@ kotlin {
  */
 tasks.withType<org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec>().configureEach {
   val without = binaryenArgs.filterNot { it == "--gufa" }
-  check(without.size < binaryenArgs.size || !binaryenArgs.contains("--gufa")) {
-    "the wasm-opt pass list still contains --gufa after filtering it; see ADR-032"
+  // Asserts the OUTCOME, not a disjunction that cannot be false. The previous form was
+  // `without.size < binaryenArgs.size || !binaryenArgs.contains("--gufa")` -- true whenever the
+  // list contains the pass, true whenever it does not, and therefore never a check at all, under
+  // a comment insisting it was "not decoration".
+  check(!without.contains("--gufa")) {
+    "the wasm-opt pass list still contains --gufa after filtering; see ADR-032"
   }
   binaryenArgs = without.toMutableList()
   doFirst {
