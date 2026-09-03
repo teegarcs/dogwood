@@ -88,13 +88,27 @@ class SkewReport {
    */
   val refusedImages = mutableSetOf<String>()
 
+  /**
+   * Property values the client had to clamp to keep Compose from throwing.
+   *
+   * Distinct from every other entry here, which record something the client did not *recognise*.
+   * These are values it recognised perfectly and could not use: a negative padding, a `maxLines` of
+   * zero, a weight of zero. Compose rejects them rather than clamping, and the rejection lands
+   * inside composition -- so an off-by-one in a payload delivered over the air takes down the
+   * screen on every client that receives it, together.
+   *
+   * Clamping keeps the screen. Reporting is what keeps the clamp from becoming a silent
+   * difference between what the payload asked for and what the user sees.
+   */
+  val clampedValues = mutableSetOf<String>()
+
 
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
       untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
-      rejectedBatches.isEmpty() && refusedImages.isEmpty()
+      rejectedBatches.isEmpty() && refusedImages.isEmpty() && clampedValues.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -109,7 +123,8 @@ class SkewReport {
     if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")
     if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets ")
     if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches ")
-    if (refusedImages.isNotEmpty()) append("refusedImages=$refusedImages")
+    if (refusedImages.isNotEmpty()) append("refusedImages=$refusedImages ")
+    if (clampedValues.isNotEmpty()) append("clamped=$clampedValues")
     append(")")
   }
 }

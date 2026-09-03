@@ -83,6 +83,7 @@ import dev.dogwood.host.cachePath
 import dev.dogwood.protocol.LogLevel
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -368,6 +369,18 @@ private fun Tabs(
 
     LaunchedEffect(shell, environment) { shell?.updateEnvironment(environment) }
 
+    // The skew report has to be **sampled, not observed**. It is plain sets rather than snapshot
+    // state, deliberately: most of it is written *during* composition -- by the binding that could
+    // not resolve a colour token, by the reader that had to clamp a value -- and writing snapshot
+    // state there is not allowed. So nothing recomposes when an entry lands, and a composable that
+    // merely reads it shows whatever was there when its own pass began.
+    LaunchedEffect(shell) {
+      while (true) {
+        delay(1_000)
+        skew = shell?.active?.value?.skew?.takeIf { !it.isEmpty }?.toString().orEmpty()
+      }
+    }
+
     // Selecting a tab is an activation, not a rebuild. A tab that is already warm is published
     // before this call returns.
     LaunchedEffect(shell, current, routeParams) {
@@ -401,6 +414,13 @@ private fun Tabs(
         Modifier.padding(horizontal = 16.dp),
         style = MaterialTheme.typography.labelSmall,
       )
+      if (skew.isNotEmpty()) {
+        Text(
+          skew,
+          Modifier.padding(horizontal = 16.dp),
+          style = MaterialTheme.typography.labelSmall,
+        )
+      }
 
       Row(
         Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
