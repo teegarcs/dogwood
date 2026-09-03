@@ -128,7 +128,8 @@ class DogwoodDelivery(
    * Layer 4 says code update while a screen is live is the normal case, not an edge one.
    * Consuming that flow means tearing down a running experience and standing up a replacement
    * with its state preserved, which needs `SaveableStateRegistry` and a host-side state store
-   * that do not exist yet. Until they do, an update lands on the next launch.
+   * that now both exist -- `SaveableStateRegistry` on the guest and `DogwoodStateStore` on the
+   * host -- so an update carries state rather than landing fresh on the next launch.
    */
   suspend fun load(applicationName: String, manifestUrl: String): DeliveredGuest {
     val result = loader.loadOnce(

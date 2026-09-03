@@ -57,11 +57,7 @@ import okio.FileSystem
  * The public half of the key that signs the guest. Serve the guest with
  * `./gradlew :samples:slice-guest:serveProductionWebpackZipline`.
  */
-private val TRUSTED_KEYS = mapOf(
-  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
-  // Rolled forward alongside the Android host; see `Slice.kt` for what the second key is for.
-  "dogwood-development-2" to "64fcb07226f6b538ec7d09510f9a5073aeb43a50916cfc625761cc9b9a99b097",
-)
+private val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
 
 private const val DEV_SERVER = "http://localhost:8080"
 private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"

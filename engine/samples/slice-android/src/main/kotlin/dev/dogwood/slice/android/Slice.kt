@@ -30,10 +30,7 @@ package dev.dogwood.slice.android
  * holding both checks whichever the manifest lists first -- here, the old one. Trusting the new
  * key is not the same as using it.
  */
-internal val TRUSTED_KEYS = mapOf(
-  "dogwood-development" to "f9037012d6cd2446ec3025da7320bfb593641880b9339d316ba10da2aa18d102",
-  "dogwood-development-2" to "64fcb07226f6b538ec7d09510f9a5073aeb43a50916cfc625761cc9b9a99b097",
-)
+internal val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
 
 /**
  * On the Android emulator, 10.0.2.2 is the development machine. Serve the guest with

@@ -324,7 +324,16 @@ state ADR-010 refuses to let leave the device *would leave the device*; Okio can
 
 ---
 
-### R8. The parity ledger *(medium; ~1 day total, independent small items)*
+### R8. The parity ledger — ✅ **mostly done** (PR #10)
+
+*Trust anchor consolidated; the byte cap fixed with a test that failed first; the plural comment now
+names Android as the peer and the divergence reports through `SkewReport.untranslatedPlurals`; the
+ATS comment, sample dispatcher disposal and stale kdoc all corrected. **Two items deferred, not
+done**: a real fix for iOS plural rules (costing it out is a Part 2 investigation) and the web
+`SkewReport` analogue, which wants `WireSkew` in `dogwood-wire` and is really the first step of
+moving the host onto Wasm rather than a ledger item.*
+
+#### Original entry
 
 Each item: problem → implementation → gate, one line each.
 

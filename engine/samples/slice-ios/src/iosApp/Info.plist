@@ -39,7 +39,12 @@
   </array>
   <!--
     App Transport Security refuses cleartext Hypertext Transfer Protocol by default, and the
-    development server that publishes the guest speaks it. The exception is scoped to `localhost`
+    development server that publishes the guest speaks it. The `localhost` exception domain below
+    is what the simulator needs; `NSAllowsLocalNetworking` additionally exempts `.local` and
+    unresolved single-label hosts on the local network, which is broader than this comment used to
+    claim. Harmless while Dogwood's own allow rule names `localhost` and nothing else -- the two
+    are independent gates and the narrower one governs -- but the claim was wrong. The exception is
+    scoped to `localhost`
     rather than switched on globally, which is the same discipline `allowUrlHosts` applies on the
     Dogwood side: a production host serves its payloads over HTTPS and needs none of this.
   -->
