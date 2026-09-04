@@ -156,7 +156,11 @@ class TabsActivity : ComponentActivity() {
       val palette = if (dark) Palette.Dark else Palette.Light
       MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
         Surface(Modifier.fillMaxSize(), color = palette.canvas) {
-          Tabs(carried = carriedState, onShell = { shell = it })
+          Tabs(
+            carried = carriedState,
+            startEntryPoint = intent?.getStringExtra("entry"),
+            onShell = { shell = it },
+          )
         }
       }
     }
@@ -203,6 +207,7 @@ class TabsActivity : ComponentActivity() {
 @Composable
 private fun Tabs(
   carried: Map<String, dev.dogwood.protocol.StateSnapshot>,
+  startEntryPoint: String?,
   onShell: (DogwoodShell?) -> Unit,
 ) {
   val context = androidx.compose.ui.platform.LocalContext.current
@@ -218,7 +223,10 @@ private fun Tabs(
    *
    * Which tab is open is host state, so the host saves it, using the platform's own mechanism.
    */
-  var current by rememberSaveable { mutableStateOf(TABS.first().first) }
+  // The entry point may be named by the launching intent, which is how the conformance drill opens
+  // the screen it asserts on -- the same role `--dogwood-a11y` plays on iOS. `rememberSaveable`
+  // still owns it afterwards, so this only chooses the starting tab.
+  var current by rememberSaveable { mutableStateOf(startEntryPoint ?: TABS.first().first) }
   var routeParams by remember { mutableStateOf(JsonObject(emptyMap())) }
   var shell by remember { mutableStateOf<DogwoodShell?>(null) }
   var note by remember { mutableStateOf("starting…") }

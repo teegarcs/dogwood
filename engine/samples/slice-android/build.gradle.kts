@@ -20,6 +20,7 @@ android {
     targetSdk = libs.versions.compileSdk.get().toInt()
     versionCode = 1
     versionName = "0.1"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   compileOptions {
@@ -43,5 +44,9 @@ dependencies {
   implementation(compose.ui)
   implementation(libs.androidx.activity.compose)
   implementation(libs.coroutines.android)
+
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.ext.junit)
+  androidTestImplementation(libs.androidx.test.uiautomator)
   add(PLUGIN_CLASSPATH_CONFIGURATION_NAME, "app.cash.zipline:zipline-kotlin-plugin:${libs.versions.zipline.get()}")
 }

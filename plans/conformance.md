@@ -128,13 +128,13 @@ Rows are the architecture's own promises, taken from the specifications rather t
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| D1 | Guest-composed text reaches the platform's accessibility layer | C | iOS only |
-| D2 | Every exposed element announces something — no anonymous elements | C | iOS only |
-| D3 | A guest-composed control is exposed **as a control**, not as text | C | iOS only |
-| D4 | Activating through the accessibility layer drives the guest and changes the tree | C | iOS only |
-| D5 | The screen scrolls through the accessibility layer | C | iOS only |
+| D1 | Guest-composed text reaches the platform's accessibility layer | C | ✅ iOS, Android |
+| D2 | Every exposed element announces something — no anonymous elements | C | ✅ iOS, Android |
+| D3 | A guest-composed control is exposed **as a control**, not as text | C | ✅ iOS, Android |
+| D4 | Activating through the accessibility layer drives the guest and changes the tree | C | ✅ iOS, Android |
+| D5 | The screen scrolls through the accessibility layer | C | ✅ iOS, Android |
 | D6 | Text input is host-authoritative: mask, limit and counter apply where the typing is | S + C | S ✅; C — |
-| D7 | A disabled control is announced as disabled | C | — (no disabled control on the sample screen; see Part 5) |
+| D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
 
 ### E. Lifecycle and resources
 
@@ -173,7 +173,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | **A** protocol and containment | ✅ | ◐ A2–A4 | ◐ | ◐ A2–A5 |
 | **B** delivery and trust | ◐ | ◐ | ◐ | ✅ B3 |
 | **C** host resolution | ◐ | ◐ | ◐ | ◐ |
-| **D** accessibility | — | ✅ | n/a¹ | — |
+| **D** accessibility | ✅ | ✅ | n/a¹ | — |
 | **E** lifecycle | ✅ E1–E2 | ✅ | n/a¹ | — |
 | **F** network | ◐ F3 | ◐ | n/a¹ | n/a² |
 | **G** performance | ✅ | ✅ | ✅ | ◐ G5 |
@@ -254,10 +254,15 @@ inverted, and the cost of inverting it is paid rather than ignored: **the Androi
 already exists rather than retrofitting three drills that grew their own formats. Defining a text
 format is cheap; discovering it was wrong across four implementations is not.
 
-1. **Accessibility on Android** (`D1`–`D5`, `D7`). `AccessibilityNodeInfo` plus
-   `performAction(ACTION_CLICK)` is the direct analogue of `accessibilityActivate`: same claims,
-   same identifiers, different machinery. Add a disabled control to the sample so `D7` becomes
-   claimable rather than permanently unknown. Emits the `CONF` grammar.
+1. ✅ **Accessibility on Android — done.** `UiAutomation` is itself an accessibility service, so
+   the drill is an instrumented test reading the tree out of process, the way TalkBack does — the
+   opposite of iOS, where no such access exists. 9 claims, gated, negative-controlled. A disabled
+   control was added to the sample so `D7` is claimable rather than permanently unknown. **It found
+   a cross-client inconsistency introduced by the iOS fix**: Android's Material 3 merges a text
+   field's label where iOS's does not, so naming the field in semantics made Android announce it
+   twice — "Card number Card number 0/16". Fixed by drawing the label with
+   `clearAndSetSemantics`, and re-verified green on both clients. That is the first finding this
+   plan's premise predicted: a defect visible only when two clients are graded on one claim.
 2. **Accessibility on web** (`D1`–`D5`). The DOM accessibility tree through the Chrome DevTools
    Protocol's `Accessibility.getFullAXTree`, for which `tools/web-ttff/cdp.py` already has a client.
    Emits the same grammar, from a third language, which is the real test of whether the format is

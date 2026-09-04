@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import coil3.compose.AsyncImage
 
 @Composable
@@ -271,7 +272,11 @@ fun TextInputImpl(
     modifier = if (label != null) modifier.semantics { contentDescription = label } else modifier,
     enabled = enabled,
     singleLine = singleLine,
-    label = label?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
+    // Drawn, but not announced: the field's own semantics above carry the name, and Android's
+    // Material 3 *does* merge a label composable into the field while iOS's does not. Without this
+    // the Android announcement stutters -- "Card number Card number 0/16" -- which the Android
+    // conformance drill caught the first time both clients were graded on the same claim.
+    label = label?.let { { Text(it, modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.bodyMedium) } },
     placeholder = placeholder?.let { { Text(it, color = palette().inkSecondary) } },
     supportingText = if (showCounter && capacity != Int.MAX_VALUE) {
       { Text("${raw.length}/$capacity", color = palette().inkSecondary, style = MaterialTheme.typography.labelSmall) }
