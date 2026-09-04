@@ -296,7 +296,7 @@ class AllocationGcExperiment(
     } finally {
       warm.zipline.close()
     }
-    log("clock round trip p50 ${"%.3f".format(clockOverhead.p50Ms)} ms -- host-side timing only")
+    log("clock round trip p50 ${(clockOverhead.p50Ms).toFixed(3)} ms -- host-side timing only")
 
     val allocation = ArrayList<AllocProbe>()
     if ("alloc" in phases) {
@@ -364,7 +364,7 @@ class AllocationGcExperiment(
           "callback. A collection is deduced from a fall in memoryAllocatedSize between two " +
           "consecutive frames.",
         "Latency is timed on the HOST, never in the guest: one guest clock round trip costs " +
-          "roughly ${"%.0f".format(clockOverhead.p50Ms * 1000)} microseconds, which is the " +
+          "roughly ${(clockOverhead.p50Ms * 1000).toFixed(0)} microseconds, which is the " +
           "same order as the crossing being measured. The frame and crossing loops are timed " +
           "by timestamping arrivals at sendChangesEncoded; the traced loop is timed by " +
           "bracketing one oneFrame call, which additionally charges one host-to-guest crossing.",
@@ -422,9 +422,9 @@ class AllocationGcExperiment(
 
       log(
         "  alloc $stage/$variant changes=$observedChanges " +
-          "${"%.0f".format(perIteration)} B/batch " +
-          "${"%.1f".format(perIteration / maxOf(1, observedChanges))} B/change " +
-          "(2nd half ${"%.0f".format(secondHalf)} B/batch) retained ${retained} B" + if (monotonic && headroom) "" else "  INVALID",
+          "${(perIteration).toFixed(0)} B/batch " +
+          "${(perIteration / maxOf(1, observedChanges)).toFixed(1)} B/change " +
+          "(2nd half ${(secondHalf).toFixed(0)} B/batch) retained ${retained} B" + if (monotonic && headroom) "" else "  INVALID",
       )
       return AllocProbe(
         stage = stage,
@@ -493,9 +493,9 @@ class AllocationGcExperiment(
       )
       log(
         "  $loop gcThreshold=${threshold / 1024} KiB n=${nanos.size} " +
-          "p50 ${"%.3f".format(stat.p50Ms)} p95 ${"%.3f".format(stat.p95Ms)} " +
-          "p99 ${"%.3f".format(stat.p99Ms)} p99.9 ${"%.3f".format(run.p999Ms)} " +
-          "max ${"%.3f".format(stat.maxMs)} ms  over-frame=${run.overFrameBudget}",
+          "p50 ${(stat.p50Ms).toFixed(3)} p95 ${(stat.p95Ms).toFixed(3)} " +
+          "p99 ${(stat.p99Ms).toFixed(3)} p99.9 ${(run.p999Ms).toFixed(3)} " +
+          "max ${(stat.maxMs).toFixed(3)} ms  over-frame=${run.overFrameBudget}",
       )
       return run
     } finally {
@@ -526,11 +526,11 @@ class AllocationGcExperiment(
       val sampleCost = ArrayList<Long>(traceIterations)
       var changes = 0
       repeat(traceIterations) { i ->
-        val t0 = System.nanoTime()
+        val t0 = nanoTime()
         changes = loaded.guest.oneFrame(variant)
-        val t1 = System.nanoTime()
+        val t1 = nanoTime()
         heap[i] = loaded.zipline.quickJs.memoryUsage.memoryAllocatedSize
-        sampleCost += System.nanoTime() - t1
+        sampleCost += nanoTime() - t1
         latency[i] = t1 - t0
       }
 
@@ -565,9 +565,9 @@ class AllocationGcExperiment(
       val forced = ArrayList<Long>(5)
       repeat(5) {
         loaded.guest.sustainedFrames(rows, variant, 100)
-        val t0 = System.nanoTime()
+        val t0 = nanoTime()
         loaded.zipline.quickJs.gc()
-        forced += System.nanoTime() - t0
+        forced += nanoTime() - t0
       }
 
       val trace = GcTrace(
@@ -596,10 +596,10 @@ class AllocationGcExperiment(
       log(
         "  trace gcThreshold=${threshold / 1024} KiB inferred collections " +
           "${trace.inferredCollections}/${traceIterations} " +
-          "collection-frame p50 ${"%.3f".format(trace.collectionFrameLatency?.p50Ms ?: 0.0)} ms " +
-          "vs quiet p50 ${"%.3f".format(trace.nonCollectionFrameLatency.p50Ms)} ms " +
-          "max ${"%.3f".format(trace.stat.maxMs)} ms " +
-          "forced gc p50 ${"%.3f".format(trace.forcedGcPause.p50Ms)} ms " +
+          "collection-frame p50 ${(trace.collectionFrameLatency?.p50Ms ?: 0.0).toFixed(3)} ms " +
+          "vs quiet p50 ${(trace.nonCollectionFrameLatency.p50Ms).toFixed(3)} ms " +
+          "max ${(trace.stat.maxMs).toFixed(3)} ms " +
+          "forced gc p50 ${(trace.forcedGcPause.p50Ms).toFixed(3)} ms " +
           "heap ${trace.heapLowBytes / 1024} - ${trace.heapHighBytes / 1024} KiB",
       )
       return trace

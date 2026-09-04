@@ -36,7 +36,6 @@ android {
     }
   }
 
-  sourceSets["main"].kotlin.srcDir("../host-core/src/main/kotlin")
   // The Copy task's destination is `.../ziplineAssets/zipline`, so the assets root is its
   // parent: the guest lands in the application under `assets/zipline/`.
   sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/ziplineAssets"))
@@ -61,6 +60,7 @@ tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configure
 }
 
 dependencies {
+  implementation(project(":host-core"))
   implementation(project(":protocol"))
   implementation(libs.zipline)
   implementation(libs.zipline.loader)

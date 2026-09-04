@@ -401,7 +401,27 @@ upstream"` finds no unbacked claim.
 
 ### R10. Measurements still owed *(the standing list; each is its own gate)*
 
-- **Phase 0 performance suite on iOS** (Phase 6 step 3). Implementation: port `tools/phase0`'s
+- ✅ **Phase 0 on iOS — done (PR #18).** `host-core` is a real multiplatform module now rather than
+  a directory three JVM hosts compiled with `srcDir`; the platform-specific surface came to five
+  small things (clock, file I/O, gzip, machine description, fixed-point formatting). Results in
+  `tools/phase0/results/ios-17-5-simulator-not-gate-valid.md`, and **not gate-valid** — a simulator
+  on Apple silicon runs on the development machine's processor.
+
+  | Leg | Budget | iOS sim | JVM | Pixel 10 Pro |
+  |---|---:|---:|---:|---:|
+  | Guest recomposition p95 (0.2) | 8.00 ms | 1.54 ms | 1.78 ms | 1.61 ms |
+  | Crossing, per-frame (0.3) | 4.00 ms | 0.12 ms | 0.13 ms | 0.18 ms |
+  | Crossing, per-screen (0.3) | 4.00 ms | **22.07 ms** | 24.08 ms | 34.60 ms |
+  | Collection pause p99 (0.4) | 16.70 ms | 1.41 ms | 1.82 ms | 5.91 ms |
+  | Cold start (0.1) | 500 ms | 114.7 ms | 127.3 ms | 158.0 ms |
+
+  The collection-pause row the review singled out is comfortable. The per-screen crossing is over
+  budget on **every** host including the two that already existed, so iOS adds no new failure —
+  that row is the known per-tap-versus-per-screen ambiguity in the budget, not a platform result.
+  **Found on the way:** adding the Zipline compiler-plugin artifact to a multiplatform module by
+  hand reaches one configuration and a multiplatform module has one per target, so the JVM compiled
+  with the `Zipline.take` rewrite and Kotlin/Native compiled without it — silently, surfacing as a
+  simulator abort rather than a build error. *Original entry:* port `tools/phase0`'s
   host driver to a Kotlin/Native runner (host-core is common; the driver needs an iOS `main`),
   run 0.2/0.3/0.5 on the simulator AND note it is not gate-valid hardware; publish
   `results/ios-simulator.md` against the Phase 0 baseline table. Gate: the results file, with the

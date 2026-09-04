@@ -79,7 +79,7 @@ class Phase0Activity : Activity() {
 
   private fun run(executor: java.util.concurrent.ExecutorService) {
     val ziplineDir = stageGuestFromAssets()
-    val payload = GuestPayload(ziplineDir)
+    val payload = GuestPayload(ziplineDir.path)
     val dispatcher = executor.asCoroutineDispatcher()
 
     // Experiment 0.5 is long and answers a different question, so it is opt-in:

@@ -23,5 +23,9 @@ rootProject.name = "dogwood-phase0"
 
 include(":protocol")
 include(":guest")
+include(":host-core")
 include(":host-jvm")
 include(":host-android")
+
+// The iOS runner (roadmap Phase 6 step 3). Kotlin/Native, no user interface: it prints its report.
+include(":host-ios")

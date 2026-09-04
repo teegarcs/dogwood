@@ -8,12 +8,10 @@ plugins {
 
 kotlin {
   jvmToolchain(21)
-  // The experiment driver, the host services, and the report writer are identical on the
-  // development host and on device, so they live in one directory that both hosts compile.
-  sourceSets["main"].kotlin.srcDir("../host-core/src/main/kotlin")
 }
 
 dependencies {
+  implementation(project(":host-core"))
   implementation(project(":protocol"))
   implementation(libs.zipline)
   implementation(libs.zipline.loader)

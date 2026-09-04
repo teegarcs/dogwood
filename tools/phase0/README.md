@@ -101,7 +101,31 @@ adb install -r host-android/build/outputs/apk/debug/host-android-debug.apk
 adb shell am start -n dev.dogwood.host.android/.Phase0Activity
 adb logcat -s Dogwood            # progress
 adb pull /sdcard/Android/data/dev.dogwood.host.android/files/results
+
+# iOS. A console executable, not an application: this measures an interpreter and a protocol,
+# and a user interface would add a renderer's cost to numbers meant to exclude it.
+./gradlew :guest:jsBrowserProductionWebpackZipline \
+          :host-ios:linkReleaseExecutableIosSimulatorArm64
+xcrun simctl spawn booted \
+  host-ios/build/bin/iosSimulatorArm64/releaseExecutable/phase0.kexe \
+  --root "$PWD" --label "iOS 17.5 simulator (not gate-valid)" --phases main
 ```
+
+### One shared driver, three hosts
+
+`host-core` used to be a directory that three host modules each compiled with `srcDir`, which
+worked while all three were Java Virtual Machine dialects. Kotlin/Native is not a dialect of
+anything, so it is a real multiplatform module now, and what had to be named as platform-specific
+turned out to be very little: a monotonic clock, reading and writing a file, gzip, a machine
+description, and fixed-point formatting. Everything the experiments actually measure -- Zipline,
+QuickJS, the protocol, the encodings -- is common, which is why the numbers are comparable at all.
+
+Two of those deserve their reasons stated. **Gzipped sizes are absent on iOS** rather than computed
+a second way: a compressed size is a property of the bytes, not of the machine, so the number
+measured on any other host is the number here too, and a second implementation would risk two
+answers to a question with one. **Fixed-point formatting is written out in common code** because a
+report is only comparable against another report if both rounded the same way, and two
+platform-specific formatters agreeing is a coincidence rather than a guarantee.
 
 Flags for `:host-jvm:run` (all optional): `--label`, `--rows` (default `23,50`), `--warmups`
 (20), `--iterations` (200), `--composition-iterations` (50), `--cold-runs` (10), `--churn`
