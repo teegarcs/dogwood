@@ -181,6 +181,15 @@ class ExpressionEvaluator(
         val count = arg(1)?.intOrNull ?: 0
         val templates = args.getOrNull(2) as? kotlinx.serialization.json.JsonObject
         val category = pluralCategory(count, locale)
+        // Two different gaps land in the same report and they are not the same problem. Below:
+        // the payload had no words for the category the host picked. Here: the host had no rules
+        // for the language at all and answered with the English one, so the category itself may
+        // be wrong -- which a reader of that language notices and a screenshot does not. Only
+        // Android can still be right when this fires, because only Android has the platform's own
+        // rules behind `pluralCategory`; that asymmetry is the thing being recorded.
+        if (cldrPluralCategory(count, locale) == null) {
+          skew.untranslatedPlurals += "no plural rules for '$locale'; used the English rule"
+        }
         val template = templates?.get(category)?.jsonPrimitive?.content
           ?: templates?.get("other")?.jsonPrimitive?.content
         if (template == null) {

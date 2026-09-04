@@ -101,6 +101,13 @@ kotlin {
         // An in-memory filesystem, so the saved-state store's refusals -- oversized, stale,
         // undecodable -- are tested without leaving files on whoever runs the build.
         implementation("com.squareup.okio:okio-fakefilesystem:3.17.0")
+        // The oracle for the vendored plural rules, and a **test-only** dependency: it is the
+        // same Unicode Common Locale Data Repository (CLDR) data the platform ships, so the
+        // vendored table can be compared against it rather than trusted. Nothing in any shipped
+        // artifact depends on it -- International Components for Unicode for Java (ICU4J) is a
+        // large library and putting it in an application to answer one question would be a
+        // strange trade.
+        implementation("com.ibm.icu:icu4j:77.1")
         // A real composition, on the host, in a unit test. Until this existed the host half of
         // every decision was demonstrated on a device and asserted by construction; ADR-009 had
         // to say so about pixel identity. Desktop Compose Multiplatform runs on the Java Virtual

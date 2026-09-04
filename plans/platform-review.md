@@ -329,9 +329,9 @@ state ADR-010 refuses to let leave the device *would leave the device*; Okio can
 *Trust anchor consolidated; the byte cap fixed with a test that failed first; the plural comment now
 names Android as the peer and the divergence reports through `SkewReport.untranslatedPlurals`; the
 ATS comment, sample dispatcher disposal and stale kdoc all corrected. **Two items deferred, not
-done**: a real fix for iOS plural rules (costing it out is a Part 2 investigation) and the web
-`SkewReport` analogue, which wants `WireSkew` in `dogwood-wire` and is really the first step of
-moving the host onto Wasm rather than a ledger item.*
+done**: the web `SkewReport` analogue, which wants `WireSkew` in `dogwood-wire` and is really the
+first step of moving the host onto Wasm rather than a ledger item. (iOS plural rules were the other
+one and are now done — [ADR-037](../adrs/layer-5/ADR-037-plural-rules-are-vendored.md).)*
 
 #### Original entry
 
@@ -430,7 +430,9 @@ decided that is not something to do from here. The drafts stay current so anyone
 them has the work already done; ADR-032 and ADR-033 say "drafted, not filed", which is the honest
 tense and should stay that way rather than drifting back to "reported".
 
-**iOS plural rules stay English-only until the cost is known.** Android reaches real Unicode plural
+**iOS plural rules stay English-only until the cost is known.** ✅ **Resolved** — vendored CLDR
+rules, checked against ICU4J ([ADR-037](../adrs/layer-5/ADR-037-plural-rules-are-vendored.md)). The
+original entry, kept because it is what the ledger recorded at the time: Android reaches real Unicode plural
 rules by reflection; iOS does not, so one payload gets correct Polish `few` on Android and the wrong
 category on iOS. It is not silent — `SkewReport.untranslatedPlurals` reports the fallback — but it is
 a genuine divergence in what a user reads. Fixing it means either `NSString` plural formatting or
@@ -494,7 +496,23 @@ has to reconcile. Sequence it with that work (Layer 5 Milestone 14), not before.
 - **Kotlin/Native leak-test flake risk** (conservative stack scanning vs the negative control).
   Gate: 50 consecutive green runs of `iosSimulatorArm64Test` (scripted); if flaky, restructure
   the control per the reviewer's note before trusting CI.
-- **iOS plural rules properly** (see R8): cost out `NSString` plural formatting vs vendoring CLDR
+- ✅ **iOS plural rules — done (PR #15), [ADR-037](../adrs/layer-5/ADR-037-plural-rules-are-vendored.md).**
+  Both options were costed and one was *measured out*: `FoundationPluralProbeTest` builds a
+  `.stringsdict` at run time whose every category maps to its own name and renders it for a matrix
+  of counts on the simulator. Every language answers identically — Arabic two is `other`, Polish
+  three is never `few`, and with the literal-count keys withheld nothing is ever `few` or `many` —
+  with a per-language marker proving the right table was loaded. Foundation matches literal counts,
+  it does not select Unicode categories, and it would have been the wrong shape anyway: the table
+  would have to live in the application bundle, and the languages a payload carries are not known
+  when the application is compiled. So the rules are vendored in common code for ~180 languages and
+  **checked against ICU4J** (a test-only dependency) across sixty boundary counts rather than
+  trusted — which immediately found European Portuguese, sharing Brazilian's round-million `many`
+  clause while differing on zero. Fixes desktop as well as iOS, which had the same gap. The
+  divergence stops being silent twice over: for covered languages it is gone, and for an uncovered
+  one `SkewReport` now distinguishes "the payload had no words for this category" from "the host
+  had no rules for this language", which used to be the same line. Verified on Kotlin/Native
+  through the shipped function, not only against the table on a Java Virtual Machine.
+  *Original entry:* (see R8) cost out `NSString` plural formatting vs vendoring CLDR
   category data for the locales products actually ship. Gate: decision recorded; either way the
   Android/iOS divergence stops being silent.
 

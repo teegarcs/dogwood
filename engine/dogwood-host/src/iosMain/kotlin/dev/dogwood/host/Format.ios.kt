@@ -75,21 +75,27 @@ actual fun formatNumber(
 }
 
 /**
- * The Unicode plural category.
+ * The Unicode plural category, from the vendored table.
  *
- * **English, and wrong for most languages.** The peer to compare against is *Android*, not the
- * desktop Java Virtual Machine: Android reaches real Unicode plural rules by reflection, so one
- * payload gets correct Polish `few` on Android and the wrong category here. That divergence is
- * real, it is silent, and it is reported through `SkewReport.untranslatedPlurals` rather than left
- * to be discovered by a reader of Polish. The same limitation the desktop Java Virtual
- * Machine actual carries and for the same reason: Foundation applies plural rules internally when
- * it renders a `.stringsdict` entry but exposes no way to ask which category a count falls into.
- * There is no public equivalent of `android.icu.text.PluralRules.select`. A product shipping iOS
- * in many languages supplies its own implementation of this function, exactly as the desktop note
- * says.
+ * **Foundation cannot answer this, and that was established by running it rather than by reading
+ * the documentation.** `FoundationPluralProbeTest` builds a `.stringsdict` at run time whose every
+ * category maps to its own name, loads it from a bundle with exactly one localisation, and renders
+ * it for a matrix of counts. Every language answered identically -- `zero` for zero, `one` for one,
+ * `other` for everything else -- with the per-language marker proving each table really was the one
+ * loaded. Arabic never said `two`; Polish never said `few`. A `.stringsdict` matches the literal
+ * keys `zero`, `one` and `two` against the count and falls through to `other`; it does not select a
+ * Unicode category. There is no public equivalent of `android.icu.text.PluralRules.select` here.
+ *
+ * So the rules are vendored, shared with every platform that has no better source, and verified
+ * against International Components for Unicode for Java (ICU4J) in `PluralRulesAgreementTest`.
+ * See `PluralRules.kt` and `adrs/layer-5/ADR-037-plural-rules-are-vendored.md`.
+ *
+ * A language the table does not name still falls back to the English rule, and that fallback is
+ * still reported -- what changed is that Polish, Russian, Arabic, Czech and about a hundred and
+ * eighty others no longer take it.
  */
 actual fun pluralCategory(count: Int, locale: String): String =
-  if (count == 1) "one" else "other"
+  cldrPluralCategory(count, locale) ?: if (count == 1) "one" else "other"
 
 actual fun formatCurrency(minorUnits: Long, currencyCode: String, locale: String): String {
   val formatter = NSNumberFormatter().apply {
