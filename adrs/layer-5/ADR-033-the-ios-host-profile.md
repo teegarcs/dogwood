@@ -125,6 +125,15 @@ the input method editor, the keyboard appearing, selection handles, focus order 
 spoken result makes sense are all unverified and need a person with VoiceOver on. The tree reaches
 the platform correctly shaped, which is the part that would have been Dogwood's fault.
 
+**Since superseded in part** ([ADR-039](ADR-039-accessibility-is-asserted-not-inspected.md)). The
+premise above — that interaction needs a person because `simctl` cannot tap — was too narrow.
+VoiceOver does not tap; it calls `accessibilityActivate`, `accessibilityScroll` and the rotor's
+custom actions, and those are public methods a test can call too. Activation through the
+accessibility layer is now asserted end to end, and it found a defect the probe could not see: the
+sample's card-number field reached the platform with **no name at all**, because Material 3 draws a
+label without folding it into semantics. What still needs a person is narrower than this paragraph
+claims: the *quality* of the speech, reading order as experienced, and typing and selection.
+
 ## 4. Unstated Assumptions
 
 - **`-lsqlite3` must be linked explicitly.** A framework consumer inherits it from its Xcode target;

@@ -1,0 +1,42 @@
+dogwood: [about] loaded, restored 0 state keys
+A11Y voiceOverRunning=true
+A11Y NOTE 24 accessibility elements
+A11Y ELEMENT "Diagnostics" traits=staticText
+A11Y ELEMENT "Everything on this screen came from the host. None of it is knowable inside the sandbox." traits=staticText
+A11Y ELEMENT "Services" traits=staticText
+A11Y ELEMENT "analytics, clock, featureFlags, log, network" traits=staticText
+A11Y ELEMENT "surface revision 2 (2)" traits=staticText
+A11Y ELEMENT "host clock 1788523364578" traits=staticText
+A11Y ELEMENT "time zone America/New_York" traits=staticText
+A11Y ELEMENT "Formatted by the host" traits=staticText
+A11Y ELEMENT "The sandbox has no Intl. Every line below crossed as a number." traits=staticText
+A11Y ELEMENT "$612.00" traits=staticText
+A11Y ELEMENT "¥61,200" traits=staticText
+A11Y ELEMENT "1,234,567.891" traits=staticText
+A11Y ELEMENT "7.5%" traits=staticText
+A11Y ELEMENT "Sep 4, 2026 at 8:02 AM" traits=staticText
+A11Y ELEMENT "3 days ago" traits=staticText
+A11Y ELEMENT "Text input" traits=staticText
+A11Y ELEMENT "The mask, the limit and the counter are all applied host-side, where the typing is." traits=staticText
+A11Y ELEMENT "" traits=0x800000040000
+A11Y ELEMENT "warm: about" traits=staticText
+A11Y ELEMENT "[about] loaded, restored 0 state keys" traits=staticText
+A11Y ELEMENT "Explore" traits=button
+A11Y ELEMENT "Stays" traits=button
+A11Y ELEMENT "Trips" traits=button
+A11Y ELEMENT "● Account" traits=button
+A11Y FAIL every element announces something -- 1 anonymous: traits=0x800000040000
+A11Y PASS guest text is exposed to the accessibility layer -- looked for "Diagnostics" among 23 labels
+A11Y PASS at least one element carries the button trait -- 4 buttons: [Explore, Stays, Trips, ● Account]
+A11Y PASS the screen scrolls through the accessibility layer -- 1 scrolls to reach the control
+A11Y PASS a guest-composed control carries the button trait -- guest buttons: [Expand]
+A11Y PASS the sample's Expand button is reachable
+A11Y PASS Expand is exposed as a button
+A11Y PASS accessibilityActivate() was accepted
+A11Y PASS activating through VoiceOver drove the guest and changed the tree -- Expand -> Collapse
+A11Y PASS and back again -- Collapse -> Expand
+A11Y NOTE 0 elements carry the notEnabled trait: []
+A11Y NOTE 0 elements publish rotor actions
+A11Y RESULT passed=9 failed=1
+A11Y DONE failures=1
+dev.dogwood.slice.ios: 42954
