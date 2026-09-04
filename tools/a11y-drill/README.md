@@ -1,4 +1,8 @@
-# Asserting on VoiceOver's surface, without a person holding the phone
+# Asserting on the screen reader's surface, without a person holding the phone
+
+> **iOS lives here; Android is `tools/conformance/run-android.sh`.** Both assert the same claims
+> — `D1`–`D5`, `D7` in [`plans/conformance.md`](../../plans/conformance.md) — against different
+> machinery, which is the split ADR-040 is about.
 
 The platform review left **accessibility interaction on iOS** as the one item marked *needs a
 human*: typing through the input method editor, selection handles, the rotor, spoken order. It also

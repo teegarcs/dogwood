@@ -126,6 +126,16 @@ fun AboutScreen() {
       modifier = Modifier.fillMaxWidth(),
       onClick = { expanded = !expanded },
     )
+    // Deliberately disabled, and on screen. Conformance claim D7 asks whether a disabled control
+    // is *announced* as disabled -- a screen reader user who is not told will try to operate it
+    // and be met with nothing, which is the same failure ADR-031 withholds a widget to avoid. The
+    // claim could not be made at all while no sample screen carried one.
+    PrimaryButton(
+      label = "Unavailable",
+      modifier = Modifier.fillMaxWidth(),
+      enabled = false,
+      onClick = { arrivals += 1 },
+    )
     // A skeleton row: an infinite oscillation, declared once. Every frame of it is host work.
     Box(
       modifier = Modifier
