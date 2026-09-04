@@ -15,8 +15,9 @@
 # The test logs each `CONF` line to logcat and this scrapes them into the aggregator's input.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="${1:-$HERE/build/android.conf}"
-mkdir -p "$(dirname "$OUT")"
+mkdir -p "$HERE/build"
+# Resolved before the `cd` below, so a relative path means what the caller meant.
+OUT="$(cd "$(dirname "${1:-$HERE/build/android.conf}")" 2>/dev/null && pwd)/$(basename "${1:-$HERE/build/android.conf}")"
 cd "$HERE/../../engine"
 
 command -v adb >/dev/null || { echo "adb not found" >&2; exit 1; }
