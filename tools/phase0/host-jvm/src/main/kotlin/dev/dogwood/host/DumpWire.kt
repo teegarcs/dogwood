@@ -44,7 +44,7 @@ private class CallCapture : EventListener() {
 fun main(args: Array<String>) {
   val root = File(".").absoluteFile
   val rows = args.firstOrNull()?.toInt() ?: 23
-  val payload = GuestPayload(File(root, "guest/build/zipline/ProductionWebpack"))
+  val payload = GuestPayload(File(root, "guest/build/zipline/ProductionWebpack").path)
   val executor = Executors.newSingleThreadExecutor { r -> Thread(null, r, "zipline", 8L * 1024 * 1024) }
   val dispatcher = executor.asCoroutineDispatcher()
   val capture = CallCapture()

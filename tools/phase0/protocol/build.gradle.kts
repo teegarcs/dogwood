@@ -17,6 +17,10 @@ kotlin {
   js(IR) {
     browser()
   }
+  // The iOS runner compiles the same service interfaces; Zipline publishes Kotlin/Native
+  // artifacts for these targets at the pinned version, so nothing here is conditional.
+  iosSimulatorArm64()
+  iosArm64()
 
   applyDefaultHierarchyTemplate()
 

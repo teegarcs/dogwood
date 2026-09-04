@@ -12,8 +12,6 @@ import dev.dogwood.protocol.Id
 import dev.dogwood.protocol.MonotonicClock
 import dev.dogwood.protocol.Samples
 import dev.dogwood.protocol.WidgetTag
-import java.io.ByteArrayOutputStream
-import java.util.zip.GZIPOutputStream
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -47,7 +45,7 @@ class CountingHost : DogwoodHost {
     // it adds the same amount to every sample.
     val destination = arrivals
     if (destination != null && arrivalCount < destination.size) {
-      destination[arrivalCount++] = System.nanoTime()
+      destination[arrivalCount++] = nanoTime()
     }
   }
 
@@ -91,7 +89,7 @@ class CountingHost : DogwoodHost {
  * Android it is backed by `CLOCK_MONOTONIC`.
  */
 class NanoClock : MonotonicClock {
-  override fun nowNanos(): Long = System.nanoTime()
+  override fun nowNanos(): Long = nanoTime()
   override fun close() = Unit
 }
 
@@ -179,8 +177,5 @@ fun stat(label: String, nanos: List<Long>): Stat {
   )
 }
 
-fun gzippedSize(bytes: ByteArray): Int {
-  val out = ByteArrayOutputStream()
-  GZIPOutputStream(out).use { it.write(bytes) }
-  return out.size()
-}
+/** See [gzippedSizeOrNull]: -1 stands for "this platform has no gzip", not for "zero bytes". */
+fun gzippedSize(bytes: ByteArray): Int = gzippedSizeOrNull(bytes) ?: -1

@@ -92,8 +92,8 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
   for (leg in legs) {
     val verdict = if (leg.measuredMs <= leg.budgetMs) "within budget" else "**over budget**"
     appendLine(
-      "| ${leg.name} (${leg.source}) | ${"%.2f".format(leg.budgetMs)} ms | " +
-        "${"%.3f".format(leg.measuredMs)} ms | $verdict |",
+      "| ${leg.name} (${leg.source}) | ${(leg.budgetMs).toFixed(2)} ms | " +
+        "${(leg.measuredMs).toFixed(3)} ms | $verdict |",
     )
   }
   appendLine()
@@ -170,11 +170,11 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
   appendLine("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
   for (p in r.experiment03.points + r.experiment03.initialBatch) {
     appendLine(
-      "| ${p.changes} | ${p.bytes} | ${p.arrayPolymorphicBytes} | ${"%.4f".format(p.build.p50Ms)} ms | " +
-        "${"%.4f".format(p.stringify.p50Ms)} ms | ${"%.4f".format(p.stringifyArrayPolymorphic.p50Ms)} ms | " +
-        "${"%.4f".format(p.stringifyNative.p50Ms)} ms | " +
-        "${"%.4f".format(p.crossPreEncoded.p50Ms)} ms | " +
-        "${"%.4f".format(p.crossZiplineSerialized.p50Ms)} ms |",
+      "| ${p.changes} | ${p.bytes} | ${p.arrayPolymorphicBytes} | ${(p.build.p50Ms).toFixed(4)} ms | " +
+        "${(p.stringify.p50Ms).toFixed(4)} ms | ${(p.stringifyArrayPolymorphic.p50Ms).toFixed(4)} ms | " +
+        "${(p.stringifyNative.p50Ms).toFixed(4)} ms | " +
+        "${(p.crossPreEncoded.p50Ms).toFixed(4)} ms | " +
+        "${(p.crossZiplineSerialized.p50Ms).toFixed(4)} ms |",
     )
   }
   appendLine()
@@ -191,12 +191,12 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
     appendLine("| Encoding | Payload bytes | Wire bytes | vs. today | Encode p50 | Cross p50 | vs. today | Host decode p50 |")
     appendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     for (v in r.experiment03.encodings.sortedBy { it.cross.p50Ms }) {
-      val sizeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.wireBytes / it.wireBytes - 100)}%" } ?: "--"
-      val timeDelta = baseline?.let { "${"%+.0f".format(100.0 * v.cross.p50Ms / it.cross.p50Ms - 100)}%" } ?: "--"
+      val sizeDelta = baseline?.let { signed(100.0 * v.wireBytes / it.wireBytes - 100) } ?: "--"
+      val timeDelta = baseline?.let { signed(100.0 * v.cross.p50Ms / it.cross.p50Ms - 100) } ?: "--"
       appendLine(
         "| `${v.name}` | ${v.payloadBytes} | ${v.wireBytes} | $sizeDelta | " +
-          "${"%.2f".format(v.encode.p50Ms)} ms | ${"%.2f".format(v.cross.p50Ms)} ms | $timeDelta | " +
-          "${v.hostDecode?.let { "%.2f ms".format(it.p50Ms) } ?: "not measured"} |",
+          "${(v.encode.p50Ms).toFixed(2)} ms | ${(v.cross.p50Ms).toFixed(2)} ms | $timeDelta | " +
+          "${v.hostDecode?.let { "${(it.p50Ms).toFixed(2)} ms" } ?: "not measured"} |",
       )
     }
     appendLine()
@@ -214,9 +214,9 @@ fun renderMarkdown(r: Phase0Results): String = buildString {
   appendLine("| ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
   for (p in r.experiment04.points) {
     appendLine(
-      "| ${p.gcThresholdBytes / 1024} KiB | ${"%.3f".format(p.recomposeUnderLoad.p50Ms)} ms | " +
-        "${"%.3f".format(p.recomposeUnderLoad.p99Ms)} ms | ${"%.3f".format(p.recomposeUnderLoad.maxMs)} ms | " +
-        "${"%.3f".format(p.forcedPause.p99Ms)} ms | ${"%.3f".format(p.forcedPause.maxMs)} ms | " +
+      "| ${p.gcThresholdBytes / 1024} KiB | ${(p.recomposeUnderLoad.p50Ms).toFixed(3)} ms | " +
+        "${(p.recomposeUnderLoad.p99Ms).toFixed(3)} ms | ${(p.recomposeUnderLoad.maxMs).toFixed(3)} ms | " +
+        "${(p.forcedPause.p99Ms).toFixed(3)} ms | ${(p.forcedPause.maxMs).toFixed(3)} ms | " +
         "${p.memoryAfterChurn.memoryUsedSize} bytes |",
     )
   }
@@ -232,9 +232,9 @@ private fun StringBuilder.appendTable(stats: List<Stat>) {
   appendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
   for (s in stats) {
     appendLine(
-      "| `${s.label}` | ${s.count} | ${"%.4f".format(s.p50Ms)} ms | ${"%.4f".format(s.p95Ms)} ms | " +
-        "${"%.4f".format(s.p99Ms)} ms | ${"%.4f".format(s.minMs)} ms | ${"%.4f".format(s.maxMs)} ms | " +
-        "${"%.4f".format(s.meanMs)} ms |",
+      "| `${s.label}` | ${s.count} | ${(s.p50Ms).toFixed(4)} ms | ${(s.p95Ms).toFixed(4)} ms | " +
+        "${(s.p99Ms).toFixed(4)} ms | ${(s.minMs).toFixed(4)} ms | ${(s.maxMs).toFixed(4)} ms | " +
+        "${(s.meanMs).toFixed(4)} ms |",
     )
   }
 }
@@ -253,3 +253,7 @@ private fun StringBuilder.appendMemory(m: MemorySnapshot) {
   appendLine("| `propertiesSize` | ${m.propertiesSize} bytes |")
   appendLine("| `arraysCount` | ${m.arraysCount} |")
 }
+
+/** A percentage difference, with the sign shown even when positive -- "+4%" reads as a comparison. */
+private fun signed(percent: Double): String =
+  (if (percent >= 0) "+" else "") + percent.toFixed(0) + "%"

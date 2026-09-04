@@ -40,7 +40,7 @@ fun main(args: Array<String>) {
     "no compiled guest at $ziplineDir -- run `./gradlew :guest:jsBrowserProductionWebpackZipline` first"
   }
 
-  val payload = GuestPayload(ziplineDir)
+  val payload = GuestPayload(ziplineDir.path)
   val executor = Executors.newSingleThreadExecutor { runnable ->
     Thread(null, runnable, "zipline", 8L * 1024 * 1024)
   }

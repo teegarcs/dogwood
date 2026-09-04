@@ -36,7 +36,7 @@ fun main(args: Array<String>) {
     "no compiled guest at $ziplineDir -- run `./gradlew :guest:compileProductionExecutableKotlinJsZipline` first"
   }
 
-  val payload = GuestPayload(ziplineDir)
+  val payload = GuestPayload(ziplineDir.path)
   val minifiedJs = jsDir.listFiles { f -> f.extension == "js" }?.maxByOrNull { it.length() }
 
   // QuickJS composition is deeply recursive and interpreted frames are heavy, so the thread
@@ -53,7 +53,7 @@ fun main(args: Array<String>) {
       val notes = mutableListOf<String>()
 
       println("== 0.1 cold-start cost ==")
-      val e1 = driver.experiment01(minifiedJs, coldRuns, rowCounts.first())
+      val e1 = driver.experiment01(minifiedJs?.path, coldRuns, rowCounts.first())
       println("  bytecode ${e1.sizes.ziplineBytecodeBytes} B, minified JS ${e1.sizes.minifiedJsBytes} B, gzipped ${e1.sizes.gzippedJsBytes} B")
       println("  module load p50 ${"%.1f".format(e1.moduleLoad.p50Ms)} ms, main() p50 ${"%.1f".format(e1.mainFunction.p50Ms)} ms")
       println("  cold start to first composition p50 ${"%.1f".format(e1.coldStartToFirstComposition.p50Ms)} ms")

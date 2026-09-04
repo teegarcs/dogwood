@@ -16,7 +16,6 @@ import dev.dogwood.protocol.CompositionResult
 import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.EncodeResult
 import dev.dogwood.protocol.Phase0Guest
-import java.io.File
 import okio.Buffer
 import okio.ByteString.Companion.toByteString
 import kotlinx.coroutines.CoroutineDispatcher
@@ -168,11 +167,13 @@ data class Phase0Results(
 // ---------------------------------------------------------------------------
 
 /** Reads a compiled guest from a directory of `.zipline` modules plus its manifest. */
-class GuestPayload(val ziplineDir: File) {
-  val manifestFile: File = File(ziplineDir, "manifest.zipline.json")
+class GuestPayload(val ziplineDir: String) {
+  private fun inDir(name: String) = "${ziplineDir.trimEnd('/')}/$name"
+
+  val manifestPath: String = inDir("manifest.zipline.json")
   val manifest: ManifestMirror = LenientJson.decodeFromString(
     ManifestMirror.serializer(),
-    manifestFile.readText(),
+    readFileBytes(manifestPath).decodeToString(),
   )
 
   /**
@@ -184,14 +185,14 @@ class GuestPayload(val ziplineDir: File) {
    */
   val modules: List<Pair<String, ByteArray>> = manifest.loadOrder().map { id ->
     val url = manifest.modules.getValue(id).url
-    val file = File(ziplineDir, url.substringAfterLast('/'))
-    val container = ZiplineFile.read(Buffer().write(file.readBytes().toByteString()))
+    val bytes = readFileBytes(inDir(url.substringAfterLast('/')))
+    val container = ZiplineFile.read(Buffer().write(bytes.toByteString()))
     id to container.quickjsBytecode.toByteArray()
   }
 
   /** On-disk `.zipline` sizes, which is what over-the-air delivery actually transfers. */
   val containerBytes: Long = manifest.modules.values.sumOf {
-    File(ziplineDir, it.url.substringAfterLast('/')).length()
+    readFileBytes(inDir(it.url.substringAfterLast('/'))).size.toLong()
   }
 
   val mainModuleId: String get() = manifest.mainModuleId
@@ -230,11 +231,11 @@ class Phase0Driver(
     val zipline = Zipline.create(dispatcher, EmptySerializersModule(), eventListener)
     if (gcThresholdBytes != null) zipline.quickJs.gcThreshold = gcThresholdBytes
 
-    val loadStart = System.nanoTime()
+    val loadStart = nanoTime()
     for ((id, bytes) in payload.modules) {
       zipline.loadJsModule(bytes, id)
     }
-    val loadEnd = System.nanoTime()
+    val loadEnd = nanoTime()
 
     // Exactly what ZiplineLoader does once the modules are in
     // (zipline/internal/quickJsExtensions.kt, runApplication).
@@ -242,7 +243,7 @@ class Phase0Driver(
       "require('${payload.mainModuleId}').${payload.mainFunction}()",
       "RunApplication.kt",
     )
-    val mainEnd = System.nanoTime()
+    val mainEnd = nanoTime()
 
     val guest = zipline.take<Phase0Guest>("phase0Guest")
     val host = CountingHost()
@@ -270,7 +271,7 @@ class Phase0Driver(
   // 0.1 -- cold-start cost
   // -------------------------------------------------------------------------
 
-  fun experiment01(minifiedJs: File?, coldRuns: Int, rows: Int): Experiment01 {
+  fun experiment01(minifiedJs: String?, coldRuns: Int, rows: Int): Experiment01 {
     val moduleLoad = ArrayList<Long>(coldRuns)
     val mainFunction = ArrayList<Long>(coldRuns)
     val coldToFirstComposition = ArrayList<Long>(coldRuns)
@@ -279,7 +280,7 @@ class Phase0Driver(
     var memoryAfterCompose: MemorySnapshot? = null
 
     repeat(coldRuns) { run ->
-      val start = System.nanoTime()
+      val start = nanoTime()
       val loaded = load()
       try {
         moduleLoad += loaded.moduleLoadNanos
@@ -288,18 +289,18 @@ class Phase0Driver(
         // One composition, no warm-up: this is the screen-open path a user actually pays.
         loaded.guest.measureClockOverhead(200)
         val composition = loaded.guest.composeReferenceScreen(rows, warmups = 0, iterations = 1)
-        coldToFirstComposition += System.nanoTime() - start
+        coldToFirstComposition += nanoTime() - start
         // Then the one crossing that hands the host the whole tree. No warm-up, one
         // iteration: a cold screen open gets neither.
         loaded.guest.crossBatch(composition.changes, iterations = 1, encoded = false, warmups = 0)
-        coldToFirstBatch += System.nanoTime() - start
+        coldToFirstBatch += nanoTime() - start
         if (run == 0) memoryAfterCompose = memory(loaded.zipline)
       } finally {
         loaded.zipline.close()
       }
     }
 
-    val jsBytes = minifiedJs?.readBytes()
+    val jsBytes = minifiedJs?.let { readFileBytes(it) }
     return Experiment01(
       sizes = PayloadSizes(
         minifiedJsBytes = jsBytes?.size?.toLong() ?: -1L,
@@ -352,7 +353,7 @@ class Phase0Driver(
     // The batch's `g` array length, read without re-deserializing the sealed hierarchy.
     val initialCount = LenientJson.parseToJsonElement(initialJson).jsonObject
       .getValue("g").jsonArray.size
-    val initialBytes = initialJson.toByteArray()
+    val initialBytes = initialJson.encodeToByteArray()
     val initialPoint = batchPoint(loaded, initialCount).copy(
       bytes = initialBytes.size,
       gzippedBytes = gzippedSize(initialBytes),
@@ -416,9 +417,9 @@ class Phase0Driver(
     val nanos = ArrayList<Long>(iterations)
     repeat(warmups) { decode(payload) }
     repeat(iterations) {
-      val t0 = System.nanoTime()
+      val t0 = nanoTime()
       decode(payload)
-      nanos.add(System.nanoTime() - t0)
+      nanos.add(nanoTime() - t0)
     }
     return stat("host-decode-$variant", nanos)
   }
@@ -465,9 +466,9 @@ class Phase0Driver(
         val pauses = ArrayList<Long>()
         repeat(10) {
           loaded.guest.churn(rows, churnIterations / 10)
-          val t0 = System.nanoTime()
+          val t0 = nanoTime()
           loaded.zipline.quickJs.gc()
-          pauses += System.nanoTime() - t0
+          pauses += nanoTime() - t0
         }
         GcPoint(
           gcThresholdBytes = threshold,
