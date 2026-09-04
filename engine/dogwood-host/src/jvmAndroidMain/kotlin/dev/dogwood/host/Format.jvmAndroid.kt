@@ -67,7 +67,12 @@ actual fun pluralCategory(count: Int, locale: String): String {
       .invoke(rules, count.toDouble()) as String
   }.getOrNull()
   if (icu != null) return icu
-  return if (count == 1) "one" else "other"
+  // Android has the real thing above. A desktop Java Virtual Machine does not -- there is no
+  // public plural-rules application programming interface in the Java Development Kit at all --
+  // so it falls to the vendored table, which is checked against the same Unicode Common Locale
+  // Data Repository (CLDR) data in `PluralRulesAgreementTest`. English remains the last resort
+  // for a language neither source names, and it is still reported as such.
+  return cldrPluralCategory(count, locale) ?: if (count == 1) "one" else "other"
 }
 
 actual fun formatCurrency(minorUnits: Long, currencyCode: String, locale: String): String {
