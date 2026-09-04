@@ -241,30 +241,36 @@ Recorded so that an absence is a decision somebody can point at.
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.
 
-## Part 6 — Rollout, in dependency order
+## Part 6 — Rollout
 
 Each step is a branch and a pull request, and each ends with the matrix regenerated.
 
-1. **The grammar and the aggregator.** `tools/conformance/`: the `CONF` line format, the aggregator,
-   and Part 3 generated from the two runs that already exist (iOS accessibility, Android hostile
-   values) — proving the pipeline on real input before any new drill is written.
-2. **Retrofit the existing drills to the grammar.** No new coverage; the accessibility, hostile-value
-   and skew drills start emitting `CONF` lines. This is what makes the matrix real rather than
-   aspirational, and it is deliberately step 2 so the format is proven against four existing
-   instruments before three more are built on it.
-3. **Accessibility on Android** (`D1`–`D5`, `D7`). `AccessibilityNodeInfo` plus
-   `performAction(ACTION_CLICK)` is the direct analogue of `accessibilityActivate`. Same claims,
-   same IDs, different machinery. Add a disabled control to the sample so `D7` becomes claimable.
-4. **Network policy drills on Android and iOS** (`F1`, `F2`, `F4`). The highest-value gap after
+**Accessibility comes first, ahead of the machinery.** The first draft of this plan put the grammar
+and the aggregator first, on the argument that a catalogue not generated from real runs decays into
+a wish list. That argument is still true, but it bought no coverage for two steps, and the gap that
+prompted the whole plan is accessibility on three clients that do not have it. So the order is
+inverted, and the cost of inverting it is paid rather than ignored: **the Android drill emits the
+`CONF` grammar from its first commit**, so step 3 is writing the aggregator against output that
+already exists rather than retrofitting three drills that grew their own formats. Defining a text
+format is cheap; discovering it was wrong across four implementations is not.
+
+1. **Accessibility on Android** (`D1`–`D5`, `D7`). `AccessibilityNodeInfo` plus
+   `performAction(ACTION_CLICK)` is the direct analogue of `accessibilityActivate`: same claims,
+   same identifiers, different machinery. Add a disabled control to the sample so `D7` becomes
+   claimable rather than permanently unknown. Emits the `CONF` grammar.
+2. **Accessibility on web** (`D1`–`D5`). The DOM accessibility tree through the Chrome DevTools
+   Protocol's `Accessibility.getFullAXTree`, for which `tools/web-ttff/cdp.py` already has a client.
+   Emits the same grammar, from a third language, which is the real test of whether the format is
+   as portable as Part 1 claims.
+3. **The grammar and the aggregator.** `tools/conformance/`: the format written down, the
+   aggregator, and Part 3 generated from the three accessibility runs plus the hostile-value drill.
+4. **Retrofit the remaining drills** — skew, leak soak, Phase 0, page weight — to emit `CONF` lines.
+   No new coverage; this is what makes the matrix cover the whole catalogue rather than one row of
+   it.
+5. **Network policy drills on Android and iOS** (`F1`, `F2`, `F4`). The highest-value gap after
    accessibility: the one policy defect this project shipped was in exactly this area, and a unit
    test did not catch it.
-5. **Accessibility on web** (`D1`–`D5`). The DOM accessibility tree through the Chrome DevTools
-   Protocol's `Accessibility.getFullAXTree`, which the `web-ttff` harness already has a client for.
 6. **Skew containment on iOS and web** (`A2`–`A4`), and make the Android drill re-runnable rather
    than hand-rebuilt.
 7. **Lifecycle and host resolution drills** (`C1`, `C5`, `E1`–`E3`) on the two shipping clients.
 8. **Gate the tiers**, in the order the drills soak clean.
-
-**Sequencing note.** Steps 1 and 2 buy no new coverage and are still first. A catalogue that is not
-generated from real runs becomes a wish list within a month, and this plan's entire premise is that
-a document nobody regenerates is the failure mode, not the fix.
