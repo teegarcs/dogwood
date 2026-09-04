@@ -19,6 +19,27 @@ RESULT = re.compile(r'^CONF RESULT client=(\w+) (.*)$')
 
 MARK = {'PASS': '✅', 'FAIL': '❌', 'SKIP': '·'}
 
+HERE = __file__.rsplit('/', 1)[0]
+
+
+def load_exemptions():
+    """Claims a client is deliberately not graded on, with a reason.
+
+    Rendered `n/a` rather than as a gap, so an empty cell is a decision somebody can point at
+    instead of work nobody did.
+    """
+    out = []
+    try:
+        with open(f'{HERE}/exempt.tsv') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    client, prefix, reason = line.split('\t')
+                    out.append((client, prefix, reason))
+    except FileNotFoundError:
+        pass
+    return out
+
 
 def parse(path):
     client, claims = None, OrderedDict()
@@ -44,6 +65,15 @@ def main(paths):
             return 2
         runs[client] = claims
 
+    clients = sorted(runs)
+    exemptions = load_exemptions()
+
+    def exempt(client, claim_id):
+        for c, prefix, reason in exemptions:
+            if c == client and claim_id.startswith(prefix):
+                return reason
+        return None
+
     # Base claims only in the columns: `D4-reverse` and friends are evidence for `D4`, not separate
     # promises, and listing them as rows would make one claim look like three.
     base = OrderedDict()
@@ -51,7 +81,6 @@ def main(paths):
         for claim_id in claims:
             base.setdefault(claim_id.split('-')[0], None)
 
-    clients = sorted(runs)
     print('| Claim | ' + ' | '.join(clients) + ' |')
     print('|---' * (len(clients) + 1) + '|')
     failures = 0
@@ -60,7 +89,7 @@ def main(paths):
         for client in clients:
             related = {k: v for k, v in runs[client].items() if k.split('-')[0] == claim_id}
             if not related:
-                cells.append('—')
+                cells.append('n/a' if exempt(client, claim_id) else '—')
                 continue
             verdicts = {v[0] for v in related.values()}
             # Worst verdict wins: a claim with one failing sub-check has not been met.
@@ -73,7 +102,11 @@ def main(paths):
         print(f'| {claim_id} | ' + ' | '.join(cells) + ' |')
 
     print()
-    print('✅ met · · not applicable here · ❌ failed · — not run')
+    print('✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap')
+    if exemptions:
+        print()
+        for client, prefix, reason in exemptions:
+            print(f'- `{client}` is not graded on {prefix}: {reason}')
     print()
     for client in clients:
         counts = {}

@@ -1,0 +1,13 @@
+# Claims a client is deliberately not graded on, and why.
+#
+# An exemption renders as `n/a` rather than as a gap, so an empty cell is a decision somebody can
+# point at instead of work nobody did. Every line needs a reason; if the reason stops being true,
+# the line goes and the cell becomes a gap again.
+#
+# client<TAB>claim prefix<TAB>reason
+desktop	D	desktop is a development loop, not a shipping target
+desktop	G	desktop is a development loop, not a shipping target
+desktop	E4	one collector, so no cross-language cycles are possible
+android	E4	one collector, so no cross-language cycles are possible
+web	E4	one heap, so no cross-language cycles are possible
+web	F	the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
