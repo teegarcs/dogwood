@@ -9,6 +9,24 @@ This document governs the creation, review, and maintenance of all technical spe
 3. **Balance Depth and Clarity:** Documentation must contain deep technical plans for implementation, but it must be written clearly enough that engineers without C or WebAssembly (Wasm) backgrounds can fully understand the concepts and logic.
 4. **Mermaid Diagrams & Detailed Nodes:** Architectural visuals (sequence diagrams, flowcharts, layer maps) must be maintained as code using Mermaid.js to ensure they evolve with the documents. Every single layer document MUST include a diagram indicating how the layer works. Furthermore, every component, node, or actor represented in a diagram MUST be explicitly detailed and defined in the text of the layer document.
 
+5. **Validate a failure before acting on it.** A red test, a crash, or a suspected bug is a
+   *hypothesis*. Reproduce it against the real thing — the running app, the actual API — before
+   changing course, altering product code, or drafting an upstream report. A false alarm sends
+   people to fix something that is not broken, and it is the more expensive direction of error:
+   nothing catches it except going and looking.
+
+   Two accessibility claims failed this way. One read an `AccessibilityNodeInfo`'s own text where
+   the screen reader aggregates a subtree, and reported thirteen anonymous controls that announce
+   perfectly well. One read a node's `focusable` flag and declared the control unreachable by
+   keyboard; pressing Tab took one minute and showed it was reachable.
+
+   The general shape: **prefer the observable consequence to the property that ought to imply it.**
+   "The counter went up" is evidence. "The node advertises that it can be focused" is a proxy, and
+   a proxy is a second thing that can be wrong.
+
+   The converse rule already applies to gates: a check earns belief by being watched to fail
+   without the fix. "The code looks right" is never a gate.
+
 ## 2. Document Hierarchy
 
 The documentation is organized as follows:

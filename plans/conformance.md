@@ -230,9 +230,12 @@ Android and iOS once each client's drill exists; web joins when its drill exists
 **Flake is the real cost of gating**, so three rules, each of which this project already learned the
 hard way:
 
-- **Every drill carries a negative control.** The accessibility drill's gate was checked by
-  reintroducing the defect and confirming `exit=1`. A drill without a demonstrated failure is not
-  admitted to the gate.
+- **Every drill carries a negative control**: the gate is watched to fail with the fix reverted.
+  A drill without a demonstrated failure is not admitted to the gate.
+- **A red claim is validated before it is believed** (`AGENTS.md` §1.5). Two accessibility claims
+  failed against a *property* — a node's own text, a node's `focusable` flag — where the real
+  screen reader aggregates a subtree and the real browser routes focus through the canvas. Neither
+  was a real defect.
 - **A drill that cannot run REFUSES rather than fails.** The accessibility drill refuses when no
   assistive technology is running, because twenty failures from one cause reads as a broken screen
   rather than an unconfigured machine. Refusal is a distinct exit code and does not report as a
