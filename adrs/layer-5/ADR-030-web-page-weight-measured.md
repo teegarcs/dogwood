@@ -104,7 +104,12 @@ code.
   no lever on it beyond choosing a Skiko version, and no reason to expect one.
 - **The measurement machine is not the user's.** These are byte counts, which are machine
   independent. Nothing here says anything about how long a phone takes to compile them, which is
-  exactly the gap above.
+  exactly the gap above. **Half of that gap is now closed**
+  ([ADR-038](ADR-038-first-frame-is-transfer-bound.md)): under Chrome's own throttling, the first
+  frame arrives in 17.4 s on Fast 3G and 3.2 s on 4G, against 135 ms unthrottled — so transfer
+  outweighs everything the host does by about a hundred to one, and page weight is the only lever
+  that matters. What remains open is the *compilation* half on a low-powered device, which the
+  throttle does not touch.
 - **Brotli is what actually ships.** Every mainstream content delivery network serves it and every
   current browser accepts it, so the brotli column is the honest one; gzip is quoted for hosts that
   have not turned it on.

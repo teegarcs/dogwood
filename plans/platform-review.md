@@ -407,7 +407,25 @@ upstream"` finds no unbacked claim.
   `results/ios-simulator.md` against the Phase 0 baseline table. Gate: the results file, with the
   collection-pause row filled in — the M3 number (5.2–7.0 ms vs the 8 ms budget) is the one with
   a plausible route to failing on a phone.
-- **Web time-to-first-frame, realistic.** Implementation: the page already carries
+- ✅ **Web time-to-first-frame — done (PR #17), [the harness and results](../tools/web-ttff/README.md).**
+  Ten cold loads per preset, Chrome's own `Network.emulateNetworkConditions`, the shipped
+  `index.html` rather than an instrumented copy, brotli at quality 11 to match ADR-030's table (the
+  runner refuses to measure if the server is not actually serving `Content-Encoding: br`).
+
+  | preset | p50 | p95 |
+  |---|---|---|
+  | unthrottled | 135 ms | 215 ms |
+  | 4G (9 Mbit/s, 85 ms) | 3,185 ms | 3,206 ms |
+  | Fast 3G (1.6 Mbit/s, 562.5 ms) | **17,415 ms** | 17,469 ms |
+
+  3,103,293 bytes transferred, identical in every load of every preset — which is the check that
+  the throttle changed only how fast the bytes arrived. **Transfer dominates and it is not close**:
+  3.03 MiB at 1.6 Mbit/s is 15.5 s of pure transfer against a 17.4 s measurement, so everything the
+  host does after the bytes land costs on the order of a hundred milliseconds. That confirms from
+  the other direction what ADR-030 could only assume — page weight is the only lever here — and it
+  makes seventeen seconds a **product constraint** rather than a benchmark result. p95 within 0.4%
+  of p50 on both throttled presets: no tail, because the bottleneck is a constant-rate pipe.
+  *Original entry:* the page already carries
   `#dogwood-first-frame`; serve the brotli'd distribution with throttling (Chrome DevTools
   protocol `Network.emulateNetworkConditions`, Fast-3G and 4G presets) from the existing harness.
   Gate: p50/p95 across ≥10 cold loads per preset, published next to ADR-030's byte table.
