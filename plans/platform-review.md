@@ -1,5 +1,13 @@
 # Platform review: what Phases 5 and 6 left to harden
 
+> **Status: complete, 2026-09-04.** Every item in Parts 1 and 2 and every measurement in R10 is
+> done, across pull requests #5–#19. What remains is not work: the Phase 0 gate device is still
+> unacquired (a purchase, [Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)),
+> the three upstream bug reports stay drafted and unfiled by standing decision (R11), and three
+> accessibility questions still need a person — whether the speech is *good*, reading order as
+> experienced, and typing and selection. A short account of what the plan cost and what it found is
+> at the end, under **Part 4**.
+
 ## Part 0 — Why this plan exists, and how to read it
 
 Phases 5 and 6 were built fast and verified behaviourally — a browser renders, a simulator renders,
@@ -598,3 +606,42 @@ are non-vacuous in both directions; and the payload cache is correctly in `Cache
 | 5 | R7 | The big iOS verification pass, on top of 2 |
 | 6 | R8 + R9 | Ledger and paper, any time after the code settles |
 | 7 | R10 + Part 2 | Measurements and decisions; parallelisable throughout |
+
+---
+
+## Part 4 — What this review actually found
+
+Fifteen merged pull requests. Worth separating what they were, because the categories are not equal.
+
+**Four were defects that would have reached users**, and none of them were visible to the test
+suite:
+
+- The iOS network policy served `file://` from the application's own container to anything with a
+  cleartext waiver — an exfiltration path through the policy meant to prevent one.
+- A payload could kill the application outright with `maxLines = 0`, a negative padding or a weight
+  of zero. Over the air, without a store review, on every client at once. A guest author does not
+  have to be hostile to send that; they have to be off by one.
+- A batch could half-apply, leaving a tree the guest never composed and every later diff
+  compounding against it.
+- A text input reached VoiceOver with **no name at all**, on a screen that had otherwise done
+  everything right.
+
+**Three were gaps in the evidence rather than in the code** — things believed rather than known.
+iOS and desktop had no plural rules and silently used the English one. The web profile's weight had
+never been turned into a wait: 17.4 seconds to first frame on Fast 3G. The Phase 0 suite had never
+run on iOS.
+
+**And a recurring shape, worth naming because it recurred four times**: evidence-producing code
+that produced no evidence. The tabs sample's `skew` variable — declared, never written, never
+shown. The `--gufa` correctness gate that was tautological and had never fired. The accessibility
+probe with no caller. A leak suite nobody had soaked. In each case the machinery was right and
+nothing was looking at it, which is indistinguishable from the outside from the machinery being
+absent.
+
+The house rule earned its keep. Every fix here has a gate that was watched to fail first — five of
+seven `HostileValueTest` cases crashing before the clamp, `exit=1` from the accessibility drill with
+the semantics fix reverted, both mobile hosts dying on the hostile-value payload before and
+rendering after. Three of the findings above were *found by the gate rather than by the fix*: the
+ICU comparison caught European Portuguese, the accessibility drill caught the anonymous text field
+and then a bug in its own first draft, and the Phase 0 port caught a Zipline compiler plugin that
+was silently not applied on Kotlin/Native.
