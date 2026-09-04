@@ -16,8 +16,8 @@ python3 tools/conformance/aggregate.py tools/conformance/build/*.conf
 Every client, in every language, emits the same lines:
 
 ```
-CONF <id> PASS|FAIL|SKIP|KNOWN <detail>
-CONF RESULT client=<android|ios|desktop|web> passed=<n> failed=<n> skipped=<n> known=<n>
+CONF <id> PASS|FAIL|SKIP <detail>
+CONF RESULT client=<android|ios|desktop|web> passed=<n> failed=<n> skipped=<n>
 ```
 
 Text rather than a shared library, deliberately: the four clients are Kotlin/JVM, Kotlin/Native,
@@ -31,12 +31,12 @@ The four verdicts are not interchangeable:
 | `PASS` | The claim holds on this client. |
 | `FAIL` | The claim does not hold. Turns the gate red. |
 | `SKIP` | The claim does not apply here, with a reason — e.g. the screen carries no disabled control. |
-| `KNOWN` | The claim applies and fails, the cause is outside this repository, and it is listed in the plan with that cause. Counted and printed; does not turn the gate red. |
 
-`KNOWN` exists because the web drill found one: Compose Multiplatform publishes its web
-accessibility elements without a `tabindex`, so a screen reader user navigating by keyboard cannot
-reach a control it can otherwise read and operate. Calling that a `SKIP` would let a real gap read
-as an absence; calling it a `FAIL` would hold every merge hostage to somebody else's release.
+**There is no verdict for "fails, but not our fault."** One was added and removed inside a day. The
+web drill reported that a control could not be reached by keyboard, which looked upstream, so it got
+an escape hatch. The failure was not real: the check had read a `focusable` flag instead of pressing
+Tab, and Compose routes keyboard focus through the canvas rather than per-element `tabindex`. The
+escape hatch legitimised a wrong conclusion within an hour of existing.
 
 ## Three clients, three instruments, one set of claims
 

@@ -31,7 +31,7 @@ from cdp import Devtools  # noqa: E402
 INTERACTIVE_ROLES = {'button', 'link', 'textbox', 'checkbox', 'radio', 'switch', 'slider',
                      'combobox', 'menuitem', 'tab', 'option'}
 
-passed = failed = skipped = known = 0
+passed = failed = skipped = 0
 
 
 def conform(claim_id, condition, detail=''):
@@ -50,20 +50,6 @@ def skip(claim_id, reason):
     global skipped
     skipped += 1
     print(f'CONF {claim_id} SKIP -- {reason}', flush=True)
-
-
-def known_gap(claim_id, reason):
-    """A real failure this project has decided not to block on, with a reason and a cause.
-
-    Distinct from SKIP, which means the claim does not apply here. A KNOWN claim *does* apply and
-    *does* fail; recording it as a skip would let a genuine gap read as an absence. It does not
-    turn the gate red because the cause is outside this repository -- but it is counted, printed,
-    and listed in `plans/conformance.md`, and if it ever starts passing the entry is stale, which
-    the aggregator reports.
-    """
-    global known
-    known += 1
-    print(f'CONF {claim_id} KNOWN -- {reason}', flush=True)
 
 
 def ax_nodes(devtools, session):
@@ -200,29 +186,54 @@ def run(url, chrome, port):
                 after = await_name(devtools, session, rf'taps: {before + 1}')
                 conform('D4', after is not None, f'taps: {before} -> {before + 1}')
 
-                # Keyboard operability is a second, weaker claim: a screen reader user reaches a
-                # control by keyboard before activating it, and an element that cannot take focus
-                # cannot be reached that way at all.
-                focusable = counter['props'].get('focusable')
-                if focusable:
-                    devtools.call('Runtime.callFunctionOn', {
-                        'functionDeclaration': 'function() { this.focus(); }',
-                        'objectId': object_id,
-                    }, session)
-                    for event in ('keyDown', 'keyUp'):
-                        devtools.call('Input.dispatchKeyEvent', {
-                            'type': event, 'key': 'Enter', 'code': 'Enter',
-                            'windowsVirtualKeyCode': 13, 'nativeVirtualKeyCode': 13,
-                        }, session)
-                    reached = await_name(devtools, session, rf'taps: {before + 2}')
-                    conform('D4-keyboard', reached is not None,
-                            f'Enter on the focused control: taps: {before + 1} -> {before + 2}')
+                # D4-keyboard -- a screen reader user reaches the control by keyboard and
+                # operates it there.
+                #
+                # **Test the behaviour, not the property.** The first version of this check read
+                # the `focusable` flag off the accessibility node, found it absent, and concluded
+                # the control could not be reached by keyboard. That was wrong, and wrong in the
+                # way this project keeps catching: it asserted a property instead of running the
+                # thing. Compose does not put `tabindex` on each element -- it gives the canvas
+                # container one focusable node and routes Tab and Enter through its own focus
+                # system. So the elements look unreachable and are not. Pressing the keys settles
+                # it in a way reading the flag never could.
+                container = next(
+                    (n for n in nodes if n['props'].get('focusable') and n['role'] != 'RootWebArea'),
+                    None)
+                if container is None:
+                    conform('D4-keyboard', False, 'nothing on the page can take keyboard focus')
                 else:
-                    known_gap(
-                        'D4-keyboard',
-                        'the control is not focusable, so a screen reader user navigating by '
-                        'keyboard cannot reach it; Compose Multiplatform publishes its web '
-                        'accessibility elements without tabindex')
+                    handle = devtools.call(
+                        'DOM.resolveNode',
+                        {'backendNodeId': container['backendDOMNodeId']}, session,
+                    ).get('object', {}).get('objectId')
+                    if handle:
+                        devtools.call('Runtime.callFunctionOn', {
+                            'functionDeclaration': 'function() { this.focus(); }',
+                            'objectId': handle,
+                        }, session)
+                    reached = None
+                    # Tab walks Compose's focus order; how many stops precede the control is a
+                    # property of the screen, not of the platform, so it is searched rather than
+                    # assumed.
+                    for _ in range(8):
+                        for event in ('keyDown', 'keyUp'):
+                            devtools.call('Input.dispatchKeyEvent', {
+                                'type': event, 'key': 'Tab', 'code': 'Tab',
+                                'windowsVirtualKeyCode': 9, 'nativeVirtualKeyCode': 9,
+                            }, session)
+                        time.sleep(0.3)
+                        for event in ('rawKeyDown', 'char', 'keyUp'):
+                            payload = {'type': event, 'key': 'Enter', 'code': 'Enter',
+                                       'windowsVirtualKeyCode': 13, 'nativeVirtualKeyCode': 13}
+                            if event == 'char':
+                                payload['text'] = '\r'
+                            devtools.call('Input.dispatchKeyEvent', payload, session)
+                        reached = await_name(devtools, session, rf'taps: {before + 2}', timeout=2)
+                        if reached:
+                            break
+                    conform('D4-keyboard', reached is not None,
+                            f'Tab to the control, then Enter: taps: {before + 1} -> {before + 2}')
 
         # D5 -- the screen scrolls through the accessibility layer.
         scrollable = devtools.call('Runtime.evaluate', {
@@ -242,8 +253,8 @@ def run(url, chrome, port):
         else:
             conform('D7', all(n['name'] for n in disabled), f'{len(disabled)} disabled controls')
 
-        print(f'CONF RESULT client=web passed={passed} failed={failed} '
-              f'skipped={skipped} known={known}', flush=True)
+        print(f'CONF RESULT client=web passed={passed} failed={failed} skipped={skipped}',
+              flush=True)
         return 0 if failed == 0 else 1
     finally:
         browser.terminate()
