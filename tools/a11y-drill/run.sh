@@ -68,6 +68,12 @@ if tr -d '\r' < "$LOG" | grep -q "^A11Y REFUSED"; then
   echo "REFUSED -- the drill could not run; see $LOG" >&2
   exit 2
 fi
+# The conformance grammar goes to its own file, so `tools/conformance/aggregate.py` reads this
+# client exactly as it reads the other three.
+CONF_OUT="${CONF_OUT:-$HERE/../conformance/build/ios.conf}"
+mkdir -p "$(dirname "$CONF_OUT")"
+tr -d '\r' < "$LOG" | grep -E "^CONF " > "$CONF_OUT" || true
+
 failures=$(tr -d '\r' < "$LOG" | sed -n 's/^A11Y DONE failures=\([0-9-]*\)$/\1/p' | tail -1)
 if [ -z "$failures" ]; then
   echo

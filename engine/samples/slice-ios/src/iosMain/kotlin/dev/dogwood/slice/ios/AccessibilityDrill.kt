@@ -82,19 +82,37 @@ private fun scrollDownSomewhere(root: UIView): Boolean {
   return false
 }
 
-/** One assertion's outcome, printed in a form a shell script can gate on. */
+/**
+ * One assertion's outcome, in the shared conformance grammar.
+ *
+ * Every client emits `CONF <id> PASS|FAIL|SKIP|KNOWN`, so one aggregator reads all four runs and
+ * generates the matrix in `plans/conformance.md`. The claim identifiers are the catalogue's, which
+ * is what makes `D4` here and `D4` on Android and web the same promise rather than three
+ * coincidentally similar tests. The human-readable `A11Y` lines are kept alongside, because the
+ * `CONF` grammar is for the aggregator and a person reading a failing run wants the sentence.
+ */
 private class Checks {
   var passed = 0
   var failed = 0
+  var skipped = 0
 
-  fun check(name: String, condition: Boolean, detail: String = "") {
+  fun check(id: String, name: String, condition: Boolean, detail: String = "") {
+    val suffix = if (detail.isEmpty()) "" else " -- $detail"
     if (condition) {
       passed++
-      println("A11Y PASS $name${if (detail.isEmpty()) "" else " -- $detail"}")
+      println("CONF $id PASS$suffix")
+      println("A11Y PASS $name$suffix")
     } else {
       failed++
-      println("A11Y FAIL $name${if (detail.isEmpty()) "" else " -- $detail"}")
+      println("CONF $id FAIL$suffix")
+      println("A11Y FAIL $name$suffix")
     }
+  }
+
+  fun skip(id: String, reason: String) {
+    skipped++
+    println("CONF $id SKIP -- $reason")
+    println("A11Y SKIP $id -- $reason")
   }
 
   fun note(message: String) = println("A11Y NOTE $message")
@@ -146,6 +164,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // "text field", with no indication of which one. It is reachable, focusable, and anonymous.
   val anonymous = elements.filter { it.label().isEmpty() && it.accessibilityValue.isNullOrEmpty() }
   checks.check(
+    "D2",
     "every element announces something",
     anonymous.isEmpty(),
     "${anonymous.size} anonymous:" + anonymous.joinToString("") { traitNames(it.accessibilityTraits) },
@@ -160,6 +179,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // sandbox is readable by a screen reader with no Dogwood-specific accessibility code.
   val labels = elements.labels()
   checks.check(
+    "D1",
     "guest text is exposed to the accessibility layer",
     labels.any { it.contains("Diagnostics") },
     "looked for \"Diagnostics\" among ${labels.size} labels",
@@ -173,6 +193,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // correctly and cannot be operated, which is the failure mode this check exists for.
   val buttons = elements.filter { it.isButton() }
   checks.check(
+    "D3-any",
     "at least one element carries the button trait",
     buttons.isNotEmpty(),
     "${buttons.size} buttons: ${buttons.labels().take(6)}",
@@ -200,6 +221,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
     reached = collectAccessibilityElements(root)
   }
   checks.check(
+    "D5",
     "the screen scrolls through the accessibility layer",
     scrolls > 0,
     "$scrolls scrolls to reach the control",
@@ -210,6 +232,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // check that counted buttons without asking whose they were would have passed on that.
   val guestButtons = reached.filter { it.isButton() && it.shellLabel() !in HOST_SHELL_LABELS }
   checks.check(
+    "D3",
     "a guest-composed control carries the button trait",
     guestButtons.isNotEmpty(),
     "guest buttons: ${guestButtons.labels().take(6)}",
@@ -217,13 +240,13 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
 
   val expand = reached.withLabel("Expand")
   if (expand == null) {
-    checks.check("the sample's Expand button is reachable", false, "labels: ${reached.labels().take(12)}")
+    checks.check("D4-reachable", "the sample's Expand button is reachable", false, "labels: ${reached.labels().take(12)}")
   } else {
-    checks.check("the sample's Expand button is reachable", true)
-    checks.check("Expand is exposed as a button", expand.isButton())
+    checks.check("D4-reachable", "the sample's Expand button is reachable", true)
+    checks.check("D4-exposed", "Expand is exposed as a button", expand.isButton())
 
     val activated = expand.accessibilityActivate()
-    checks.check("accessibilityActivate() was accepted", activated)
+    checks.check("D4-accepted", "accessibilityActivate() was accepted", activated)
 
     // The round trip crosses to the guest thread and back, so it cannot be observed synchronously.
     var relabelled = false
@@ -235,6 +258,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
       }
     }
     checks.check(
+      "D4",
       "activating through VoiceOver drove the guest and changed the tree",
       relabelled,
       "Expand -> Collapse",
@@ -252,7 +276,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
           return@repeat
         }
       }
-      checks.check("and back again", restored, "Collapse -> Expand")
+      checks.check("D4-reverse", "and back again", restored, "Collapse -> Expand")
     }
   }
 
@@ -265,8 +289,15 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // same failure available to it: a disabled button with no `notEnabled` trait is announced as
   // operable. Recorded rather than asserted -- the sample may legitimately have no disabled
   // control on screen -- but printed, so its absence is visible rather than assumed.
-  val disabled = elements.filter { it.isDisabled() }
-  checks.note("${disabled.size} elements carry the notEnabled trait: ${disabled.labels().take(4)}")
+  val disabled = reached.filter { it.isDisabled() }
+  if (disabled.isEmpty()) {
+    // Not silence: the sample carries a deliberately disabled control for exactly this claim, so
+    // finding none here is a difference from Android worth seeing rather than a blank.
+    checks.skip("D7", "no element on this screen carries the notEnabled trait")
+  } else {
+    checks.check("D7", "a disabled control is announced as disabled", disabled.all { it.label().isNotEmpty() },
+      "${disabled.size}: ${disabled.labels().take(4)}")
+  }
 
   // ------------------------------------------------------------------------------------------
   // 5. Rotor actions, and scrolling.
@@ -277,6 +308,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
       withCustomActions.joinToString("") { " ${it.label()}=${it.customActionNames()}" },
   )
 
+  println("CONF RESULT client=ios passed=${checks.passed} failed=${checks.failed} skipped=${checks.skipped} known=0")
   println("A11Y RESULT passed=${checks.passed} failed=${checks.failed}")
   return checks.failed
 }
