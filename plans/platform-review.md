@@ -449,7 +449,21 @@ upstream"` finds no unbacked claim.
   `#dogwood-first-frame`; serve the brotli'd distribution with throttling (Chrome DevTools
   protocol `Network.emulateNetworkConditions`, Fast-3G and 4G presets) from the existing harness.
   Gate: p50/p95 across ≥10 cold loads per preset, published next to ADR-030's byte table.
-- **Accessibility interaction on iOS** needs a human: typing via the IME, selection handles,
+- ✅ **Accessibility interaction on iOS — mostly done (PR #19), [ADR-039](../adrs/layer-5/ADR-039-accessibility-is-asserted-not-inspected.md).**
+  The premise was too narrow: VoiceOver does not tap, it calls `accessibilityActivate`,
+  `accessibilityScroll` and the rotor's custom actions — public methods a test can call too. So
+  interaction is now **asserted**, not inspected: 10 checks, gated, including the full round trip
+  (accessibility layer → host binding → event across the Zipline boundary → guest recomposition →
+  batch → applied → tree rebuilt), observed through a control that relabels itself.
+  **It found a real defect on its second run:** the sample's card-number field passes a label from
+  the payload, and Material 3 draws that label without folding it into semantics, so the element
+  VoiceOver landed on had *no name at all*. Fixed in `TextInputImpl`. It also found a bug in its own
+  first draft — the button check passed on four buttons that were all the host's tab bar, which is
+  the exact failure mode automated accessibility checks are prone to. The gate is negative-controlled:
+  reintroducing the defect gives `exit=1`.
+  **Still needs a human, and now only this:** whether the speech is *good* (nothing hears anything),
+  reading order as experienced (the rotor builds on publication order), and typing and selection
+  (touch and keyboard, which `simctl` cannot supply). *Original entry:* needs a human: typing via the IME, selection handles,
   rotor, spoken order. Gate: a filled-in checklist in the iOS ADR; the automated tree dump is
   already evidence for structure, not experience.
 - **The Phase 0 gate device** remains unacquired (Layer 4 ADR-008 stands; nothing here reopens it,

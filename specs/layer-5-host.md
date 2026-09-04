@@ -17,7 +17,7 @@ This layer is what makes the product promise true: because its bindings are gene
 **What it does NOT do:**
 - It does **not** hold application state or logic. All of that lives in the guest.
 - It does **not** interpret intent. It applies tags mechanically.
-- It does **not** implement accessibility. That is inherited from Compose Multiplatform ([ADR-001](../adrs/layer-5/ADR-001-host-native-compose-owns-semantics-and-input.md)). **Text input is not inherited** — ADR-001's own correction withdrew that half of its conclusion; text input is bespoke subsystem 3 below.
+- It does **not** implement accessibility. That is inherited from Compose Multiplatform ([ADR-001](../adrs/layer-5/ADR-001-host-native-compose-owns-semantics-and-input.md)) — inherited, but **not assumed**: the surface a screen reader reads is asserted on, including that activating a guest-composed control *through the accessibility layer* drives the guest and changes the tree ([ADR-039](../adrs/layer-5/ADR-039-accessibility-is-asserted-not-inspected.md)). Inheriting a facility is not the same as it working, and the first run of that drill found a text input reaching the platform with no name at all. **Text input is not inherited** — ADR-001's own correction withdrew that half of its conclusion; text input is bespoke subsystem 3 below.
 
 ## 2. Technical Stack & Dependencies
 

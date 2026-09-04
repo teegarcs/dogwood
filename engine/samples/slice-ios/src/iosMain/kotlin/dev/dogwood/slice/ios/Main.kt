@@ -293,6 +293,31 @@ private fun SliceHost(configuration: HostEnvironment) {
    *
    * It is opt-in so that an ordinary launch is an ordinary launch.
    */
+  /*
+   * The accessibility drill, which asserts rather than prints.
+   *
+   * Separate from `--dogwood-drill` because it answers a different question and needs the screen
+   * left alone while it runs: it activates controls through the accessibility layer and watches
+   * the tree for the consequence, so a drill switching tabs underneath it would look like a
+   * failure. See `AccessibilityDrill.kt` for what this can and cannot settle.
+   */
+  LaunchedEffect(shell) {
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-a11y")) return@LaunchedEffect
+    shell ?: return@LaunchedEffect
+    // The Diagnostics screen carries the controls the drill asserts on.
+    current = "about"
+    kotlinx.coroutines.delay(6_000)
+    // The delegate owns the window, so it is asked rather than `UIApplication.keyWindow` --
+    // which is deprecated for multi-scene applications and absent from the Kotlin bindings.
+    val root = (UIApplication.sharedApplication.delegate as? DogwoodAppDelegate)?.window()
+    if (root == null) {
+      println("A11Y REFUSED there is no key window to walk")
+    } else {
+      val failures = runAccessibilityDrill(root)
+      println("A11Y DONE failures=$failures")
+    }
+  }
+
   LaunchedEffect(shell) {
     val live = shell ?: return@LaunchedEffect
     if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-drill")) return@LaunchedEffect

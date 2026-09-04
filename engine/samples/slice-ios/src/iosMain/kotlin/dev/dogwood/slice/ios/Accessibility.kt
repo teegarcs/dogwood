@@ -58,7 +58,7 @@ private val NAMED_TRAITS = listOf(
   UIAccessibilityTraitSelected to "selected",
 )
 
-private fun traitNames(traits: ULong): String {
+internal fun traitNames(traits: ULong): String {
   if (traits == 0uL) return ""
   val named = NAMED_TRAITS.filter { (bit, _) -> traits and bit != 0uL }.map { it.second }
   val remainder = traits and NAMED_TRAITS.fold(0uL) { acc, (bit, _) -> acc or bit }.inv()
@@ -76,7 +76,7 @@ private fun traitNames(traits: ULong): String {
  * `subviews` walk cannot see into. Falling back to `subviews` keeps the plain UIKit part of the
  * hierarchy visible.
  */
-private fun childrenOf(obj: NSObject): List<Any?> {
+internal fun childrenOf(obj: NSObject): List<Any?> {
   // A `UIView` is asked for its own subviews first, and only for its published
   // `accessibilityElements` when it has none. Asking a `UIView` for
   // `accessibilityElementCount()` while VoiceOver is running makes UIKit compute a whole
@@ -106,7 +106,7 @@ private fun childrenOf(obj: NSObject): List<Any?> {
  * stopping at a fixed count is both bounded and useful -- the first couple of hundred nodes of a
  * screen are the screen.
  */
-private const val MAX_NODES = 250
+internal const val MAX_NODES = 250
 
 private fun describe(node: Any?, depth: Int, seen: MutableSet<Long>, sink: (String) -> Unit) {
   val obj = node as? NSObject ?: return
@@ -143,4 +143,28 @@ fun dumpAccessibilityTree(root: UIView) {
     println("dogwood-a11y: $it")
   }
   println("dogwood-a11y: $count nodes (cap $MAX_NODES)")
+}
+
+/**
+ * Every accessibility element under [root], in the order the walk reaches them.
+ *
+ * The same traversal [dumpAccessibilityTree] prints, returning the objects instead of describing
+ * them, so that a test can assert on the surface a screen reader reads rather than on a string
+ * rendering of it. Only objects that answer `isAccessibilityElement` are returned: containers
+ * publish children and are walked through, but VoiceOver never stops on them.
+ */
+internal fun collectAccessibilityElements(root: UIView): List<NSObject> {
+  val found = mutableListOf<NSObject>()
+  val seen = mutableSetOf<Long>()
+
+  fun walk(node: Any?, depth: Int) {
+    val obj = node as? NSObject ?: return
+    if (depth > 24 || seen.size >= MAX_NODES) return
+    if (!seen.add(obj.hash().toLong())) return
+    if (obj.isAccessibilityElement()) found += obj
+    childrenOf(obj).forEach { walk(it, depth + 1) }
+  }
+
+  walk(root, 0)
+  return found
 }

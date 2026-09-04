@@ -38,6 +38,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import coil3.compose.AsyncImage
 
 @Composable
@@ -258,7 +260,15 @@ fun TextInputImpl(
         onValueChange(next, editCount)
       }
     },
-    modifier = modifier,
+    // The label is stated twice on purpose: once as the visible `label` composable, and once in
+    // semantics.
+    //
+    // Material 3 draws the label but does not fold it into the field's own semantics, so the
+    // element a screen reader lands on has no name -- VoiceOver announces "text field" and stops.
+    // The accessibility drill found exactly that on the sample's card-number field, which passes a
+    // label from the payload and was reaching the platform anonymous. The typed text stays the
+    // element's *value*; this only supplies its *name*.
+    modifier = if (label != null) modifier.semantics { contentDescription = label } else modifier,
     enabled = enabled,
     singleLine = singleLine,
     label = label?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
