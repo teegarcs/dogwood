@@ -14,10 +14,10 @@ import re
 import sys
 from collections import OrderedDict
 
-CLAIM = re.compile(r'^CONF ([A-G]\d+(?:-[a-z]+)?) (PASS|FAIL|SKIP|KNOWN)(?: -- (.*))?$')
+CLAIM = re.compile(r'^CONF ([A-G]\d+(?:-[a-z]+)?) (PASS|FAIL|SKIP)(?: -- (.*))?$')
 RESULT = re.compile(r'^CONF RESULT client=(\w+) (.*)$')
 
-MARK = {'PASS': '✅', 'FAIL': '❌', 'SKIP': '·', 'KNOWN': '⚠️'}
+MARK = {'PASS': '✅', 'FAIL': '❌', 'SKIP': '·'}
 
 
 def parse(path):
@@ -55,7 +55,6 @@ def main(paths):
     print('| Claim | ' + ' | '.join(clients) + ' |')
     print('|---' * (len(clients) + 1) + '|')
     failures = 0
-    stale = []
     for claim_id in base:
         cells = []
         for client in clients:
@@ -65,7 +64,7 @@ def main(paths):
                 continue
             verdicts = {v[0] for v in related.values()}
             # Worst verdict wins: a claim with one failing sub-check has not been met.
-            for verdict in ('FAIL', 'KNOWN', 'SKIP', 'PASS'):
+            for verdict in ('FAIL', 'SKIP', 'PASS'):
                 if verdict in verdicts:
                     cells.append(MARK[verdict])
                     if verdict == 'FAIL':
@@ -74,7 +73,7 @@ def main(paths):
         print(f'| {claim_id} | ' + ' | '.join(cells) + ' |')
 
     print()
-    print('✅ met · ⚠️ known gap, not blocking · · not applicable here · ❌ failed · — not run')
+    print('✅ met · · not applicable here · ❌ failed · — not run')
     print()
     for client in clients:
         counts = {}
@@ -82,16 +81,6 @@ def main(paths):
             counts[verdict] = counts.get(verdict, 0) + 1
         print(f'- **{client}**: ' + ', '.join(f'{v.lower()} {n}' for v, n in sorted(counts.items())))
 
-    # A known gap that has started passing means the entry is stale -- worth saying, because a
-    # stale allowance quietly excuses a claim nobody is checking any more.
-    for client, claims in runs.items():
-        for claim_id, (verdict, detail) in claims.items():
-            if verdict == 'KNOWN':
-                stale.append(f'{client}:{claim_id}')
-    if stale:
-        print()
-        print('Known gaps, which are failures this project has chosen not to block on: '
-              + ', '.join(stale) + '. Each must be listed in `plans/conformance.md` with a cause.')
     return 1 if failures else 0
 
 

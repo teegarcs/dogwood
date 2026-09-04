@@ -70,13 +70,14 @@ writes the matrix.
 A `SKIP` must carry a reason and is not a pass. Skips are counted in the matrix, so "we never ran
 it" cannot masquerade as "it works".
 
-A fourth verdict, **`KNOWN`**, was added when the web drill met the first case that needed it: a
-claim that genuinely *does* apply, genuinely *does* fail, and whose cause is outside this
-repository. Recording that as a `SKIP` would let a real gap read as an absence, and recording it as
-a `FAIL` would hold every merge hostage to somebody else's release schedule. A `KNOWN` is printed,
-counted, listed in Part 5 with its cause, and does not turn the gate red — and if it ever starts
-passing, the aggregator says so, because a stale allowance quietly excuses a claim nobody is
-checking any more.
+**There is deliberately no verdict for "fails, but not our fault."** One was added and removed
+inside a day, and the reason it was removed is the argument against it. The web drill reported that
+a control could not be reached by keyboard; that looked like an upstream limitation, so it got an
+escape hatch that recorded the failure without blocking. The failure was not real — the check had
+read a `focusable` flag off the accessibility node instead of pressing Tab, and Compose routes
+keyboard focus through the canvas rather than through per-element `tabindex`. **The escape hatch
+legitimised a wrong conclusion within an hour of existing**, which is exactly what such a mechanism
+is for and exactly why this catalogue does not have one. A claim passes, does not apply, or fails.
 
 **3. The tier.** Each claim is assigned the cheapest instrument that can honestly settle it:
 
@@ -139,7 +140,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D1 | Guest-composed text reaches the platform's accessibility layer | C | ✅ iOS, Android |
 | D2 | Every exposed element announces something — no anonymous elements | C | ✅ iOS, Android |
 | D3 | A guest-composed control is exposed **as a control**, not as text | C | ✅ iOS, Android |
-| D4 | Activating through the accessibility layer drives the guest and changes the tree | C | ✅ iOS, Android |
+| D4 | Activating through the accessibility layer drives the guest and changes the tree | C | ✅ iOS, Android, web — including by keyboard on web |
 | D5 | The screen scrolls through the accessibility layer | C | ✅ iOS, Android |
 | D6 | Text input is host-authoritative: mask, limit and counter apply where the typing is | S + C | S ✅; C — |
 | D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
@@ -191,16 +192,14 @@ Last generated 2026-09-04, from the accessibility group:
 | D2 | ✅ | ✅ | ✅ |
 | D3 | ✅ | ✅ | ✅ |
 | D5 | ✅ | ✅ | ✅ |
-| D4 | ✅ | ✅ | ⚠️ |
+| D4 | ✅ | ✅ | ✅ |
 | D7 | ✅ | ✅ | · |
 
-✅ met · ⚠️ known gap, not blocking · · not applicable here · ❌ failed · — not run
+✅ met · · not applicable here · ❌ failed · — not run
 
 - **android**: pass 9
 - **ios**: pass 11
-- **web**: known 1, pass 5, skip 1
-
-Known gaps, which are failures this project has chosen not to block on: web:D4-keyboard. Each must be listed in `plans/conformance.md` with a cause.
+- **web**: pass 6, skip 1
 
 Desktop does not appear because it is a development loop, not a shipping target, and the
 accessibility claims are out of scope for it (decision 1, Part 0). It will appear when the
@@ -266,12 +265,6 @@ Recorded so that an absence is a decision somebody can point at.
   tracing collector and Objective-C's reference counting cannot see each other's graphs. Android and
   desktop have one collector; web has one heap. Marking this `n/a` elsewhere is a statement about
   the platforms, not an exemption.
-- **`D4-keyboard` on web is a known gap, not a skip.** Compose Multiplatform publishes its web
-  accessibility elements without a `tabindex`, so the control is readable by a screen reader and
-  operable by one — the synthesised click works, which is what `D4` asserts — but it cannot be
-  reached by keyboard navigation. That is a real barrier for anybody driving a screen reader from
-  the keyboard, and the cause is upstream rather than in this repository. It is drafted for report
-  and unfiled, per the standing decision in the platform review.
 - **Web's network policy is the browser's**, per ADR-032. The claim holds; the instrument is a
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.

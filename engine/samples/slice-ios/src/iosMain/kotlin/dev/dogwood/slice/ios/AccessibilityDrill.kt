@@ -85,7 +85,7 @@ private fun scrollDownSomewhere(root: UIView): Boolean {
 /**
  * One assertion's outcome, in the shared conformance grammar.
  *
- * Every client emits `CONF <id> PASS|FAIL|SKIP|KNOWN`, so one aggregator reads all four runs and
+ * Every client emits `CONF <id> PASS|FAIL|SKIP`, so one aggregator reads all four runs and
  * generates the matrix in `plans/conformance.md`. The claim identifiers are the catalogue's, which
  * is what makes `D4` here and `D4` on Android and web the same promise rather than three
  * coincidentally similar tests. The human-readable `A11Y` lines are kept alongside, because the
@@ -308,7 +308,7 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
       withCustomActions.joinToString("") { " ${it.label()}=${it.customActionNames()}" },
   )
 
-  println("CONF RESULT client=ios passed=${checks.passed} failed=${checks.failed} skipped=${checks.skipped} known=0")
+  println("CONF RESULT client=ios passed=${checks.passed} failed=${checks.failed} skipped=${checks.skipped}")
   println("A11Y RESULT passed=${checks.passed} failed=${checks.failed}")
   return checks.failed
 }
