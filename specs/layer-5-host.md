@@ -537,6 +537,14 @@ tree — so the default capacity of three sits about 20 megabytes above a single
 
   **Cross-boundary reference cycles are a known hazard and must be tested for, not asserted away.** Generated host bindings hold `@Composable` lambdas capturing event tags; the emitter holds the Zipline service; the service holds a reference into the guest. On iOS that cycle spans Kotlin/Native garbage collection and Swift automatic reference counting. Redwood ships `redwood-leak-detector` (Apache 2.0) and calls `leakDetector.watchReference(...)` on every detached node, with an explicit comment about mixing garbage-collected Kotlin objects with reference-counted Swift objects. Dogwood should adopt that module rather than reinvent it.
 
+## 4a. Conformance Across Clients
+
+**Four clients, one capability list** ([ADR-040](../adrs/layer-5/ADR-040-conformance-is-a-catalogue-not-a-suite.md), catalogue in [`plans/conformance.md`](../../plans/conformance.md)). Verification grew the opposite way from the architecture: every drill was built to answer a problem on the client where it happened, so accessibility is asserted on iOS and nowhere else, skew containment ran once on Android, and desktop has no drill at all. That is a lopsided map, and it is invisible until the drills are laid side by side.
+
+The instinct — one cross-platform test suite — is **not available**, and the reason is worth stating rather than discovering: the thing under test on an accessibility row is UIKit's `UIAccessibility`, Android's `AccessibilityNodeInfo`, and the DOM accessibility tree. There is no shared surface, and the same is true of storage, the network stack and the collector. So what is shared sits one level up: a **numbered claim** (`D4` means the same thing everywhere), a **text report grammar** every client emits (`CONF <id> PASS|FAIL|SKIP`), and a **tier** assigning each claim the cheapest instrument that can honestly settle it — shared `commonTest` where the code really is shared, a per-client drill where the platform genuinely is the thing under test. Getting that boundary wrong in the permissive direction is the expensive mistake: a claim marked shared that actually depends on platform behaviour is untested on three clients and reads as green.
+
+The matrix is **generated from real runs**, never hand-maintained, because a drifted matrix is worse than none — it is a document asserting that something is tested.
+
 ## 5. Implementation Roadmap
 
 Milestones 1 to 5 build the generated path. Milestones 6 onward build the bespoke subsystems, which are the larger half of the work.

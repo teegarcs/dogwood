@@ -7,6 +7,11 @@
 > accessibility questions still need a person — whether the speech is *good*, reading order as
 > experienced, and typing and selection. A short account of what the plan cost and what it found is
 > at the end, under **Part 4**.
+>
+> **What this review did not fix is structural**, and has its own plan:
+> [`conformance.md`](conformance.md). Every item above was a problem found on the client where it
+> bit, which is why accessibility is asserted on iOS and nowhere else and desktop has no drill at
+> all. The capability catalogue and the per-client matrix are the answer to that shape.
 
 ## Part 0 — Why this plan exists, and how to read it
 
