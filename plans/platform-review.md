@@ -493,7 +493,15 @@ has to reconcile. Sequence it with that work (Layer 5 Milestone 14), not before.
   generated bindings in the JVM host tests. Likely fix: clamp-and-report at the reader layer
   (`WidgetView.int(tag, default, min, max)`) so it is generator-wide, not per-binding. Gate: the
   fuzz test passes; hostile values land in `SkewReport` rather than in a stack trace.
-- **Kotlin/Native leak-test flake risk** (conservative stack scanning vs the negative control).
+- ✅ **Kotlin/Native leak-test flake risk — done (PR #16), [the soak](../tools/leak-soak/README.md).**
+  **50 of 50 passed**, so the control needed no restructuring — the outcome the review hoped for and
+  did not assume. `--rerun-tasks` on every iteration is not incidental: without it Gradle answers 49
+  of the 50 from its up-to-date cache and the soak proves only that caching works. The script is
+  kept rather than deleted after one green run, because this is a soak on one Kotlin/Native release
+  and the question has to be re-asked when the toolchain moves. A first attempt was thrown away
+  rather than reported: an unrelated compile error in the iOS test sources turned runs 15-50 red for
+  a reason that had nothing to do with leaks, and a soak that counts build failures as flakes
+  measures nothing. *Original entry:* (conservative stack scanning vs the negative control).
   Gate: 50 consecutive green runs of `iosSimulatorArm64Test` (scripted); if flaky, restructure
   the control per the reviewer's note before trusting CI.
 - ✅ **iOS plural rules — done (PR #15), [ADR-037](../adrs/layer-5/ADR-037-plural-rules-are-vendored.md).**
