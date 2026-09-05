@@ -44,9 +44,13 @@ for extra in glob.glob(str(out / '*-a11y.conf')):
     body = [l for l in pathlib.Path(extra).read_text().splitlines() if not l.startswith('CONF RESULT')]
     if target.exists():
         ex = target.read_text().splitlines()
+        keep = [l for l in ex if not l.startswith('CONF RESULT')]
+        # Deduplicated by claim, so re-running the merge cannot double a line -- a duplicated
+        # verdict is harmless to the aggregator and misleading to a person reading the file.
+        seen = {l.split(' -- ')[0] for l in keep if l.startswith('CONF ')}
+        body = [l for l in body if l.split(' -- ')[0] not in seen]
         target.write_text('\n'.join(
-            [l for l in ex if not l.startswith('CONF RESULT')] + body +
-            [l for l in ex if l.startswith('CONF RESULT')]) + '\n')
+            keep + body + [l for l in ex if l.startswith('CONF RESULT')]) + '\n')
     else:
         target.write_text(pathlib.Path(extra).read_text())
     pathlib.Path(extra).unlink()
