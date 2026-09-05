@@ -34,9 +34,10 @@ import app.cash.zipline.ZiplineService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-/** The service-surface revision this file describes. Reported as `segmentVersions[SERVICES_SEGMENT]`. */
-const val SERVICES_SEGMENT = "dogwood.services"
-const val SERVICES_VERSION = 2
+// `SERVICES_SEGMENT` and `SERVICES_VERSION` moved to `dogwood-wire` (`ServiceSurface.kt`), same
+// package. They are two integers describing a revision, and living here made them unreachable from
+// any host that cannot link Zipline -- which `Bindings.kt` needs in common code that now compiles
+// for WebAssembly too. See Layer 5 ADR-041.
 
 /**
  * The revision that introduced [DogwoodNavigation].

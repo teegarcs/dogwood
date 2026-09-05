@@ -380,11 +380,12 @@ ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md)), meas
 only 2 of 26 common files import Zipline, and everything else including the generated
 design-system bindings compiled for `wasmJs` unmodified. The work, in order:
 
-1. **The module split.** `dogwood-host-core` (transport-free, +`wasmJs`) under
-   `dogwood-host-zipline`; the two stranded service constants move to `dogwood-wire`; the
-   `DogwoodLeakWatcher` interface moves to core with the Redwood implementation staying platform-side.
-   Gate: every existing test green, both mobile samples byte-identical in behaviour, page-weight
-   harness run on the web slice.
+1. ✅ **The split.** Done as a `ziplineMain` source set rather than two modules — same seam, no
+   consumer changes (ADR-041 §2). `commonMain` is transport-free and compiles for `wasmJs`; the
+   two stranded service constants moved to `dogwood-wire`; `DogwoodLeakWatcher`'s interface is in
+   core with the Redwood implementation in the Zipline layer. The `Intl`-backed `Format` actuals
+   landed with it. Verified: 484 tests green, full build green, and the seam is enforced by
+   compilation — a `ZiplineService` reference added to a core file fails the `wasmJs` build.
 2. **The web actuals.** `Format` over the browser's ECMA-402 `Intl` (an upgrade — QuickJS has no
    `Intl`; the browser does), a browser-storage `FileSystem` for `StateStore`, `ThreadIdentity`.
    Gate: the shared-suite claims (`C1`–`C5`, `D6`, `E1`–`E3`) turn green in the web column of the
