@@ -24,7 +24,7 @@
  *   Br->>W: {t:"configuration", p:"{...}"}
  *   W-->>Br: {t:"changes", p:"[1,[...]]"}
  *   Br->>Exp: onChanges(batch)
- *   Exp->>Exp: FastPositionalDecoder -> WebTree.apply
+ *   Exp->>Exp: FastPositionalDecoder -> HostTree.apply
  *   Exp-->>Page: snapshot invalidation, Compose recomposes
  *   Page->>Exp: a tap on a bound Row
  *   Exp->>Br: sendEvent(Event(id, tag, appliedSequence))
@@ -33,7 +33,7 @@
  *
  * **Every node in that diagram is a type in this module** except the guest, which is JavaScript
  * this host never links: `WebDelivery` fetches and checks, `WorkerBridge` is the envelope,
- * `DogwoodWebExperience` is here, `WebTree` is the mirror, and `FastPositionalDecoder` is the read.
+ * `DogwoodWebExperience` is here, `HostTree` is the mirror, and `FastPositionalDecoder` is the read.
  */
 package dev.dogwood.web
 
@@ -55,6 +55,13 @@ import dev.dogwood.protocol.ProtocolMismatch
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.json.JsonElement
+import dev.dogwood.host.WidgetView
+import dev.dogwood.host.RenderTranscript
+import dev.dogwood.host.RenderChildren
+import dev.dogwood.host.LocalRenderTranscript
+import dev.dogwood.host.LayoutScope
+import dev.dogwood.host.HostTree
+import dev.dogwood.host.EventSink
 
 /** The single content slot the root node exposes, matching the layout tier's containers. */
 private const val ROOT_CONTENT = 1
@@ -96,7 +103,7 @@ class DogwoodWebExperience(
   private val transcript: RenderTranscript? = null,
 ) : WorkerBridgeListener {
 
-  val tree = WebTree()
+  val tree = HostTree()
 
   private val decoder = FastPositionalDecoder()
 
@@ -230,7 +237,7 @@ class DogwoodWebExperience(
     try {
       tree.apply(decoded)
     } catch (mismatch: ProtocolMismatch) {
-      // Rejected whole, and nothing of it applied: `WebTree` validates before it mutates, so the
+      // Rejected whole, and nothing of it applied: `HostTree` validates before it mutates, so the
       // tree on screen is the last one that applied cleanly rather than a partial of this one.
       report("rejected batch ${decoded.q}: ${mismatch.message}")
       return
@@ -239,8 +246,8 @@ class DogwoodWebExperience(
       return
     }
     appliedBatches++
-    if (tree.unknownWidgetTags.isNotEmpty()) {
-      report("unknown widget tags: ${tree.unknownWidgetTags.sorted()}")
+    if (tree.skew.unknownWidgetTags.isNotEmpty()) {
+      report("unknown widget tags: ${tree.skew.unknownWidgetTags.sorted()}")
     }
   }
 
@@ -288,7 +295,7 @@ class DogwoodWebExperience(
   /**
    * Turns a binding's event into the wire form the guest expects.
    *
-   * The sequence number carried is [WebTree.appliedSequence] -- the last batch the host actually
+   * The sequence number carried is [HostTree.appliedSequence] -- the last batch the host actually
    * applied, not the last one it received -- which is what lets the guest drop an event aimed at a
    * tree it has already replaced. That window is wider here than on mobile, because the event has
    * a Worker hop to make.

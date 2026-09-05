@@ -22,11 +22,11 @@ import dev.dogwood.web.BulkCopyGate
 import dev.dogwood.web.DeliveryOutcome
 import dev.dogwood.web.DogwoodWebExperience
 import dev.dogwood.web.GateResult
-import dev.dogwood.web.RenderTranscript
+import dev.dogwood.host.RenderTranscript
 import dev.dogwood.web.WebDelivery
-import dev.dogwood.web.WebDictionary
-import dev.dogwood.web.WidgetView
-import dev.dogwood.web.boolean
+import dev.dogwood.host.DogwoodDictionary
+import dev.dogwood.host.WidgetView
+import dev.dogwood.host.boolean
 import dev.dogwood.web.readHostEnvironment
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -148,7 +148,7 @@ fun main() {
 
   val scope = CoroutineScope(Dispatchers.Main)
   scope.launch {
-    val delivery = WebDelivery(WebDictionary.segmentVersions) { refusal ->
+    val delivery = WebDelivery(DogwoodDictionary.segmentVersions) { refusal ->
       field("refused", refusal::class.simpleName ?: "refusal")
       note("delivery refused: ${refusal.message}")
     }
@@ -231,7 +231,7 @@ private suspend fun awaitBatches(experience: DogwoodWebExperience, count: Int): 
 
 /** The first `Row` the guest marked as carrying a handler, which is where a tap would land. */
 private fun findClickableRow(node: WidgetView): WidgetView? {
-  if (node.tag.value == WebDictionary.Row.value && node.boolean(1, false)) return node
+  if (node.tag.value == DogwoodDictionary.Row.value && node.boolean(1, false)) return node
   for (slot in 1..2) {
     for (child in node.children(slot)) {
       findClickableRow(child)?.let { return it }

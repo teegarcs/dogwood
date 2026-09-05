@@ -167,6 +167,45 @@ class HostTree(
    * Depth first, because forgetting only the root of a detached subtree would leave every
    * descendant in [byId] -- reachable, addressable, and invisible.
    */
+  /**
+   * Drops every node, so a re-attached guest starts from an empty screen.
+   *
+   * Without it, closing an experience left the previous guest's tree rendered until its
+   * replacement produced a first batch -- a screen showing one guest's content while another was
+   * starting. Found on the web host, where a session is re-attached in place; the mobile hosts
+   * build a fresh tree per experience and so never met it, which is exactly the kind of thing one
+   * shared implementation stops being a per-client discovery (Layer 5 ADR-041).
+   */
+  fun clear() {
+    root.slot(1).clear()
+    byId.keys.retainAll(setOf(0))
+    appliedSequence = 0
+  }
+
+  /**
+   * The tree as text, for drills and failure reports.
+   *
+   * Diagnostics, not protocol: nothing reads it back. It exists because "the screen looked wrong"
+   * is not a bug report and a rendered screenshot cannot show which node carried which property.
+   * Lifted from the web host when that host stopped keeping its own tree (Layer 5 ADR-041), so
+   * every client's dump has one format.
+   */
+  fun describe(): String = buildString { describe(root, 0, this) }
+
+  private fun describe(node: HostNode, depth: Int, out: StringBuilder) {
+    repeat(depth) { out.append("  ") }
+    out.append(DogwoodDictionary.name(node.tag)).append('#').append(node.id.value)
+    for (tag in node.propertyTags().sorted()) {
+      out.append(' ').append(tag).append('=').append(node.property(tag))
+    }
+    if (node.modifiers.isNotEmpty()) {
+      out.append(" mods=")
+      out.append(node.modifiers.joinToString(",") { "${it.t.local}:${it.v}" })
+    }
+    out.append('\n')
+    for (slot in node.allSlots()) for (child in slot) describe(child, depth + 1, out)
+  }
+
   private fun purge(node: HostNode) {
     byId.remove(node.id.value)
     leakDetector.watch(node, "detached node ${node.id.value}, widget ${node.tag.value}")

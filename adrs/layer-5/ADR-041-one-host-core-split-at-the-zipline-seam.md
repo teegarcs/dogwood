@@ -78,10 +78,12 @@ incident (a `shared` claim scope that web did not actually share) and the label 
 conformance premise — one implementation, graded once — argues for B; under A the web column is
 earned one hand-written test at a time.
 
-**Page weight is bounded, not waved away.** Core brings Material 3 (~0.15 MB compressed,
-[ADR-030](ADR-030-web-page-weight-measured.md)) against a 3.03 MiB page that is transfer-bound a
-hundred to one ([ADR-038](ADR-038-first-frame-is-transfer-bound.md)). The `web-weight` harness
-gates the split's PRs, so growth is a measured number rather than a surprise.
+**Page weight was the predicted cost, and it did not materialise.** Core brings Material 3, which
+[ADR-030](ADR-030-web-page-weight-measured.md) sized at ~0.15 MB compressed. Measured after the
+switch: **10.23 MB raw, 2.92 MB brotli — identical to ADR-030's figure to the reported precision.**
+Material 3 was already being linked, because the web slice already rendered through Compose
+Multiplatform; what changed is which bindings call it. The `web-weight` harness stays on the
+gate list regardless, since the next design-system component is the one that could move it.
 
 ### Scope boundary: this does not reopen the mobile substrate decision
 

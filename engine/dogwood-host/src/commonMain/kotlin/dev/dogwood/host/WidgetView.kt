@@ -167,3 +167,64 @@ fun clampModifierValue(raw: Float, min: Float, max: Float = Float.MAX_VALUE, wha
   LocalSkewReport.current.clampedValues += "$what=$raw outside $min..$max"
   return raw.coerceIn(min, max)
 }
+
+/**
+ * A transcript of what the bindings actually composed, and at what size.
+ *
+ * The counter above says *how many* bindings ran, which is what separates the two rendering
+ * strategies. This says *which*, and adds the one thing composition alone cannot show: the size
+ * Compose measured each node at. A recorded line proves a binding ran with the guest's data; a
+ * non-zero box on a `Text` proves the text stack measured real glyphs for that string. "The
+ * bindings executed" and "the screen is not blank" are separate claims, and only the second is
+ * what a user sees.
+ *
+ * Lifted out of the web host when that host stopped keeping its own bindings (Layer 5 ADR-041).
+ * It was the web slice's central assertion and no other client had it; now every client can make
+ * the same one.
+ *
+ * Null by default, and the binding checks. A host that is not being verified pays one null check
+ * per node.
+ */
+val LocalRenderTranscript = staticCompositionLocalOf<RenderTranscript?> { null }
+
+/** One line per composed node, plus the measured boxes. */
+class RenderTranscript {
+  private val lines = mutableListOf<String>()
+  private val sizes = LinkedHashMap<Int, String>()
+
+  var count: Int = 0
+    private set
+
+  fun record(node: WidgetView, detail: String) {
+    count++
+    lines += "${DogwoodDictionary.name(node.tag)}#${node.id.value} $detail"
+  }
+
+  /**
+   * Replaces what the most recent [record] for this node said.
+   *
+   * A binding knows something after it has resolved its inputs that `RenderNode` cannot know
+   * before dispatching -- for a `Text`, the string it is actually about to draw, which may have
+   * come from a host-resolved recipe rather than from a property. Refining the line rather than
+   * adding one keeps the count meaning "bindings executed", which is the number that separates
+   * the two rendering strategies.
+   */
+  fun detail(node: WidgetView, detail: String) {
+    val key = "${DogwoodDictionary.name(node.tag)}#${node.id.value}"
+    val at = lines.indexOfLast { it.startsWith("$key ") }
+    if (at >= 0) lines[at] = "$key $detail"
+  }
+
+  fun recordSize(node: WidgetView, width: Int, height: Int) {
+    sizes[node.id.value] =
+      "${DogwoodDictionary.name(node.tag)}#${node.id.value} measured ${width}x$height"
+  }
+
+  fun reset() {
+    lines.clear()
+    sizes.clear()
+    count = 0
+  }
+
+  fun dump(): String = (lines + sizes.values).joinToString("\n")
+}

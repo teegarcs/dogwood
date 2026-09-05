@@ -390,10 +390,15 @@ design-system bindings compiled for `wasmJs` unmodified. The work, in order:
    no `Intl`; the browser does), `ThreadIdentity`, and `BrowserFileSystem`, an Okio file system
    over `localStorage` so saved state survives a tab close. Verified in headless Chrome: 10 tests,
    and the negative control — reverting to the in-memory file system — turns 5 of them red.
-3. **`dogwood-web` consumes core.** `WebTree` and `WebBindings` deleted; the Worker bridge, sidecar
-   loader and fast decoder stay. Gate: the web slice renders pixel-for-pixel, `run-web.sh` green,
-   page weight within the measured Material 3 delta (~0.15 MB compressed against a transfer-bound
-   3 MiB page).
+3. ✅ **`dogwood-web` consumes core.** `WebTree` and `WebBindings` deleted — 627 lines of second
+   implementation. The Worker bridge, sidecar loader and fast decoder stay, being genuinely
+   web-shaped. Three things moved *into* core on the way, each because the web host had them and
+   no other client did: `HostTree.describe()`, `HostTree.clear()` (which fixed a real bug the
+   mobile hosts never met, because they build a fresh tree per experience), and `RenderTranscript`,
+   whose measured glyph boxes are the difference between "the bindings ran" and "the screen is not
+   blank". Gate met: the web slice renders (7 nodes, 7,017 non-white pixels, the guest's swatch
+   colour present), the refusal path still refuses before a Worker exists, and the conformance
+   matrix's web column went from **8 claims to 27**.
 
 This does **not** reopen the mobile substrate decision ([Layer 4
 ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *source*, not shared
