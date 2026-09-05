@@ -390,7 +390,9 @@ design-system bindings compiled for `wasmJs` unmodified. The work, in order:
    no `Intl`; the browser does), `ThreadIdentity`, and `BrowserFileSystem`, an Okio file system
    over `localStorage` so saved state survives a tab close. Verified in headless Chrome: 10 tests,
    and the negative control — reverting to the in-memory file system — turns 5 of them red.
-3. ✅ **`dogwood-web` consumes core.** `WebTree` and `WebBindings` deleted — 627 lines of second
+3. ✅ **`dogwood-web` consumes core**, and the web host gained leak detection on the way
+   (`BrowserLeakWatcher`) — the one gap the split had left open, closed once the assumption behind
+   it was tested rather than restated. `WebTree` and `WebBindings` deleted — 627 lines of second
    implementation. The Worker bridge, sidecar loader and fast decoder stay, being genuinely
    web-shaped. Three things moved *into* core on the way, each because the web host had them and
    no other client did: `HostTree.describe()`, `HostTree.clear()` (which fixed a real bug the
@@ -417,12 +419,6 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
   subsystem 4, ◐).
 - **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
   rather than the scheduler (Phase 0 appendix).
-- **Leak detection for the web host.** `redwood-leak-detector` publishes no WebAssembly artifact.
-  Not a port: the browser has `WeakRef` (verified 2026-09-05), but Kotlin/Wasm objects live in the
-  WebAssembly garbage-collected heap and are not JavaScript values, so whether a Kotlin object's
-  liveness is observable from JavaScript at all is the question to answer first
-  ([ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) §4).
-
 **Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
 yes (parallel track); the Phase 0 gate device, not acquired by decision
 ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); three upstream reports
