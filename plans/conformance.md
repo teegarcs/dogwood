@@ -182,7 +182,7 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-05, after the skew drill was automated:
+Last generated 2026-09-05, with the performance budgets graded:
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -214,7 +214,12 @@ Last generated 2026-09-05, after the skew drill was automated:
 | D5 | ✅ | n/a | ✅ | ✅ |
 | D4 | ✅ | n/a | ✅ | ✅ |
 | D7 | ✅ | n/a | ✅ | · |
+| G1 | · | n/a | · | — |
+| G2 | · | n/a | · | — |
+| G3 | · | n/a | · | — |
+| G4 | · | n/a | · | — |
 | E4 | n/a | n/a | ✅ | n/a |
+| G5 | — | n/a | — | ✅ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
 
@@ -225,10 +230,10 @@ Last generated 2026-09-05, after the skew drill was automated:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 35
+- **android**: pass 35, skip 4
 - **desktop**: pass 22
-- **ios**: pass 36
-- **web**: pass 28, skip 1
+- **ios**: pass 36, skip 4
+- **web**: pass 29, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -274,8 +279,15 @@ hard way:
   assistive technology is running, because twenty failures from one cause reads as a broken screen
   rather than an unconfigured machine. Refusal is a distinct exit code and does not report as a
   test failure.
-- **A new drill soaks before it gates.** Fifty consecutive runs, as the leak suite did. Until then
-  it reports, so its flake rate is known before anybody's merge depends on it.
+- **A new drill soaks before it gates**, and the number is chosen for what it is measuring rather
+  than copied. The leak suite ran fifty times because its risk was a *garbage collector* behaving
+  differently run to run — genuinely random, so only repetition characterises it. The device drills'
+  risk is different: every failure seen while building them had a deterministic cause with a name
+  (stray Chrome helpers starving SwiftShader, the Kotlin/Wasm klib checker, a shell pipeline
+  reporting `SIGPIPE` as a product failure), and repetition does not characterise a cause that is
+  already understood. **Ten consecutive full-suite runs, 2026-09-05, all green**
+  (`tools/conformance/soak-2026-09-05.log`) — roughly an hour of real device work. If a flake with
+  no identified cause ever appears, that is when fifty becomes the right number again.
 
 **The matrix is generated, not maintained.** `tools/conformance/aggregate.py` reads the `CONF` lines
 from every client's run and writes Part 3. A hand-maintained matrix drifts from reality, and a
@@ -380,9 +392,34 @@ format is cheap; discovering it was wrong across four implementations is not.
    **Still open: `A2`–`A4` end-to-end on iOS and web.** Both now render through the same core, so
    the shared tests cover the rules; what is missing is the two-build procedure on those clients,
    which needs a skewed payload served to an already-installed binary.
-8. **Budgets, then gates.** Attach a budget to each numeric harness (leak soak, Phase 0,
-   page weight) so it emits verdicts; then turn on gating tier by tier, in the order the drills
-   soak clean (50 consecutive green runs each, per the leak-soak precedent).
+7. ✅ **Budgets for the numeric harnesses.** `budgets.tsv` is where the roadmap's thresholds stop
+   being prose: `from_phase0.py` reads the Phase 0 results and `from_web_weight.py` the page
+   weight, and both emit verdicts. **The gate-validity rule is asymmetric, deliberately.** No host
+   here is gate-valid — not the development machine, not the simulator, and not the Pixel 10 Pro
+   either, which is a flagship where the Phase 0 gate names an entry tier (Layer 4 ADR-008). So a
+   number *within* budget on such a host is a `SKIP`, never a `PASS`, because a comfortable result
+   from fast hardware says nothing about slow hardware; a number *over* budget is a `FAIL`, because
+   favourable hardware exceeding a budget is damning precisely for being favourable. That keeps
+   these numbers doing the one thing they can honestly do today, which is catch regressions.
+   Where two hosts speak for one client the slower is preferred — a phone over an emulator running
+   on the development machine's own processor.
+
+   The leak soak is **not** a claim and is not given one. It measures whether the leak *evidence*
+   is stable, which is a precondition for gating rather than a promise about the product; it
+   belongs to step 8.
+8. **Gating, split by what each environment can honestly grade.**
+
+   **Tier S gates in continuous integration** (`.github/workflows/conformance.yml`): the build, the
+   shared-code claims via `from_tests.py`, and the page-weight budget — the one performance number
+   that is a property of the build rather than of the machine. It runs on every push and pull
+   request, and a claim whose evidence did not run fails it rather than reading as absent.
+
+   **Tier C gates locally and before a release**, through `tools/conformance/run-all.sh`, which
+   exits non-zero on any red cell. It cannot run on a hosted runner: it needs a booted iOS
+   simulator with VoiceOver enabled, an attached Android device, a browser with a graphics stack,
+   and the guest being served. Wiring it into continuous integration anyway would produce a green
+   tick that means less than it appears to, which is the failure this plan exists to avoid — so the
+   workflow file says where the boundary is instead of hiding it.
 
 *(Lifecycle and host-resolution drills on the shipping clients — previously step 7 — are folded
 into step 6 for web and deferred for mobile: `C1`, `C5`, `E1`–`E3` already carry shared-test

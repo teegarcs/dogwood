@@ -1,0 +1,16 @@
+# Performance budgets, and where each number comes from.
+#
+# The roadmap's Phase 0 appendix sets these; this file is where they stop being prose and start
+# being a gate. A harness that emits numbers is a measurement, and a measurement nobody compares to
+# a threshold is a number nobody reads -- which is the same shape as the evidence-nobody-consumes
+# failure this project has now met five times.
+#
+# G5 is bytes, not milliseconds; its unit is named in the description because it is the one
+# exception and hiding that in a column header would be worse than saying it here.
+#
+# claim<TAB>budget<TAB>what it bounds
+G1	8.0	guest recomposition of the reference screen, 95th percentile
+G2	4.0	batch crossing, per-frame reading: a steady-state recomposition batch
+G3	16.7	maximum garbage-collection pause under load, 99th percentile
+G4	500.0	cold start: module load plus first composition
+G5	3300000	the web page, brotli-compressed, in bytes
