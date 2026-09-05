@@ -74,16 +74,48 @@ by the binding that could not resolve it, a withheld widget by the guard that de
 and writing snapshot state there is not allowed. So a composable reading it directly sees whatever
 was there when that pass began. The sample polls it instead, and `Skew.kt` now says so.
 
-## Reproducing
-
-The drill's surface and guest changes are deliberately **not committed** — a permanently skewed
-surface would be a permanently failing lock. Re-create them by adding a component and two
-properties as in the table above, then:
+## Running it
 
 ```
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21
-./gradlew :samples:slice-android:installDebug          # client at version N
-# ...edit the surface, bump --version in dogwood-codegen/build.gradle.kts...
-./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline   # payload at N+1
-adb shell am start -n dev.dogwood.slice.android/.TabsActivity      # do NOT reinstall
+./gradlew :samples:slice-guest:serveProductionWebpackZipline   # in another shell
+tools/skew-drill/run.sh
 ```
+
+It was a manual procedure until 2026-09-05 — edit the surface, bump the version, rebuild the guest,
+remember not to reinstall the application — and the platform review's observation about it was
+correct: **a drill that needs a person to edit source before it runs is a drill that runs
+approximately never.** Everything it asked for was mechanical, so the script does it, and restores
+the surface on every exit path including a failure or an interrupt. A permanently skewed surface
+would be a permanently failing lock, which is why the restore is a `trap` rather than a final step.
+
+Output is the `CONF` grammar, so `tools/conformance/aggregate.py` reads this run like any other:
+claims `A2`, `A3` and `A4`, plus a control and a report check.
+
+### Two things the automation had to learn
+
+**Property tags are append-only, and the lock says so.** The first version of `skew.py` inserted the
+new properties at the front of each parameter list, and the generator refused: *"PrimaryButton.enabled
+moved from property tag 2 to 3. Append to the surface instead of reordering or removing."* That is
+the dictionary lock doing exactly its job, caught by a drill that exists to test the rules around
+it. The additions go at the end now.
+
+**`grep -q` inside `set -o pipefail` reports a success as a failure.** It exits on the first match,
+which sends `SIGPIPE` to whatever feeds it, which `pipefail` then reports as a failed pipeline — so
+the check for "has the skewed payload arrived?" kept saying no when the file plainly contained the
+marker, in two different spellings before the pipe was removed altogether. Shell plumbing reporting
+a product failure is the same trap the `--console-pty` carriage returns were, and worth recognising
+on sight.
+
+### Negative control
+
+Making `unknownProperties` return nothing — so no widget is ever withheld — turns `A4` and
+`A4-reported` red while `A3` stays green:
+
+```
+CONF A4 FAIL -- the button rendered while carrying an unreadable affordance-bearing property
+CONF A4-reported FAIL -- SkewReport(widgets=[16777231] )
+```
+
+That `A3` keeps passing is the useful part: the two rules are independent, and the drill can tell
+them apart.

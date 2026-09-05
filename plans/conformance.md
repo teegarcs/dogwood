@@ -182,7 +182,7 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-05, after the network-policy drills:
+Last generated 2026-09-05, after the skew drill was automated:
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -225,7 +225,7 @@ Last generated 2026-09-05, after the network-policy drills:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 33
+- **android**: pass 35
 - **desktop**: pass 22
 - **ios**: pass 36
 - **web**: pass 28, skip 1
@@ -364,9 +364,22 @@ format is cheap; discovering it was wrong across four implementations is not.
    the claims are inherited from the shared suite instead: one implementation, one set of tests,
    graded on four clients. The step that would have written a second test suite was made
    unnecessary by not having a second implementation.
-7. **Skew containment on iOS and web** (`A2`–`A4` end-to-end), and make the Android drill
-   re-runnable rather than hand-rebuilt — a drill that requires manually re-creating a version-8
-   surface runs approximately never, which the platform review already observed.
+6. ✅ **Skew containment is re-runnable.** `tools/skew-drill/run.sh` does the whole two-build
+   procedure -- install the client at version N, patch the surface and bump to N+1, rebuild only
+   the payload, read the rendered tree -- and restores the surface on every exit path including a
+   failure, because a permanently skewed surface is a permanently failing lock. Claims `A2`–`A4`
+   with a control and a report check; negative control turns `A4` red while `A3` stays green, which
+   is the useful part: the two rules are independent and the drill tells them apart.
+
+   Two things the automation had to learn, both recorded in the drill's README. Property tags are
+   append-only and the lock enforced it against the drill's own first patch. And `grep -q` inside
+   `set -o pipefail` reports a success as a failure -- it exits on the first match, `SIGPIPE`s its
+   feeder, and `pipefail` calls that a failed pipeline; the arrival check said "not yet" against a
+   file that plainly contained the marker, twice, before the pipe was removed altogether.
+
+   **Still open: `A2`–`A4` end-to-end on iOS and web.** Both now render through the same core, so
+   the shared tests cover the rules; what is missing is the two-build procedure on those clients,
+   which needs a skewed payload served to an already-installed binary.
 8. **Budgets, then gates.** Attach a budget to each numeric harness (leak soak, Phase 0,
    page weight) so it emits verdicts; then turn on gating tier by tier, in the order the drills
    soak clean (50 consecutive green runs each, per the leak-soak precedent).
