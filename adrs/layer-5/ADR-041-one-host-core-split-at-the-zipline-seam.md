@@ -116,14 +116,20 @@ JavaScript specifically, so a Wasm payload is a worse position there, not a bett
   the bytes are durable, which is the one property the file exists to provide. Where storage is
   unreachable — a private-browsing window, or a Worker — it degrades to in-memory rather than
   failing every write, because a browser refusing storage means exactly that.
-- **Web has no leak detection**, and this one is genuinely open. `redwood-leak-detector` publishes
-  no WebAssembly artifact, so the web host gets `DogwoodLeakWatcher.None`. Writing one is not a
-  port: the browser has `WeakRef` (verified), but Kotlin/Wasm objects live in the WebAssembly
-  garbage-collected heap and are not JavaScript values, so whether a Kotlin object's liveness can
-  be observed from JavaScript at all is an open question rather than an implementation task. A
-  leaked guest generation is as real in a tab as on a phone; carried in the roadmap's Phase 7
-  deferred list with that evidence attached.
-- **The fast web decoder remains worth its duplication.** Decoding is the larger half of the web
+- **Web leak detection exists, and the reason it was nearly deferred is worth keeping.** This ADR
+  first recorded it as blocked: `redwood-leak-detector` publishes no WebAssembly artifact, and
+  Kotlin/Wasm objects live in the WebAssembly garbage-collected heap rather than being JavaScript
+  values, so whether their liveness could be observed from JavaScript at all looked like an open
+  research question. It was not. `WeakRefBridgeProbeTest` answered it in one run:
+  `Subject().toJsReference()` handed to a `WeakRef` is collected and observed as collected. The
+  deferral rested on a property that had been reasoned about and never tried — the same mistake
+  `AGENTS.md` §1.5 now names, made in the paragraph next to the one that names it.
+  `BrowserLeakWatcher` is the result, thirty lines, with the two disciplines the probe exposed:
+  yield before asking, because a `WeakRef` keeps its target alive for the current job; and do not
+  hold the subject in an inlining caller's frame. What it genuinely cannot do is force a
+  collection — no browser offers one — so a report means "still reachable when asked, after the
+  threshold", and the threshold must outlast a plausible *collection* rather than a plausible leak.
+- **The fast web decoder remains worth its duplication.**- **The fast web decoder remains worth its duplication.** Decoding is the larger half of the web
   crossing (ADR-032), so `FastPositionalDecoder` stays even though core carries `decodePositional`.
   If that ratio ever inverts, the decoder is the next candidate for deletion.
 - **Zipline never publishing wasm artifacts.** If it someday did, `dogwood-host-zipline` could gain

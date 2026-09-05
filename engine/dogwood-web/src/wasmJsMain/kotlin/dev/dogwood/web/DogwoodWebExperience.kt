@@ -62,6 +62,7 @@ import dev.dogwood.host.LocalRenderTranscript
 import dev.dogwood.host.LayoutScope
 import dev.dogwood.host.HostTree
 import dev.dogwood.host.EventSink
+import dev.dogwood.host.DogwoodLeakWatcher
 
 /** The single content slot the root node exposes, matching the layout tier's containers. */
 private const val ROOT_CONTENT = 1
@@ -101,9 +102,17 @@ class DogwoodWebExperience(
    * "Compose Multiplatform drew" from "Compose Multiplatform drew the guest's tree".
    */
   private val transcript: RenderTranscript? = null,
+  /**
+   * Watches detached nodes, when a host asks for it.
+   *
+   * Off by default, like every other host: watching costs a weak reference per detached node and
+   * a timer, and a page that is not investigating a leak should not pay for one.
+   * `BrowserLeakWatcher` is what a page that *is* investigating passes here.
+   */
+  leakWatcher: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
 ) : WorkerBridgeListener {
 
-  val tree = HostTree()
+  val tree = HostTree(leakDetector = leakWatcher)
 
   private val decoder = FastPositionalDecoder()
 
