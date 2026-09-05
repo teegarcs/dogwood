@@ -1,5 +1,10 @@
 # The conformance plan: one capability list, four clients
 
+> **Status: the rollout is complete, 2026-09-05.** All nine steps are done, across pull requests
+> #21–#35. Every claim group has real-client evidence on the platforms it applies to; the matrix is
+> generated from real runs and gates in two places. What is carried rather than closed is listed at
+> the end of Part 6.
+
 ## Part 0 — Why this exists
 
 Every drill in `tools/` was built to answer a problem that had just bitten us, on the one client
@@ -351,7 +356,7 @@ format is cheap; discovering it was wrong across four implementations is not.
    real runs. It earned its keep immediately by catching a **stale committed result**: the saved
    Android file was from the negative-control run, and the generated table showed `D7` red for a
    client that passes. A hand-written matrix would have said whatever it last said.
-4. ◐ **Retrofit the drills to the grammar.** Done for the test suites, which was the large half:
+4. ✅ **Retrofit the drills to the grammar.** Done for the test suites, which was the large half:
    `from_tests.py` maps test classes onto claims and the matrix now covers groups A, B, C, E and F
    as well as D. Still outstanding: the leak soak, Phase 0 and page-weight harnesses, which produce
    numbers rather than verdicts and need a budget attached to each before they can emit `PASS`
@@ -376,7 +381,7 @@ format is cheap; discovering it was wrong across four implementations is not.
    the claims are inherited from the shared suite instead: one implementation, one set of tests,
    graded on four clients. The step that would have written a second test suite was made
    unnecessary by not having a second implementation.
-6. ✅ **Skew containment is re-runnable.** `tools/skew-drill/run.sh` does the whole two-build
+7. ✅ **Skew containment is re-runnable.** `tools/skew-drill/run.sh` does the whole two-build
    procedure -- install the client at version N, patch the surface and bump to N+1, rebuild only
    the payload, read the rendered tree -- and restores the surface on every exit path including a
    failure, because a permanently skewed surface is a permanently failing lock. Claims `A2`–`A4`
@@ -392,7 +397,7 @@ format is cheap; discovering it was wrong across four implementations is not.
    **Still open: `A2`–`A4` end-to-end on iOS and web.** Both now render through the same core, so
    the shared tests cover the rules; what is missing is the two-build procedure on those clients,
    which needs a skewed payload served to an already-installed binary.
-7. ✅ **Budgets for the numeric harnesses.** `budgets.tsv` is where the roadmap's thresholds stop
+8. ✅ **Budgets for the numeric harnesses.** `budgets.tsv` is where the roadmap's thresholds stop
    being prose: `from_phase0.py` reads the Phase 0 results and `from_web_weight.py` the page
    weight, and both emit verdicts. **The gate-validity rule is asymmetric, deliberately.** No host
    here is gate-valid — not the development machine, not the simulator, and not the Pixel 10 Pro
@@ -407,7 +412,7 @@ format is cheap; discovering it was wrong across four implementations is not.
    The leak soak is **not** a claim and is not given one. It measures whether the leak *evidence*
    is stable, which is a precondition for gating rather than a promise about the product; it
    belongs to step 8.
-8. **Gating, split by what each environment can honestly grade.**
+9. ✅ **Gating, split by what each environment can honestly grade.**
 
    **Tier S gates in continuous integration** (`.github/workflows/conformance.yml`): the build, the
    shared-code claims via `from_tests.py`, and the page-weight budget — the one performance number
@@ -426,3 +431,43 @@ into step 6 for web and deferred for mobile: `C1`, `C5`, `E1`–`E3` already car
 evidence on Android and iOS, so a device drill there verifies wiring rather than behaviour, and
 ranks below everything above.)*
 
+---
+
+## Part 7 — Carried forward, not closed
+
+Three things, each recorded where somebody will meet it rather than left to be rediscovered.
+
+- **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
+  the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
+  skewed payload served to an already-installed binary — on those two platforms. Android has it
+  (`tools/skew-drill`), and the shape is portable.
+- **The performance budgets cannot be closed by any host that exists.** `G1`–`G4` read `SKIP`
+  everywhere, correctly: the Phase 0 gate names a low-end 2022-tier Android device that this
+  project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
+  The grading is wired and asymmetric, so the first such device to run it closes or reopens the
+  gate without further work, and a regression on faster hardware still fails today.
+- **Tier C does not gate in continuous integration**, and cannot: it needs a booted simulator with
+  VoiceOver, an attached device, a browser with a graphics stack and the guest being served. It
+  gates locally and before a release. If this project ever acquires a device lab, the command to
+  point at it is `tools/conformance/run-all.sh` and nothing else changes.
+
+## Part 8 — What the rollout actually found
+
+Worth separating from the machinery, because the machinery is only justified by this.
+
+**Four defects, none of which any existing test could have caught:**
+
+- A text input reached VoiceOver with **no name at all**, on a screen that had authored the label,
+  crossed it over the wire, resolved it host-side and drawn it.
+- The same fix then made Android **announce the label twice** — Material 3 merges a text field's
+  label where iOS's does not. Visible only when two clients were graded on one claim.
+- A blocked redirect was an explicit refusal on Android and a **bare `302` with no `failure`** on
+  iOS, so a guest checking `failure != null` would read a blocked request as a successful one.
+- `HostTree.clear()` was missing from the mobile hosts entirely — they build a fresh tree per
+  experience and never met the bug the web host had already fixed.
+
+**And a recurring shape, now met a sixth time**: evidence that produced no evidence. The `shared`
+scope that filled twenty-one green cells for a client that does not compile the code under test.
+A `D4-reverse` check that passed *because* its subject had failed. A page-weight harness whose
+number nothing compared to a threshold. Each was found by asking a question the machinery was
+supposed to answer and looking at what came back.

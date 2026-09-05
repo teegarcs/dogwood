@@ -367,12 +367,18 @@ capability list found a real cross-client defect (Android announcing a text-fiel
 because Material 3 merges semantics differently per platform) and exposed that **web is graded on
 8 of 28 claims**.
 
-The active plan is [`plans/conformance.md`](plans/conformance.md) ([Layer 5
+**The conformance rollout is complete** ([`plans/conformance.md`](plans/conformance.md), [Layer 5
 ADR-040](adrs/layer-5/ADR-040-conformance-is-a-catalogue-not-a-suite.md)): one numbered claim
-catalogue, one text report grammar, per-client instruments, a generated matrix, and gates. Its
-remaining steps, in order: network-policy drills on the mobile clients (the one shipped defect was
-there); the earnable slice of web correctness; re-runnable skew containment on all three; budgets
-for the numeric harnesses, then gating.
+catalogue, one text report grammar, per-client instruments, a generated matrix, and gates in two
+places — tier S in continuous integration on every push, tier C locally and before a release
+through `tools/conformance/run-all.sh`. Every claim group now has real-client evidence on the
+platforms it applies to, and the matrix is generated from real runs rather than maintained by hand.
+
+It found four defects no existing test could have caught, and each was a cross-client question:
+a text input reaching VoiceOver with no name, the fix for it making Android announce the label
+twice, a blocked redirect that refused explicitly on Android and returned a bare `302` on iOS, and
+a missing `HostTree.clear()` the mobile hosts had never needed because they build a fresh tree per
+experience.
 
 **Web parity is the build-out this phase ends with**, and the deciding question is decided:
 **split `dogwood-host` at the Zipline seam** ([Layer 5
