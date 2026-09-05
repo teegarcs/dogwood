@@ -85,6 +85,14 @@ kotlin {
       }
     }
 
+    // Runs in headless Chrome, which is the only place `localStorage` exists -- the durable
+    // saved-state file system cannot be verified anywhere else.
+    val wasmJsTest by getting {
+      dependencies {
+        implementation(kotlin("test"))
+      }
+    }
+
     jvmMain.get().dependsOn(jvmAndroidMain)
     androidMain.get().dependsOn(jvmAndroidMain)
     iosMain.get().dependsOn(ziplineMain)

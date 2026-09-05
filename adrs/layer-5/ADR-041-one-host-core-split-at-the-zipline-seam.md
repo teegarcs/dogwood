@@ -106,15 +106,21 @@ JavaScript specifically, so a Wasm payload is a worse position there, not a bett
 - **Kotlin/Wasm toolchain friction lands on this path.** The klib checker crash already lives
   here; the split roughly doubles the wasm-compiled surface. Accepted, with the workaround
   documented in `engine/gradle.properties`.
-- **Web state persistence is in-memory until step 2 finishes.** Okio publishes no browser-backed
-  `FileSystem`, so `platformFileSystem()` on `wasmJs` returns a fake one: writes are accepted and
-  lost when the tab closes. In-memory rather than throwing, because `DogwoodStateStore` is
-  constructed on paths a host may never write to. The honest signal is that conformance claims
-  `E1` and `E2` stay red for web until a `localStorage` or Origin Private File System
-  implementation lands — which is what the matrix is for.
-- **Web has no leak detection.** `redwood-leak-detector` publishes no WebAssembly artifact, so the
-  web host gets `DogwoodLeakWatcher.None`. A leaked guest generation is as real in a tab as on a
-  phone; this is a gap, named rather than papered over.
+- **Web state persistence is durable, on `localStorage`.** Okio publishes no browser-backed
+  `FileSystem`, so `BrowserFileSystem` is one — the five operations a saved-state store performs,
+  with the rest refused by name rather than approximated. The Origin Private File System is the
+  better fit on paper and was rejected for a concrete reason: its interface is asynchronous and
+  Okio's is not, so bridging it needs a write-behind cache that would let `write` return before
+  the bytes are durable, which is the one property the file exists to provide. Where storage is
+  unreachable — a private-browsing window, or a Worker — it degrades to in-memory rather than
+  failing every write, because a browser refusing storage means exactly that.
+- **Web has no leak detection**, and this one is genuinely open. `redwood-leak-detector` publishes
+  no WebAssembly artifact, so the web host gets `DogwoodLeakWatcher.None`. Writing one is not a
+  port: the browser has `WeakRef` (verified), but Kotlin/Wasm objects live in the WebAssembly
+  garbage-collected heap and are not JavaScript values, so whether a Kotlin object's liveness can
+  be observed from JavaScript at all is an open question rather than an implementation task. A
+  leaked guest generation is as real in a tab as on a phone; carried in the roadmap's Phase 7
+  deferred list with that evidence attached.
 - **The fast web decoder remains worth its duplication.** Decoding is the larger half of the web
   crossing (ADR-032), so `FastPositionalDecoder` stays even though core carries `decodePositional`.
   If that ratio ever inverts, the decoder is the next candidate for deletion.

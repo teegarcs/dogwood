@@ -386,10 +386,10 @@ design-system bindings compiled for `wasmJs` unmodified. The work, in order:
    core with the Redwood implementation in the Zipline layer. The `Intl`-backed `Format` actuals
    landed with it. Verified: 484 tests green, full build green, and the seam is enforced by
    compilation — a `ZiplineService` reference added to a core file fails the `wasmJs` build.
-2. **The web actuals.** `Format` over the browser's ECMA-402 `Intl` (an upgrade — QuickJS has no
-   `Intl`; the browser does), a browser-storage `FileSystem` for `StateStore`, `ThreadIdentity`.
-   Gate: the shared-suite claims (`C1`–`C5`, `D6`, `E1`–`E3`) turn green in the web column of the
-   conformance matrix.
+2. ✅ **The web actuals.** `Format` over the browser's ECMA-402 `Intl` (an upgrade — QuickJS has
+   no `Intl`; the browser does), `ThreadIdentity`, and `BrowserFileSystem`, an Okio file system
+   over `localStorage` so saved state survives a tab close. Verified in headless Chrome: 10 tests,
+   and the negative control — reverting to the in-memory file system — turns 5 of them red.
 3. **`dogwood-web` consumes core.** `WebTree` and `WebBindings` deleted; the Worker bridge, sidecar
    loader and fast decoder stay. Gate: the web slice renders pixel-for-pixel, `run-web.sh` green,
    page weight within the measured Material 3 delta (~0.15 MB compressed against a transfer-bound
@@ -412,6 +412,11 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
   subsystem 4, ◐).
 - **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
   rather than the scheduler (Phase 0 appendix).
+- **Leak detection for the web host.** `redwood-leak-detector` publishes no WebAssembly artifact.
+  Not a port: the browser has `WeakRef` (verified 2026-09-05), but Kotlin/Wasm objects live in the
+  WebAssembly garbage-collected heap and are not JavaScript values, so whether a Kotlin object's
+  liveness is observable from JavaScript at all is the question to answer first
+  ([ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) §4).
 
 **Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
 yes (parallel track); the Phase 0 gate device, not acquired by decision

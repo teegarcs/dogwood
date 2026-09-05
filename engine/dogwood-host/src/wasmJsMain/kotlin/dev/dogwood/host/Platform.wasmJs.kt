@@ -33,16 +33,17 @@ actual class ThreadIdentity {
 internal actual fun excludeFromBackup(path: Path) {}
 
 /**
- * **Not persistent yet, and it must not pretend to be.**
+ * Saved state, in browser storage, durable across a tab close.
  *
- * Okio publishes no browser-backed `FileSystem`, so persisting saved state on the web needs an
- * Okio `FileSystem` over `localStorage` or the Origin Private File System -- real work, and the
- * remaining half of ADR-041's step 2. Until it exists this is an in-memory file system: a store
- * built on it accepts writes and loses them when the tab closes.
+ * `BrowserFileSystem` is a small Okio file system over `localStorage`; see that file for why it is
+ * `localStorage` rather than the Origin Private File System (Okio's interface is synchronous and
+ * the Origin Private File System's is not, and a write-behind cache would defeat the one property
+ * this exists to provide).
  *
- * In memory rather than throwing, because `DogwoodStateStore` is constructed on paths a host may
- * never write to, and a constructor that throws would take down a screen that was not going to
- * save anything. The honest signal is that the conformance claims `E1` and `E2` stay red for web
- * until a durable implementation lands -- which is exactly what the matrix is for.
+ * Where storage is unreachable -- a private-browsing window that blocks it, or a Worker, which has
+ * no `localStorage` at all -- this degrades to an in-memory file system rather than failing every
+ * write. A host in that situation gets a store that accepts writes and loses them, which is what a
+ * browser refusing storage means; the alternative is a screen that will not open.
  */
-internal actual fun platformFileSystem(): FileSystem = FakeFileSystem()
+internal actual fun platformFileSystem(): FileSystem =
+  if (browserStorageAvailable()) BrowserFileSystem() else FakeFileSystem()
