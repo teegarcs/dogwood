@@ -182,7 +182,7 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-04:
+Last generated 2026-09-05:
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -192,27 +192,27 @@ Last generated 2026-09-04:
 | D5 | ✅ | n/a | ✅ | ✅ |
 | D4 | ✅ | n/a | ✅ | ✅ |
 | D7 | ✅ | n/a | ✅ | · |
+| D6 | ✅ | ✅ | ✅ | ✅ |
 | A1 | ✅ | ✅ | ✅ | ✅ |
-| A2 | ✅ | ✅ | ✅ | — |
-| A3 | ✅ | ✅ | ✅ | — |
-| A4 | ✅ | ✅ | ✅ | — |
-| A5 | ✅ | ✅ | ✅ | — |
+| A2 | ✅ | ✅ | ✅ | ✅ |
+| A3 | ✅ | ✅ | ✅ | ✅ |
+| A4 | ✅ | ✅ | ✅ | ✅ |
+| A5 | ✅ | ✅ | ✅ | ✅ |
 | A6 | ✅ | ✅ | ✅ | ✅ |
-| A7 | ✅ | ✅ | ✅ | — |
-| B1 | ✅ | ✅ | ✅ | — |
-| B2 | ✅ | ✅ | ✅ | — |
-| C1 | ✅ | ✅ | ✅ | — |
-| C2 | ✅ | ✅ | ✅ | — |
-| C3 | ✅ | ✅ | ✅ | — |
-| C4 | ✅ | ✅ | ✅ | — |
-| C5 | ✅ | ✅ | ✅ | — |
-| D6 | ✅ | ✅ | ✅ | — |
-| E1 | ✅ | ✅ | ✅ | — |
-| E2 | ✅ | ✅ | ✅ | — |
-| E3 | ✅ | ✅ | ✅ | — |
-| F1 | ✅ | ✅ | ✅ | n/a |
-| F2 | ✅ | ✅ | ✅ | n/a |
-| F3 | ✅ | ✅ | ✅ | n/a |
+| A7 | ✅ | ✅ | ✅ | ✅ |
+| B1 | ✅ | ✅ | ✅ | ✅ |
+| B2 | ✅ | ✅ | ✅ | ✅ |
+| C1 | ✅ | ✅ | ✅ | ✅ |
+| C2 | ✅ | ✅ | ✅ | ✅ |
+| C3 | ✅ | ✅ | ✅ | ✅ |
+| C4 | ✅ | ✅ | ✅ | ✅ |
+| C5 | ✅ | ✅ | ✅ | ✅ |
+| E1 | ✅ | ✅ | ✅ | ✅ |
+| E2 | ✅ | ✅ | ✅ | ✅ |
+| E3 | ✅ | ✅ | ✅ | ✅ |
+| F1 | ✅ | ✅ | ✅ | ✅ |
+| F2 | ✅ | ✅ | ✅ | ✅ |
+| F3 | ✅ | ✅ | ✅ | ✅ |
 | E4 | n/a | n/a | ✅ | n/a |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
@@ -227,7 +227,7 @@ Last generated 2026-09-04:
 - **android**: pass 30
 - **desktop**: pass 21
 - **ios**: pass 33
-- **web**: pass 8, skip 1
+- **web**: pass 27, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -239,21 +239,13 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
 
 **The three worst gaps, and they remain the plan's priorities:**
 
-1. **Web is graded on 8 claims of 28 — but that number is three different kinds of gap**, and
-   they route to three different places:
-   - **Earnable now (~6 claims):** `A2`–`A5`, `A7` are properties of `WebTree` and the web
-     bindings, testable today the way `A1` already is. `B4` (last-known-good serving) is a
-     property of `WebDelivery`. This is conformance work and stays in this plan.
-   - **Exempt with a reason (~4 claims):** `B1`/`B2` — the web profile has no Ed25519 manifest
-     signing *by recorded design* (ADR-032: HTTPS plus Content Security Policy, explicitly weaker).
-     These move to `exempt.tsv`, where the decision is visible, rather than sitting as gaps.
-   - **Blocked on design-system parity (~10 claims):** all of group C, `D6`, `E1`–`E3` need a
-     design system, a state store, and host resolution that the web host simply does not have.
-     That is not a conformance retrofit — it is the **web parity build-out** (roadmap Phase 7),
-     now decided and sequenced:
-     [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) splits
-     `dogwood-host` at the Zipline seam so these claims are inherited from the shared suite rather
-     than earned twice. Its step-2 gate *is* these cells turning green.
+1. ~~Web is graded on 8 claims of 28.~~ ✅ **Closed by
+   [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md): web is graded on
+   27.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
+   inherited rather than earned one at a time, because `dogwood-web` now renders through
+   `dogwood-host`'s core instead of a copy of it; the exempt ones are in `exempt.tsv` with ADR-032
+   as the reason; and the ones called "blocked on parity" were exactly the ones the split
+   unblocked. `WebTree` and `WebBindings` are deleted — 627 lines of second implementation.
 2. ~~Accessibility exists on one client of three that need it.~~ ✅ Closed: all three shipping
    clients now assert `D1`–`D5`, and `D7` on the two that have a disabled control on screen.
 3. **Nothing outside a unit test has ever checked network policy on a real client.** `F1`, `F2` and
@@ -355,10 +347,11 @@ format is cheap; discovering it was wrong across four implementations is not.
    number deliberately: the one policy defect this project ever shipped — `file://` served from
    the application's own container — was in exactly this area, found by reading code, and no unit
    test would have caught it. A real defect class outranks a bigger count of missing cells.
-6. **Web correctness evidence** — the earnable slice of the web gap. `A2`–`A5`, `A7` against
-   `WebTree` and the web bindings; `B4` against `WebDelivery`; `B1`/`B2` into `exempt.tsv` with
-   ADR-032 as the reason. Target: web graded on every claim that does not require the parity
-   build-out, with the remainder visibly routed to Phase 7 rather than lingering as `—`.
+6. ✅ **Web correctness evidence — done, and not the way this step expected.** It planned to write
+   web-specific tests against `WebTree` and the web bindings. The parity build-out deleted both, so
+   the claims are inherited from the shared suite instead: one implementation, one set of tests,
+   graded on four clients. The step that would have written a second test suite was made
+   unnecessary by not having a second implementation.
 7. **Skew containment on iOS and web** (`A2`–`A4` end-to-end), and make the Android drill
    re-runnable rather than hand-rebuilt — a drill that requires manually re-creating a version-8
    surface runs approximately never, which the platform review already observed.

@@ -7,14 +7,13 @@
  *
  * The design is [Layer 5 ADR-032](../../adrs/layer-5/ADR-032-the-web-profile.md).
  *
- * **Why this is not `dogwood-host`.** `dogwood-host` declares `api(libs.zipline)` and
- * `api(libs.zipline.loader)` in its common source set, and Zipline publishes for the Java Virtual
- * Machine, Android and JavaScript -- not for WebAssembly. It also has an `androidTarget`, an
- * `okhttp` dependency and a generated design-system dictionary behind a Java-Virtual-Machine
- * code generator. None of that can be linked into a `wasmJs` compilation as the module stands, so
- * the web host depends on `:dogwood-wire` -- the transport-free protocol -- and rebuilds the small
- * part of the host it actually needs. See this module's README section in the report for what
- * reusing `dogwood-host` properly would take.
+ * **This module used to rebuild the host.** `dogwood-host` declared `api(libs.zipline)` in its
+ * common source set and Zipline publishes nothing for WebAssembly, so the web host kept its own
+ * tree, its own dictionary and its own bindings -- and inherited none of the evidence that the
+ * mobile host's were correct. Layer 5 ADR-041 split `dogwood-host` at the Zipline seam instead;
+ * its core compiles here, and what remains in this module is only what is genuinely web-shaped:
+ * the `postMessage` bridge, the sidecar loader, and the hand-tuned decoder that earns its keep
+ * because decoding is the larger half of this platform's crossing.
  */
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
@@ -40,7 +39,11 @@ kotlin {
 
     val wasmJsMain by getting {
       dependencies {
-        api(project(":dogwood-wire"))
+        // Layer 5 ADR-041: the host core, not a second copy of it. `dogwood-host`'s common
+        // source set is transport-free and compiles for WebAssembly, so this module gets the one
+        // tree, the one dictionary and the one set of bindings that every other client renders
+        // through -- and brings `dogwood-wire` with it.
+        api(project(":dogwood-host"))
         api(compose.runtime)
         api(compose.foundation)
         api(compose.ui)

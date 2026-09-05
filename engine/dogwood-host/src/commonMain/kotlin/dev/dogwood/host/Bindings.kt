@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onSizeChanged
 import coil3.compose.AsyncImage
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.Segments
@@ -129,6 +130,25 @@ object DogwoodDictionary {
 
   fun knows(tag: WidgetTag): Boolean = tag.value in known
 
+  /**
+   * A readable name for a tag, for diagnostics only.
+   *
+   * Never used to decide anything -- dispatch is on the tag. It exists so a tree dump reads as a
+   * screen rather than as a column of integers, which is what makes `HostTree.describe` worth
+   * having in a drill's output.
+   */
+  fun name(tag: WidgetTag): String = when (tag.value) {
+    0 -> "Root"
+    Text.value -> "Text"
+    Column.value -> "Column"
+    Row.value -> "Row"
+    Box.value -> "Box"
+    Spacer.value -> "Spacer"
+    VerticalList.value -> "VerticalList"
+    HorizontalList.value -> "HorizontalList"
+    else -> if (knows(tag)) "Widget#${tag.value}" else "Unknown#${tag.value}"
+  }
+
   /** Per-segment versions, handed to the guest so it can branch on client capability. */
   val segmentVersions: Map<String, Int> = mapOf(
     // Both dictionary segments come from the generated vector in `dogwood-wire`, so a host that
@@ -156,6 +176,8 @@ object DogwoodDictionary {
 @Composable
 fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
   LocalRenderCounter.current?.record()
+  val transcript = LocalRenderTranscript.current
+  transcript?.record(node, DogwoodDictionary.name(node.tag))
   // The registered segment is dispatched by generated code. Nine of the eleven components in it
   // are bound without a line of hand-written dispatch; what remains below is the layout tier and
   // the two lazy containers the generator does not yet model.
@@ -174,9 +196,19 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
       } else {
         node.string(P1)
       }
+      // What this node is actually about to draw, which `RenderNode` could not know before
+      // dispatching: the string may have come from a host-resolved recipe rather than a property.
+      transcript?.detail(node, "\"$text\"")
       Text(
         text = text,
-        modifier = modifier,
+        // The measured box is recorded only while a transcript is installed, so an ordinary host
+        // adds no layout modifier at all. It is the evidence that glyphs were measured rather
+        // than that a binding merely ran.
+        modifier = if (transcript == null) {
+          modifier
+        } else {
+          modifier.onSizeChanged { transcript.recordSize(node, it.width, it.height) }
+        },
         // Compose throws below 1 rather than clamping, and the throw is inside composition.
         maxLines = node.intClamped(P2, Int.MAX_VALUE, min = 1, what = "Text.maxLines"),
         overflow = TextOverflow.Ellipsis,
