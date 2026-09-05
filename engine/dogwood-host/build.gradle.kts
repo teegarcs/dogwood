@@ -26,6 +26,12 @@ kotlin {
   iosArm64()
   iosSimulatorArm64()
   iosX64()
+  // Layer 5 ADR-041. The browser is not a Zipline target and never will be -- the web guest is
+  // JavaScript in a Worker -- but everything this module does *after* a batch arrives is portable,
+  // and the web host had been reimplementing it. Adding the target is what makes `commonMain`
+  // transport-free by compilation rather than by intention.
+  @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+  wasmJs { browser() }
 
   applyDefaultHierarchyTemplate()
 
@@ -33,8 +39,31 @@ kotlin {
     // The two Java-Virtual-Machine host targets share an implementation of everything that needs
     // a Java Virtual Machine: thread identity, `java.text` formatting, and OkHttp. iOS supplies
     // its own actuals in `iosMain` rather than inheriting these.
-    val jvmAndroidMain by creating {
+    /*
+     * The Zipline layer (Layer 5 ADR-041).
+     *
+     * Delivery, the experience, the Zipline-backed service host, the session and the shell -- and
+     * the leak detector, whose Redwood dependency publishes no WebAssembly artifact. Everything
+     * that names a Zipline type lives here and nowhere else.
+     *
+     * The seam is enforced by compilation, not by review: `commonMain` has no Zipline dependency,
+     * so anything reaching for one fails the `wasmJs` build immediately.
+     */
+    val ziplineMain by creating {
       dependsOn(commonMain.get())
+      dependencies {
+        api(project(":dogwood-protocol"))
+        api(libs.zipline)
+        api(libs.zipline.loader)
+        // `implementation`, not `api`: Redwood marks its LeakDetector "for Redwood internal use
+        // only", and this module's own `DogwoodLeakWatcher` is what callers see. It also
+        // publishes no WebAssembly artifact, which is the second reason it is down here.
+        implementation(libs.redwood.leak.detector)
+      }
+    }
+
+    val jvmAndroidMain by creating {
+      dependsOn(ziplineMain)
       dependencies {
         // ZiplineLoader's Java-Virtual-Machine bindings take an OkHttp client and an Okio file
         // system; both are host-side concerns the guest never sees.
@@ -47,17 +76,28 @@ kotlin {
       }
     }
 
+    // The in-memory file system standing in for browser storage until ADR-041 step 2 finishes.
+    // A test dependency in Okio's naming, a production one here, and the comment on
+    // `platformFileSystem` says why that is temporary.
+    val wasmJsMain by getting {
+      dependencies {
+        implementation("com.squareup.okio:okio-fakefilesystem:3.17.0")
+      }
+    }
+
     jvmMain.get().dependsOn(jvmAndroidMain)
     androidMain.get().dependsOn(jvmAndroidMain)
+    iosMain.get().dependsOn(ziplineMain)
 
     // Generated host bindings. Not committed; regenerated from the surface on every build.
     commonMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/host"))
 
     commonMain {
       dependencies {
-        api(project(":dogwood-protocol"))
-        api(libs.zipline)
-        api(libs.zipline.loader)
+        // `dogwood-wire`, not `dogwood-protocol`: the protocol module declares Zipline services
+        // and cannot compile for WebAssembly. What the core needs is the grammar, which is
+        // transport-free by construction. Layer 5 ADR-041.
+        api(project(":dogwood-wire"))
         // One binding implementation reaches Android, desktop, Web and iOS, which is the whole
         // reason the host renders through Compose Multiplatform rather than native widgets.
         api(compose.runtime)
@@ -67,10 +107,6 @@ kotlin {
         api(compose.ui)
         implementation(libs.coroutines.core)
         implementation(libs.okio)
-        // `implementation`, not `api`: Redwood marks its LeakDetector "for Redwood internal use
-        // only", so it stays behind `DogwoodLeakWatcher` and never reaches a consumer's compile
-        // classpath. See Leaks.kt.
-        implementation(libs.redwood.leak.detector)
         api(libs.coil.compose)
       }
     }

@@ -23,12 +23,24 @@ host's code for the browser?
 
 ## 2. Decision
 
-**Split `dogwood-host` at the Zipline seam.** A transport-free `dogwood-host-core` — the tree, the
-bindings, modifiers, expressions, theme, plurals, state store, skew report, the shell — gains a
-`wasmJs` target and becomes the one implementation everywhere. A `dogwood-host-zipline` layer on
-top keeps `Delivery`, `Experience`, and the Zipline-backed service plumbing, for the platforms
-Zipline serves. `dogwood-web` keeps what is genuinely web-shaped — the Worker bridge, the sidecar
-loader, the hand-tuned decoder — and deletes `WebTree` and `WebBindings` in favour of core.
+**Split `dogwood-host` at the Zipline seam.** A transport-free core — the tree, the bindings,
+modifiers, expressions, theme, plurals, state store, skew report, the warm pool — gains a `wasmJs`
+target and becomes the one implementation everywhere. A Zipline layer on top keeps `Delivery`,
+`Experience`, the Zipline-backed service host, the session, the shell and the leak detector, for
+the platforms Zipline serves. `dogwood-web` keeps what is genuinely web-shaped — the Worker bridge,
+the sidecar loader, the hand-tuned decoder — and deletes `WebTree` and `WebBindings` in favour of
+core.
+
+**The split is a source-set boundary inside `dogwood-host`, not two Gradle modules.** This ADR was
+written naming `dogwood-host-core` and `dogwood-host-zipline`; building it showed the module
+boundary bought nothing the source-set boundary does not. A `ziplineMain` source set that
+`jvmAndroidMain` and `iosMain` depend on gives the same seam with **no consumer changes, no package
+moves and no new coordinates** — the module already used exactly this shape for `jvmAndroidMain`.
+Enforcement is identical and better than review: `commonMain` has no Zipline dependency, so
+anything reaching for one fails the `wasmJs` compilation immediately. That was checked by adding a
+`ZiplineService` reference to a core file, watching `Unresolved reference 'app'`, and reverting.
+Kotlin Multiplatform resolves per target, so a `wasmJs` consumer of `dogwood-host` links the core
+variant and never sees the Zipline layer.
 
 This is **not** "move the host onto Wasm". The web guest keeps running as JavaScript in a Web
 Worker; Zipline is not ported; no mobile client changes execution substrate. It is Kotlin
@@ -94,6 +106,15 @@ JavaScript specifically, so a Wasm payload is a worse position there, not a bett
 - **Kotlin/Wasm toolchain friction lands on this path.** The klib checker crash already lives
   here; the split roughly doubles the wasm-compiled surface. Accepted, with the workaround
   documented in `engine/gradle.properties`.
+- **Web state persistence is in-memory until step 2 finishes.** Okio publishes no browser-backed
+  `FileSystem`, so `platformFileSystem()` on `wasmJs` returns a fake one: writes are accepted and
+  lost when the tab closes. In-memory rather than throwing, because `DogwoodStateStore` is
+  constructed on paths a host may never write to. The honest signal is that conformance claims
+  `E1` and `E2` stay red for web until a `localStorage` or Origin Private File System
+  implementation lands — which is what the matrix is for.
+- **Web has no leak detection.** `redwood-leak-detector` publishes no WebAssembly artifact, so the
+  web host gets `DogwoodLeakWatcher.None`. A leaked guest generation is as real in a tab as on a
+  phone; this is a gap, named rather than papered over.
 - **The fast web decoder remains worth its duplication.** Decoding is the larger half of the web
   crossing (ADR-032), so `FastPositionalDecoder` stays even though core carries `decodePositional`.
   If that ratio ever inverts, the decoder is the next candidate for deletion.

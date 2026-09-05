@@ -20,19 +20,17 @@
  *      it an entire QuickJS heap with a whole composition in it. Leak a generation per publish and
  *      a long-lived screen accumulates interpreters.
  *
+ * **This file is the interface only.** The implementation is `Leaks.zipline.kt`, one layer down,
+ * because `redwood-leak-detector` publishes no WebAssembly artifact and the host core compiles for
+ * the browser (Layer 5 ADR-041). Nothing in the core references the implementation -- the tree
+ * takes a `DogwoodLeakWatcher` and calls `watch`, which is the whole contract.
+ *
  * The guest's own heap is deliberately **not** watched. Its retention hazard -- an event closure
  * outliving the node that registered it -- is structural rather than collectible, and a test that
  * counts `lambdaSlotCount` after a removal is a deterministic assertion where a garbage-collection
  * probe would be a flaky one. That test already exists.
  */
 package dev.dogwood.host
-
-import app.cash.redwood.leaks.LeakDetector
-import app.cash.redwood.leaks.RedwoodLeakApi
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeSource
-import kotlinx.coroutines.CoroutineScope
 
 /**
  * Where Dogwood hands a reference it expects to become unreachable.
@@ -51,62 +49,3 @@ fun interface DogwoodLeakWatcher {
     val None: DogwoodLeakWatcher = DogwoodLeakWatcher { _, _ -> }
   }
 }
-
-/**
- * A running leak detector.
- *
- * @see dogwoodLeakDetector
- */
-class DogwoodLeakDetector @OptIn(RedwoodLeakApi::class) internal constructor(
-  private val delegate: LeakDetector,
-) : DogwoodLeakWatcher, AutoCloseable {
-
-  @OptIn(RedwoodLeakApi::class)
-  override fun watch(reference: Any, note: String) {
-    delegate.watchReference(reference, note)
-  }
-
-  /**
-   * Stops accepting new references and suspends until every watched one has either been collected
-   * or reported.
-   *
-   * For a test that wants a verdict rather than a background report. In an application, prefer
-   * [close] and let the callback do its work.
-   */
-  @OptIn(RedwoodLeakApi::class)
-  suspend fun awaitAllSettled() {
-    delegate.awaitClose()
-  }
-
-  @OptIn(RedwoodLeakApi::class)
-  override fun close() {
-    delegate.close()
-  }
-}
-
-/**
- * A leak detector for a Dogwood host, reporting through [onLeak].
- *
- * @param scope the detector's own scope. It runs a periodic collection while references are being
- *   watched, so this should be a scope that ends with the host surface rather than a global one.
- * @param leakThreshold how long a watched reference may survive before it is called a leak. The
- *   default is generous on purpose: a reference merely waiting for the next collection is not a
- *   leak, and a detector that cries wolf gets switched off.
- * @param onLeak called with the surviving reference and the note it was watched under. Report it;
- *   do not throw. A leak is a defect to fix in the next build, not a reason to take the screen
- *   down in this one.
- */
-@OptIn(RedwoodLeakApi::class)
-fun dogwoodLeakDetector(
-  scope: CoroutineScope,
-  leakThreshold: Duration = 10.seconds,
-  timeSource: TimeSource = TimeSource.Monotonic,
-  onLeak: (reference: Any, note: String) -> Unit,
-): DogwoodLeakDetector = DogwoodLeakDetector(
-  LeakDetector.timeBasedIn(
-    scope = scope,
-    timeSource = timeSource,
-    leakThreshold = leakThreshold,
-    callback = LeakDetector.Callback(onLeak),
-  ),
-)
