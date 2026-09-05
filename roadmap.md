@@ -374,12 +374,29 @@ remaining steps, in order: network-policy drills on the mobile clients (the one 
 there); the earnable slice of web correctness; re-runnable skew containment on all three; budgets
 for the numeric harnesses, then gating.
 
-**Web parity is the build-out this phase ends with**, per the standing decision that design-system
-parity on web is committed. Roughly: the design-system segment compiled for the web host, a web
-`SkewReport` analogue (`WireSkew` in `dogwood-wire`), state persistence, and host resolution —
-after which the ~10 web claims blocked on parity become earnable. Whether that lands as extending
-`dogwood-web` or as moving `dogwood-host` onto Kotlin/Wasm is the deciding question, and it gets an
-ADR before code.
+**Web parity is the build-out this phase ends with**, and the deciding question is decided:
+**split `dogwood-host` at the Zipline seam** ([Layer 5
+ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md)), measured by spike —
+only 2 of 26 common files import Zipline, and everything else including the generated
+design-system bindings compiled for `wasmJs` unmodified. The work, in order:
+
+1. **The module split.** `dogwood-host-core` (transport-free, +`wasmJs`) under
+   `dogwood-host-zipline`; the two stranded service constants move to `dogwood-wire`; the
+   `DogwoodLeakWatcher` interface moves to core with the Redwood implementation staying platform-side.
+   Gate: every existing test green, both mobile samples byte-identical in behaviour, page-weight
+   harness run on the web slice.
+2. **The web actuals.** `Format` over the browser's ECMA-402 `Intl` (an upgrade — QuickJS has no
+   `Intl`; the browser does), a browser-storage `FileSystem` for `StateStore`, `ThreadIdentity`.
+   Gate: the shared-suite claims (`C1`–`C5`, `D6`, `E1`–`E3`) turn green in the web column of the
+   conformance matrix.
+3. **`dogwood-web` consumes core.** `WebTree` and `WebBindings` deleted; the Worker bridge, sidecar
+   loader and fast decoder stay. Gate: the web slice renders pixel-for-pixel, `run-web.sh` green,
+   page weight within the measured Material 3 delta (~0.15 MB compressed against a transfer-bound
+   3 MiB page).
+
+This does **not** reopen the mobile substrate decision ([Layer 4
+ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *source*, not shared
+*runtime*. ADR-041 records the boundary and why Wasm is also no hedge against the Apple risk.
 
 **Deferred engineering, carried here from the records that deferred it:**
 

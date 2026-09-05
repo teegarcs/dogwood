@@ -3,6 +3,12 @@
 **Date:** 2026-09-02
 **Status:** Accepted
 
+> **Partially superseded (2026-09-05):** the "rebuild the small part of the host" economy below
+> assumed web stayed layout-only. With design-system parity committed, that assumption inverted,
+> and [ADR-041](ADR-041-one-host-core-split-at-the-zipline-seam.md) splits `dogwood-host` at the
+> Zipline seam instead. The Worker bridge, sidecar loader, isolation model and fast decoder here
+> all stand.
+
 ## 1. Context & Problem Statement
 
 Web is the second shipping target, and it is the first one where the substrate underneath Dogwood

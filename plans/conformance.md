@@ -249,8 +249,11 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
      These move to `exempt.tsv`, where the decision is visible, rather than sitting as gaps.
    - **Blocked on design-system parity (~10 claims):** all of group C, `D6`, `E1`–`E3` need a
      design system, a state store, and host resolution that the web host simply does not have.
-     That is not a conformance retrofit — it is the **web parity phase** (roadmap Phase 7), and
-     listing it here as test debt would misstate a build-out as a verification gap.
+     That is not a conformance retrofit — it is the **web parity build-out** (roadmap Phase 7),
+     now decided and sequenced:
+     [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) splits
+     `dogwood-host` at the Zipline seam so these claims are inherited from the shared suite rather
+     than earned twice. Its step-2 gate *is* these cells turning green.
 2. ~~Accessibility exists on one client of three that need it.~~ ✅ Closed: all three shipping
    clients now assert `D1`–`D5`, and `D7` on the two that have a disabled control on screen.
 3. **Nothing outside a unit test has ever checked network policy on a real client.** `F1`, `F2` and
