@@ -293,9 +293,28 @@ internal class PolicedSessionDelegate(
   ) {
     val next = newRequest.URL
     if (next == null || !allow(next)) {
-      // Refusing to follow rather than failing the task: the 3xx itself is a perfectly ordinary
-      // response for a guest to see, and a refusal that looked like a transport error would be
-      // indistinguishable from the server being down.
+      /*
+       * Refused, in the same shape the Java Virtual Machine host refuses -- and this used to
+       * differ.
+       *
+       * It previously declined to follow and let the 3xx surface as the response, reasoning that
+       * "the 3xx itself is a perfectly ordinary response for a guest to see". It is not. This host
+       * follows redirects on the guest's behalf, so a 3xx never reaches a guest through any other
+       * path: its only meaning is "policy stopped a hop", and delivering it as an ordinary
+       * response with no `failure` means a guest checking for one reads a blocked request as a
+       * successful one.
+       *
+       * The conformance drill found this by asking the same claim of both hosts and getting two
+       * answers (`F2`). The other half of the old reasoning still stands and is honoured: a
+       * refusal must not look like a transport error, which is why this is a `failure` string
+       * naming the policy rather than an `NSError`.
+       */
+      settle(
+        HttpResponse(
+          code = 0,
+          failure = "this client does not allow requests to ${next?.host ?: newRequest.URL}",
+        ),
+      )
       completionHandler(null)
       return
     }

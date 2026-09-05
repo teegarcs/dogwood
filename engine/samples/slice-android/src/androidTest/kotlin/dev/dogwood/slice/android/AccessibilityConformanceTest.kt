@@ -339,7 +339,6 @@ class AccessibilityConformanceTest {
       conform("D7", !disabled.isEnabled, "\"Unavailable\" enabled=${disabled.isEnabled}")
     }
 
-    emit("CONF RESULT client=android passed=$passed failed=$failed skipped=$skipped")
     assertEquals("failed conformance claims", 0, failed)
   }
 
