@@ -74,6 +74,28 @@ CONF_OUT="${CONF_OUT:-$HERE/../conformance/build/ios.conf}"
 mkdir -p "$(dirname "$CONF_OUT")"
 tr -d '\r' < "$LOG" | grep -E "^CONF " > "$CONF_OUT" || true
 
+# The network-policy claims come from an instrumented Gradle test rather than from the in-application
+# drill, and they need the witness server. Appended to the same client file so the aggregator still
+# reads one run per client.
+if command -v python3 >/dev/null; then
+  python3 "$HERE/../conformance/policy-server.py" "${POLICY_PORT:-8123}" >/dev/null 2>&1 &
+  witness=$!
+  sleep 1
+  ./gradlew :dogwood-host:iosSimulatorArm64Test --console=plain >/dev/null 2>&1 || true
+  kill "$witness" 2>/dev/null || true
+  python3 - "$CONF_OUT" <<'EXTRACT'
+import glob, html, re, sys
+out = sys.argv[1]
+claims = []
+for path in glob.glob("dogwood-host/build/test-results/iosSimulatorArm64Test/*NetworkPolicy*.xml"):
+    text = html.unescape(open(path).read())
+    claims += [m.group(0) for m in re.finditer(r"CONF [A-G][0-9][^\n<]*", text)]
+if claims:
+    with open(out, "a") as f:
+        f.write("\n".join(claims) + "\n")
+EXTRACT
+fi
+
 failures=$(tr -d '\r' < "$LOG" | sed -n 's/^A11Y DONE failures=\([0-9-]*\)$/\1/p' | tail -1)
 if [ -z "$failures" ]; then
   echo

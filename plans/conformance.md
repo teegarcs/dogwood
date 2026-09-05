@@ -158,10 +158,10 @@ Rows are the architecture's own promises, taken from the specifications rather t
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| F1 | Data requests are default-deny; a host must be named to be reachable | S + C | S ✅; C — |
-| F2 | Every redirect hop is re-checked against the allow rule | S + C | S ✅; C — |
+| F1 | Data requests are default-deny; a host must be named to be reachable | S + C | ✅ S; C Android, iOS |
+| F2 | Every redirect hop is re-checked against the allow rule | S + C | ✅ S; C Android, iOS |
 | F3 | Images are policed on their own allow rule, not the data one | S + C | S ✅; C Android |
-| F4 | Cleartext is opted into per host and per scheme | S + C | S ✅; C — |
+| F4 | Cleartext is opted into per host and per scheme | S + C | ✅ C Android, iOS — including the `file://` case that shipped |
 
 ### G. Performance
 
@@ -182,17 +182,10 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-05:
+Last generated 2026-09-05, after the network-policy drills:
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
-| D1 | ✅ | n/a | ✅ | ✅ |
-| D2 | ✅ | n/a | ✅ | ✅ |
-| D3 | ✅ | n/a | ✅ | ✅ |
-| D5 | ✅ | n/a | ✅ | ✅ |
-| D4 | ✅ | n/a | ✅ | ✅ |
-| D7 | ✅ | n/a | ✅ | · |
-| D6 | ✅ | ✅ | ✅ | ✅ |
 | A1 | ✅ | ✅ | ✅ | ✅ |
 | A2 | ✅ | ✅ | ✅ | ✅ |
 | A3 | ✅ | ✅ | ✅ | ✅ |
@@ -207,12 +200,20 @@ Last generated 2026-09-05:
 | C3 | ✅ | ✅ | ✅ | ✅ |
 | C4 | ✅ | ✅ | ✅ | ✅ |
 | C5 | ✅ | ✅ | ✅ | ✅ |
+| D6 | ✅ | ✅ | ✅ | ✅ |
 | E1 | ✅ | ✅ | ✅ | ✅ |
 | E2 | ✅ | ✅ | ✅ | ✅ |
 | E3 | ✅ | ✅ | ✅ | ✅ |
 | F1 | ✅ | ✅ | ✅ | ✅ |
 | F2 | ✅ | ✅ | ✅ | ✅ |
 | F3 | ✅ | ✅ | ✅ | ✅ |
+| F4 | ✅ | ✅ | ✅ | ✅ |
+| D1 | ✅ | n/a | ✅ | ✅ |
+| D2 | ✅ | n/a | ✅ | ✅ |
+| D3 | ✅ | n/a | ✅ | ✅ |
+| D5 | ✅ | n/a | ✅ | ✅ |
+| D4 | ✅ | n/a | ✅ | ✅ |
+| D7 | ✅ | n/a | ✅ | · |
 | E4 | n/a | n/a | ✅ | n/a |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
@@ -224,10 +225,10 @@ Last generated 2026-09-05:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 30
-- **desktop**: pass 21
-- **ios**: pass 33
-- **web**: pass 27, skip 1
+- **android**: pass 33
+- **desktop**: pass 22
+- **ios**: pass 36
+- **web**: pass 28, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -343,10 +344,21 @@ format is cheap; discovering it was wrong across four implementations is not.
    as well as D. Still outstanding: the leak soak, Phase 0 and page-weight harnesses, which produce
    numbers rather than verdicts and need a budget attached to each before they can emit `PASS`
    (folded into step 8 below, since a budget is what turns a measurement into a gate).
-5. **Network policy drills on Android and iOS** (`F1`, `F2`, `F4`). Kept ahead of the larger web
-   number deliberately: the one policy defect this project ever shipped — `file://` served from
-   the application's own container — was in exactly this area, found by reading code, and no unit
-   test would have caught it. A real defect class outranks a bigger count of missing cells.
+5. ✅ **Network policy drills on Android and iOS — done.** Both hosts now issue real requests at a
+   witness server that records what it received, so a refusal is proved by the **absence of a
+   request** rather than by the client reporting one — a client can report a refusal and still have
+   opened the connection. The existing tests could not make that claim and said so: the Java Virtual
+   Machine one passes a client that fails if called, and the iOS one's header admits it "does not
+   test that NSURLSession" behaves.
+
+   It found a cross-client divergence on its first run. A blocked redirect was an explicit refusal
+   on Android and a bare `302` with no `failure` on iOS — which a guest checking `failure != null`
+   would read as a successful request. The iOS behaviour was deliberate and documented ("the 3xx
+   itself is a perfectly ordinary response for a guest to see"), and the reasoning did not survive
+   the question: this host follows redirects on the guest's behalf, so a 3xx never reaches a guest
+   by any other route, and its only meaning is "policy stopped a hop". iOS now refuses the way
+   Android does. Negative control: disabling the allow check turns `F1` and `F4` red *with the
+   witness recording the request that got through*.
 6. ✅ **Web correctness evidence — done, and not the way this step expected.** It planned to write
    web-specific tests against `WebTree` and the web bindings. The parity build-out deleted both, so
    the claims are inherited from the shared suite instead: one implementation, one set of tests,
