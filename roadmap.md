@@ -356,14 +356,63 @@ Precedes the Web host build, which will mount experiences through the same shell
 
 ---
 
+## Phase 7 — Cross-Client Conformance & Web Parity *(current)*
+
+Phases 0–6 built the engine and brought it up on three shipping clients plus the desktop
+development loop. What they did not produce is *consistency*: every verification instrument was
+built on the client where a problem happened, so accessibility was asserted on iOS and nowhere
+else, skew containment ran once on Android, and the web host — its own tree, bindings and decoder —
+inherited almost none of the mobile evidence. The first day of grading all clients against one
+capability list found a real cross-client defect (Android announcing a text-field label twice,
+because Material 3 merges semantics differently per platform) and exposed that **web is graded on
+8 of 28 claims**.
+
+The active plan is [`plans/conformance.md`](plans/conformance.md) ([Layer 5
+ADR-040](adrs/layer-5/ADR-040-conformance-is-a-catalogue-not-a-suite.md)): one numbered claim
+catalogue, one text report grammar, per-client instruments, a generated matrix, and gates. Its
+remaining steps, in order: network-policy drills on the mobile clients (the one shipped defect was
+there); the earnable slice of web correctness; re-runnable skew containment on all three; budgets
+for the numeric harnesses, then gating.
+
+**Web parity is the build-out this phase ends with**, per the standing decision that design-system
+parity on web is committed. Roughly: the design-system segment compiled for the web host, a web
+`SkewReport` analogue (`WireSkew` in `dogwood-wire`), state persistence, and host resolution —
+after which the ~10 web claims blocked on parity become earnable. Whether that lands as extending
+`dogwood-web` or as moving `dogwood-host` onto Kotlin/Wasm is the deciding question, and it gets an
+ADR before code.
+
+**Deferred engineering, carried here from the records that deferred it:**
+
+- **A resynchronisation protocol** for a tree left older than the guest believes after a rejected
+  batch ([Layer 4 ADR-011](adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md) §4).
+  Containment is done; repair is not.
+- **Generator-emitted range clamps** — a range declared on the surface so every property with
+  known bounds is clamped generator-wide, replacing today's hand-written readers
+  ([Layer 5 ADR-035](adrs/layer-5/ADR-035-hostile-property-values.md) §4).
+- **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
+  needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
+  subsystem 4, ◐).
+- **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
+  rather than the scheduler (Phase 0 appendix).
+
+**Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
+yes (parallel track); the Phase 0 gate device, not acquired by decision
+([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); three upstream reports
+drafted and unfiled by decision.
+
+---
+
 ## Decision Backlog
 
-Decisions already reflected in the specifications but owing an Architecture Decision Record, per `AGENTS.md` section 3, are listed in [`adrs/README.md`](adrs/README.md). Four block work directly:
+All four decisions that blocked work directly are resolved and recorded — the `Modifier`
+representation ([Layer 5 ADR-009](adrs/layer-5/ADR-009-modifier-subsystem.md)), the
+deferred-expression grammar ([ADR-010](adrs/layer-5/ADR-010-deferred-expression-grammar.md)), the
+animation protocol ([ADR-020](adrs/layer-5/ADR-020-animation.md)), and the resources protocol
+([ADR-017](adrs/layer-5/ADR-017-resources-and-assets.md)); "no per-frame state in the guest" is
+enforced by ADR-020's design rather than by a rule.
 
-- **No per-frame state in the guest** — blocks Phase 1 step 5.
-- **The `Modifier` representation** — blocks Phase 2 entirely.
-- **The deferred-expression grammar** — now blocks Phase 2 as well (modifier arguments are expressions); written jointly with the `Modifier` ADR.
-- **The animation protocol** and **the resources protocol** — block the first production screen on the generated-tier path (under design-system-first, registered components cover both initially — [ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md)); added by [ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md).
+What remains deferred is **carried in Phase 7 below**, so it has one home instead of living in the
+unstated-assumptions sections of the records that deferred it.
 
 ---
 

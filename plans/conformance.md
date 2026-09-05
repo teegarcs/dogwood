@@ -239,11 +239,18 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
 
 **The three worst gaps, and they remain the plan's priorities:**
 
-1. **Web is graded on 8 claims of 28.** The generated table makes this the largest gap in the
-   project, and it was invisible until the correctness groups were folded in: web has its own tree,
-   bindings and decoder, so almost nothing proven about the mobile host transfers. Groups B, C and
-   E have no web evidence at all. This is decision 2 (parity is committed) turning into a work
-   list.
+1. **Web is graded on 8 claims of 28 — but that number is three different kinds of gap**, and
+   they route to three different places:
+   - **Earnable now (~6 claims):** `A2`–`A5`, `A7` are properties of `WebTree` and the web
+     bindings, testable today the way `A1` already is. `B4` (last-known-good serving) is a
+     property of `WebDelivery`. This is conformance work and stays in this plan.
+   - **Exempt with a reason (~4 claims):** `B1`/`B2` — the web profile has no Ed25519 manifest
+     signing *by recorded design* (ADR-032: HTTPS plus Content Security Policy, explicitly weaker).
+     These move to `exempt.tsv`, where the decision is visible, rather than sitting as gaps.
+   - **Blocked on design-system parity (~10 claims):** all of group C, `D6`, `E1`–`E3` need a
+     design system, a state store, and host resolution that the web host simply does not have.
+     That is not a conformance retrofit — it is the **web parity phase** (roadmap Phase 7), and
+     listing it here as test debt would misstate a build-out as a verification gap.
 2. ~~Accessibility exists on one client of three that need it.~~ ✅ Closed: all three shipping
    clients now assert `D1`–`D5`, and `D7` on the two that have a disabled control on screen.
 3. **Nothing outside a unit test has ever checked network policy on a real client.** `F1`, `F2` and
@@ -339,11 +346,25 @@ format is cheap; discovering it was wrong across four implementations is not.
 4. ◐ **Retrofit the drills to the grammar.** Done for the test suites, which was the large half:
    `from_tests.py` maps test classes onto claims and the matrix now covers groups A, B, C, E and F
    as well as D. Still outstanding: the leak soak, Phase 0 and page-weight harnesses, which produce
-   numbers rather than verdicts and need a budget attached to each before they can emit `PASS`.
-5. **Network policy drills on Android and iOS** (`F1`, `F2`, `F4`). The highest-value gap after
-   accessibility: the one policy defect this project shipped was in exactly this area, and a unit
-   test did not catch it.
-6. **Skew containment on iOS and web** (`A2`–`A4`), and make the Android drill re-runnable rather
-   than hand-rebuilt.
-7. **Lifecycle and host resolution drills** (`C1`, `C5`, `E1`–`E3`) on the two shipping clients.
-8. **Gate the tiers**, in the order the drills soak clean.
+   numbers rather than verdicts and need a budget attached to each before they can emit `PASS`
+   (folded into step 8 below, since a budget is what turns a measurement into a gate).
+5. **Network policy drills on Android and iOS** (`F1`, `F2`, `F4`). Kept ahead of the larger web
+   number deliberately: the one policy defect this project ever shipped — `file://` served from
+   the application's own container — was in exactly this area, found by reading code, and no unit
+   test would have caught it. A real defect class outranks a bigger count of missing cells.
+6. **Web correctness evidence** — the earnable slice of the web gap. `A2`–`A5`, `A7` against
+   `WebTree` and the web bindings; `B4` against `WebDelivery`; `B1`/`B2` into `exempt.tsv` with
+   ADR-032 as the reason. Target: web graded on every claim that does not require the parity
+   build-out, with the remainder visibly routed to Phase 7 rather than lingering as `—`.
+7. **Skew containment on iOS and web** (`A2`–`A4` end-to-end), and make the Android drill
+   re-runnable rather than hand-rebuilt — a drill that requires manually re-creating a version-8
+   surface runs approximately never, which the platform review already observed.
+8. **Budgets, then gates.** Attach a budget to each numeric harness (leak soak, Phase 0,
+   page weight) so it emits verdicts; then turn on gating tier by tier, in the order the drills
+   soak clean (50 consecutive green runs each, per the leak-soak precedent).
+
+*(Lifecycle and host-resolution drills on the shipping clients — previously step 7 — are folded
+into step 6 for web and deferred for mobile: `C1`, `C5`, `E1`–`E3` already carry shared-test
+evidence on Android and iOS, so a device drill there verifies wiring rather than behaviour, and
+ranks below everything above.)*
+
