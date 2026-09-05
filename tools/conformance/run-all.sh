@@ -32,14 +32,21 @@ rm -f "$HERE/build/tests.raw"
 
 echo "==> android accessibility"; "$HERE/run-android.sh" "$HERE/build/android-a11y.conf" >/dev/null 2>&1 || status=1
 echo "==> web accessibility";     "$HERE/run-web.sh"     "$HERE/build/web-a11y.conf"     >/dev/null 2>&1 || status=1
+echo "==> android skew containment"
+# Needs two builds by construction -- a client at version N and a payload at N+1 -- so it is its own
+# script rather than another test class. It restores the surface on every exit path.
+"$HERE/../skew-drill/run.sh" >/dev/null 2>&1 || status=1
+[ -f "$HERE/../skew-drill/build/skew.conf" ] && \
+  grep -E "^CONF [A-G][0-9]" "$HERE/../skew-drill/build/skew.conf" > "$HERE/build/android-skew.conf" || true
+
 echo "==> ios accessibility";     CONF_OUT="$HERE/build/ios-a11y.conf" "$HERE/../a11y-drill/run.sh" >/dev/null 2>&1 || status=1
 
 # Fold each drill's claims into its client's file, so the aggregator sees one run per client.
 python3 - "$HERE/build" <<'PY'
 import pathlib, sys, glob
 out = pathlib.Path(sys.argv[1])
-for extra in glob.glob(str(out / '*-a11y.conf')):
-    client = pathlib.Path(extra).name.split('-a11y')[0]
+for extra in glob.glob(str(out / '*-a11y.conf')) + glob.glob(str(out / '*-skew.conf')):
+    client = pathlib.Path(extra).name.split('-a11y')[0].split('-skew')[0]
     target = out / f'{client}.conf'
     body = [l for l in pathlib.Path(extra).read_text().splitlines() if not l.startswith('CONF RESULT')]
     if target.exists():
