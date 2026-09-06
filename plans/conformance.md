@@ -414,7 +414,7 @@ format is cheap; discovering it was wrong across four implementations is not.
    belongs to step 8.
 9. ✅ **Gating, split by what each environment can honestly grade.**
 
-   **Tier S gates in continuous integration** (`.github/workflows/conformance.yml`): the build, the
+ **Tier S gates in continuous integration** (`.github/workflows/conformance.yml`): the build, the
    shared-code claims via `from_tests.py`, and the page-weight budget — the one performance number
    that is a property of the build rather than of the machine. It runs on every push and pull
    request, and a claim whose evidence did not run fails it rather than reading as absent.
@@ -425,6 +425,20 @@ format is cheap; discovering it was wrong across four implementations is not.
    and the guest being served. Wiring it into continuous integration anyway would produce a green
    tick that means less than it appears to, which is the failure this plan exists to avoid — so the
    workflow file says where the boundary is instead of hiding it.
+
+   **The workflow's first run failed, and the lesson is the one this plan keeps relearning.** It
+   was written and merged without ever being run — asserted to pass rather than watched to. What
+   it caught was a genuine defect: `LeakDetectorTest.aDetachedNodeIsNotReportedAsALeak` set a
+   400 ms threshold on a garbage-collection negative control, which is fine on a fast development
+   machine and expires before the collector next runs on a slower one. `dogwoodLeakDetector`'s own
+   default is ten seconds and its documentation says why — "a reference merely waiting for the next
+   collection is not a leak" — and `BrowserLeakWatcher`, written the same day, carries the identical
+   contract. This test predated it and had the defect latent, waiting for a slower machine.
+
+   Note the asymmetry that made it survive so long: the *positive* control in the same class uses a
+   200 ms threshold and is safe, because slower hardware only makes a retained reference more
+   likely to be reported. Only the negative control is exposed to the timing, which is the general
+   rule — a test that asserts something was collected is a test about a collector.
 
 *(Lifecycle and host-resolution drills on the shipping clients — previously step 7 — are folded
 into step 6 for web and deferred for mobile: `C1`, `C5`, `E1`–`E3` already carry shared-test
