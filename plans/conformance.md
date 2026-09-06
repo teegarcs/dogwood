@@ -149,6 +149,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D5 | The screen scrolls through the accessibility layer | C | ✅ iOS, Android |
 | D6 | Text input is host-authoritative: mask, limit and counter apply where the typing is | S + C | S ✅; C — |
 | D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
+| D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S + C | S ✅; C — Android by hand, no drill |
 
 ### E. Lifecycle and resources
 
@@ -187,7 +188,7 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-05, with the performance budgets graded:
+Last generated 2026-09-06, with the performance budgets graded:
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -206,6 +207,7 @@ Last generated 2026-09-05, with the performance budgets graded:
 | C4 | ✅ | ✅ | ✅ | ✅ |
 | C5 | ✅ | ✅ | ✅ | ✅ |
 | D6 | ✅ | ✅ | ✅ | ✅ |
+| D8 | ✅ | ✅ | ✅ | ✅ |
 | E1 | ✅ | ✅ | ✅ | ✅ |
 | E2 | ✅ | ✅ | ✅ | ✅ |
 | E3 | ✅ | ✅ | ✅ | ✅ |
@@ -235,10 +237,10 @@ Last generated 2026-09-05, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 35, skip 4
-- **desktop**: pass 22
-- **ios**: pass 36, skip 4
-- **web**: pass 29, skip 1
+- **android**: pass 36, skip 4
+- **desktop**: pass 23
+- **ios**: pass 37, skip 4
+- **web**: pass 30, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -252,7 +254,7 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
 
 1. ~~Web is graded on 8 claims of 28.~~ ✅ **Closed by
    [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md): web is graded on
-   27.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
+   28 of 29.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
    inherited rather than earned one at a time, because `dogwood-web` now renders through
    `dogwood-host`'s core instead of a copy of it; the exempt ones are in `exempt.tsv` with ADR-032
    as the reason; and the ones called "blocked on parity" were exactly the ones the split
@@ -319,6 +321,14 @@ Recorded so that an absence is a decision somebody can point at.
   tracing collector and Objective-C's reference counting cannot see each other's graphs. Android and
   desktop have one collector; web has one heap. Marking this `n/a` elsewhere is a statement about
   the platforms, not an exemption.
+- **`D8`'s tier-C half has no drill.** The shared tests prove what crosses the boundary — a request
+  is a direction and a count, a holder that was not passed sends nothing, and a replacement guest
+  neither reissues the last request nor loses the ability to make a new one. What no assertion here
+  covers is whether the **keyboard actually moves**, which is the same limitation `D6` records: the
+  input method is driven by hardware input that `adb` and `simctl` cannot faithfully supply. It was
+  verified by hand on an Android emulator, reading `dumpsys input_method` rather than a screenshot
+  ([ADR-043](../adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)), and a hand-run is
+  evidence for a record and not for a matrix cell. The cell stays blank.
 - **Web's network policy is the browser's**, per ADR-032. The claim holds; the instrument is a
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.
@@ -449,7 +459,7 @@ ranks below everything above.)*
 
 ## Part 7 — Carried forward, not closed
 
-Three things, each recorded where somebody will meet it rather than left to be rediscovered.
+Four things, each recorded where somebody will meet it rather than left to be rediscovered.
 
 - **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
   the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
@@ -460,6 +470,13 @@ Three things, each recorded where somebody will meet it rather than left to be r
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
   The grading is wired and asymmetric, so the first such device to run it closes or reopens the
   gate without further work, and a regression on faster hardware still fails today.
+- **`D8` on the other three clients.** The claim is graded tier-S everywhere, because the guest
+  holder is shared code; the host mirror is shared too, since it lives in `dogwood-host`'s
+  transport-free core. What is untried is whether *taking the keyboard away* means the same thing on
+  each platform — Compose's `FocusManager.clearFocus()` is one call and three implementations, and
+  the redirect-policy row is the standing reminder that a shared rule can refuse on one client and
+  quietly not on another. This is the same shape as the `D6` gap and would be closed by the same
+  instrument.
 - **Tier C does not gate in continuous integration**, and cannot: it needs a booted simulator with
   VoiceOver, an attached device, a browser with a graphics stack and the guest being served. It
   gates locally and before a release. If this project ever acquires a device lab, the command to
@@ -479,6 +496,15 @@ Worth separating from the machinery, because the machinery is only justified by 
   iOS, so a guest checking `failure != null` would read a blocked request as a successful one.
 - `HostTree.clear()` was missing from the mobile hosts entirely — they build a fresh tree per
   experience and never met the bug the web host had already fixed.
+
+**One defect in the machinery itself, found by running it.** `tools/skew-drill/run.sh` patches the
+surface and restores it on every exit path, which is right; it restored it with `git checkout --`,
+which is a different operation wearing the same clothes. That restores the *committed* content, so
+it silently discarded whatever uncommitted work was in those four files — and it did, to the surface
+change that added `@Holder`, mid-review, with no message and no failure. The drill cannot tell its
+own patch from a developer's. It now saves the files it is about to touch and copies those back.
+The symptom is worth remembering: the next build failed in a file the drill never mentions, on a
+parameter that had existed minutes earlier.
 
 **And a recurring shape, now met a sixth time**: evidence that produced no evidence. The `shared`
 scope that filled twenty-one green cells for a client that does not compile the code under test.

@@ -28,9 +28,97 @@ enum class ParameterKind {
   /** A value the host resolves at draw time: `TextValue`, `Color`, `Shape`. */
   HOST_RESOLVED,
 
+  /**
+   * A live-state holder the host owns and the guest mirrors.
+   *
+   * Not one wire entity but several: a holder expands into the properties its shape declares, and
+   * optionally an event carrying the host's report back. The expansion is [HolderShape]'s, so the
+   * generator plumbs a holder without knowing what the holder *is* -- the same line
+   * [ADR-011](../../../../../../adrs/layer-5/ADR-011-generator-emits-the-bridge.md) already draws
+   * between the bridge and the widget.
+   */
+  HOLDER,
+
   /** Fails the bindability rule. Reported with a reason; never emitted. */
   UNSUPPORTED,
 }
+
+/**
+ * One wire property a holder expands into.
+ *
+ * @param suffix appended to the parameter's own name to make the wire name, so two holders on one
+ *   widget cannot collide and the name says which holder it belongs to.
+ * @param type the serializable type crossing the boundary.
+ * @param field the property to read on the guest-side holder object.
+ * @param absent what to send when the guest passed no holder at all. A holder is optional by
+ *   construction -- most call sites do not want one -- and this is the value that means "nobody is
+ *   driving this".
+ */
+@Serializable
+data class HolderProperty(
+  val suffix: String,
+  val type: String,
+  val field: String,
+  val absent: String,
+)
+
+/** One argument of a holder's report event. */
+@Serializable
+data class HolderArgument(val name: String, val type: String, val absent: String)
+
+/**
+ * The host's report back into a holder: an event, and the holder method it feeds.
+ *
+ * Null for a holder that only takes targets. `FocusRequester` is the plain case -- focus is
+ * something the guest *asks for*, and there is nothing to read back that the guest could act on
+ * without asking for per-frame state.
+ */
+@Serializable
+data class HolderReport(val method: String, val arguments: List<HolderArgument>)
+
+/**
+ * How one holder type crosses the boundary.
+ *
+ * The generator owns the plumbing and this table owns the shape, so adding the next holder is a
+ * table entry plus a host-side mirror rather than a second hand-written binding on both sides of
+ * the wire. That split is the point: the corrected coverage measurement counts roughly thirty
+ * holder types, so anything paid per holder is paid thirty times.
+ *
+ * @param mirror the host-side factory the generated binding calls. It is hand-written, because
+ *   what a holder *does* on the host -- move a list, take focus, open a sheet -- is exactly the
+ *   part that requires taste.
+ */
+@Serializable
+data class HolderShape(
+  val type: String,
+  val mirror: String,
+  val properties: List<HolderProperty>,
+  val report: HolderReport? = null,
+)
+
+/** A property as it appears on the wire, after holders have been expanded. */
+data class WireProperty(
+  val name: String,
+  val type: String,
+  val parameter: ParsedParameter,
+  /** Null for an ordinary value; the holder field this one carries otherwise. */
+  val holder: HolderProperty? = null,
+)
+
+/**
+ * An event as it appears on the wire.
+ *
+ * Declared callbacks and holder reports share one numbering, because they share one channel: both
+ * are the host speaking to the guest through an [EventTag], and a holder's report is not a
+ * different kind of thing merely because the surface did not spell it out as a lambda.
+ */
+data class WireEvent(
+  val name: String,
+  val type: String,
+  val parameter: ParsedParameter,
+  /** Null for a declared callback; the report this one delivers otherwise. */
+  val report: HolderReport? = null,
+)
 
 @Serializable
 data class ParsedParameter(
@@ -64,6 +152,15 @@ data class ParsedParameter(
    * per-binding.
    */
   val range: ParsedRange? = null,
+  /**
+   * The holder shape this parameter crosses as, when [kind] is `HOLDER`.
+   *
+   * Marked with `@Holder` on the surface and resolved against the generator's shape table. A
+   * `@Holder` on a type the table does not know is rejected rather than guessed at: a holder the
+   * generator plumbed by inference would produce properties nothing on the host reads, which
+   * renders and is silently inert.
+   */
+  val holderShape: HolderShape? = null,
 ) {
   /**
    * Whether the host must resolve this parameter's default itself.
@@ -88,6 +185,51 @@ data class ParsedComponent(
 ) {
   val isBindable: Boolean get() = parameters.none { it.kind == ParameterKind.UNSUPPORTED }
   val values: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.VALUE || it.kind == ParameterKind.HOST_RESOLVED }
+  val holders: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.HOLDER }
+
+  /**
+   * Every property this component puts on the wire, in declaration order.
+   *
+   * Declaration order rather than values-then-holders, because tags are allocated from this list
+   * and the protocol's evolution rule is additive: a parameter appended to the surface must append
+   * its tags. Grouping by kind would renumber a holder's properties the next time an ordinary
+   * value was added after it, and a moved tag does not fail to render -- it renders the wrong
+   * thing, which is what the lock exists to catch and what this ordering exists to avoid.
+   */
+  val wireProperties: List<WireProperty> get() = parameters.flatMap { parameter ->
+    when (parameter.kind) {
+      ParameterKind.VALUE, ParameterKind.HOST_RESOLVED ->
+        listOf(WireProperty(parameter.name, parameter.type, parameter))
+      ParameterKind.HOLDER -> {
+        val shape = parameter.holderShape ?: error("holder '${parameter.name}' has no shape")
+        shape.properties.map {
+          WireProperty(parameter.name + it.suffix, it.type, parameter, it)
+        }
+      }
+      else -> emptyList()
+    }
+  }
+
+  /**
+   * Every event this component puts on the wire, in declaration order.
+   *
+   * Declaration order for the same reason [wireProperties] is in it: tags are allocated from this
+   * list and may only ever be appended.
+   */
+  val wireEvents: List<WireEvent> get() = parameters.flatMap { parameter ->
+    when (parameter.kind) {
+      ParameterKind.EVENT -> listOf(WireEvent(parameter.name, parameter.type, parameter))
+      ParameterKind.HOLDER -> {
+        val report = parameter.holderShape?.report ?: return@flatMap emptyList()
+        // A synthesised signature, so the lock's type check covers a report exactly as it covers a
+        // declared callback: changing what a report carries moves no tag and would otherwise pass
+        // every check in the lock while the two ends disagreed about the argument list.
+        val signature = report.arguments.joinToString(", ") { it.type }
+        listOf(WireEvent("${parameter.name}Report", "($signature) -> Unit", parameter, report))
+      }
+      else -> emptyList()
+    }
+  }
   val slots: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.SLOT }
   val events: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.EVENT }
   val modifier: ParsedParameter? get() = parameters.firstOrNull { it.kind == ParameterKind.MODIFIER }

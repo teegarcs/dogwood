@@ -153,6 +153,10 @@ object Keyboards {
  * @param maxLength counted in raw characters, enforced host-side. -1 for no limit.
  * @param showCounter draws "12/50" beneath the field, computed by the host. A guest-computed
  *   counter would be a crossing per keystroke.
+ * @param focus asks the host for the keyboard, or asks it to give the keyboard up. A second
+ *   holder on the same widget, and a deliberately separate one: text and focus have different
+ *   conflict rules, and folding focus into [TextFieldState] would have put a level-triggered
+ *   target inside a version-vector holder. See [FocusRequester].
  */
 @Composable
 fun TextField(
@@ -166,6 +170,7 @@ fun TextField(
   mask: String? = null,
   keyboard: String? = null,
   showCounter: Boolean = false,
+  focus: FocusRequester? = null,
 ) {
   TextInput(
     text = state.text,
@@ -180,5 +185,6 @@ fun TextField(
     keyboard = keyboard,
     showCounter = showCounter,
     onValueChange = { value, editCount -> state.onHostEdit(value, editCount) },
+    focus = focus,
   )
 }

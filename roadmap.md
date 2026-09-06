@@ -424,9 +424,24 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Deferred engineering, carried here from the records that deferred it:**
 
-- **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
-  needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
-  subsystem 4, ◐).
+- **The remaining live state holders** — ◐, and the shape of the remaining work has changed.
+  `LazyListState` was hand-written on both sides of the boundary
+  ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md)), which is affordable once and not thirty
+  times. **The mechanical half of the per-holder cost is now paid once**
+  ([ADR-043](adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)): a holder is declared
+  with `@Holder` on the surface, a registered shape says how it crosses, and the generator emits the
+  wire form on both sides. `FocusRequester` is the first built that way and proves the target-only
+  shape end to end, including on a device — six requests, six actions, and a code update that
+  neither loses focus nor takes the keyboard back.
+
+  What remains is genuinely per holder and does not compress: **the decision** — what a target means,
+  what may be reported, what happens when a target cannot yet be satisfied — plus a host-side mirror
+  to implement it. Roughly twenty-eight holder types remain, and most of them belong to widgets this
+  dictionary does not carry yet, so they arrive **with their widget** rather than as a queue to work
+  down. The two that are reachable from the current surface and are not built are `ScrollState` (a
+  scrollable non-lazy container, which the guest cannot express at all today) and the *reporting*
+  half of the generated mechanism, which is exercised only by the generator's own tests against an
+  injected shape.
 - **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
   deliberately last, because nothing above it is blocked on it.)*
 

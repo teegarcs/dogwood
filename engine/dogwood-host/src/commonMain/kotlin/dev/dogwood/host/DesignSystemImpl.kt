@@ -230,6 +230,10 @@ fun TextInputImpl(
   showCounter: Boolean,
   modifier: Modifier,
   onValueChange: (String, Int) -> Unit,
+  // Defaulted so a call site that has no opinion about focus -- a test, or another host binding
+  // reusing this implementation -- still gets an attached requester rather than a null check on
+  // every use. A sequence of zero means nobody has asked for anything.
+  focus: FocusMirror = rememberFocusMirror(requested = false, sequence = 0),
 ) {
   // The authoritative value, and the count of edits made to it. Both survive a code update,
   // because this binding keeps its composition group -- which is why the guest's state saver has
@@ -269,7 +273,12 @@ fun TextInputImpl(
     // The accessibility drill found exactly that on the sample's card-number field, which passes a
     // label from the payload and was reaching the platform anonymous. The typed text stays the
     // element's *value*; this only supplies its *name*.
-    modifier = if (label != null) modifier.semantics { contentDescription = label } else modifier,
+    // The focus mirror's modifier is attached whether or not a guest ever asks for focus, and
+    // `FocusMirror` records why: a requester attached in the same frame its request is acted on
+    // throws, because the node it names is not laid out yet.
+    modifier = focus.modifier.then(
+      if (label != null) modifier.semantics { contentDescription = label } else modifier,
+    ),
     enabled = enabled,
     singleLine = singleLine,
     // Drawn, but not announced: the field's own semantics above carry the name, and Android's
