@@ -4,6 +4,13 @@
  * One live composition per mounted experience, paced by a frame clock the HOST drives.
  * specs/layer-4-sandbox.md, "The Frame Loop".
  */
+/*
+ * These are the hand-written equivalent of generated stubs -- the layout tier and the two lazy
+ * containers the generator does not model -- so they are the seam's intended caller in exactly the
+ * way generated code is, and they opt in for the same reason. See `GeneratedApi.kt`.
+ */
+@file:OptIn(dev.dogwood.compose.DogwoodGeneratedApi::class)
+
 package dev.dogwood.compose
 
 import androidx.compose.runtime.BroadcastFrameClock

@@ -6,6 +6,12 @@
  * QuickJS ships no ECMA-402 `Intl`, so money, dates and decimal separators cross as recipes and
  * the host renders them.
  */
+/*
+ * Reads the wire form of a host-resolved value directly, which is the generated stubs' seam. A test
+ * asserting what crosses is the one other legitimate caller. See `GeneratedApi.kt`.
+ */
+@file:OptIn(dev.dogwood.compose.DogwoodGeneratedApi::class)
+
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable

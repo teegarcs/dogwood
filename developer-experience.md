@@ -121,6 +121,86 @@ What that does **not** give you is version targeting. Whether the client on a gi
 
 ---
 
+## 4b. Adding Your Own Components
+
+Dogwood's design system is thirteen components and is not yours. A product registers its own, and
+the whole of what it writes is three things ([ADR-046](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md);
+`engine/samples/product-design-system` is a working example you can copy).
+
+**One — a surface.** Ordinary Compose signatures with empty bodies. This file is never compiled; the
+generator reads it as source.
+
+```kotlin
+package dev.acme.surface
+
+@Composable
+fun AcmeAction(
+  label: TextValue,
+  modifier: Modifier = Modifier,
+  @Affordance enabled: Boolean = true,
+  onClick: () -> Unit,
+) {}
+```
+
+`@Affordance` marks a parameter whose absence changes what a user is *allowed to do* rather than how
+something looks. A widget carrying one is **withheld** — replaced by an inert placeholder — if a
+payload says something about it this client cannot read, rather than drawn with an affordance it may
+have got wrong. `@Range(min, max)` marks a numeric bound Compose enforces by throwing; the generator
+emits a clamp, because a throw inside composition takes the screen down on every client that
+received the payload at once.
+
+**Two — one implementation per component.** Ordinary Compose, ordinary types. Nothing here imports
+anything about the protocol.
+
+```kotlin
+@Composable
+fun AcmeActionImpl(label: String, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+  Button(onClick, modifier, enabled, colors = acmeColors()) { Text(label) }
+}
+```
+
+**Three — a build file, whose only real decision is a segment identifier.**
+
+```kotlin
+"--segment", "acmeDesignSystem",      // names Kotlin declarations
+"--wire-name", "acme.designsystem",   // what a guest sees in LocalSegmentVersions
+"--segment-id", "2",                  // 0 and 1 are Dogwood's. Yours, forever.
+"--version", "1",
+"--lock", file("surface/acme.designsystem.lock.json").absolutePath,
+```
+
+Then the host registers it once, at application start:
+
+```kotlin
+class AcmeApplication : Application() {
+  override fun onCreate() {
+    super.onCreate()
+    DogwoodRegistry.register(AcmeDesignSystemBinding)
+  }
+}
+```
+
+**`Application.onCreate`, not an activity's**, and this is the one mistake worth naming in advance:
+register in one activity of three and the other two render your components as empty boxes — no
+error, no crash, a screen merely missing something. That is exactly what happened the first time
+this was wired in the sample.
+
+**What you never write:** dispatch, property decoding, tag arithmetic, skew handling, the affordance
+guard, or the version vector. Those are generated from your surface by the same code that generates
+Dogwood's own, which is the claim the sample exists to test — a mechanism with one caller is not a
+mechanism.
+
+**Your tags are as permanent as Dogwood's.** Your lock file is committed beside your surface and the
+build fails if a tag moves, because a client one release behind resolves tags rather than names: a
+renumbered tag does not fail to render, it renders the wrong widget. Append to a surface; do not
+reorder it.
+
+**Still missing:** the generator is an internal Gradle project in this repository, so a product
+outside it cannot consume it yet. That is packaging rather than design and it is the top item in
+[`plans/production-readiness.md`](plans/production-readiness.md).
+
+---
+
 ## 5. Rules You Have to Follow
 
 Honest constraints, not fine print.

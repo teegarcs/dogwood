@@ -1,0 +1,60 @@
+{
+    "segmentName": "acmeDesignSystem",
+    "wireName": "acme.designsystem",
+    "segmentId": 2,
+    "version": 1,
+    "components": [
+        {
+            "name": "AcmePrice",
+            "localTag": 1,
+            "properties": {
+                "amount": 1,
+                "currency": 2,
+                "emphasis": 3
+            },
+            "propertyTypes": {
+                "amount": "Int",
+                "currency": "String",
+                "emphasis": "String?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "AcmeAction",
+            "localTag": 2,
+            "properties": {
+                "label": 1,
+                "enabled": 2
+            },
+            "propertyTypes": {
+                "label": "TextValue",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "AcmePanel",
+            "localTag": 3,
+            "properties": {
+                "inset": 1
+            },
+            "propertyTypes": {
+                "inset": "Int"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        }
+    ]
+}

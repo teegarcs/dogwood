@@ -38,6 +38,7 @@ kotlin {
 
 dependencies {
   implementation(project(":dogwood-host"))
+  implementation(project(":samples:product-design-system"))
   implementation(compose.runtime)
   implementation(compose.foundation)
   implementation(compose.material3)

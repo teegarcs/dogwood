@@ -13,6 +13,12 @@
  *
  * The wire form is a positional array, matching ADR-007: `[factory, arg, arg, ...]`.
  */
+/*
+ * The wire forms below are the seam generated stubs write to the recorder, so this file both
+ * declares them and uses them. See `GeneratedApi.kt`.
+ */
+@file:OptIn(dev.dogwood.compose.DogwoodGeneratedApi::class)
+
 package dev.dogwood.compose
 
 import kotlinx.serialization.json.JsonArray
@@ -52,7 +58,8 @@ internal class Recipe(
  */
 class Shape internal constructor(private val recipe: Recipe) {
   /** The wire form. Every host-resolved type exposes this, so the generator has one rule. */
-  internal val json: JsonElement get() = recipe.toJson()
+  @DogwoodGeneratedApi
+  val json: JsonElement get() = recipe.toJson()
 
   override fun equals(other: Any?): Boolean = other is Shape && other.recipe == recipe
   override fun hashCode(): Int = recipe.hashCode()
@@ -75,7 +82,8 @@ class Shape internal constructor(private val recipe: Recipe) {
  */
 class Color internal constructor(private val recipe: Recipe) {
   /** The wire form. Every host-resolved type exposes this, so the generator has one rule. */
-  internal val json: JsonElement get() = recipe.toJson()
+  @DogwoodGeneratedApi
+  val json: JsonElement get() = recipe.toJson()
 
   override fun equals(other: Any?): Boolean = other is Color && other.recipe == recipe
   override fun hashCode(): Int = recipe.hashCode()
@@ -231,7 +239,7 @@ object Formats {
  *
  * Not named `Text`, because that call site would be ambiguous with the `Text(...)` composable.
  */
-class TextValue internal constructor(internal val json: JsonElement) {
+class TextValue internal constructor(@property:DogwoodGeneratedApi val json: JsonElement) {
   override fun equals(other: Any?): Boolean = other is TextValue && other.json == json
 
   override fun hashCode(): Int = json.hashCode()
