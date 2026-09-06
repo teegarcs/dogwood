@@ -1,0 +1,92 @@
+[dev.dogwood.protocol.DogwoodHost]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun handleUncaughtException(kotlin.Throwable): kotlin.Unit
+  "Hls+uhG7",
+
+  # fun onUnknownEvent(dev.dogwood.protocol.WidgetTag, dev.dogwood.protocol.EventTag): kotlin.Unit
+  "593sx1tm",
+
+  # fun onUnknownEventNode(dev.dogwood.protocol.Id, dev.dogwood.protocol.EventTag): kotlin.Unit
+  "ddEvvI3n",
+
+  # fun requestFrame(): kotlin.Unit
+  "/TkBiP/u",
+
+  # fun sendChanges(dev.dogwood.protocol.ChangeBatch): kotlin.Unit
+  "W0h7dMQE",
+
+  # fun sendChangesEncoded(kotlin.String): kotlin.Unit
+  "QviCGawW",
+]
+
+[dev.dogwood.protocol.MonotonicClock]
+
+functions = [
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun nowNanos(): kotlin.Long
+  "xTstEf4o",
+]
+
+[dev.dogwood.protocol.Phase0Guest]
+
+functions = [
+  # fun churn(kotlin.Int, kotlin.Int): kotlin.Unit
+  "KIiETfQ/",
+
+  # fun close(): kotlin.Unit
+  "moYx+T3e",
+
+  # fun composeReferenceScreen(kotlin.Int, kotlin.Int, kotlin.Int): dev.dogwood.protocol.CompositionResult
+  "PqJfZx6V",
+
+  # fun crossBatch(kotlin.Int, kotlin.Int, kotlin.Boolean, kotlin.Int): dev.dogwood.protocol.Samples
+  "kbaKTYlr",
+
+  # fun crossVariant(kotlin.String, kotlin.Int, kotlin.Int, kotlin.Int): dev.dogwood.protocol.Samples
+  "L8nUpJ1L",
+
+  # fun encodeAndCross(kotlin.String, kotlin.Int, kotlin.Int): kotlin.Int
+  "0g4FYonU",
+
+  # fun encodeOnly(kotlin.String, kotlin.Int, kotlin.Int): kotlin.Int
+  "d015RO8H",
+
+  # fun frameEncode(kotlin.Int, kotlin.String, kotlin.Int): kotlin.Int
+  "7YtCWIMN",
+
+  # fun frameOnly(kotlin.Int, kotlin.Int): kotlin.Int
+  "Lk0cU1PZ",
+
+  # fun initialBatchJson(kotlin.Int): kotlin.String
+  "DYLJDSSv",
+
+  # fun measureClockOverhead(kotlin.Int): dev.dogwood.protocol.Samples
+  "iZlDMF0x",
+
+  # fun measureEncode(kotlin.Int, kotlin.Int, kotlin.Int): dev.dogwood.protocol.EncodeResult
+  "o5WgNj1k",
+
+  # fun measureEncodingVariants(kotlin.Int, kotlin.Int, kotlin.Int): kotlin.collections.List<dev.dogwood.protocol.EncodingVariant>
+  "+3xBDSQI",
+
+  # fun measureRecomposition(kotlin.String, kotlin.Int, kotlin.Int): dev.dogwood.protocol.Samples
+  "qNdVlv8Y",
+
+  # fun oneFrame(kotlin.String): kotlin.Int
+  "SgmfEi2l",
+
+  # fun setUp(dev.dogwood.protocol.DogwoodHost, dev.dogwood.protocol.MonotonicClock): kotlin.Unit
+  "rs1H43/t",
+
+  # fun sustainedFrames(kotlin.Int, kotlin.String, kotlin.Int): kotlin.Int
+  "hef7/HNs",
+
+  # fun variantPayload(kotlin.String, kotlin.Int): kotlin.String
+  "jNfIKL8J",
+]

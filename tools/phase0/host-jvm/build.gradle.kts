@@ -58,3 +58,14 @@ tasks.register<JavaExec>("allocGc") {
   workingDir = rootProject.projectDir
   dependsOn(":guest:jsBrowserProductionWebpackZipline")
 }
+
+/** Pause attribution: was that outlier a collection, or the scheduler? See PauseAttribution.kt. */
+tasks.register<JavaExec>("pauses") {
+  group = "verification"
+  description = "Attribute the pauses under load to collection or to something else"
+  mainClass.set("dev.dogwood.host.PauseMainKt")
+  classpath = sourceSets["main"].runtimeClasspath
+  jvmArgs("-Xss8m")
+  workingDir = rootProject.projectDir
+  dependsOn(":guest:jsBrowserProductionWebpackZipline")
+}

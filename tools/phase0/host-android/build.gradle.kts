@@ -59,6 +59,20 @@ tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configure
   dependsOn(stageGuest)
 }
 
+/*
+ * Every task that reads the assets directory, not only the ones that package it.
+ *
+ * `assets.srcDir` points at a directory another task generates, and Gradle checks that each
+ * consumer declares the dependency. The packaging tasks did; lint's model writers did not, so
+ * `./gradlew build` failed on a clean checkout with "Gradle detected a problem with the following
+ * location: .../generated/ziplineAssets". Naming the consumers by pattern rather than one at a time
+ * because the Android plugin adds more of them between versions, and the failure they produce is
+ * about task wiring rather than about anything a person changed.
+ */
+tasks.matching { it.name.contains("Lint", ignoreCase = true) }.configureEach {
+  dependsOn(stageGuest)
+}
+
 dependencies {
   implementation(project(":host-core"))
   implementation(project(":protocol"))
