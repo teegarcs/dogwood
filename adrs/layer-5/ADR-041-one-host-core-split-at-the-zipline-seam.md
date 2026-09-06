@@ -78,12 +78,34 @@ incident (a `shared` claim scope that web did not actually share) and the label 
 conformance premise — one implementation, graded once — argues for B; under A the web column is
 earned one hand-written test at a time.
 
-**Page weight was the predicted cost, and it did not materialise.** Core brings Material 3, which
-[ADR-030](ADR-030-web-page-weight-measured.md) sized at ~0.15 MB compressed. Measured after the
-switch: **10.23 MB raw, 2.92 MB brotli — identical to ADR-030's figure to the reported precision.**
-Material 3 was already being linked, because the web slice already rendered through Compose
-Multiplatform; what changed is which bindings call it. The `web-weight` harness stays on the
-gate list regardless, since the next design-system component is the one that could move it.
+**Page weight was the predicted cost, and it did materialise — this ADR said otherwise and was
+wrong.** It originally recorded "10.23 MB raw, 2.92 MB brotli — identical to ADR-030's figure",
+concluding Material 3 was already linked and the split was free. That measurement was of the wrong
+artifact: `tools/web-weight/measure.sh` measures the two *spike* modules ADR-030 built to establish
+what Compose costs, which no product change can move. It reported a steady number through a change
+that grew the real page, and the steadiness was taken as evidence.
+
+Measured properly, by building the shipped web slice at the commit before the split and after it:
+
+| | brotli |
+|---|---|
+| before | 3,099,170 |
+| after | 3,573,294 |
+| growth | **+474,124 (~15%)** |
+
+About three times the ~0.15 MB Material 3 estimate, and it is not free: at Fast-3G rates
+([ADR-038](ADR-038-first-frame-is-transfer-bound.md)) 463 kilobytes is roughly **2.4 seconds** of
+additional waiting, on top of a first frame already measured at 17.4 seconds.
+
+That does not reverse the decision — one implementation graded once is still worth more than two
+that drift, and the drift was already producing defects. But it is a real cost that this record
+claimed was zero, and the trade should be read with the number in it. Reducing it is now tracked in
+the roadmap's Phase 7 deferred list: the likely candidates are trimming what the design-system
+bindings pull from Material 3, and whether both WebAssembly chunks are needed on first load.
+
+`from_web_weight.py` measures the shipped slice now, and the budget (3.70 MB) is a ceiling with
+about 130 kilobytes of headroom — deliberately tight, because on Fast 3G every 100 kilobytes is
+roughly half a second.
 
 ### Scope boundary: this does not reopen the mobile substrate decision
 

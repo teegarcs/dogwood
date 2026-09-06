@@ -22,7 +22,7 @@ conformance plan exists to avoid.
 |---|---|---|
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
-| `from_web_weight.py` | the web page is within its byte budget (3.30 MB brotli against 2.92 MB today) | the page grows past the ceiling |
+| `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.70 MB brotli against 3.57 MB today) | the page grows past the ceiling, or cannot be measured at all |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
 opening a log.
@@ -47,6 +47,11 @@ Recorded because each is a category rather than a one-off.
   `from_web_weight.py` reports a `FAIL` rather than a `SKIP` when it cannot measure — an
   environment asked to grade a budget and unable to is broken, and saying so is the only way that
   gets fixed rather than tolerated.
+- **It measured the wrong artifact.** `from_web_weight.py` called `web-weight/measure.sh`, which
+  measures the two *spike* modules ADR-030 built to establish what Compose costs — artifacts no
+  product change can affect. It therefore reported a steady 2.92 MB through a change that grew the
+  real page by 463 kilobytes, and that steadiness was written into an ADR as evidence the change
+  was free. A proxy that cannot move is worse than no measurement, because it reads as reassurance.
 - **A four-gigabyte Gradle daemon plus parallel execution kills a two-processor, seven-gigabyte
   runner** with `exit code 143`, nineteen minutes in. CI-sized limits go in `GRADLE_USER_HOME`,
   which takes precedence over the project file and leaves a development machine alone.
