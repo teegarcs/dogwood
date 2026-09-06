@@ -141,6 +141,10 @@ class Devtools:
 # Chrome versions ("Fast 3G" became "Slow 4G") while the numbers did not.
 PRESETS = {
     'none': None,
+    # Mid-band 5G, which is what "5G" means for most people most of the time: the high-band
+    # millimetre-wave figures that make headlines cover a small fraction of any country. 100
+    # megabits down and a 30 millisecond round trip is a defensible median rather than a best case.
+    '5g': {'latency': 30.0, 'downloadThroughput': 100e6 / 8, 'uploadThroughput': 20e6 / 8},
     'fast-3g': {'latency': 562.5, 'downloadThroughput': 1.6e6 / 8, 'uploadThroughput': 750e3 / 8},
     '4g': {'latency': 85.0, 'downloadThroughput': 9e6 / 8, 'uploadThroughput': 3.75e6 / 8},
 }
@@ -264,7 +268,7 @@ def main():
     url, chrome, port, loads = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
     out = sys.argv[5]
     results = {}
-    for name in ('none', '4g', 'fast-3g'):
+    for name in ('none', '5g', '4g', 'fast-3g'):
         print(f'== {name} ==')
         samples, bytes_seen = measure(url, PRESETS[name], loads, chrome, port)
         port += 1

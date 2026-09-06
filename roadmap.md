@@ -414,23 +414,65 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Deferred engineering, carried here from the records that deferred it:**
 
-- **Reduce the web page by the 463 kilobytes the host split cost.** Measured properly after the
-  fact ([ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md)): the shipped
-  slice went from 3,099,170 to 3,573,294 bytes brotli, which at Fast-3G rates is about 2.4 seconds
-  of extra waiting. Candidates: what the design-system bindings pull from Material 3, and whether
-  both WebAssembly chunks are needed on first load.
+- **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
+  deliberately last, because nothing above it is blocked on it.)*
 
-- **A resynchronisation protocol** for a tree left older than the guest believes after a rejected
-  batch ([Layer 4 ADR-011](adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md) §4).
-  Containment is done; repair is not.
-- **Generator-emitted range clamps** — a range declared on the surface so every property with
-  known bounds is clamped generator-wide, replacing today's hand-written readers
-  ([Layer 5 ADR-035](adrs/layer-5/ADR-035-hostile-property-values.md) §4).
-- **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
-  needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
-  subsystem 4, ◐).
-- **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
-  rather than the scheduler (Phase 0 appendix).
+  **The measurement.** The shipped slice is **3,573,294 bytes brotli**, all of it fetched before
+  the first frame — nothing is lazy, because Compose cannot draw without Skiko and Skiko does
+  nothing without the application. First frame, three cold loads per preset:
+
+  | Connection | First frame |
+  |---|---|
+  | unthrottled | 139 ms |
+  | 5G — 100 Mbit/s, 30 ms | 520 ms |
+  | 4G — 9 Mbit/s, 85 ms | 3,606 ms |
+  | Fast 3G — 1.6 Mbit/s, 562 ms | 19,822 ms |
+
+  **Only the tail hurts**, and that is what makes this an investigation rather than an emergency.
+
+  **What the bytes are**, because the two halves have entirely different prospects:
+
+  | Chunk | Brotli | What it is |
+  |---|---:|---|
+  | `*.wasm` (Skiko) | 2,596 KB | Skia compiled to WebAssembly — a JetBrains build artifact |
+  | `*.wasm` (application) | 890 KB | Compose runtime, Material 3, `dogwood-host` core, the slice |
+  | `app.js` | 86 KB | the loader |
+
+  **73% is Skiko and Dogwood has no lever on it** beyond choosing a version. The 890 KB is the part
+  this project controls, and it is unremarkable for an application of its kind — a heavy
+  single-page-application bundle lands in the same range. The nearest architectural peer is Flutter
+  Web with CanvasKit, which pays a comparable 1.5–2 MB for the same reason: a canvas renderer
+  instead of the Document Object Model.
+
+  **Lines worth investigating**, in the order their payoff looks likeliest:
+  - **Whether both WebAssembly chunks are needed on the first frame.** They are fetched together
+    today. If the design-system half could load after the layout tier has painted, the first frame
+    would be gated on Skiko plus a smaller application chunk.
+  - **What the design-system bindings actually pull from Material 3**, and whether a registration
+    seam could let a product link only the components it uses. `DesignSystemImpl` reaches Material
+    3 broadly; whether Kotlin/Wasm's dead-code elimination already handles this is an unknown to
+    measure rather than assume.
+  - **Skiko's own configuration.** A version choice and possibly a build variant; the ceiling on
+    this is whatever JetBrains ships.
+  - **Whether the profile wants a Document Object Model tier at all** for text-and-layout screens,
+    which would sidestep Skiko entirely for a subset of surfaces. This is a large question and is
+    named here so it is not mistaken for a small one.
+
+  **What this is not.** It is not a regression to undo. The web host gained 463 KB when it stopped
+  reimplementing the host, and that bought Material 3, the icon set and the whole design system —
+  pre-split `dogwood-web` linked `compose.runtime`, `foundation` and `ui` and could render five
+  layout widgets. The before-and-after is not like-for-like, and reading it as waste would be
+  reading a capability as a defect.
+
+  **What would make it urgent.** A product that needs a first visit on a slow connection — a
+  landing page, anything search-driven. The profile suits a returning-user application surface,
+  where the bytes are cached, far better than a first-impression page. That is a product judgement
+  and belongs with whoever chooses the profile, which is why it is written down rather than left to
+  be discovered at 19.8 seconds.
+
+  Gate: a decision recorded per line above — measured saving, or a reason it does not pay. The
+  budget in `tools/conformance/budgets.tsv` holds the number in place meanwhile.
+
 **Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
 yes (parallel track); the Phase 0 gate device, not acquired by decision
 ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); three upstream reports

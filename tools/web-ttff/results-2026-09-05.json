@@ -1,0 +1,78 @@
+{
+  "none": {
+    "samples": [
+      237,
+      136,
+      139
+    ],
+    "transferredBytes": [
+      3578177,
+      3577417,
+      3577417
+    ],
+    "medianTransferredBytes": 3577417,
+    "loads": 3,
+    "completed": 3,
+    "p50": 139,
+    "p95": 237,
+    "min": 136,
+    "max": 237
+  },
+  "5g": {
+    "samples": [
+      520,
+      517,
+      532
+    ],
+    "transferredBytes": [
+      3578177,
+      3577417,
+      3577417
+    ],
+    "medianTransferredBytes": 3577417,
+    "loads": 3,
+    "completed": 3,
+    "p50": 520,
+    "p95": 532,
+    "min": 517,
+    "max": 532
+  },
+  "4g": {
+    "samples": [
+      3616,
+      3604,
+      3606
+    ],
+    "transferredBytes": [
+      3578177,
+      3577417,
+      3577417
+    ],
+    "medianTransferredBytes": 3577417,
+    "loads": 3,
+    "completed": 3,
+    "p50": 3606,
+    "p95": 3616,
+    "min": 3604,
+    "max": 3616
+  },
+  "fast-3g": {
+    "samples": [
+      19816,
+      19826,
+      19822
+    ],
+    "transferredBytes": [
+      3578177,
+      3577417,
+      3577417
+    ],
+    "medianTransferredBytes": 3577417,
+    "loads": 3,
+    "completed": 3,
+    "p50": 19822,
+    "p95": 19826,
+    "min": 19816,
+    "max": 19826
+  }
+}

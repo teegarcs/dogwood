@@ -93,15 +93,23 @@ Measured properly, by building the shipped web slice at the commit before the sp
 | after | 3,573,294 |
 | growth | **+474,124 (~15%)** |
 
-About three times the ~0.15 MB Material 3 estimate, and it is not free: at Fast-3G rates
-([ADR-038](ADR-038-first-frame-is-transfer-bound.md)) 463 kilobytes is roughly **2.4 seconds** of
-additional waiting, on top of a first frame already measured at 17.4 seconds.
+About three times the ~0.15 MB Material 3 estimate, and it is not free: measured rather than
+predicted, first frame on Fast 3G went from **17.4 to 19.8 seconds**
+([ADR-038](ADR-038-first-frame-is-transfer-bound.md)). On 5G it is 520 milliseconds and on 4G 3.6
+seconds, so the cost lands entirely in the tail of the connection distribution.
 
-That does not reverse the decision — one implementation graded once is still worth more than two
-that drift, and the drift was already producing defects. But it is a real cost that this record
-claimed was zero, and the trade should be read with the number in it. Reducing it is now tracked in
-the roadmap's Phase 7 deferred list: the likely candidates are trimming what the design-system
-bindings pull from Material 3, and whether both WebAssembly chunks are needed on first load.
+**It is not, however, a regression, and calling it one would be a second error in the other
+direction.** Pre-split `dogwood-web` linked `compose.runtime`, `foundation` and `ui` — no Material
+3, no icon set — and could render five layout widgets. Post-split it renders the whole design
+system. The before-and-after is not like-for-like: the 463 kilobytes bought the parity this ADR
+exists to deliver. What was wrong in the original text was the claim that parity was *free*, not
+the decision to buy it.
+
+The decision stands — one implementation graded once is worth more than two that drift, and the
+drift was already producing defects. What this record got wrong was the price, and the trade should
+be read with the number in it. Reduction is scoped in the roadmap's Phase 7 as its own
+investigation, where the measurement also records that 73% of the page is Skiko and outside this
+project's reach.
 
 `from_web_weight.py` measures the shipped slice now, and the budget (3.70 MB) is a ceiling with
 about 130 kilobytes of headroom — deliberately tight, because on Fast 3G every 100 kilobytes is
