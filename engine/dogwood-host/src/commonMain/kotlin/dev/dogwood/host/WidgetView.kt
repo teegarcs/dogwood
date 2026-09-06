@@ -228,3 +228,31 @@ class RenderTranscript {
 
   fun dump(): String = (lines + sizes.values).joinToString("\n")
 }
+
+/**
+ * Which guest generation is composing.
+ *
+ * Identity, not a number: it changes exactly when the guest is replaced and never otherwise, so an
+ * effect keyed on it restarts once per code update.
+ *
+ * It exists because **a live-state report is edge-triggered and a replacement guest needs a level.**
+ * A host mirror reports when its value *changes*, which is the whole throttle; a code update leaves
+ * that value exactly where it was while handing the guest a brand-new holder that knows nothing. So
+ * the host has nothing new to say and the new guest never learns what it is looking at. It shows up
+ * as a mirror that is half right — the position is restored through the saver, and whatever the
+ * guest was only ever *told* is missing.
+ *
+ * That is not hypothetical: a scrolling container came back from a code update reporting
+ * `offset 800dp of -1dp`, on a device, with the offset correct because it was saved and the maximum
+ * absent because it was only ever reported. A list survives the same update today, but by accident
+ * rather than by design — clearing and rebuilding the tree churns its visible range, which happens
+ * to make the flow emit again. Keying on this makes both deterministic.
+ *
+ * Provided by `DogwoodTree`. The default is a constant, so a host that renders a tree without one
+ * gets a stable key and effects that never restart, which is the right behaviour when there is only
+ * ever one generation.
+ */
+val LocalGuestGeneration = staticCompositionLocalOf<Any> { GuestGeneration }
+
+/** The default generation, for a host with only one. */
+private object GuestGeneration

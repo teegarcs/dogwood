@@ -358,14 +358,18 @@ fun emitHostBindings(
       // The generated binding builds the mirror and hands it over. What the mirror *does* is
       // hand-written, for the same reason the widget is: moving a list, taking focus or opening a
       // sheet is the part that requires taste, and it is not the part that grows without bound.
+      // Named, not positional. A shape with five properties passed positionally is two `Int`
+      // arguments away from a silent transposition -- the mirror compiles, the container scrolls
+      // to the sequence number, and nothing says so.
       val arguments = shape.properties.joinToString(", ") { property ->
         val tag = entry.properties.getValue("${parameter.name}${property.suffix}")
-        when (property.type) {
+        val read = when (property.type) {
           "Boolean" -> "node.boolean($tag, ${property.absent})"
           "Int" -> "node.int($tag, ${property.absent})"
           "Float" -> "node.float($tag, ${property.absent})"
           else -> "node.string($tag, ${property.absent})"
         }
+        "${property.field} = $read"
       }
       val report = shape.report
       val reporting = if (report == null) "" else {

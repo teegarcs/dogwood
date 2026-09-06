@@ -330,6 +330,9 @@ fun DogwoodTree(
   androidx.compose.runtime.CompositionLocalProvider(
     LocalExpressionEvaluator provides evaluator,
     LocalSkewReport provides skew,
+    // The same key the expression cache uses, for the same reason: it identifies one guest. A
+    // mirror that reports on change needs to know when the thing it reports *to* was replaced.
+    LocalGuestGeneration provides (evaluatorKey ?: tree),
   ) {
     androidx.compose.foundation.layout.Column(modifier) {
       RenderChildren(tree.root, slot = 1, scope = LayoutScope(column = this), events = events)

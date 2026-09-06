@@ -150,6 +150,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D6 | Text input is host-authoritative: mask, limit and counter apply where the typing is | S + C | S ✅; C — |
 | D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
 | D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S + C | S ✅; C — Android by hand, no drill |
+| D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S + C | S ✅; C — Android by hand, no drill |
 
 ### E. Lifecycle and resources
 
@@ -208,6 +209,7 @@ Last generated 2026-09-06, with the performance budgets graded:
 | C5 | ✅ | ✅ | ✅ | ✅ |
 | D6 | ✅ | ✅ | ✅ | ✅ |
 | D8 | ✅ | ✅ | ✅ | ✅ |
+| D9 | ✅ | ✅ | ✅ | ✅ |
 | E1 | ✅ | ✅ | ✅ | ✅ |
 | E2 | ✅ | ✅ | ✅ | ✅ |
 | E3 | ✅ | ✅ | ✅ | ✅ |
@@ -237,10 +239,10 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 36, skip 4
-- **desktop**: pass 23
-- **ios**: pass 37, skip 4
-- **web**: pass 30, skip 1
+- **android**: pass 37, skip 4
+- **desktop**: pass 24
+- **ios**: pass 38, skip 4
+- **web**: pass 31, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -254,7 +256,7 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
 
 1. ~~Web is graded on 8 claims of 28.~~ ✅ **Closed by
    [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md): web is graded on
-   28 of 29.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
+   29 of 30.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
    inherited rather than earned one at a time, because `dogwood-web` now renders through
    `dogwood-host`'s core instead of a copy of it; the exempt ones are in `exempt.tsv` with ADR-032
    as the reason; and the ones called "blocked on parity" were exactly the ones the split
@@ -329,6 +331,11 @@ Recorded so that an absence is a decision somebody can point at.
   verified by hand on an Android emulator, reading `dumpsys input_method` rather than a screenshot
   ([ADR-043](../adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)), and a hand-run is
   evidence for a record and not for a matrix cell. The cell stays blank.
+- **`D9` has the same tier-C shape as `D8`**, and the same reason. The shared tests prove what
+  crosses; what they cannot show is the *quantising*, which happens inside a `snapshotFlow` over a
+  real Compose `ScrollState` and needs the Compose UI test harness this project does not have. It
+  was verified on an Android emulator, where it produced a defect no assertion here would have found
+  ([ADR-044](../adrs/layer-5/ADR-044-scroll-position-is-a-declared-quantum.md)).
 - **Web's network policy is the browser's**, per ADR-032. The claim holds; the instrument is a
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.
@@ -496,6 +503,18 @@ Worth separating from the machinery, because the machinery is only justified by 
   iOS, so a guest checking `failure != null` would read a blocked request as a successful one.
 - `HostTree.clear()` was missing from the mobile hosts entirely — they build a fresh tree per
   experience and never met the bug the web host had already fixed.
+
+**A false alarm the rule caught, and the drill now catches by itself.** `D7` went red on iOS with
+`1: [<no label> traits=0x101]` — a disabled control announcing nothing, which would be a real
+accessibility defect. It was not one. iOS publishes only what is on screen, and the drill's scroll
+loop stops at the *first* frame where its target is reachable, so whatever comes next sits at the
+viewport edge with its traits published and its name clipped. Adding an unrelated section to the
+sample moved where the loop stopped, and a button that had not changed went anonymous. The finding
+was a hypothesis about a control and was really an observation about a viewport. The drill now does
+what `AGENTS.md` §1.5 asks of a person — brings the element further into view and looks again before
+reporting — and the failure message names the element by its neighbours rather than printing `[]`,
+which is what the first version did because its helper filtered empty labels out of a claim about
+missing labels.
 
 **One defect in the machinery itself, found by running it.** `tools/skew-drill/run.sh` patches the
 surface and restores it on every exit path, which is right; it restored it with `git checkout --`,

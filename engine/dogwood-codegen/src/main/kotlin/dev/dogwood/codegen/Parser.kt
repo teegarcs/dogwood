@@ -262,6 +262,35 @@ class SurfaceParser(
           HolderProperty(suffix = "Sequence", type = "Int", field = "sequence", absent = "0"),
         ),
       ),
+
+      /*
+       * Scroll: a position mirror over a continuous quantity.
+       *
+       * The first shape here that reports. A list reports per item because a list has items; a
+       * scrolling container has a length that changes every frame, so the guest declares the
+       * quantum instead and it crosses as a property like everything else. See ADR-044.
+       */
+      HolderShape(
+        type = "ScrollState",
+        mirror = "rememberScrollMirror",
+        properties = listOf(
+          HolderProperty(suffix = "TargetDp", type = "Int", field = "targetDp", absent = "0"),
+          HolderProperty(suffix = "Sequence", type = "Int", field = "targetSequence", absent = "0"),
+          HolderProperty(suffix = "Animated", type = "Boolean", field = "targetAnimated", absent = "false"),
+          // Presence, for the same reason a list carries it: the host cannot see guest closures, so
+          // it cannot know whether reporting would be observed by anyone.
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+          HolderProperty(suffix = "QuantumDp", type = "Int", field = "reportEveryDp", absent = "48"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("offsetDp", "Int", "0"),
+            HolderArgument("maxOffsetDp", "Int", "-1"),
+            HolderArgument("scrolling", "Boolean", "false"),
+          ),
+        ),
+      ),
     )
 
     val LIVE_STATE = listOf(

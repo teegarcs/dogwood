@@ -434,14 +434,22 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
   shape end to end, including on a device — six requests, six actions, and a code update that
   neither loses focus nor takes the keyboard back.
 
+  `ScrollState` followed ([ADR-044](adrs/layer-5/ADR-044-scroll-position-is-a-declared-quantum.md)),
+  and it is the **third shape**: a position over a continuous quantity, where a list's item boundary
+  cannot supply the reporting quantum, so the guest declares it. It closed a capability gap — a guest
+  could not scroll anything that was not a list — and it is the first *reporting* holder to run
+  against a real host rather than only against the generator's tests. It also produced a defect
+  general to the whole pattern: a report is edge-triggered, and a replacement guest needs a level.
+  `LocalGuestGeneration` fixes that for every mirror.
+
   What remains is genuinely per holder and does not compress: **the decision** — what a target means,
   what may be reported, what happens when a target cannot yet be satisfied — plus a host-side mirror
-  to implement it. Roughly twenty-eight holder types remain, and most of them belong to widgets this
-  dictionary does not carry yet, so they arrive **with their widget** rather than as a queue to work
-  down. The two that are reachable from the current surface and are not built are `ScrollState` (a
-  scrollable non-lazy container, which the guest cannot express at all today) and the *reporting*
-  half of the generated mechanism, which is exercised only by the generator's own tests against an
-  injected shape.
+  to implement it. Roughly twenty-seven holder types remain, and **most of them belong to widgets
+  this dictionary does not carry yet**, so they arrive with their widget rather than as a queue to
+  work down. Three shapes are now proven end to end — target-with-report (a list), target-only
+  (focus), and position-over-a-continuous-quantity (scroll) — and the standing expectation is that a
+  new holder is one of them plus a mirror, until one is not, at which point it gets its own record
+  the way `TextFieldState` did.
 - **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
   deliberately last, because nothing above it is blocked on it.)*
 

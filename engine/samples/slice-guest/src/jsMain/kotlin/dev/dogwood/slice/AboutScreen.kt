@@ -45,7 +45,9 @@ import dev.dogwood.compose.background
 import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
 import dev.dogwood.compose.TextValue
+import dev.dogwood.compose.ScrollArea
 import dev.dogwood.compose.rememberFocusRequester
+import dev.dogwood.compose.rememberScrollState
 import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
@@ -136,6 +138,38 @@ fun AboutScreen() {
         label = "Dismiss keyboard",
         onClick = { cardFocus.freeFocus() },
       )
+    }
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    SectionHeader(
+      title = "Scrolling container",
+      description = "A position mirrored on a declared quantum. Drag it and watch the numbers move.",
+    )
+    // 40dp rather than the default, so a drag inside a 160dp window produces visible traffic. The
+    // trade is on screen: a smaller quantum is a smoother read and more crossings, and there is no
+    // value of it that yields per-frame state, because the host reports on a threshold.
+    val terms = rememberScrollState(reportEveryDp = 40)
+    Text(
+      "offset ${terms.offsetDp}dp of ${terms.maxOffsetDp}dp" +
+        (if (terms.isAtTop) " · at top" else "") +
+        (if (terms.isAtBottom) " · at end" else "") +
+        (if (terms.isScrollInProgress) " · scrolling" else ""),
+    )
+    ScrollArea(
+      modifier = Modifier.fillMaxWidth().height(160),
+      scroll = terms,
+    ) {
+      for (line in 1..24) {
+        Text("Clause $line. Everything in here is composed, measured and kept.")
+      }
+    }
+    Row(modifier = Modifier.fillMaxWidth()) {
+      PrimaryButton(label = "Top", onClick = { terms.animateScrollTo(0) })
+      Spacer(modifier = Modifier.width(8))
+      // The end is asked for as an intent, not a number: the guest cannot compute it, because the
+      // maximum is host layout and the guest's copy is as stale as its last report.
+      PrimaryButton(label = "End", onClick = { terms.animateScrollToEnd() })
     }
 
     Divider(modifier = Modifier.fillMaxWidth())

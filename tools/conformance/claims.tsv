@@ -41,6 +41,7 @@ C4	android,ios,desktop,web	dev.dogwood.host.PluralRulesAgreementTest,dev.dogwood
 C5	android,ios,desktop,web	dev.dogwood.host.HostResolvedBindingTest,dev.dogwood.host.ExpressionTest
 D6	android,ios,desktop,web	dev.dogwood.host.TextInputHostTest,dev.dogwood.host.TextMaskTest
 D8	android,ios,desktop,web	dev.dogwood.compose.FocusRequesterTest	js
+D9	android,ios,desktop,web	dev.dogwood.compose.ScrollStateTest	js
 E1	android,ios,desktop,web	dev.dogwood.host.StateStoreTest
 E2	android,ios,desktop,web	dev.dogwood.host.WarmPoolTest
 E3	android,ios,desktop,web	dev.dogwood.host.LeakDetectorTest,dev.dogwood.host.DetachedNodeTest

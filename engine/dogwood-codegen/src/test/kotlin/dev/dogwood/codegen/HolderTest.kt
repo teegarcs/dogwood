@@ -83,6 +83,21 @@ class HolderTest {
   }
 
   @Test
+  fun theMirrorsArgumentsAreNamedRatherThanPositional() {
+    // A shape with five properties passed positionally is two `Int` arguments away from a silent
+    // transposition: the mirror compiles, the container scrolls to the sequence number, and
+    // nothing says so. `ScrollState` has five.
+    val components = parse(reportingSurface, listOf(reporting))
+    val emitted = emitHostBindings(
+      packageName = "dev.dogwood.host",
+      implementationPackage = "dev.dogwood.host",
+      dictionary = dictionaryFor(components),
+      components = components,
+    )
+    assertTrue("rememberProbeMirror(target = node.int(1, 0)" in emitted, emitted)
+  }
+
+  @Test
   fun theHostBindingBuildsTheMirrorAndHandsItOver() {
     val components = parse(surface)
     val emitted = emitHostBindings(
@@ -92,7 +107,7 @@ class HolderTest {
       components = components,
     )
     assertTrue(
-      "focus = rememberFocusMirror(node.boolean(2, false), node.int(3, 0))" in emitted,
+      "focus = rememberFocusMirror(requested = node.boolean(2, false), sequence = node.int(3, 0))" in emitted,
       "the binding does not build the mirror the shape names:\n$emitted",
     )
   }

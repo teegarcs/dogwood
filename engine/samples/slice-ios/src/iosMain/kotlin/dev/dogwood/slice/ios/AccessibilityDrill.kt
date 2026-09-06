@@ -122,6 +122,43 @@ private fun NSObject.label(): String = accessibilityLabel ?: ""
 
 private fun List<NSObject>.labels(): List<String> = map { it.label() }.filter { it.isNotEmpty() }
 
+/**
+ * How an element looks when the thing wrong with it is that it has no label.
+ *
+ * [labels] drops the empty ones, which is right when reporting what *was* found and exactly wrong
+ * when reporting what is missing: a claim about anonymous elements failed with the detail `1: []`,
+ * naming a count and then throwing away every clue about which element it was. This prints what is
+ * left when the label is gone -- the value, the traits, and the class -- so a failure says
+ * something.
+ */
+private fun NSObject.describe(): String {
+  val label = label()
+  val value = (accessibilityValue ?: "").take(24)
+  val traits = accessibilityTraits
+  return buildString {
+    append(if (label.isEmpty()) "<no label>" else "\"$label\"")
+    if (value.isNotEmpty()) append(" value=\"$value\"")
+    append(" traits=0x${traits.toString(16)}")
+    append(" ${this@describe::class.simpleName}")
+  }
+}
+
+/**
+ * Where an element sits in the walk, named by the labelled elements around it.
+ *
+ * An element with no label cannot be named by its own label, which is the whole problem. Its
+ * neighbours can name it: VoiceOver reads this list in order, so "after Expand" locates it on the
+ * screen as precisely as a coordinate would and survives a layout change that a coordinate would
+ * not.
+ */
+private fun List<NSObject>.locate(element: NSObject): String {
+  val at = indexOfFirst { it === element }
+  if (at < 0) return "not in the walk"
+  val before = take(at).lastOrNull { it.label().isNotEmpty() }?.label() ?: "start"
+  val after = drop(at + 1).firstOrNull { it.label().isNotEmpty() }?.label() ?: "end"
+  return "#$at between \"$before\" and \"$after\""
+}
+
 private fun List<NSObject>.withLabel(label: String): NSObject? = firstOrNull { it.label() == label }
 
 private fun NSObject.isButton(): Boolean = accessibilityTraits and UIAccessibilityTraitButton != 0uL
@@ -289,14 +326,48 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   // same failure available to it: a disabled button with no `notEnabled` trait is announced as
   // operable. Recorded rather than asserted -- the sample may legitimately have no disabled
   // control on screen -- but printed, so its absence is visible rather than assumed.
-  val disabled = reached.filter { it.isDisabled() }
+  // The whole walk, printed only when something in it has no label. A claim that fails on an
+  // element with *no label* is a claim whose message cannot name its subject, so the tree is the
+  // only way to tell "this control lost its label" from "this is some other element entirely" --
+  // and a green run does not need to say any of it.
+  if (reached.any { it.label().isEmpty() }) {
+    checks.note("walk: " + reached.mapIndexed { at, it -> "$at ${it.describe()}" }.joinToString(" | "))
+  }
+
+  // Look again before reporting.
+  //
+  // iOS publishes only what is on screen, and the scroll loop above stops at the *first* frame in
+  // which its target is reachable -- so whatever comes next sits at the viewport edge, published
+  // with its traits and, if the part of it carrying the name is clipped, without its label. That is
+  // a property of where the walk stopped, not of the control.
+  //
+  // It is not hypothetical, and it is the reason this second look exists. Adding an unrelated
+  // section to the sample screen moved where the loop stops, and this claim went red on a button
+  // that had not changed: `1: [<no label> traits=0x101]`, sitting immediately after the button the
+  // loop had been searching for. The finding was a hypothesis about a control and was really an
+  // observation about a viewport.
+  //
+  // So an anonymous disabled control is confirmed by bringing it further into view and looking
+  // again. If it is still anonymous, it is reported -- and now the report means what it says.
+  var disabled = reached.filter { it.isDisabled() }
+  var lookedAgain = false
+  if (disabled.any { it.label().isEmpty() } && scrolls < 6) {
+    if (scrollDownSomewhere(root)) {
+      lookedAgain = true
+      delay(600)
+      reached = collectAccessibilityElements(root)
+      disabled = reached.filter { it.isDisabled() }
+    }
+  }
+
+  val confirmation = if (lookedAgain) " (after a second look)" else ""
   if (disabled.isEmpty()) {
     // Not silence: the sample carries a deliberately disabled control for exactly this claim, so
     // finding none here is a difference from Android worth seeing rather than a blank.
-    checks.skip("D7", "no element on this screen carries the notEnabled trait")
+    checks.skip("D7", "no element on this screen carries the notEnabled trait$confirmation")
   } else {
     checks.check("D7", "a disabled control is announced as disabled", disabled.all { it.label().isNotEmpty() },
-      "${disabled.size}: ${disabled.labels().take(4)}")
+      "${disabled.size}$confirmation: ${disabled.map { "${it.describe()} ${reached.locate(it)}" }.take(4)}")
   }
 
   // ------------------------------------------------------------------------------------------

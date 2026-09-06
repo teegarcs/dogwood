@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 8,
+    "version": 9,
     "components": [
         {
             "name": "PrimaryButton",
@@ -220,6 +220,35 @@
             },
             "eventTypes": {
                 "onExited": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "ScrollArea",
+            "localTag": 15,
+            "properties": {
+                "horizontal": 1,
+                "scrollTargetDp": 2,
+                "scrollSequence": 3,
+                "scrollAnimated": 4,
+                "scrollWatching": 5,
+                "scrollQuantumDp": 6
+            },
+            "propertyTypes": {
+                "horizontal": "Boolean",
+                "scrollTargetDp": "Int",
+                "scrollSequence": "Int",
+                "scrollAnimated": "Boolean",
+                "scrollWatching": "Boolean",
+                "scrollQuantumDp": "Int"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "scrollReport": 1
+            },
+            "eventTypes": {
+                "scrollReport": "(Int, Int, Boolean) -> Unit"
             }
         }
     ],
