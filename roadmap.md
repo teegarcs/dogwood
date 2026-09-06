@@ -414,6 +414,17 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Deferred engineering, carried here from the records that deferred it:**
 
+- **A resynchronisation protocol** for a tree left older than the guest believes after a rejected
+  batch ([Layer 4 ADR-011](adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md) §4).
+  Containment is done; repair is not.
+- **Generator-emitted range clamps** — a range declared on the surface so every property with
+  known bounds is clamped generator-wide, replacing today's hand-written readers
+  ([Layer 5 ADR-035](adrs/layer-5/ADR-035-hostile-property-values.md) §4).
+- **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
+  needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
+  subsystem 4, ◐).
+- **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
+  rather than the scheduler (Phase 0 appendix).
 - **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
   deliberately last, because nothing above it is blocked on it.)*
 
