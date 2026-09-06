@@ -3,7 +3,7 @@
 > **Status: complete, 2026-09-04.** Every item in Parts 1 and 2 and every measurement in R10 is
 > done, across pull requests #5–#19. What remains is not work: the Phase 0 gate device is still
 > unacquired (a purchase, [Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)),
-> the three upstream bug reports stay drafted and unfiled by standing decision (R11), and three
+> the two upstream bug reports stay drafted and unfiled by standing decision (R11), and three
 > accessibility questions still need a person — whether the speech is *good*, reading order as
 > experienced, and typing and selection. A short account of what the plan cost and what it found is
 > at the end, under **Part 4**.

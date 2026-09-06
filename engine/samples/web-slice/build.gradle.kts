@@ -108,3 +108,48 @@ tasks.named("compileKotlinWasmJs").configure {
     delete(layout.buildDirectory.dir("kotlin/compileKotlinWasmJs"))
   }
 }
+
+/*
+ * Preload the WebAssembly chunks, and why it is worth a build step.
+ *
+ * The shipped page is `<script src="app.js">`. The browser therefore learns the two `.wasm` URLs
+ * only after `app.js` has been fetched, decompressed and parsed — so the 2.6 MB renderer, which is
+ * three quarters of the page, cannot start downloading until a smaller file has finished. On a link
+ * with a 562 ms round trip that serialisation is not free.
+ *
+ * `<link rel="preload">` in the head starts both fetches immediately. Measured with
+ * `tools/web-ttff` ([ADR-045](../../../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)),
+ * it is the second lever that pays and the largest *relative* one: **17% off the first frame on
+ * 5G**, and about six tenths of a second on Fast 3G. It moves no bytes at all.
+ *
+ * It has to be a build step rather than two lines in `index.html` because the filenames are
+ * content-hashed — which is also what makes them cacheable, so the two facts are the same fact.
+ *
+ * `as="fetch"` rather than `as="script"`: the modules are instantiated by the Kotlin glue through
+ * `WebAssembly.instantiateStreaming` over a `fetch`, so that is the request the hint has to match.
+ * A mismatched `as` is worse than no hint — the browser downloads the file twice and warns in a
+ * console nobody reads in production.
+ */
+val preloadWasm by tasks.registering {
+  description = "Adds <link rel=preload> for each WebAssembly chunk to the distribution's index.html"
+  val dist = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
+  outputs.upToDateWhen { false }
+  doLast {
+    val dir = dist.get().asFile
+    val page = File(dir, "index.html")
+    if (!page.isFile) return@doLast
+    val existing = page.readText()
+    // Idempotent: the distribution directory is not always cleaned between builds, and a page with
+    // the hints applied twice would fetch each chunk twice.
+    if ("rel=\"preload\"" in existing) return@doLast
+    val chunks = dir.listFiles { f: File -> f.name.endsWith(".wasm") }?.sortedBy { it.name }.orEmpty()
+    check(chunks.isNotEmpty()) { "no .wasm chunks in $dir; the distribution did not build" }
+    val links = chunks.joinToString("\n") {
+      """  <link rel="preload" href="${it.name}" as="fetch" type="application/wasm" crossorigin>"""
+    }
+    page.writeText(existing.replace("</head>", "$links\n</head>"))
+    logger.lifecycle("web-slice: preloading ${chunks.size} WebAssembly chunks")
+  }
+}
+
+tasks.named("wasmJsBrowserDistribution") { finalizedBy(preloadWasm) }

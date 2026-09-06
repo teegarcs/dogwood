@@ -28,7 +28,8 @@ answer to four of the five is no.
 
 ## 2. Decision
 
-**No line the roadmap named pays, and the lever that does was not on the list: serve brotli.**
+**No line the roadmap named pays. Two levers that do were not on the list, and both act on the
+first frame rather than on the byte count: serve brotli, and preload the WebAssembly.**
 
 Where the bytes are, measured on the shipped slice at this commit:
 
@@ -129,6 +130,60 @@ measure at all unless the server is actually sending `Content-Encoding: br`, so 
 or in the budget was ever taken against uncompressed files. **What was missing is the instruction to
 whoever deploys it.** A budget expressed in brotli that a deployment silently misses by 27% is a
 budget met on paper.
+
+### Line 6 — Re-optimise the WebAssembly for size. **Measured at 0.6%; does not pay against the risk.**
+
+The Kotlin toolchain finishes with Binaryen using its own pass list, which is tuned for speed.
+`-Oz` and `-Os` are the size-first settings, and `skiko.wasm` — 73% of the page — was optimised by
+JetBrains before publication and has never been through a pass this project chose.
+
+| Chunk | baseline brotli | `-Oz` | `-Os` |
+|---|---:|---:|---:|
+| `skiko.wasm` | 2,596,146 | 2,577,488 | 2,576,313 |
+| application | 893,710 | 892,946 | 893,327 |
+
+The best case is **19,833 bytes**, 0.6% of the page, and about a tenth of a second on Fast 3G.
+
+Against that: re-optimising a vendor's shipped binary is exactly the class of change that produced
+this project's worst defect. A Binaryen pass in the toolchain's own list miscompiled
+`String.toCharArray()` to an array of zeros — silently, in a release build, context-sensitively
+([ADR-032](ADR-032-the-web-profile.md)). Running more passes over a renderer nobody here can read,
+for six tenths of one per cent, is a trade this project has already learned not to make.
+
+### Line 7 — Preload the WebAssembly chunks. **Pays, costs nothing, and is built.**
+
+The page is `<script src="app.js">`, so the browser learns the two `.wasm` URLs only after `app.js`
+has been fetched, decompressed and parsed. The 2.6 MB renderer cannot start downloading until a
+smaller file has finished. On a link with a 562 ms round trip that serialisation is not free.
+
+`<link rel="preload">` in the head starts both fetches immediately. Ten cold loads per preset, the
+same harness and method as ADR-038:
+
+| Connection | before | after | change |
+|---|---:|---:|---:|
+| unthrottled | 139 ms | 142 ms | — |
+| 5G | 520 ms | **454 ms** | **−13%** |
+| 4G | 3,606 ms | **3,473 ms** | −133 ms |
+| Fast 3G | 19,822 ms | **19,186 ms** | −636 ms |
+
+**It moves no bytes at all** — the transferred figure is 3,496 KiB in every load, before and after.
+What it removes is a round trip and a parse from the critical path, which is why the *relative*
+gain is largest on the fast connection, where transfer no longer dominates. 5G is also the
+connection most users actually have.
+
+It is a build step rather than two lines of HTML because the filenames are content-hashed — which
+is also what makes them cacheable, so the two facts are the same fact. `as="fetch"` rather than
+`as="script"`, because the modules are instantiated through `WebAssembly.instantiateStreaming` over
+a `fetch`; a mismatched `as` makes the browser download each file **twice**, which is worse than no
+hint.
+
+---
+
+*Lines 6 and 7 were added after this record was first accepted. The first version answered the four
+questions the roadmap asked and stopped, which was the wrong shape for a page whose first visit is a
+product-level concern: "the four planned lines are no" is not the same as "there is nothing to do".
+Both of the levers that pay — brotli and preload — were found by asking what else touches the first
+frame rather than what else shrinks the page.*
 
 ## 3. Rationale & Research
 
