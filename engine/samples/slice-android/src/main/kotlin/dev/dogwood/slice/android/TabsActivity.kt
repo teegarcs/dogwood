@@ -70,6 +70,8 @@ import dev.dogwood.host.CallbackAnalytics
 import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.CallbackNavigation
 import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.DogwoodSkewReporter
+import dev.dogwood.host.SkewDrain
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.DogwoodShell
@@ -382,10 +384,34 @@ private fun Tabs(
     // not resolve a colour token, by the reader that had to clamp a value -- and writing snapshot
     // state there is not allowed. So nothing recomposes when an entry lands, and a composable that
     // merely reads it shows whatever was there when its own pass began.
+    //
+    // The same loop demonstrates the reporting seam, because a banner is not telemetry: it is
+    // visible to whoever is looking at this screen and to nobody else. `SkewDrain` hands a
+    // `DogwoodSkewReporter` what is **new** since the last drain, and a product implements that
+    // interface with whatever it already uses. This one logs, which is the smallest honest example;
+    // the point is that Dogwood stores and the host reports, so the transport, the batching and the
+    // sampling rate stay the product's business.
+    //
+    // Drained here, on the user-interface thread, for the reason above: the sets are written during
+    // composition and reading them elsewhere is a data race. The list `drain()` returns is a copy
+    // and is safe to hand to a background thread.
+    val reporter = remember {
+      DogwoodSkewReporter { entries ->
+        for (entry in entries) android.util.Log.w("DogwoodSkew", "${entry.kind} ${entry.value}")
+      }
+    }
+    var drain by remember { mutableStateOf<SkewDrain?>(null) }
     LaunchedEffect(shell) {
       while (true) {
         delay(1_000)
-        skew = shell?.active?.value?.skew?.takeIf { !it.isEmpty }?.toString().orEmpty()
+        val report = shell?.active?.value?.skew
+        skew = report?.takeIf { !it.isEmpty }?.toString().orEmpty()
+        if (report != null) {
+          // One drain per experience: a new generation gets a new report, and a drain that
+          // outlived its report would think everything in the new one had already been sent.
+          val current = drain?.takeIf { it.isFor(report) } ?: SkewDrain(report).also { drain = it }
+          current.drainTo(reporter)
+        }
       }
     }
 
