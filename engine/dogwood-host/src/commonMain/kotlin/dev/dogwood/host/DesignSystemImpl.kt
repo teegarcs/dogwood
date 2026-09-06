@@ -88,6 +88,33 @@ fun CardImpl(modifier: Modifier, content: @Composable () -> Unit) {
   }
 }
 
+/**
+ * A container whose content scrolls, and is **not** lazy.
+ *
+ * Everything inside is composed, measured and kept, exactly as in a `Column`. That is what makes it
+ * right for a bounded page and wrong for a feed, and it is why `VerticalList` still exists: the
+ * choice between them is a choice about how much content there is, and the guest is the only side
+ * that knows.
+ *
+ * The scroll modifier goes on **before** the guest's own chain. A guest that asked for padding
+ * expects the padding outside the scrolling region, so the padded edge stays put and the content
+ * moves within it; applying the guest's chain first would scroll the padding away with everything
+ * else.
+ */
+@Composable
+fun ScrollAreaImpl(
+  horizontal: Boolean,
+  modifier: Modifier,
+  scroll: ScrollMirror,
+  content: @Composable () -> Unit,
+) {
+  if (horizontal) {
+    Row(modifier.then(scroll.modifierFor(horizontal = true))) { content() }
+  } else {
+    Column(modifier.then(scroll.modifierFor(horizontal = false))) { content() }
+  }
+}
+
 @Composable
 fun BadgeImpl(text: String, selected: Boolean, modifier: Modifier) {
   Surface(

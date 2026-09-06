@@ -243,3 +243,27 @@ fun Presence(
   onExited: (() -> Unit)? = null,
   content: @Composable () -> Unit,
 ) {}
+
+/**
+ * A container whose content scrolls.
+ *
+ * The one layout capability a guest could not express at all: `Column` fills and clips, and a
+ * screen taller than the viewport simply lost its bottom. `VerticalList` scrolls, but a list is the
+ * wrong shape for a form or an article — it wants items, and this content is one composition.
+ *
+ * It is **not lazy**. Everything inside is composed, measured and kept, exactly as in a `Column`,
+ * which is what makes it the right choice for a bounded page and the wrong one for a feed. Reach
+ * for `VerticalList` when the content is long enough that composing all of it would be the problem.
+ *
+ * @param scroll the position, mirrored. Optional: a container without one still scrolls under the
+ *   user's finger, and reports nothing, and cannot be driven by the guest. See [Holder] and
+ *   [ADR-044](../../../../adrs/layer-5/ADR-044-scroll-position-is-a-declared-quantum.md).
+ * @param horizontal lays the content out in a row and scrolls sideways.
+ */
+@Composable
+fun ScrollArea(
+  modifier: Modifier = Modifier,
+  horizontal: Boolean = false,
+  @Holder scroll: ScrollState? = null,
+  content: @Composable () -> Unit,
+) {}

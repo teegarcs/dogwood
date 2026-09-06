@@ -360,7 +360,13 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
     // being delivered to the previous, closed guest.
     val currentNode by rememberUpdatedState(node)
     val currentEvents by rememberUpdatedState(events)
-    LaunchedEffect(node.id.value, listState) {
+    // The generation, for the reason `LocalGuestGeneration` records: a report is edge-triggered and
+    // a replacement guest needs a level. This list survives a code update today without it, but by
+    // accident -- clearing and rebuilding the tree churns the visible range, which happens to make
+    // the flow emit again. A scrolling container in the same position did not, and came back
+    // reporting a maximum of -1. Depending on churn is depending on a coincidence.
+    val generation = LocalGuestGeneration.current
+    LaunchedEffect(node.id.value, listState, generation) {
       snapshotFlow {
         Triple(
           listState.firstVisibleItemIndex,

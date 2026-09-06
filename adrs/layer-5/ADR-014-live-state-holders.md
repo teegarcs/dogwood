@@ -120,10 +120,13 @@ refactor that moves a call site loses its state.
 
 ## 4. Unstated Assumptions
 
-- **The host-side behaviour is verified on a device, not unit-tested.** Exercising a real
-  `LazyListState` inside a composition needs a Compose UI test harness this project does not have —
-  the same limitation [ADR-009](ADR-009-modifier-subsystem.md) records for pixel identity. The
-  protocol half is tested; the binding half is demonstrated.
+- ~~The host-side behaviour is verified on a device, not unit-tested, because exercising a real
+  `LazyListState` inside a composition needs a Compose UI test harness this project does not have.~~
+  **Withdrawn** ([ADR-044](ADR-044-scroll-position-is-a-declared-quantum.md)): the harness exists
+  and did when this was written. `dogwood-host`'s `jvmTest` source set carries `compose.uiTest`, and
+  `runComposeUiTest` was already in use — this record asserted a capability absent without checking,
+  and two later records repeated it. `LazyListMirror`'s own host half remains demonstrated rather
+  than asserted; that is now a gap to close rather than a limit to live with.
 - **A held target waits indefinitely.** Bounded in practice by cancellation — a newer target or the
   node's removal ends it — but a guest that declares a target into content that never loads leaves
   a suspended effect until the node goes away.
