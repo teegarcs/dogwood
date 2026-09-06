@@ -1,7 +1,10 @@
 # ADR-014: Live-State Holders — Targets Down, Reports Up, and the Host Is Authoritative
 
 **Date:** 2026-09-01
-**Status:** Accepted
+**Status:** Accepted — **extended by [ADR-043](ADR-043-holders-are-declared-on-the-surface.md)**,
+which keeps this shape unchanged and moves the *wire form* of a holder from hand-written on both
+sides to generated from a surface declaration. What that record changes is the cost this one
+accepted in §4: "assumes thirty holders can share this shape".
 
 ## 1. Context & Problem Statement
 

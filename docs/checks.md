@@ -21,7 +21,7 @@ conformance plan exists to avoid.
 | Check | What it proves | Fails when |
 |---|---|---|
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
-| `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
+| `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
 | `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.70 MB brotli against 3.57 MB today) | the page grows past the ceiling, or cannot be measured at all |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without

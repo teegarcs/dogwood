@@ -21,6 +21,13 @@
 #
 # The restore runs on any exit path, including a failure or an interrupt. That is the reason this is
 # a script with a trap rather than a list of steps in a document.
+#
+# **The restore copies files back; it does not `git checkout` them.** It used to, and that is a
+# different operation wearing the same clothes: `git checkout --` restores the *committed* content,
+# so it silently discarded whatever uncommitted work happened to be in those four files. It did --
+# to the surface change that added `@Holder`, mid-review, with no message. The drill cannot tell its
+# own patch from a developer's, so it saves the four files it is about to touch and puts those
+# copies back.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$HERE/build"
@@ -37,9 +44,23 @@ curl -fs -m 5 http://localhost:8080/manifest.zipline.json >/dev/null 2>&1 || {
   echo "the guest is not being served on :8080 --" >&2
   echo "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline" >&2; exit 2; }
 
+ABOUT="samples/slice-guest/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
+TOUCHED=("$SURFACE" "$LOCK" "$CODEGEN" "$ABOUT")
+
+# Saved before anything is patched, and restored from these copies rather than from git. The
+# distinction is the whole point: git would restore the committed content and throw away any
+# uncommitted work in these files, which is not what "restore" means to the person running this.
+SAVED="$(mktemp -d)"
+for file in "${TOUCHED[@]}"; do
+  mkdir -p "$SAVED/$(dirname "$file")"
+  cp "$file" "$SAVED/$file"
+done
+
 restore() {
-  git checkout -- "$SURFACE" "$LOCK" "$CODEGEN" \
-    "samples/slice-guest/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt" 2>/dev/null || true
+  for file in "${TOUCHED[@]}"; do
+    cp "$SAVED/$file" "$file" 2>/dev/null || true
+  done
+  rm -rf "$SAVED"
   # Rebuild the payload from the restored surface so the served guest is not left skewed for the
   # next person who opens the sample.
   ./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline --console=plain -q >/dev/null 2>&1 || true

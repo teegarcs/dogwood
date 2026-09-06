@@ -32,7 +32,10 @@ import dev.dogwood.compose.Box
 import dev.dogwood.compose.Color
 import dev.dogwood.compose.Keyboards
 import dev.dogwood.compose.PrimaryButton
+import dev.dogwood.compose.Row
+import dev.dogwood.compose.Spacer
 import dev.dogwood.compose.padding
+import dev.dogwood.compose.width
 import kotlinx.serialization.json.JsonObject
 import dev.dogwood.compose.animate
 import dev.dogwood.compose.animateDp
@@ -42,6 +45,7 @@ import dev.dogwood.compose.background
 import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
 import dev.dogwood.compose.TextValue
+import dev.dogwood.compose.rememberFocusRequester
 import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.services
 import dev.dogwood.protocol.SERVICES_SEGMENT
@@ -101,6 +105,12 @@ fun AboutScreen() {
       description = "The mask, the limit and the counter are all applied host-side, where the typing is.",
     )
     val card = rememberTextFieldState()
+    // Two holders on one field, with different conflict rules. The text is version-vectored --
+    // the host counts edits and discards a guest value stamped older than its own count -- and the
+    // focus is a level-triggered target, the shape ADR-014 established for lists. Folding them
+    // together would have put one inside the other; keeping them apart is why the field can be
+    // focused by a guest that is behind on the text.
+    val cardFocus = rememberFocusRequester()
     TextField(
       state = card,
       modifier = Modifier.fillMaxWidth(),
@@ -108,10 +118,25 @@ fun AboutScreen() {
       mask = "#### #### #### ####",
       keyboard = Keyboards.NUMBER,
       showCounter = true,
+      focus = cardFocus,
     )
     // The guest sees digits. It never sees the spaces, so changing the mask cannot change what
     // validation reads.
     Text("guest sees: \"${card.text}\"")
+    // Both directions, on screen, so the holder can be verified on a device rather than argued
+    // about. "Give it up" is a request in its own right and not the absence of one: a host that
+    // read `requested = false` as "nothing was asked" would leave the keyboard up.
+    Row(modifier = Modifier.fillMaxWidth()) {
+      PrimaryButton(
+        label = "Focus card number",
+        onClick = { cardFocus.requestFocus() },
+      )
+      Spacer(modifier = Modifier.width(8))
+      PrimaryButton(
+        label = "Dismiss keyboard",
+        onClick = { cardFocus.freeFocus() },
+      )
+    }
 
     Divider(modifier = Modifier.fillMaxWidth())
 

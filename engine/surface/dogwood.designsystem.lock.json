@@ -1,7 +1,7 @@
 {
     "segmentName": "dogwoodDesignSystem",
     "segmentId": 1,
-    "version": 7,
+    "version": 8,
     "components": [
         {
             "name": "PrimaryButton",
@@ -170,7 +170,9 @@
                 "maxLength": 7,
                 "mask": 8,
                 "keyboard": 9,
-                "showCounter": 10
+                "showCounter": 10,
+                "focusRequested": 11,
+                "focusSequence": 12
             },
             "propertyTypes": {
                 "text": "String",
@@ -182,7 +184,9 @@
                 "maxLength": "Int",
                 "mask": "String?",
                 "keyboard": "String?",
-                "showCounter": "Boolean"
+                "showCounter": "Boolean",
+                "focusRequested": "Boolean",
+                "focusSequence": "Int"
             },
             "safetyRelevant": [
                 "enabled"

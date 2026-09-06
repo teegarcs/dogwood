@@ -102,13 +102,24 @@ class SkewReport {
    */
   val clampedValues = mutableSetOf<String>()
 
+  /**
+   * Focus requests the platform refused.
+   *
+   * A guest asks for the keyboard on a field that is disabled, not yet laid out, or not focusable
+   * on this platform, and Compose signals that by throwing. The throw is dropped, because it
+   * arrived from a payload delivered over the air and an exception there takes the screen down on
+   * every client at once. What is left without this line is a keyboard that did not open and no
+   * record of why.
+   */
+  val rejectedFocusRequests = mutableSetOf<String>()
 
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
       unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
       untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
-      rejectedBatches.isEmpty() && refusedImages.isEmpty() && clampedValues.isEmpty()
+      rejectedBatches.isEmpty() && refusedImages.isEmpty() && clampedValues.isEmpty() &&
+      rejectedFocusRequests.isEmpty()
 
   override fun toString(): String = buildString {
     append("SkewReport(")
@@ -124,7 +135,8 @@ class SkewReport {
     if (withheldWidgets.isNotEmpty()) append("withheld=$withheldWidgets ")
     if (rejectedBatches.isNotEmpty()) append("rejectedBatches=$rejectedBatches ")
     if (refusedImages.isNotEmpty()) append("refusedImages=$refusedImages ")
-    if (clampedValues.isNotEmpty()) append("clamped=$clampedValues")
+    if (clampedValues.isNotEmpty()) append("clamped=$clampedValues ")
+    if (rejectedFocusRequests.isNotEmpty()) append("focus=$rejectedFocusRequests")
     append(")")
   }
 }

@@ -26,7 +26,16 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 // The compiler's parser entry points are marked as K1 API. Parsing declarations is exactly what
 // this needs and the K2 analysis API would be a much larger dependency for no gain here; when the
 // generator needs resolved types rather than declaration text, that trade changes.
-class SurfaceParser {
+class SurfaceParser(
+  /**
+   * The holder shapes this parser will accept behind `@Holder`.
+   *
+   * Injectable so the generator's own tests can exercise a shape without adding one to the
+   * shipping table -- a table entry whose host mirror does not exist would generate a binding that
+   * compiles, renders, and does nothing.
+   */
+  private val holderShapes: List<HolderShape> = DEFAULT_HOLDER_SHAPES,
+) {
 
   private val environment: KotlinCoreEnvironment = KotlinCoreEnvironment.createForProduction(
     Disposer.newDisposable("dogwood-codegen"),
@@ -112,11 +121,35 @@ class SurfaceParser {
         range = range,
       )
 
+    // `@Holder` on a live-state parameter: the surface is asserting that this holder has a shape
+    // and a host-side mirror, and the shape table decides whether that is true. Read before the
+    // live-state rejection below, which is the *unmarked* case.
+    val declaredHolder = annotationEntries.any { it.shortName?.asString() == "Holder" }
+    val shape = holderShapes.firstOrNull { it.type == type.removeSuffix("?") }
+
     return when {
       type == "Modifier" -> of(ParameterKind.MODIFIER)
 
+      // Marked, and the shape is known: plumbed. The generator emits the properties the shape
+      // declares and calls the mirror; what the holder *does* stays hand-written.
+      declaredHolder && shape != null ->
+        ParsedParameter(
+          name, type, ParameterKind.HOLDER,
+          hasDefault = default != null,
+          defaultExpression = default,
+          affordance = affordance,
+          holderShape = shape,
+        )
+
+      // Marked and unknown. Rejected rather than plumbed by inference: a guessed shape emits
+      // properties no host reads, which is not a failure anyone sees -- the widget renders and the
+      // holder is inert.
+      declaredHolder ->
+        of(ParameterKind.UNSUPPORTED, "no holder shape is registered for $type")
+
       // A live-state holder: the guest would have to read or drive host-owned state per frame,
-      // which the Layer 4 invariant forbids outright.
+      // which the Layer 4 invariant forbids outright. Marking it `@Holder` is how a surface says
+      // the mirrored-state protocol covers this one.
       LIVE_STATE.any { type.contains(it) } ->
         of(ParameterKind.UNSUPPORTED, "live-state holder: $type")
 
@@ -196,7 +229,41 @@ class SurfaceParser {
     return bare
   }
 
-  private companion object {
+  companion object {
+    /**
+     * The holder shapes the shipping surface may use.
+     *
+     * One entry per holder type whose host-side mirror exists. Deliberately short: the corrected
+     * coverage measurement enumerates roughly thirty holder types, and this table grows by one
+     * every time a mirror is written, never in anticipation of one.
+     *
+     * See `adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md`.
+     */
+    val DEFAULT_HOLDER_SHAPES = listOf(
+      /*
+       * Focus: a target with nothing to report.
+       *
+       * The guest asks for focus and the host takes it, or gives it up. There is deliberately no
+       * report back, and that is a decision rather than an omission -- "is this field focused?" is
+       * answerable only per frame, and a guest that branched on it would be holding exactly the
+       * per-frame state Layer 4 forbids. A guest that needs to know a field was left has an
+       * ordinary event for it.
+       */
+      HolderShape(
+        type = "FocusRequester",
+        mirror = "rememberFocusMirror",
+        properties = listOf(
+          // Which way the request went. `false` is a real request -- give the focus up -- and not
+          // the absence of one; absence is the sequence still being zero.
+          HolderProperty(suffix = "Requested", type = "Boolean", field = "requested", absent = "false"),
+          // A counter, not a flag, for the same reason `LazyListState`'s is: asking twice for the
+          // same thing is two requests. A user who dismissed the keyboard and tapped the same
+          // "edit" control again expects the field back.
+          HolderProperty(suffix = "Sequence", type = "Int", field = "sequence", absent = "0"),
+        ),
+      ),
+    )
+
     val LIVE_STATE = listOf(
       "InteractionSource", "ScrollState", "LazyListState", "CarouselState", "PagerState",
       "FocusRequester", "TextFieldState", "MutableState",

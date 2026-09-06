@@ -51,6 +51,34 @@ annotation class Affordance
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class Range(val min: Double, val max: Double = Double.MAX_VALUE)
+
+/**
+ * Marks a parameter as a **live-state holder**: an object the host owns and the guest mirrors.
+ *
+ * Layer 4 forbids per-frame state in the guest, so a holder is never handed across. What crosses
+ * is the mirror's asymmetry, established by
+ * [ADR-014](../../../../adrs/layer-5/ADR-014-live-state-holders.md): **targets go down, reports
+ * come up, and the host is authoritative**. A guest declares where it wants a list to be, or that
+ * it wants a field focused; the host gets there however it gets there, and a stale target cannot
+ * arrive because a property carries only its latest value.
+ *
+ * Without this marking a live-state parameter is **rejected**, and that default is deliberate: the
+ * generator cannot tell a holder it knows how to mirror from one nobody has written a mirror for,
+ * and plumbing the second would emit properties no host reads. The widget would render, and the
+ * holder would be silently inert.
+ *
+ * So the marking is an assertion the generator checks rather than takes: a `@Holder` on a type
+ * with no registered shape fails the build with the type's name in the message. Registering one is
+ * an entry in `SurfaceParser.DEFAULT_HOLDER_SHAPES` plus the host-side mirror it names.
+ *
+ * A holder parameter is always optional. Most call sites do not want one, and the wire form says
+ * so: the properties carry the shape's "absent" values, and nothing on the host observes anything.
+ *
+ * See [ADR-043](../../../../adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md).
+ */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Holder
 package dev.dogwood.surface
 
 import androidx.compose.runtime.Composable
@@ -166,6 +194,9 @@ fun Icon(
  * @param maxLength raw characters, enforced host-side. -1 for no limit.
  * @param showCounter drawn and computed by the host; a guest-computed counter would be a crossing
  *   per keystroke.
+ * @param focus asks for the keyboard. A target with nothing reported back: focus is something the
+ *   guest *asks for*, and "is this field focused right now?" is a per-frame question the mirror
+ *   deliberately cannot answer. See [Holder].
  */
 @Composable
 fun TextInput(
@@ -181,6 +212,7 @@ fun TextInput(
   keyboard: String? = null,
   showCounter: Boolean = false,
   onValueChange: (String, Int) -> Unit,
+  @Holder focus: FocusRequester? = null,
 ) {}
 
 /**

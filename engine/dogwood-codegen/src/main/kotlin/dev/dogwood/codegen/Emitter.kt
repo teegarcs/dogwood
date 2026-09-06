@@ -46,12 +46,14 @@ fun buildDictionary(
     DictionaryEntry(
       name = component.name,
       localTag = allocated[index],
-      properties = component.values.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
-      propertyTypes = component.values.associate { it.name to it.type },
+      // Holders expand here, in declaration order with everything else, so appending a holder to
+      // a surface appends tags rather than renumbering the properties around it.
+      properties = component.wireProperties.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      propertyTypes = component.wireProperties.associate { it.name to it.type },
       safetyRelevant = component.affordances.mapTo(mutableSetOf()) { it.name },
       slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
-      events = component.events.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
-      eventTypes = component.events.associate { it.name to it.type },
+      events = component.wireEvents.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      eventTypes = component.wireEvents.associate { it.name to it.type },
       rejected = component.parameters
         .filter { it.kind == ParameterKind.UNSUPPORTED }
         .associate { it.name to (it.rejection ?: "unsupported") },
@@ -111,9 +113,52 @@ fun emitGuestStubs(packageName: String, dictionary: Dictionary, components: List
         appendLine("  ${parameter.name}: $type$default,")
       }
       appendLine(") {")
+      // A holder's fields are read **here**, in the composable body, and not inside `update`.
+      // That is what subscribes this call site to the holder's snapshot state; a read inside
+      // `update` happens after the composition has already decided not to recompose, so a target
+      // declared between frames would never cross. `LazyListState`'s hand-written container
+      // carries the same comment, and it is the one thing about this pattern that is easy to get
+      // wrong and invisible when you do.
+      for (parameter in component.holders) {
+        val shape = parameter.holderShape!!
+        for (property in shape.properties) {
+          // Nullable, and left null when the guest passed no holder. Absence is the sentinel
+          // everywhere else in this protocol and it has to be here too: a stub that sent a
+          // holder's properties unconditionally would put two tags on every one of these widgets,
+          // and a client one dictionary version behind meets two property tags it has never seen
+          // on a widget that owns an affordance -- which is defined to withhold it. Every text
+          // field on that client would go blank because a *newer* guest declined to ask for focus.
+          appendLine("  val ${parameter.name}${property.suffix} = ${parameter.name}?.${property.field}")
+        }
+      }
       appendLine("  ComposeNode<WidgetNode, DogwoodApplier>(")
       appendLine("    factory = { newWidget(widgetTag(${dictionary.segmentId}, ${entry.localTag})) },")
       appendLine("    update = {")
+      for (parameter in component.holders) {
+        val shape = parameter.holderShape!!
+        for (property in shape.properties) {
+          val local = "${parameter.name}${property.suffix}"
+          appendLine("      set($local) { if (it != null) recording.recorder.property(id, PropertyTag(${entry.properties.getValue(local)}), JsonPrimitive(it)) }")
+        }
+        val report = shape.report ?: continue
+        val tag = entry.events.getValue("${parameter.name}Report")
+        // Keyed on the holder itself, so passing null clears the slot. Registering nothing is not
+        // the same as registering a no-op: a report handler from a previous composition would keep
+        // feeding a holder the guest has stopped using.
+        appendLine("      set(${parameter.name}) { holder ->")
+        appendLine("        if (holder == null) {")
+        appendLine("          recording.lambdas.clear(id, EventTag($tag))")
+        appendLine("        } else {")
+        appendLine("          recording.lambdas.set(id, EventTag($tag)) { args ->")
+        appendLine("            holder.${report.method}(")
+        report.arguments.forEachIndexed { index, argument ->
+          appendLine("              ${argument.name} = ${decodeArgument(argument.type, index, argument.absent)},")
+        }
+        appendLine("            )")
+        appendLine("          }")
+        appendLine("        }")
+        appendLine("      }")
+      }
       for (parameter in component.values) {
         val tag = entry.properties.getValue(parameter.name)
         // A host-resolved value already carries its own wire form -- a literal or a recipe -- so
@@ -308,6 +353,29 @@ fun emitHostBindings(
       val tag = entry.properties.getValue(parameter.name)
       appendLine("        ${parameter.name} = ${reader(parameter, tag, component.name)},")
     }
+    for (parameter in component.holders) {
+      val shape = parameter.holderShape!!
+      // The generated binding builds the mirror and hands it over. What the mirror *does* is
+      // hand-written, for the same reason the widget is: moving a list, taking focus or opening a
+      // sheet is the part that requires taste, and it is not the part that grows without bound.
+      val arguments = shape.properties.joinToString(", ") { property ->
+        val tag = entry.properties.getValue("${parameter.name}${property.suffix}")
+        when (property.type) {
+          "Boolean" -> "node.boolean($tag, ${property.absent})"
+          "Int" -> "node.int($tag, ${property.absent})"
+          "Float" -> "node.float($tag, ${property.absent})"
+          else -> "node.string($tag, ${property.absent})"
+        }
+      }
+      val report = shape.report
+      val reporting = if (report == null) "" else {
+        val tag = entry.events.getValue("${parameter.name}Report")
+        val names = report.arguments.indices.joinToString(", ") { "a$it" }
+        val encoded = report.arguments.indices.joinToString(", ") { "JsonPrimitive(a$it)" }
+        ", report = { $names -> events.send(node, EventTag($tag), listOf($encoded)) }"
+      }
+      appendLine("        ${parameter.name} = ${shape.mirror}($arguments$reporting),")
+    }
     component.modifier?.let { appendLine("        ${it.name} = modifier,") }
     for (parameter in component.events) {
       val tag = entry.events.getValue(parameter.name)
@@ -416,6 +484,15 @@ internal fun eventArguments(parameter: ParsedParameter): List<String> {
   return bare.substringAfter("(").substringBefore(")")
     .split(",").map { it.trim() }.filter { it.isNotEmpty() }
 }
+
+/** Decodes one positional event argument on the guest side. */
+private fun decodeArgument(type: String, index: Int, absent: String): String =
+  when (type.removeSuffix("?")) {
+    "Boolean" -> "args.getOrNull($index)?.jsonPrimitive?.booleanOrNull ?: $absent"
+    "Int" -> "args.getOrNull($index)?.jsonPrimitive?.intOrNull ?: $absent"
+    "Float" -> "args.getOrNull($index)?.jsonPrimitive?.floatOrNull ?: $absent"
+    else -> "args.getOrNull($index)?.jsonPrimitive?.content ?: $absent"
+  }
 
 private fun guestEventBody(parameter: ParsedParameter): String {
   val arguments = eventArguments(parameter)
