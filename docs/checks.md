@@ -21,11 +21,35 @@ conformance plan exists to avoid.
 | Check | What it proves | Fails when |
 |---|---|---|
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
-| `from_tests.py` | the shared-code conformance claims — groups A, B, C, E, F — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
+| `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
 | `from_web_weight.py` | the web page is within its byte budget (3.30 MB brotli against 2.92 MB today) | the page grows past the ceiling |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
 opening a log.
+
+**`--have` names the toolchains the runner can execute.** A Linux runner has no Kotlin/Native, so
+the two rows whose evidence is an iOS-target test (`E4`, `F1`) are reported as *not gradable here*
+rather than as failures; they are graded on a Mac by `run-all.sh`. The distinction is load-bearing:
+"this environment cannot run that" and "somebody deleted that test" must never look the same, and
+the fourth column of `claims.tsv` is what keeps them apart.
+
+### Three faults this workflow shipped with, and what they cost
+
+Recorded because each is a category rather than a one-off.
+
+- **`python3 grade.py | tee out.conf` reports `tee`'s exit code.** GitHub's default shell is
+  `bash -e`, without `pipefail`, so the first *green* run of this workflow was green while two
+  claims were red. Every pipeline here now runs under `bash -euo pipefail`. This is the third time
+  a shell pipeline has reported a product state incorrectly in this repository — after `grep -q`
+  under `pipefail` in the skew drill, and `--console-pty` carriage returns in the iOS drill.
+- **`brotli` is not installed on an Ubuntu runner**, so the page-weight budget reported `SKIP` and
+  the workflow went green having graded nothing. It is installed now, and
+  `from_web_weight.py` reports a `FAIL` rather than a `SKIP` when it cannot measure — an
+  environment asked to grade a budget and unable to is broken, and saying so is the only way that
+  gets fixed rather than tolerated.
+- **A four-gigabyte Gradle daemon plus parallel execution kills a two-processor, seven-gigabyte
+  runner** with `exit code 143`, nineteen minutes in. CI-sized limits go in `GRADLE_USER_HOME`,
+  which takes precedence over the project file and leaves a development machine alone.
 
 ## Tier C — locally, `tools/conformance/run-all.sh`
 

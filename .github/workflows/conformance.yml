@@ -31,7 +31,15 @@ jobs:
   tier-s:
     name: Tier S — shared-code claims and budgets
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        # `pipefail`, and the reason is a bug this workflow shipped with. A step written as
+        # `python3 grade.py | tee out.conf` reports `tee`'s exit code, not the grader's -- so the
+        # first green run of this workflow was green while two claims were red. GitHub's default
+        # shell is `bash -e`, which does not include `pipefail`; every pipeline here needs it.
+        shell: bash -euo pipefail {0}
 
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +94,19 @@ jobs:
         # `from_tests.py` maps test classes onto conformance claims and reads the results the build
         # just wrote. A claim whose evidence did not run fails here rather than reading as absent:
         # deleting a test must not silently drop a claim to green.
-        run: python3 tools/conformance/from_tests.py | tee /tmp/tier-s.conf
+        #
+        # `--have` names the toolchains this runner can actually execute. A Linux runner has no
+        # Kotlin/Native, so the two iOS-target rows are reported as not gradable here rather than
+        # as failures -- they are graded on a Mac by `run-all.sh`. Without this the workflow
+        # reported two red claims against a product that was fine.
+        run: python3 tools/conformance/from_tests.py --have jvm,js,wasm | tee /tmp/tier-s.conf
+
+      - name: Install brotli
+        # `web-weight/measure.sh` shells out to it, and an Ubuntu runner does not have it. Without
+        # this the budget step reported SKIP -- "the harness produced no total" -- and the workflow
+        # went green having graded nothing. An ungraded budget must be a failure here, not a shrug,
+        # which is why it is installed rather than tolerated.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq brotli
 
       - name: Grade the page-weight budget
         # The one performance budget a runner can measure honestly, because bytes are a property of

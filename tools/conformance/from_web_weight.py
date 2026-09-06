@@ -38,9 +38,14 @@ def measure() -> int | None:
 total = measure()
 limit = budget()
 if total is None:
-    print('CONF G5 SKIP -- the page-weight harness produced no total; is the distribution built?')
-    print('CONF RESULT client=web passed=0 failed=0 skipped=1')
-    sys.exit(0)
+    # A failure, not a skip. This ran as a SKIP once, in continuous integration, because `brotli`
+    # was not installed -- and the workflow went green having graded nothing. An environment asked
+    # to grade a budget and unable to is a broken environment, and saying so is the only way that
+    # gets fixed rather than tolerated.
+    print('CONF G5 FAIL -- the page-weight harness produced no total. Is the distribution built, '
+          'and is `brotli` on PATH?')
+    print('CONF RESULT client=web passed=0 failed=1 skipped=0')
+    sys.exit(1)
 
 detail = f'{total:,} bytes brotli of {limit:,}'
 if total <= limit:
