@@ -67,6 +67,47 @@ class DogwoodExperience(
 
   private var guest: DogwoodGuestUi? = null
 
+  /**
+   * Whether a resynchronisation is already in flight, so a failing one cannot loop.
+   *
+   * A rejected batch asks the guest to re-send the whole tree. If *that* is rejected too the fault
+   * is in the protocol rather than in the divergence, and asking again would produce an endless
+   * cycle of full re-sends -- the most expensive thing this boundary can do -- while the screen
+   * stays broken either way. One attempt, then report and stop.
+   */
+  private var resynchronising = false
+
+  /**
+   * Clears the tree and asks the guest to send the whole thing again.
+   *
+   * Containment leaves the screen intact but the host's tree older than the guest believes, and
+   * every later change is a diff against a tree that no longer exists on the other side
+   * ([Layer 4 ADR-011](../../../adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md) §4).
+   * This is the repair that record said was not built.
+   *
+   * **The tree is cleared first, on this thread, before the request crosses.** What comes back is
+   * a complete tree rather than a patch, so applying it onto the old one would duplicate every
+   * node. Clearing here rather than on arrival also means the screen goes blank for the width of
+   * one round trip, which is honest: the host genuinely does not know what should be on it.
+   *
+   * Call from the user-interface thread.
+   */
+  private fun requestResynchronisation(because: String) {
+    threads.checkUi()
+    if (resynchronising) {
+      // The re-send itself failed. Reported rather than retried -- see `resynchronising`.
+      skew.rejectedBatches += "resynchronisation failed as well ($because); the tree is stale"
+      return
+    }
+    resynchronising = true
+    skew.rejectedBatches += "resynchronising: $because"
+    tree.clear()
+    uiScope.launch(ziplineDispatcher) {
+      threads.checkZipline()
+      guest?.resynchronise()
+    }
+  }
+
   /** Coalesces frame requests: the guest may ask many times before one frame is served. */
   private var frameScheduled = false
 
@@ -88,7 +129,10 @@ class DogwoodExperience(
       } catch (mismatch: ProtocolMismatch) {
         // Posted rather than written here: the report is read on the user-interface thread while
         // this runs on the Zipline thread.
-        uiScope.launch { skew.rejectedBatches += mismatch.message ?: "undecodable batch" }
+        uiScope.launch {
+          skew.rejectedBatches += mismatch.message ?: "undecodable batch"
+          requestResynchronisation("a batch could not be decoded")
+        }
         return
       }
       uiScope.launch {
@@ -99,8 +143,13 @@ class DogwoodExperience(
         // never composed and every later diff would compound against. See `BatchValidation.kt`.
         try {
           tree.apply(batch)
+          // A batch that applied is the evidence the repair worked; without clearing this, one
+          // rejection would leave the guard set for the life of the experience and the next
+          // genuine divergence would go unrepaired.
+          resynchronising = false
         } catch (mismatch: ProtocolMismatch) {
           skew.rejectedBatches += "batch ${batch.q}: ${mismatch.message}"
+          requestResynchronisation("batch ${batch.q} was rejected")
         }
       }
     }

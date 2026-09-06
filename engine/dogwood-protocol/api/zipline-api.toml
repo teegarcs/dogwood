@@ -40,6 +40,9 @@ functions = [
   # fun frame(kotlin.Long): kotlin.Unit
   "48l+u3RK",
 
+  # fun resynchronise(): kotlin.Unit
+  "piKtq2WP",
+
   # fun sendEvent(dev.dogwood.protocol.Event): kotlin.Unit
   "RyLwAOsE",
 

@@ -80,4 +80,23 @@ interface DogwoodGuestUi : ZiplineService {
 
   /** Pushes a configuration change into the composition. */
   fun updateConfiguration(configuration: HostEnvironment)
+
+  /**
+   * Rebuilds the whole tree and sends it, because the host and this guest have diverged.
+   *
+   * Called when the host has **rejected a batch**. Rejection is all-or-nothing
+   * ([Layer 4 ADR-011](../../../adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md)), so
+   * the tree on screen is intact -- but it is now older than this guest believes, and every later
+   * change is a diff against a tree that no longer exists on the other side. Containment stopped
+   * the damage; only this repairs it.
+   *
+   * The guest answers by disposing its composition and building a new one from its own state
+   * snapshot, which emits the entire tree as creations rather than as a diff. Identifier and
+   * sequence counters carry across, so an event already in flight cannot land on a new node that
+   * inherited its number, and `Event.q` keeps meaning what it meant.
+   *
+   * **The host must clear its tree before calling this**, and does. What arrives is a complete
+   * tree, not a patch to an existing one.
+   */
+  fun resynchronise()
 }

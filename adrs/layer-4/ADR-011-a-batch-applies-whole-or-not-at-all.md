@@ -135,10 +135,12 @@ re-keyings constantly, so the check was run against real payloads on every host:
 - **Validation assumes the tree it validates against is the one the batch will apply to.** True
   because both run on the user-interface thread inside one `apply`, with no suspension between them.
   If applying ever became asynchronous this guarantee would need re-establishing.
-- **A rejected batch leaves the guest ahead of the host, permanently.** Containing the damage is not
-  the same as repairing it: the host's tree is now older than the guest believes. Nothing here
-  resynchronises them — the honest answer is a resynchronisation protocol (a full re-send on
-  request), and it is not built. What this ADR buys is that the divergence is *recorded and bounded*
+- ~~**A rejected batch leaves the guest ahead of the host, permanently.**~~ **Closed by
+  [ADR-012](ADR-012-resynchronisation-after-a-rejected-batch.md).** The gap was real and is
+  repaired: the host clears its tree and the guest rebuilds its composition, re-sending the whole
+  thing. The original text, because the reasoning still explains why the repair was needed:
+  containing the damage is not the same as repairing it — the host's tree is older than the guest
+  believes, and what this ADR buys on its own is that the divergence is *recorded and bounded*
   rather than silent and compounding.
 - **`appliedSequence` is not advanced by a rejected batch**, so outbound events keep reporting the
   last sequence the host actually applied. That is what lets the guest drop events it should treat

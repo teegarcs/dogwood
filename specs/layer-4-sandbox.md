@@ -199,9 +199,17 @@ comparison, and the web host — therefore checks the whole batch against a copy
 before it writes anything, and rejects it whole if the shadow does not survive. The check costs
 about 0.06 ms on a 600-change batch, roughly a quarter of decoding the same batch.
 
-Containment is not repair. A rejected batch leaves the host's tree older than the guest believes it
-to be, and nothing resynchronises them; what the rule buys is that the divergence is **recorded and
-bounded** instead of silent and compounding. A resynchronisation protocol is not built.
+**Containment is not repair, and the repair is now built**
+([ADR-012](../adrs/layer-4/ADR-012-resynchronisation-after-a-rejected-batch.md)). A rejected batch
+leaves the host's tree older than the guest believes, and because the guest sends *diffs*, every
+later batch is expressed against a tree that no longer exists on the other side — a screen frozen
+at the last good state with each new change landing wrongly or not at all. So on rejecting a batch
+the host **clears its tree and asks the guest to send the whole thing again**; the guest answers by
+snapshotting its state, disposing its composition and rebuilding from that snapshot, which emits
+the entire tree as creations. Identifier and sequence counters carry across the rebuild, or an
+event already in flight would land on a new node that inherited its number and every later event
+would look stale forever. One attempt only: a re-send that is itself rejected means the fault is in
+the protocol rather than the divergence, and asking again would loop.
 
 See [ADR-009](../adrs/layer-4/ADR-009-one-grammar-one-copy.md), which also records what remains
 unconsolidated: the deferred-expression factory identifiers, still declared in four places, and event
