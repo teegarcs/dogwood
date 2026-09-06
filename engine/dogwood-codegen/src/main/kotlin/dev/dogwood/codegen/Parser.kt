@@ -76,6 +76,32 @@ class SurfaceParser {
     // from `enabled` would silently miss `interactive`, `locked` or `isEditable`, and the failure
     // of a guess here is a control that lies about what it will do.
     val affordance = annotationEntries.any { it.shortName?.asString() == "Affordance" }
+
+    // `@Range(min = …, max = …)`. Read positionally as well as by name, because a surface author
+    // writing `@Range(0.0, 5.0)` means the same thing as one writing it out, and a parser that
+    // silently ignored the shorter form would drop a clamp without a word.
+    val range = annotationEntries
+      .firstOrNull { it.shortName?.asString() == "Range" }
+      ?.let { entry ->
+        val arguments = entry.valueArguments
+        fun argument(named: String, position: Int): Double? {
+          val byName = arguments.firstOrNull {
+            it.getArgumentName()?.asName?.asString() == named
+          }
+          val chosen = byName
+            ?: arguments.filter { it.getArgumentName() == null }.getOrNull(position)
+          val text = chosen?.getArgumentExpression()?.text ?: return null
+          return when (text) {
+            "Double.MAX_VALUE" -> Double.MAX_VALUE
+            "Double.MIN_VALUE" -> Double.MIN_VALUE
+            else -> text.removeSuffix("f").toDoubleOrNull()
+          }
+        }
+        val min = argument("min", 0)
+          ?: error("@Range on '$name' has no readable min")
+        ParsedRange(min, argument("max", 1) ?: Double.MAX_VALUE)
+      }
+
     fun of(kind: ParameterKind, rejection: String? = null) =
       ParsedParameter(
         name, type, kind,
@@ -83,6 +109,7 @@ class SurfaceParser {
         defaultExpression = default,
         rejection = rejection,
         affordance = affordance,
+        range = range,
       )
 
     return when {

@@ -414,9 +414,6 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Deferred engineering, carried here from the records that deferred it:**
 
-- **Generator-emitted range clamps** — a range declared on the surface so every property with
-  known bounds is clamped generator-wide, replacing today's hand-written readers
-  ([Layer 5 ADR-035](adrs/layer-5/ADR-035-hostile-property-values.md) §4).
 - **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
   needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
   subsystem 4, ◐).
