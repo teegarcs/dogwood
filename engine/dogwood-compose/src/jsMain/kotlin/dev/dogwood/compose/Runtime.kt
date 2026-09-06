@@ -69,9 +69,15 @@ class DogwoodComposition(
   /** Resolved once by the caller, because every accessor call allocates a service proxy. */
   private val services: HostServices = HostServices.None,
   private val launchParams: JsonElement = JsonNull,
+  /**
+   * Where the replaced composition's identifier and sequence counters left off, on a
+   * resynchronisation. Zero on a cold start, which is every other case.
+   */
+  startId: Int = 1,
+  startSequence: Int = 0,
   content: @Composable () -> Unit,
 ) {
-  private val recorder = ChangeRecorder()
+  private val recorder = ChangeRecorder(startId, startSequence)
   private val lambdas = LambdaSlots()
   private val root = WidgetNode(Id(0), Tags.Column)
 
@@ -241,6 +247,10 @@ class DogwoodComposition(
   /** How many event closures are currently retained. Reclamation is not automatic. */
   val lambdaSlotCount: Int get() = lambdas.size
 
+  /** The counters a replacement composition must resume from. See [ChangeRecorder]. */
+  val nextId: Int get() = recorder.nextId
+  val lastSequence: Int get() = recorder.lastSequence
+
   fun dispose() {
     // Before anything else: the observer is registered globally and captures this composition's
     // host. A guest replaced by a code update that left its observer behind would keep asking a
@@ -281,6 +291,17 @@ class DogwoodGuest(
 
   private var composition: DogwoodComposition? = null
 
+  /*
+   * Everything `resynchronise` needs to build the composition a second time. Held rather than
+   * re-derived because `start` is where they arrive and there is no other route to them.
+   */
+  private var startedWith: (@Composable () -> Unit)? = null
+  private var startedHost: DogwoodHost? = null
+  private var startedConfiguration: HostEnvironment? = null
+  private var startedServices: HostServices = HostServices.None
+  private var startedSegmentVersions: Map<String, Int> = emptyMap()
+  private var startedLaunchParams: JsonElement = JsonNull
+
   /** Which entry points this guest offers, for diagnostics and for the unknown-name message. */
   val offers: Set<String> get() = entryPoints.keys
 
@@ -306,14 +327,52 @@ class DogwoodGuest(
       )
       return
     }
+    val resolved = HostServices.resolve(services, segmentVersions[SERVICES_SEGMENT] ?: 0)
+    startedWith = { content(launchParams) }
+    startedHost = host
+    startedConfiguration = configuration
+    startedServices = resolved
+    startedSegmentVersions = segmentVersions
+    startedLaunchParams = launchParams
     composition = DogwoodComposition(
       host = host,
       initialConfiguration = configuration,
       segmentVersions = segmentVersions,
       restoredState = restoredState,
-      services = HostServices.resolve(services, segmentVersions[SERVICES_SEGMENT] ?: 0),
+      services = resolved,
       launchParams = launchParams,
       content = { content(launchParams) },
+    )
+  }
+
+  /**
+   * Rebuilds the composition so the next batch is the whole tree rather than a diff.
+   *
+   * A second composition inside one guest, which is why the counters are carried: see
+   * [ChangeRecorder]. The state snapshot is taken before teardown, exactly as a code update takes
+   * it, so what a user typed survives a protocol failure they did not cause.
+   *
+   * Silent when nothing is running. A host that asks an unstarted guest to resynchronise has a
+   * worse problem than divergence, and inventing a composition here would hide it.
+   */
+  override fun resynchronise() {
+    val live = composition ?: return
+    val content = startedWith ?: return
+    val host = startedHost ?: return
+    val carried = live.snapshotState()
+    val resumeId = live.nextId
+    val resumeSequence = live.lastSequence
+    live.dispose()
+    composition = DogwoodComposition(
+      host = host,
+      initialConfiguration = startedConfiguration ?: return,
+      segmentVersions = startedSegmentVersions,
+      restoredState = carried,
+      services = startedServices,
+      launchParams = startedLaunchParams,
+      startId = resumeId,
+      startSequence = resumeSequence,
+      content = content,
     )
   }
 

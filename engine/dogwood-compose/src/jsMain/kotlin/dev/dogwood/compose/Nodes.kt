@@ -82,10 +82,30 @@ class ChildrenNode(
  * [ChangeBatch]. Batching is architecturally load-bearing: per-crossing cost is only
  * acceptable because there are very few crossings.
  */
-class ChangeRecorder {
-  private var nextIdValue = 1
-  private var sequence = 0
+class ChangeRecorder(
+  /**
+   * Where the identifier and sequence counters resume.
+   *
+   * Both default to a cold start. They are parameters because **resynchronisation builds a second
+   * composition inside one guest** (`DogwoodGuestUiImpl.resynchronise`), and both counters have to
+   * carry across it.
+   *
+   * Identifiers, because the host has cleared its tree but may still be holding an event that was
+   * already in flight: restarting at 1 would let that event land on whichever new node inherited
+   * the number. Sequences, because `Event.q` is how a guest drops events composed against a stale
+   * batch, and a sequence that went backwards would make every subsequent event look stale
+   * forever.
+   */
+  startId: Int = 1,
+  startSequence: Int = 0,
+) {
+  private var nextIdValue = startId
+  private var sequence = startSequence
   private val changes = mutableListOf<Change>()
+
+  /** The counters, for a recorder that has to continue this one. See the constructor. */
+  val nextId: Int get() = nextIdValue
+  val lastSequence: Int get() = sequence
 
   /** Node identifiers are monotonic and never reused within a composition. */
   fun newId(): Id = Id(nextIdValue++)
