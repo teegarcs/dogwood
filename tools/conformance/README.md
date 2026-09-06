@@ -57,6 +57,8 @@ said whatever it last said.
 
 ## Gating
 
+> The full inventory of every check and where it runs is [`docs/checks.md`](../../docs/checks.md).
+
 Two environments, because they can honestly grade different things.
 
 | | What it grades | Where |

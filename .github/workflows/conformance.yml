@@ -1,14 +1,16 @@
-# Project Dogwood -- the tier that a hosted runner can honestly gate.
+# Project Dogwood -- the checks a hosted runner can honestly make.
 #
-# `plans/conformance.md` splits every claim into two tiers. **Tier S** is proved by tests over code
-# every client compiles, so it needs nothing but a Java Development Kit and gates here, on every
-# push. **Tier C** needs the platform itself -- a booted iOS simulator with VoiceOver enabled, an
-# attached Android device, a browser with a graphics stack, and the guest being served -- none of
-# which a hosted runner has. Pretending otherwise would produce a green tick that means less than
-# it appears to, which is the failure this whole plan exists to avoid.
+# `plans/conformance.md` splits every promise this architecture makes into two tiers.
 #
-# So tier C gates locally and before a release, through `tools/conformance/run-all.sh`, and this
-# file says so rather than leaving the gap to be discovered.
+#   Tier S  proved by tests over code every client compiles. Needs a Java Development Kit and a
+#           browser, both of which a runner has. **Gated here, on every pull request.**
+#   Tier C  needs the platform itself -- a booted iOS simulator with VoiceOver enabled, an attached
+#           Android device, and the guest served from a development server. A runner has none of
+#           them. Gated by `tools/conformance/run-all.sh`, locally and before a release.
+#
+# Wiring tier C in anyway would produce a green tick that means less than it appears to, which is
+# the failure the whole conformance plan exists to avoid. `docs/checks.md` is the full inventory of
+# what runs where, so the boundary is written down rather than inferred from this file.
 name: conformance
 
 on:
@@ -16,40 +18,107 @@ on:
     branches: [main]
   pull_request:
 
+# A superseded run tells you about code nobody is merging. Cancel it and keep the runner for the
+# push that replaced it.
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  shared-tier:
-    name: Tier S — shared-code claims
+  tier-s:
+    name: Tier S — shared-code claims and budgets
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
+          # Gradle's own caches. The first run of this workflow took fourteen minutes, almost all
+          # of it re-downloading and re-compiling what the previous run already had.
+          cache: gradle
 
-      - name: Build and run every shared test
+      - name: Cache the Kotlin/Native and Kotlin/JS toolchains
+        # Neither is covered by the Gradle cache above. Between them they are most of what a cold
+        # run spends its time fetching: the Kotlin/Native compiler and its platform libraries, and
+        # the Node and Yarn installs the JavaScript and WebAssembly targets need.
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.konan
+            ~/.gradle/yarn
+            ~/.gradle/nodejs
+          key: ${{ runner.os }}-kotlin-toolchains-${{ hashFiles('engine/gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-kotlin-toolchains-
+
+      - name: Size the build for this runner
+        # A private free-tier runner is two processors and seven gigabytes. The repository's own
+        # `gradle.properties` asks for a four-gigabyte Gradle daemon and parallel execution, which
+        # is right for a development machine and is what killed the first two runs here -- the
+        # second died with exit code 143, a SIGTERM from the runner, nineteen minutes in during the
+        # WebAssembly compile. Gradle's daemon, the Kotlin compile daemon and Node were competing
+        # for the same seven gigabytes.
+        #
+        # Written to `GRADLE_USER_HOME` rather than committed, because it takes precedence over the
+        # project's file and leaves the development machine's settings alone.
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2500m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=1
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: Build, and run every shared test
         working-directory: engine
-        # The Android lint task is excluded for the same reason it is excluded locally: it is a
-        # style pass over the sample, not a claim about the engine.
+        # Android lint is excluded for the reason it is excluded locally: it is a style pass over a
+        # sample, not a claim about the engine.
         run: ./gradlew build -x :samples:slice-android:lintDebug --console=plain
 
       - name: Grade the shared-code claims
         # `from_tests.py` maps test classes onto conformance claims and reads the results the build
-        # just wrote. A claim whose evidence did not run is a failure here, not an absence: "no
-        # result" and "green" must never look the same.
-        run: python3 tools/conformance/from_tests.py
+        # just wrote. A claim whose evidence did not run fails here rather than reading as absent:
+        # deleting a test must not silently drop a claim to green.
+        run: python3 tools/conformance/from_tests.py | tee /tmp/tier-s.conf
 
       - name: Grade the page-weight budget
-        # The one performance budget a hosted runner can measure honestly, because bytes are a
-        # property of the build rather than of the machine. The timing budgets need real hardware
-        # and are graded by `run-all.sh`.
-        run: python3 tools/conformance/from_web_weight.py
+        # The one performance budget a runner can measure honestly, because bytes are a property of
+        # the build rather than of the machine. The timing budgets need real hardware and are
+        # graded by `run-all.sh`.
+        run: python3 tools/conformance/from_web_weight.py | tee -a /tmp/tier-s.conf
+
+      - name: Put the claim table in the run summary
+        if: always()
+        # So a reviewer sees which claims were graded without opening a log or downloading an
+        # artifact. A result nobody reads is the failure this project has met six times.
+        run: |
+          {
+            echo '## Conformance — tier S'
+            echo
+            if [ -s /tmp/tier-s.conf ]; then
+              echo '```'
+              grep -E '^CONF ' /tmp/tier-s.conf || true
+              echo '```'
+            else
+              echo 'The build failed before any claim was graded.'
+            fi
+            echo
+            echo '> Tier C — accessibility, network policy, skew containment and the timing'
+            echo '> budgets — needs a device, a simulator and a served guest, so it is graded by'
+            echo '> `tools/conformance/run-all.sh` rather than here. See `docs/checks.md`.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish the claim results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: conformance-shared
-          path: tools/conformance/build/
+          name: conformance-tier-s
+          path: /tmp/tier-s.conf
           if-no-files-found: ignore
