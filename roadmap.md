@@ -463,11 +463,17 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
   | Skiko's own configuration | **Measured across four versions: it has grown.** The pinned 0.9.37.4 is the smallest; the newest costs 22 KB more. One `skiko.wasm` in the jar, no variants. |
   | A Document Object Model tier | **The only line that moves the number**, and declined on architecture rather than size: it is a second design-system implementation for the web, which [ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) has just finished deleting. Recorded with the product condition that would reopen it. |
 
-  **The lever that pays was not on the list.** Serving gzip instead of brotli costs **987,107 bytes
-  — 27.6%, and 4.94 s on Fast 3G** — which is more than three times the entire design system and
-  more than any of the four lines above could deliver. It costs one server setting. The measurement
-  harness has always refused to run without `Content-Encoding: br`; what was missing was the
-  instruction to whoever deploys it, and that is now in [`docs/checks.md`](docs/checks.md).
+  **Two more lines were investigated after that, and the levers that pay were both of them.** Neither
+  shrinks the page; both act on the first frame, which is what a person actually waits for.
+
+  | Line | Verdict |
+  |---|---|
+  | Re-optimise either chunk for size (`wasm-opt -Oz`) | **0.6% — 19,833 bytes.** Does not pay against the risk: running extra Binaryen passes over a vendor binary is the class of change that produced the GUFA miscompilation. |
+  | **Preload the WebAssembly chunks** | ✅ **Built.** `5G 520 → 454 ms (−13%)`, `Fast 3G 19,822 → 19,186 ms`. It moves **no bytes** — 3,496 KiB transferred either way — it removes a round trip and a parse from the critical path. |
+  | **Serve brotli, not gzip** | ✅ **Documented.** gzip costs **987,107 bytes — 27.6% and 4.94 s on Fast 3G**, more than three times the entire design system. One server setting; now in [`docs/checks.md`](docs/checks.md). |
+
+  Both were found by asking *what else touches the first frame* rather than *what else shrinks the
+  page*, which is the question the original four lines were all asking.
 
   Three quarters of the page is a prebuilt binary this project cannot shrink, configure or defer.
   The quarter it controls is 894 KB, which is unremarkable for an application of its kind. **The
@@ -476,8 +482,9 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
 yes (parallel track); the Phase 0 gate device, not acquired by decision
-([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); three upstream reports
-drafted and unfiled by decision.
+([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); two upstream reports
+drafted and unfiled by decision. All of these now live in
+[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md), which is where they are tracked.
 
 ### Phase 7 is closed, and what closing it means
 
@@ -505,7 +512,13 @@ budgets `G1`–`G4` cannot be closed by any host that exists, because the gate d
 skew containment has a drill on Android and not on iOS or web; and `D8`/`D9` are asserted on one
 Java Virtual Machine and claimed for four clients on the strength of shared code.
 
-**The engineering roadmap ends here.** What follows is not another phase of building the same thing:
+**The engineering roadmap ends here, and two documents take over.**
+[`plans/production-readiness.md`](plans/production-readiness.md) is what remains before a product can
+ship on this — sequenced, with the one gap that blocks everything else named first — and
+[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) holds everything blocked on a person
+rather than on work.
+
+What follows is not another phase of building the same thing:
 it is a product choosing a profile — which is why the page-weight record above ends in a product
 condition rather than a task, and why the two largest remaining risks (the Apple ruling, the gate
 device) are decisions rather than work.
