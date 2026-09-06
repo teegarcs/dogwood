@@ -16,6 +16,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.runBlocking
 import dev.dogwood.protocol.decodePositional
 
@@ -111,17 +112,31 @@ class LeakDetectorTest {
    * object was still live in a stack slot for the whole test, so the detector was right and the
    * test was wrong. Watching something that becomes unreachable *the way the production code makes
    * things unreachable* is both a truer test and a collectable one.
+   *
+   * **The threshold has to outlast a plausible collection, not a plausible leak, and a collection
+   * is asked for rather than waited on.** This test passed on a development machine for months and
+   * failed the first time it ran on a continuous-integration runner, because a 400 ms threshold on
+   * slower hardware expires before the collector next runs -- at which point the node is still
+   * reachable, the detector is right, and the test is wrong again for the second time in its life.
+   * `dogwoodLeakDetector`'s own default is ten seconds and its documentation says why: "a reference
+   * merely waiting for the next collection is not a leak". The browser watcher added the same day
+   * carries the identical contract in its class documentation; this test predates it and had the
+   * defect latent, waiting for a slower machine.
+   *
+   * `System.gc()` is advisory rather than a command, which is why the threshold is generous as
+   * well. Between the two, a reference reported here has genuinely survived a collection.
    */
   @Test
   fun aDetachedNodeIsNotReportedAsALeak() {
     val reported = mutableListOf<String>()
     runBlocking {
-      val detector = dogwoodLeakDetector(this, leakThreshold = 400.milliseconds) { _, note ->
+      val detector = dogwoodLeakDetector(this, leakThreshold = 3.seconds) { _, note ->
         reported += note
       }
       val tree = HostTree(detector)
       tree.apply(decodePositional("[1,[[0,1,$TEXT_TAG],[3,0,1,1,0]]]"))
       tree.apply(decodePositional("[2,[[4,0,1,0,1]]]"))
+      System.gc()
       detector.awaitAllSettled()
     }
     assertEquals(
