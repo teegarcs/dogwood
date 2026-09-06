@@ -1,13 +1,34 @@
 plugins {
+  // Published, so a product outside this repository can depend on it. Coordinates and a
+  // version, and nothing else: where the artifacts actually go is a deployment decision.
+  `maven-publish`
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.kotlinSerialization)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.zipline)
 }
 
+group = "dev.dogwood"
+version = "0.1.0"
+
+
 kotlin {
   jvmToolchain(21)
   js(IR) {
+    /*
+     * Pinned, so publishing coordinates cannot change it.
+     *
+     * The Kotlin/JavaScript module name defaults to something derived from the project's `group`,
+     * and `internal` declarations are name-mangled against it. Adding `group = "dev.dogwood"` for
+     * publishing therefore renamed the module to one containing a **dot**, and every browser test
+     * in this module died at runtime with `then_babg2s_k$ is not a function` -- `Modifier.then`,
+     * whose second overload is internal, resolving against a module the loader could not name.
+     *
+     * A clean build did not fix it, which is what said it was a naming problem rather than a stale
+     * one. Pinning the name makes the emitted module independent of where the artifact is published,
+     * which is the relationship that should have held all along.
+     */
+    outputModuleName.set("dogwood-compose")
     browser()
     // Tests run on Node. The gate conditions this module has to satisfy -- wrapper scoping and
     // node identity across a reorder -- are properties of composition and of the applier, so
@@ -48,3 +69,4 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 tasks.matching { it.name.contains("ZiplineApi") }.configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
 }
+

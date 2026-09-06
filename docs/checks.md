@@ -70,6 +70,31 @@ it could not do instead of reporting green.
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
+## The standalone check — can anyone outside this repository use it?
+
+```
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+tools/standalone-check/run.sh
+```
+
+Publishes Dogwood to the local repository and builds `samples-standalone/umbra`, which is a
+**separate Gradle build**: no `includeBuild`, no project dependency, no path into `engine/`. It
+resolves the plugin by identifier, the generator as a dependency and the runtime as artifacts.
+
+Not in continuous integration, because it publishes into the developer's own local repository, and a
+check that mutates a shared location on a build agent is a check that fails somebody else's build.
+Run it before a release, and after anything that touches publishing.
+
+**It asserts four things a green build does not imply**, because a product's own implementations
+compile whether or not the generated bindings exist:
+
+| Assertion | What its absence would mean |
+|---|---|
+| host bindings were generated | the plugin registered nothing |
+| guest stubs were generated | the guest half never ran |
+| the binding **compiled** | generated code does not build against the published runtime |
+| a lock was written beside the surface | a product's tags are not being held permanent |
+
 ## One check that is not automated, and costs the most
 
 **Serve the web page with `Content-Encoding: br`.**

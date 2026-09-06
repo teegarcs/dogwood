@@ -1,6 +1,25 @@
 plugins {
   alias(libs.plugins.kotlinJvm)
   alias(libs.plugins.kotlinSerialization)
+  // The generator is consumed two ways and both are real. The engine's own build invokes the
+  // command-line entry point directly, because it is one project away and has no need of a plugin;
+  // a product applies the plugin, because fourteen command-line arguments are not an interface.
+  `java-gradle-plugin`
+  `maven-publish`
+}
+
+group = "dev.dogwood"
+version = "0.1.0"
+
+gradlePlugin {
+  plugins {
+    create("dogwood") {
+      id = "dev.dogwood.codegen"
+      implementationClass = "dev.dogwood.codegen.gradle.DogwoodPlugin"
+      displayName = "Dogwood component generator"
+      description = "Generates guest stubs and host bindings from a component surface"
+    }
+  }
 }
 
 kotlin {
@@ -16,6 +35,10 @@ kotlin {
 dependencies {
   implementation(libs.kotlin.compiler.embeddable)
   implementation(libs.serialization.json)
+  // The plugin reads the Kotlin plugin's own extensions to attach generated sources to the right
+  // source set. `compileOnly`: the consumer's build already has it, and shipping a second copy in
+  // a plugin classpath is how two Kotlin Gradle plugins end up in one build.
+  compileOnly(libs.kotlin.gradle.plugin)
   testImplementation(kotlin("test"))
 }
 

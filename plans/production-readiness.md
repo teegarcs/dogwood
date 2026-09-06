@@ -31,10 +31,23 @@ runtime's recording seam was `internal`, generated code assumed it shared a pack
 runtime, and a segment's Kotlin name and its wire name were the same field — which put the design
 system in the version map twice the moment a binding named itself.
 
-**What remains is packaging, not design.** The generator is still an internal Gradle project, so
-Acme consumes it as `project(":dogwood-codegen")` and a real product cannot. Publishing it —
-coordinates, a plugin marker, a supported way to point it at a source directory — is item 1 below
-and it is the last thing standing between this and somebody outside the repository using it.
+✅ **And the packaging is done too**
+([ADR-047](../adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)). The generator ships as the
+Gradle plugin `dev.dogwood.codegen`; the runtime publishes under `dev.dogwood`. What a product
+writes is a `dogwood { segment(…) }` block with two real decisions in it, not fourteen command-line
+arguments — one of which had to be *omitted* or the engine's version vector was silently overwritten.
+
+`samples-standalone/umbra` is the proof, and it is a separate Gradle build: no `includeBuild`, no
+project dependency, no path into `engine/`. It resolves the plugin by identifier, the generator as a
+dependency and the runtime as artifacts. `tools/standalone-check/run.sh` publishes and builds it, and
+asserts what a green build does not imply — that bindings were generated, that they **compiled**, and
+that a lock was written beside the surface.
+
+Publishing found two defects nothing else could have. Adding a publishing `group` renamed the
+Kotlin/JavaScript module — `internal` declarations are mangled against that name — and killed every
+browser test in `dogwood-compose` with `then_babg2s_k$ is not a function`. And a sources jar
+*packages* a generated directory rather than compiling it, so `dependsOn` on the compilations was not
+enough; the source directory is now wired through its producing task.
 
 ### The original entry, kept because it is what the plan said
 
@@ -267,7 +280,7 @@ Sequenced by what unblocks the most, not by size.
 
 | # | Item | Why here |
 |---|---|---|
-| 1 | **Publish the generator** (§1) | Registration works; consuming it from outside this repository does not. It is the last step of §1 and it is packaging |
+| 1 | ~~Publish the generator~~ ✅ done | `dev.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
 | 2 | **The real guest on web** (§2.1) | The largest alignment hole; also the last unproven assumption in the web profile |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | **Rollout, rollback, kill switch** (§4.2) | The other half of shipping without a store review. A bad publish currently has no defined recovery |
@@ -278,8 +291,8 @@ Sequenced by what unblocks the most, not by size.
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
 | 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
 
-**Item 2 is now the one that changes what the project *is*.** Item 1 was, and is closed but for
-its packaging. Everything from 3 down makes it
+**Item 2 is now the one that changes what the project *is*.** Item 1 is closed: a product can
+declare its own components, and a build outside this repository can consume the whole thing. Everything from 3 down makes it
 operable; those two make it usable.
 
 **And one thing is not on the list because it is not sequenced — it is continuous.** Every document

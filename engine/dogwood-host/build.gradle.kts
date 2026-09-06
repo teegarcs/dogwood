@@ -1,4 +1,7 @@
 plugins {
+  // Published, so a product outside this repository can depend on it. Coordinates and a
+  // version, and nothing else: where the artifacts actually go is a deployment decision.
+  `maven-publish`
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.androidLibrary)
   alias(libs.plugins.kotlinSerialization)
@@ -9,6 +12,10 @@ plugins {
   // to the sample leaves this module compiling to a runtime error.
   alias(libs.plugins.zipline)
 }
+
+group = "dev.dogwood"
+version = "0.1.0"
+
 
 kotlin {
   jvmToolchain(21)
@@ -98,7 +105,18 @@ kotlin {
     iosMain.get().dependsOn(ziplineMain)
 
     // Generated host bindings. Not committed; regenerated from the surface on every build.
-    commonMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/host"))
+    //
+    // Wired through the producing task rather than as a bare directory, so every consumer of this
+    // source set inherits the dependency. `dependsOn` on the compilations was enough until
+    // publishing asked for a **sources jar**, which packages the directory rather than compiling
+    // it — and Gradle refuses a task that reads another's output without saying so, which is the
+    // right refusal. Adding the jars to the `dependsOn` list would have fixed this one and left
+    // the next consumer to find the same wall.
+    commonMain.get().kotlin.srcDir(
+      project(":dogwood-codegen").tasks.named("generateDesignSystem").map {
+        rootProject.layout.buildDirectory.dir("generated/dogwood/host").get()
+      },
+    )
 
     commonMain {
       dependencies {
@@ -190,3 +208,5 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 tasks.matching { it.name.contains("ZiplineApi") }.configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
 }
+
+

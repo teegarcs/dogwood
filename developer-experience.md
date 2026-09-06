@@ -162,12 +162,33 @@ fun AcmeActionImpl(label: String, enabled: Boolean, modifier: Modifier, onClick:
 **Three — a build file, whose only real decision is a segment identifier.**
 
 ```kotlin
-"--segment", "acmeDesignSystem",      // names Kotlin declarations
-"--wire-name", "acme.designsystem",   // what a guest sees in LocalSegmentVersions
-"--segment-id", "2",                  // 0 and 1 are Dogwood's. Yours, forever.
-"--version", "1",
-"--lock", file("surface/acme.designsystem.lock.json").absolutePath,
+plugins { id("dev.dogwood.codegen") version "0.1.0" }
+
+val dogwoodGenerator by configurations.creating
+dependencies {
+  dogwoodGenerator("dev.dogwood:dogwood-codegen:0.1.0")
+  implementation("dev.dogwood:dogwood-host:0.1.0")
+}
+
+dogwood {
+  segment("acmeDesignSystem") {          // names your Kotlin declarations
+    wireName.set("acme.designsystem")    // what a guest sees in LocalSegmentVersions
+    segmentId.set(2)                     // 0 and 1 are Dogwood's. Yours, forever.
+    version.set(1)
+    guestPackage.set("dev.acme.guest")
+    hostPackage.set("dev.acme.design")
+  }
+}
 ```
+
+Output paths, the dictionary and the lock — beside your surface, committed — are derived. The
+generated **host bindings** are added to your compilations automatically; the **guest stubs** are
+not, because they belong to a different artifact: a Kotlin/JavaScript library your guest depends on,
+which is a module only you can name.
+
+`samples-standalone/umbra` in this repository is a build with no path into it at all — it resolves
+the plugin, the generator and the runtime from a repository, which is the only arrangement that
+proves any of this is consumable ([ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)).
 
 Then the host registers it once, at application start:
 
@@ -195,9 +216,10 @@ build fails if a tag moves, because a client one release behind resolves tags ra
 renumbered tag does not fail to render, it renders the wrong widget. Append to a surface; do not
 reorder it.
 
-**Still missing:** the generator is an internal Gradle project in this repository, so a product
-outside it cannot consume it yet. That is packaging rather than design and it is the top item in
-[`plans/production-readiness.md`](plans/production-readiness.md).
+**Where the artifacts come from is still a decision nobody has taken.** They publish under
+`dev.dogwood` at `0.1.0`, and `publishToMavenLocal` is what the standalone sample consumes. Pointing
+a real deployment at a real repository is in
+[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
 
 ---
 

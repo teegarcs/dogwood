@@ -15,10 +15,17 @@
  * types had to move.
  */
 plugins {
+  // Published, so a product outside this repository can depend on it. Coordinates and a
+  // version, and nothing else: where the artifacts actually go is a deployment decision.
+  `maven-publish`
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.androidLibrary)
   alias(libs.plugins.kotlinSerialization)
 }
+
+group = "dev.dogwood"
+version = "0.1.0"
+
 
 kotlin {
   jvmToolchain(21)
@@ -29,7 +36,14 @@ kotlin {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
   }
-  js(IR) { browser() }
+  // Pinned for the reason `dogwood-compose` records at length: the Kotlin/JavaScript module
+  // name defaults to something derived from `group`, `internal` declarations are mangled
+  // against it, and adding a publishing group put a dot in it. This module has not been
+  // bitten; the hazard is identical and the fix is one line.
+  js(IR) {
+    outputModuleName.set("dogwood-wire")
+    browser()
+  }
   @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
   wasmJs { browser() }
   iosArm64()
@@ -40,7 +54,13 @@ kotlin {
 
   sourceSets {
     // The generated segment-version vector. Not committed, like every other generated source.
-    commonMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/wire"))
+    // Wired through the producing task, so every consumer of this source set inherits the
+    // dependency -- including the sources jar publishing asks for. See `dogwood-host`.
+    commonMain.get().kotlin.srcDir(
+      project(":dogwood-codegen").tasks.named("generateDesignSystem").map {
+        rootProject.layout.buildDirectory.dir("generated/dogwood/wire").get()
+      },
+    )
 
     commonMain {
       dependencies {
@@ -64,3 +84,4 @@ android {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
 }
+
