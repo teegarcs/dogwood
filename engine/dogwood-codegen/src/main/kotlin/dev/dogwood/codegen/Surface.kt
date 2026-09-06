@@ -51,6 +51,19 @@ data class ParsedParameter(
    * control that lies about what it will do.
    */
   val affordance: Boolean = false,
+  /**
+   * The range this parameter may take, when the surface declared one with `@Range`.
+   *
+   * Held as doubles whatever the parameter's own type, because that is how the surface writes it;
+   * the emitter narrows at the point where it knows the type, so the literal is parsed once.
+   *
+   * Its purpose is narrow and worth restating here: Compose enforces some numeric ranges by
+   * throwing, inside composition, so a payload delivered over the air can take a screen down on
+   * every client at once ([ADR-035](../../../../../../../adrs/layer-5/ADR-035-hostile-property-values.md)).
+   * Declaring the range on the surface is what makes the clamp generator-wide instead of
+   * per-binding.
+   */
+  val range: ParsedRange? = null,
 ) {
   /**
    * Whether the host must resolve this parameter's default itself.
@@ -63,6 +76,10 @@ data class ParsedParameter(
     get() = hasDefault && (defaultExpression == null || defaultExpression.contains("LocalDogwood") ||
       defaultExpression.contains("MaterialTheme") || defaultExpression.contains(".current"))
 }
+
+/** An inclusive numeric range declared on the surface. See [ParsedParameter.range]. */
+@Serializable
+data class ParsedRange(val min: Double, val max: Double)
 
 @Serializable
 data class ParsedComponent(

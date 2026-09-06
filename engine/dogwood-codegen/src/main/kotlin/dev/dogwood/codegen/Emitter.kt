@@ -306,7 +306,7 @@ fun emitHostBindings(
     appendLine("      $implementationPackage.${component.name}Impl(")
     for (parameter in component.values) {
       val tag = entry.properties.getValue(parameter.name)
-      appendLine("        ${parameter.name} = ${reader(parameter, tag)},")
+      appendLine("        ${parameter.name} = ${reader(parameter, tag, component.name)},")
     }
     component.modifier?.let { appendLine("        ${it.name} = modifier,") }
     for (parameter in component.events) {
@@ -453,7 +453,7 @@ private fun eventLambda(parameter: ParsedParameter, tag: Int): String {
  * receiving half of absence-as-sentinel: the guest sent nothing precisely so the host could
  * decide, and a binding that substituted a value here would throw that away.
  */
-private fun reader(parameter: ParsedParameter, tag: Int): String {
+private fun reader(parameter: ParsedParameter, tag: Int, owner: String): String {
   val nullable = parameter.defaultIsHostResolved || parameter.type.endsWith("?")
   if (parameter.kind == ParameterKind.HOST_RESOLVED) {
     // Resolved against the environment in force, which is why these readers are composable and
@@ -471,11 +471,38 @@ private fun reader(parameter: ParsedParameter, tag: Int): String {
   // would make the generated binding disagree with the declaration it was generated from, which
   // is the one failure the whole approach is supposed to make impossible.
   val fallback = parameter.defaultExpression?.takeIf { !parameter.defaultIsHostResolved }
+  val range = parameter.range
   return when (parameter.type.removeSuffix("?")) {
     "String" -> if (nullable) "node.stringOrNull($tag)" else "node.string($tag, ${fallback ?: "\"\""})"
-    "Int" -> if (nullable) "node.intOrNull($tag)" else "node.int($tag, ${fallback ?: "0"})"
-    "Float" -> if (nullable) "node.floatOrNull($tag)" else "node.float($tag, ${fallback ?: "0f"})"
+    // A declared range emits a clamping reader. Nullable parameters are left alone deliberately:
+    // absence is the "use host default" sentinel, and a clamp cannot improve on a value that is
+    // not there. See `@Range` on the surface and ADR-035.
+    "Int" -> when {
+      nullable -> "node.intOrNull($tag)"
+      range != null -> "node.intClamped($tag, ${fallback ?: "0"}, " +
+        "min = ${range.min.toInt()}, max = ${clampedIntMax(range.max)}, " +
+        "what = \"$owner.${parameter.name}\")"
+      else -> "node.int($tag, ${fallback ?: "0"})"
+    }
+    "Float" -> when {
+      nullable -> "node.floatOrNull($tag)"
+      range != null -> "node.floatClamped($tag, ${fallback ?: "0f"}, " +
+        "min = ${range.min}f, max = ${clampedFloatMax(range.max)}, " +
+        "what = \"$owner.${parameter.name}\")"
+      else -> "node.float($tag, ${fallback ?: "0f"})"
+    }
     "Boolean" -> if (nullable) "node.booleanOrNull($tag)" else "node.boolean($tag, ${fallback ?: "false"})"
     else -> "node.property($tag)"
   }
 }
+
+/**
+ * An unbounded `@Range` maximum reaches the emitter as `Double.MAX_VALUE`, which is not a legal
+ * `Int` and would overflow to a negative one if narrowed by cast. Both of these emit the type's
+ * own maximum instead, so "no upper bound" means what it says in the generated code.
+ */
+private fun clampedIntMax(max: Double): String =
+  if (max >= Int.MAX_VALUE.toDouble()) "Int.MAX_VALUE" else max.toInt().toString()
+
+private fun clampedFloatMax(max: Double): String =
+  if (max >= Float.MAX_VALUE.toDouble()) "Float.MAX_VALUE" else "${max}f"

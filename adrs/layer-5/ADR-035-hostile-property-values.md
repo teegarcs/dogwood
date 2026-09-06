@@ -99,11 +99,17 @@ it in the readers means the clamp is one call away from every property the dicti
 
 ## 4. Unstated Assumptions
 
-- **Compose's list of throwing ranges is not exhaustive here.** We clamped the properties the fuzz
-  test proved dangerous and the dimension modifiers alongside them. A property added later with an
-  enforced range and no clamp reintroduces the vector for that one property. The durable fix is a
-  range declared on the surface so the generator emits the clamp — that is not built, and it is the
-  reason this ADR names the readers "the hand-written half".
+- ~~**Compose's list of throwing ranges is not exhaustive here.**~~ **The durable fix is built**
+  ([ADR-042](ADR-042-ranges-are-declared-on-the-surface.md)): `@Range(min, max)` on a surface
+  parameter makes the generator emit a clamping reader, so protection is a property of the
+  declaration rather than of whoever wrote the binding. The original text, because it is still
+  what the hand-written clamps do on their own: we clamped the properties the fuzz test proved
+  dangerous and the dimension modifiers alongside them, and a property added later with an enforced
+  range and no clamp would reintroduce the vector for that one property.
+
+  The hand-written readers remain, and correctly: `Text.maxLines` and the modifier arguments are
+  not generated from the surface at all — a modifier argument arrives as an element of a chain
+  rather than under a property tag, so there is nothing for a surface annotation to attach to.
 - **The clamped value is assumed to be the better of two bad outcomes.** It is, for appearance. If a
   future property's out-of-range value would change *meaning* rather than looks — an affordance, a
   destination — clamping would be the wrong default and the withholding rule from ADR-031 applies

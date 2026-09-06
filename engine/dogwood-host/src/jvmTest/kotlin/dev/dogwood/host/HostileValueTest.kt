@@ -110,3 +110,70 @@ class HostileValueTest {
     )
   }
 }
+
+/**
+ * The generated half of the clamp, which `HostileValueTest` above cannot reach.
+ *
+ * Those tests drive hand-written bindings. These drive a **generated** one, because ADR-035's
+ * stated assumption was that hand-written clamps protect only the properties somebody thought of,
+ * and the fix was to declare the range on the surface and let the generator emit it. A test that
+ * exercised the hand-written path would leave that claim unchecked.
+ *
+ * `Icon.sizeDp` carries `@Range(min = 1.0)` on the surface. Zero is the value Compose refuses.
+ */
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+class GeneratedClampTest {
+
+  private fun iconScreen(sizeDp: Int): Pair<HostTree, SkewReport> {
+    val skew = SkewReport()
+    val tree = HostTree(skew = skew)
+    tree.apply(
+      decodePositional(
+        batch(
+          1,
+          "[0,1,${DogwoodDictionary.Column.value}]", "[3,0,1,1,0]",
+          "[0,2,${dev.dogwood.protocol.widgetTag(1, 12).value}]",
+          "[1,2,1,\"flight\"]", "[1,2,3,$sizeDp]",
+          "[3,1,1,2,0]",
+        ),
+      ),
+    )
+    return tree to skew
+  }
+
+  /** Composes the tree once, which is when a binding reads its properties. */
+  private fun render(tree: HostTree) {
+    runComposeUiTest {
+      setContent {
+        Box(Modifier.size(300.dp)) { DogwoodTree(tree, EventSink { _, _, _ -> }, skew = tree.skew) }
+      }
+    }
+  }
+
+  @Test
+  fun aSaneIconRenders() {
+    val (tree, skew) = iconScreen(24)
+    render(tree)
+    assertTrue(skew.clampedValues.isEmpty(), "a legal size was clamped: ${skew.clampedValues}")
+  }
+
+  @Test
+  fun aZeroSizedIconIsClampedRatherThanThrown() {
+    val (tree, skew) = iconScreen(0)
+    render(tree)
+    assertTrue(
+      skew.clampedValues.any { "Icon.sizeDp" in it },
+      "the generated binding did not clamp: ${skew.clampedValues}",
+    )
+  }
+
+  @Test
+  fun aNegativeSizedIconIsClampedRatherThanThrown() {
+    val (tree, skew) = iconScreen(-40)
+    render(tree)
+    assertTrue(
+      skew.clampedValues.any { "Icon.sizeDp=-40" in it },
+      "expected the value that arrived to be reported: ${skew.clampedValues}",
+    )
+  }
+}

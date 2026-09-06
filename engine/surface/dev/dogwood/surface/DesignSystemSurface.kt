@@ -26,6 +26,31 @@
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class Affordance
+
+/**
+ * The range a numeric parameter may take, enforced by the host at the moment it renders.
+ *
+ * **This exists because Compose enforces some ranges by throwing, and the throw lands inside
+ * composition** -- a `maxLines` below one, a negative padding, a weight of zero. A payload is
+ * delivered over the air without a store review, so an off-by-one in one property is not a
+ * degraded screen but no screen, on every client that receives it, at the same moment
+ * ([ADR-035](../../../../adrs/layer-5/ADR-035-hostile-property-values.md)).
+ *
+ * The generator emits a clamping reader for every parameter marked here, so the protection is a
+ * property of the surface rather than of whoever wrote the binding. That was ADR-035's own stated
+ * assumption: the hand-written clamps it shipped protect the properties somebody thought of, and
+ * the next property with an enforced range and no clamp reintroduces the vector.
+ *
+ * A clamp is **reported**, not silent: it lands in `SkewReport.clampedValues` with the value that
+ * arrived and the range it was forced into, so a designer wondering why their spacing is ignored
+ * finds the answer in a report rather than in a debugger.
+ *
+ * Bounds are inclusive. Declare only what the host genuinely cannot render -- a range invented to
+ * look tidy is a payload's legitimate value silently changed.
+ */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Range(val min: Double, val max: Double = Double.MAX_VALUE)
 package dev.dogwood.surface
 
 import androidx.compose.runtime.Composable
@@ -43,7 +68,7 @@ fun AsyncImage(
   url: String,
   contentDescription: String? = null,
   modifier: Modifier = Modifier,
-  cornerRadiusDp: Int = 8,
+  @Range(min = 0.0) cornerRadiusDp: Int = 8,
 ) {}
 
 @Composable
@@ -92,7 +117,7 @@ fun Price(
 
 @Composable
 fun StarRating(
-  rating: Float,
+  @Range(min = 0.0, max = 5.0) rating: Float,
   modifier: Modifier = Modifier,
   label: TextValue? = null,
 ) {}
@@ -122,7 +147,7 @@ fun Icon(
   name: String,
   contentDescription: String? = null,
   modifier: Modifier = Modifier,
-  sizeDp: Int = 24,
+  @Range(min = 1.0) sizeDp: Int = 24,
   tint: Color? = null,
 ) {}
 
