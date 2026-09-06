@@ -149,8 +149,8 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D5 | The screen scrolls through the accessibility layer | C | ✅ iOS, Android |
 | D6 | Text input is host-authoritative: mask, limit and counter apply where the typing is | S + C | S ✅; C — |
 | D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
-| D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S + C | S ✅; C — Android by hand, no drill |
-| D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S + C | S ✅; C — Android by hand, no drill |
+| D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S | ✅ both halves — guest and host binding |
+| D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S | ✅ both halves — guest and host binding |
 
 ### E. Lifecycle and resources
 
@@ -331,11 +331,15 @@ Recorded so that an absence is a decision somebody can point at.
   verified by hand on an Android emulator, reading `dumpsys input_method` rather than a screenshot
   ([ADR-043](../adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)), and a hand-run is
   evidence for a record and not for a matrix cell. The cell stays blank.
-- **`D9` has the same tier-C shape as `D8`**, and the same reason. The shared tests prove what
-  crosses; what they cannot show is the *quantising*, which happens inside a `snapshotFlow` over a
-  real Compose `ScrollState` and needs the Compose UI test harness this project does not have. It
-  was verified on an Android emulator, where it produced a defect no assertion here would have found
-  ([ADR-044](../adrs/layer-5/ADR-044-scroll-position-is-a-declared-quantum.md)).
+- **`D8` and `D9` are tier S on both halves**, which is a correction rather than an achievement.
+  They were first written as "S for what crosses, C by hand for what the host does", citing ADR-014's
+  claim that exercising a host binding in a composition needs "a Compose UI test harness this project
+  does not have". That claim was false when ADR-014 made it and had been repeated twice since:
+  `dogwood-host`'s `jvmTest` source set carries `compose.uiTest`, and a dozen tests already used
+  `runComposeUiTest`. `FocusMirrorTest` and `ScrollMirrorTest` assert the host halves in a real
+  composition, and each was watched to fail with the line it covers removed. What *remains* outside
+  any assertion is the same thing `D6` records — the keyboard itself, driven by hardware input that
+  `adb` and `simctl` cannot supply.
 - **Web's network policy is the browser's**, per ADR-032. The claim holds; the instrument is a
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.
@@ -466,7 +470,7 @@ ranks below everything above.)*
 
 ## Part 7 — Carried forward, not closed
 
-Four things, each recorded where somebody will meet it rather than left to be rediscovered.
+Five things, each recorded where somebody will meet it rather than left to be rediscovered.
 
 - **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
   the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
@@ -477,13 +481,18 @@ Four things, each recorded where somebody will meet it rather than left to be re
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
   The grading is wired and asymmetric, so the first such device to run it closes or reopens the
   gate without further work, and a regression on faster hardware still fails today.
-- **`D8` on the other three clients.** The claim is graded tier-S everywhere, because the guest
-  holder is shared code; the host mirror is shared too, since it lives in `dogwood-host`'s
-  transport-free core. What is untried is whether *taking the keyboard away* means the same thing on
-  each platform — Compose's `FocusManager.clearFocus()` is one call and three implementations, and
-  the redirect-policy row is the standing reminder that a shared rule can refuse on one client and
-  quietly not on another. This is the same shape as the `D6` gap and would be closed by the same
-  instrument.
+- **`D8` and `D9` are asserted on one Java Virtual Machine, and claimed for four clients.** Both
+  halves are shared code — the guest holder and the host mirror alike, since the mirror lives in
+  `dogwood-host`'s transport-free core — so the claim is sound in the way every other tier-S row is.
+  What is untried is whether *taking the keyboard away* and *scrolling* mean the same thing on each
+  platform: `FocusManager.clearFocus()` and `Modifier.verticalScroll` are one call each and three
+  implementations, and the redirect-policy row is the standing reminder that a shared rule can refuse
+  on one client and quietly not on another. Running `runComposeUiTest` on the other targets is the
+  instrument, and it is not wired up.
+- **`LazyListMirror` has no host test.** `FocusMirror` and `ScrollMirror` do; the holder that
+  established the pattern is still demonstrated on a device rather than asserted, which is now an
+  omission rather than a limit — [ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md) has had its
+  claim to the contrary withdrawn.
 - **Tier C does not gate in continuous integration**, and cannot: it needs a booted simulator with
   VoiceOver, an attached device, a browser with a graphics stack and the guest being served. It
   gates locally and before a release. If this project ever acquires a device lab, the command to

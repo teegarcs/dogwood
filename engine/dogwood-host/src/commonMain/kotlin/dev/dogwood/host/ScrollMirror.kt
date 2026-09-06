@@ -107,6 +107,13 @@ fun rememberScrollMirror(
     LaunchedEffect(state, generation) {
       snapshotFlow {
         val max = state.maxValue
+        // `Int.MAX_VALUE` is Compose's "not laid out yet", not a very tall container, and it is
+        // emitted before the first measure. Converting it to density-independent pixels produces a
+        // number with no meaning, and a guest cannot tell that from a real one -- so nothing is
+        // reported until there is a measurement to report. Found by a test rather than on a
+        // device: on a device the first report always arrived after layout, so the window in which
+        // this is wrong never opened.
+        if (max == Int.MAX_VALUE) return@snapshotFlow null
         val value = state.value
         val quantum = toPx(currentQuantum.coerceAtLeast(1)).coerceAtLeast(1)
         // Exact at both ends, quantised between them. `value >= max` is the row that matters:
@@ -117,10 +124,13 @@ fun rememberScrollMirror(
           max in 1..value -> max
           else -> (value / quantum) * quantum
         }
-        Triple(toDp(reported), if (max > 0) toDp(max) else -1, state.isScrollInProgress)
+        Triple(toDp(reported), if (max > 0) toDp(max) else 0, state.isScrollInProgress)
       }
         .distinctUntilChanged()
-        .collect { (offset, max, scrolling) -> currentReport(offset, max, scrolling) }
+        .collect { measured ->
+          val (offset, max, scrolling) = measured ?: return@collect
+          currentReport(offset, max, scrolling)
+        }
     }
   }
 

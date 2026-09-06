@@ -71,7 +71,15 @@ class ScrollState internal constructor(
   var offsetDp: Int by mutableStateOf(initialOffsetDp)
     private set
 
-  /** The largest offset the host reported, or -1 before the first report. */
+  /**
+   * The largest offset the host reported.
+   *
+   * Three values, and they are three different things. `-1` is "the host has not told me yet", and
+   * it is set here rather than sent — the host reports nothing at all until the container has been
+   * measured, because `ScrollState.maxValue` reads `Int.MAX_VALUE` before the first layout and a
+   * guest cannot tell that from a real measurement. `0` is "measured, and there is nothing to
+   * scroll". Anything larger is a real maximum.
+   */
   var maxOffsetDp: Int by mutableStateOf(-1)
     private set
 

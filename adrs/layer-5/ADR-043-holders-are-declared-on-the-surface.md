@@ -131,11 +131,17 @@ the first case of it, and the generator numbers them independently.
 
 ### Verified on a device, which is where the host half of a holder can be verified at all
 
-`FocusMirror` cannot be unit-tested here for the reason ADR-014 and
-[ADR-009](ADR-009-modifier-subsystem.md) both record: exercising a real focus request inside a
-composition needs a Compose UI test harness this project does not have. So it was run — Pixel
-emulator, API 35, against the live delivery path, reading `dumpsys input_method` rather than
-believing a screenshot.
+Run on a Pixel emulator, API 35, against the live delivery path, reading `dumpsys input_method`
+rather than believing a screenshot.
+
+**This paragraph originally said `FocusMirror` could not be unit-tested here, citing ADR-014's claim
+that it would need "a Compose UI test harness this project does not have". That was false when it
+was written** — `dogwood-host`'s `jvmTest` source set has carried `compose.uiTest` and used
+`runComposeUiTest` for a dozen tests since before ADR-014. The claim was inherited rather than
+checked, which is precisely the failure `AGENTS.md` §1.5 is about, pointed the other way: a
+*capability* asserted absent without looking. `FocusMirrorTest` now asserts the host half in a real
+composition, and each assertion was watched to fail with the mirror's action removed. The device run
+below stands as what it always was — evidence a screenshot can give, which is not a gate.
 
 | Observation | Result |
 |---|---|

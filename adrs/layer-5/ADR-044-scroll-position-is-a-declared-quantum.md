@@ -140,13 +140,22 @@ that the position **and the quantum** survive a replacement guest.
 
 ## 4. Unstated Assumptions
 
-- **The quantising itself is verified on a device, not unit-tested.** It happens inside a
-  `snapshotFlow` over a real Compose `ScrollState`, which needs a Compose UI test harness this
-  project does not have — the limitation ADR-014 and
-  [ADR-009](ADR-009-modifier-subsystem.md) both already record.
-- **`LocalGuestGeneration` is verified the same way.** Its effect is that an effect restarts, which
-  is observable on a screen and not in a test here. It was watched to fail without the fix and pass
-  with it, which is the standard this project holds a gate to.
+- ~~The quantising is verified on a device, not unit-tested.~~ **Withdrawn, and it was wrong when
+  written.** It repeated ADR-014's statement that exercising this needs "a Compose UI test harness
+  this project does not have"; `dogwood-host`'s `jvmTest` source set has had `compose.uiTest` and
+  `runComposeUiTest` since before either record, and a dozen tests already used it. `ScrollMirrorTest`
+  asserts the quantising, both exact ends, the resolved end sentinel and the re-report, in a real
+  composition with real layout, on every build — and each was watched to fail with the corresponding
+  line removed. **The device run was not wasted and it was not sufficient**: it found what a
+  screenshot can find, and a screenshot is a person looking at pixels once rather than a gate.
+- **A test found what the device could not.** The first report carried
+  `maxOffsetDp = 2147483647` — `ScrollState.maxValue` reads `Int.MAX_VALUE` before the first
+  measure, which is Compose's "not laid out yet" and not a very tall container. Converting it
+  produces a number with no meaning that a guest cannot distinguish from a real one. On a device the
+  first report always happened to arrive after layout, so the window in which this is wrong never
+  opened. Nothing is now reported until there is a measurement to report, and `maxOffsetDp` has
+  three distinct meanings: `-1` never told, `0` measured with nothing to scroll, larger a real
+  maximum.
 - **A container with no holder still scrolls and reports nothing.** That is deliberate — the
   modifier is attached regardless — but it means a guest that forgot the holder sees a working
   container and silence, rather than an error.
