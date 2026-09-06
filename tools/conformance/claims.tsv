@@ -44,6 +44,8 @@ D8	android,ios,desktop,web	dev.dogwood.compose.FocusRequesterTest	js
 D8	android,ios,desktop,web	dev.dogwood.host.FocusMirrorTest
 D9	android,ios,desktop,web	dev.dogwood.compose.ScrollStateTest	js
 D9	android,ios,desktop,web	dev.dogwood.host.ScrollMirrorTest
+D10	android,ios,desktop,web	dev.dogwood.compose.LiveStateHolderTest	js
+D10	android,ios,desktop,web	dev.dogwood.host.LazyListMirrorTest
 E1	android,ios,desktop,web	dev.dogwood.host.StateStoreTest
 E2	android,ios,desktop,web	dev.dogwood.host.WarmPoolTest
 E3	android,ios,desktop,web	dev.dogwood.host.LeakDetectorTest,dev.dogwood.host.DetachedNodeTest
