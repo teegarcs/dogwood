@@ -414,6 +414,12 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 
 **Deferred engineering, carried here from the records that deferred it:**
 
+- **Reduce the web page by the 463 kilobytes the host split cost.** Measured properly after the
+  fact ([ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md)): the shipped
+  slice went from 3,099,170 to 3,573,294 bytes brotli, which at Fast-3G rates is about 2.4 seconds
+  of extra waiting. Candidates: what the design-system bindings pull from Material 3, and whether
+  both WebAssembly chunks are needed on first load.
+
 - **A resynchronisation protocol** for a tree left older than the guest believes after a rejected
   batch ([Layer 4 ADR-011](adrs/layer-4/ADR-011-a-batch-applies-whole-or-not-at-all.md) §4).
   Containment is done; repair is not.

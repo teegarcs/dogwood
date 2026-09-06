@@ -30,9 +30,12 @@ def load_claims(path):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
-            claim, clients, tests = line.split('\t')
+            parts = line.split('\t')
+            claim, clients, tests = parts[0], parts[1], parts[2]
+            toolchain = parts[3].strip() if len(parts) > 3 else 'jvm'
             for client in clients.split(','):
-                rows.append((claim, client.strip(), [t.strip() for t in tests.split(',')]))
+                rows.append((claim, client.strip(),
+                             [t.strip() for t in tests.split(',')], toolchain))
     return rows
 
 
@@ -56,12 +59,24 @@ def test_results(roots):
 
 
 def main(argv):
+    # `--have jvm,js,wasm` says which toolchains this environment can actually execute. Default is
+    # everything, which is right on a development machine.
+    available = {'jvm', 'js', 'wasm', 'native'}
+    if argv and argv[0] == '--have':
+        available = {t.strip() for t in argv[1].split(',')}
+        argv = argv[2:]
     roots = argv or [f'{HERE}/../../engine']
     claims = load_claims(f'{HERE}/claims.tsv')
     results = test_results(roots)
 
     by_client = defaultdict(list)
-    for claim, client, tests in claims:
+    for claim, client, tests, toolchain in claims:
+        if toolchain not in available:
+            # Not gradable here, which is different from failing here. A Linux runner has no
+            # Kotlin/Native iOS toolchain; the claim is graded on a Mac by `run-all.sh`.
+            by_client[client].append(
+                (claim, 'SKIP', f'needs the {toolchain} toolchain, which this environment lacks'))
+            continue
         missing = [t for t in tests if t not in results]
         if missing:
             by_client[client].append(
@@ -81,7 +96,7 @@ def main(argv):
             if verdict == 'FAIL':
                 failures += 1
         print(f'CONF RESULT client={client} passed={counts["PASS"]} '
-              f'failed={counts["FAIL"]} skipped=0')
+              f'failed={counts["FAIL"]} skipped={counts["SKIP"]}')
     return 1 if failures else 0
 
 

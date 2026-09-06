@@ -1,6 +1,12 @@
 # Which tests are the evidence for which conformance claim.
 #
-# claim<TAB>client<TAB>test CLASS (or a comma-separated list; every one must pass)
+# claim<TAB>clients<TAB>test CLASS (or a comma-separated list; every one must pass)<TAB>[toolchain]
+#
+# The optional fourth column names the toolchain the evidence needs, defaulting to `jvm`. It exists
+# because a Linux runner cannot execute a Kotlin/Native iOS test, and "the evidence never ran"
+# would otherwise be indistinguishable from "somebody deleted the test" -- which is the one thing
+# `from_tests.py` must never blur. A row whose toolchain the environment lacks is reported SKIP
+# with that reason; a row whose toolchain it has and whose evidence is missing is still a FAIL.
 #
 # Class names, not file names -- they differ here more often than not (`HostTreeTest.kt` holds
 # `HostTreeApplyTest`). The first draft of this table used file names, and `from_tests.py` reported
@@ -37,9 +43,9 @@ D6	android,ios,desktop,web	dev.dogwood.host.TextInputHostTest,dev.dogwood.host.T
 E1	android,ios,desktop,web	dev.dogwood.host.StateStoreTest
 E2	android,ios,desktop,web	dev.dogwood.host.WarmPoolTest
 E3	android,ios,desktop,web	dev.dogwood.host.LeakDetectorTest,dev.dogwood.host.DetachedNodeTest
-E4	ios	dev.dogwood.host.CrossLanguageLeakTest
+E4	ios	dev.dogwood.host.CrossLanguageLeakTest	native
 F1	android,ios,desktop,web	dev.dogwood.host.NetworkPolicyTest
-F1	ios	dev.dogwood.host.NetworkPolicyIosTest,dev.dogwood.host.UrlSessionPolicyTest
+F1	ios	dev.dogwood.host.NetworkPolicyIosTest,dev.dogwood.host.UrlSessionPolicyTest	native
 F2	android,ios,desktop,web	dev.dogwood.host.RedirectPolicyTest
 F3	android,ios,desktop,web	dev.dogwood.host.ImagePolicyTest
 F4	android,ios,desktop,web	dev.dogwood.host.NetworkPolicyTest
