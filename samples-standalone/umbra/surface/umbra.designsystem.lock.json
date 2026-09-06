@@ -1,0 +1,42 @@
+{
+    "segmentName": "umbraDesignSystem",
+    "wireName": "umbra.designsystem",
+    "segmentId": 3,
+    "version": 1,
+    "components": [
+        {
+            "name": "UmbraBanner",
+            "localTag": 1,
+            "properties": {
+                "message": 1,
+                "tone": 2
+            },
+            "propertyTypes": {
+                "message": "TextValue",
+                "tone": "String?"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "UmbraStepper",
+            "localTag": 2,
+            "properties": {
+                "value": 1,
+                "enabled": 2
+            },
+            "propertyTypes": {
+                "value": "Int",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {},
+            "rejected": {
+                "onChange": "indexed content lambda; this is the lazy-layout subsystem, not a slot"
+            }
+        }
+    ]
+}

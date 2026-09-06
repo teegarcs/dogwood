@@ -110,7 +110,38 @@ and one run of `--es experiment pauses` on that Pixel closes it.
 
 ---
 
-## 5. The web profile's first-visit trade is a product judgement
+## 5. Where the published artifacts actually go
+
+**Status:** open, and it is now the only thing between this and a product depending on Dogwood.
+**Cost of leaving it:** a product can consume Dogwood only from a developer's own machine.
+
+`dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host` and the Gradle plugin
+`dev.dogwood.codegen` publish under **`dev.dogwood`** at **`0.1.0`**, and
+`samples-standalone/umbra` proves the whole path works — a separate Gradle build with no route into
+this repository, resolving the plugin by identifier and the runtime as artifacts
+([ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)).
+
+It resolves them from **`mavenLocal()`**, which is a developer's own machine and nobody else's.
+
+**What done looks like:** a repository these are deployed to, an account that owns them, and
+credentials a build can use. That is one of:
+
+- Maven Central, under a group somebody has verified ownership of. `dev.dogwood` is not registered
+  to anyone; a real one would be a domain you control.
+- A private repository — an internal Artifactory, Nexus, or GitHub Packages — if this is not meant
+  to be public.
+
+Then `samples-standalone/umbra/settings.gradle.kts` points at it instead of `mavenLocal()`, and the
+plugin gets a marker on the Gradle Plugin Portal if it is meant to be applied by identifier without
+a `pluginManagement` block.
+
+**A related decision that comes with it:** `0.1.0` is a number, not a stability promise. Nothing is
+API-frozen. Whether the first published version carries a compatibility commitment is a decision to
+take *before* anyone depends on it rather than after.
+
+---
+
+## 6. The web profile's first-visit trade is a product judgement
 
 **Status:** open, and it is the one item here that changes what gets built.
 

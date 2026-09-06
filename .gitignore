@@ -35,3 +35,9 @@ tools/phase0/*/webpack.config.d/generated-zipline-webpack-config.js
 
 # Kotlin build-tool state, not source.
 .kotlin/
+
+# The standalone consumer's build output. Its *lock file* is committed, beside its surface, exactly
+# as Dogwood's own is -- a product's tags are as permanent as the engine's.
+samples-standalone/*/build/
+samples-standalone/*/.gradle/
+samples-standalone/*/.kotlin/
