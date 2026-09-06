@@ -115,7 +115,9 @@ flowchart LR
 
 **`@Preview` works, with a caveat.** Your module compiles twice from one source set: to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose. The preview shows the **intended layout** — it runs one Compose runtime with no protocol, no batching, and no thread hop, so it cannot show you the two failure modes that matter most: degraded rendering under version skew, and input latency. A separate device-parity harness covers those. (Which preview mechanism is used — an Android target driving the standard Android Studio pane, or the Compose Multiplatform desktop preview — is still being decided; see [Layer 1](specs/layer-1-authoring.md) Milestone 3.)
 
-**Most mistakes are compile errors, not blank screens.** Before publishing, the build compares the Compose APIs you called against the *binding dictionary* of each client version you target, and fails with a message naming the API, the versions that lack it, and the earliest version that has it. It is best-effort: a modifier chain assembled at runtime cannot be resolved statically. It catches the common case, and it is not a guarantee.
+**Most mistakes are compile errors, not blank screens — and the reason is simpler than this section originally claimed.** It described a build step comparing the Compose APIs you called against each target client's dictionary. **No such step exists.** What does exist is stronger for the common case and weaker for the specific one: guest code can only call the *generated stubs*, so calling something no client binds is not a check that fails, it is a function that does not exist. There is nothing to compare because there is nothing to call.
+
+What that does **not** give you is version targeting. Whether the client on a given device is new enough for a component you used is a runtime question, answered by branching on `LocalSegmentVersions`, and a payload that assumes too much degrades per the skew rules rather than failing to build. A build-time check across a *range* of client versions is not built.
 
 ---
 
@@ -212,12 +214,22 @@ The trade-off is real and worth stating: **the host application has to be a Comp
 
 ## 9. Current Status — Read This Before Planning Work
 
-**Dogwood is a specification, not a working system.** Nothing described here has been built yet, and several load-bearing assumptions are unproven. The most important open items:
+**This section said "Dogwood is a specification, not a working system. Nothing described here has been built yet" until 2026-09-06. That was true when it was written and is now wrong by seven phases**, which is worth saying plainly because it is the first thing a reader planning work would have believed.
 
-1. **Compose composition inside QuickJS has never been measured.** Layer 4, Milestone 1 exists to establish it. If the interpreter cannot run composition inside a frame budget, the architecture changes.
-2. **Boundary cost per frame is unmeasured.** Batching is the mitigation, but the number is not known.
-3. **Payload size with the Compose runtime linked is unmeasured.** Earlier size targets in this project's history predate this design and should not be quoted.
-4. **The closest prior art, Cash App's Redwood, is no longer under active development.** Its maintainer has publicly said the decision "wasn't technical" ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)); the organisational-adoption lesson it carries still applies here in full.
-5. **The bespoke subsystems are the larger half of the work — nine of them, not six.** Adversarial review added animation, resources, and host services to the list ([ADR-005](adrs/layer-5/ADR-005-corrected-coverage-and-bespoke-subsystem-list.md)). Redwood needed ten modules for lazy lists alone. The generated bindings are the part that scales; the hand-written subsystems are the part that takes the time.
+**The engine is built and runs on four hosts** — Android, iOS, web and a desktop development loop — from one shared core. 600 tests pass; every conformance claim this machine can grade is met (`plans/conformance.md`). The five items this section listed as unproven are all measured now:
+
+1. ~~Compose composition inside QuickJS has never been measured.~~ **Measured.** Phase 0's harness ran it; the results are in `tools/phase0/results/` and the gate's remaining shortfall is one device nobody bought ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)).
+2. ~~Boundary cost per frame is unmeasured.~~ **Measured**, on device and in the browser. On web the transport is 0.02% of a frame and *decoding* is the larger half ([ADR-032](adrs/layer-5/ADR-032-the-web-profile.md)).
+3. ~~Payload size with the Compose runtime linked is unmeasured.~~ **Measured**, repeatedly, and it is the web profile's governing constraint: 3.58 MB brotli, three quarters of it Skiko, with every lever now measured rather than estimated ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+4. **The closest prior art, Cash App's Redwood, is no longer under active development.** Unchanged, and still true: its maintainer has publicly said the decision "wasn't technical" ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). The organisational-adoption lesson applies here in full.
+5. **The bespoke subsystems were the larger half of the work, and that was right.** Eight of the nine are delivered; live-state holders are ◐ with three shapes proven and the mechanical cost of a fourth now paid once ([ADR-043](adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)).
+
+**What is genuinely not ready is a different list**, and it is kept in one place rather than here: [`plans/production-readiness.md`](plans/production-readiness.md). The short version, because it changes what you should plan:
+
+- **A product cannot register its own components yet.** The generator runs over one surface file. Until that changes, a guest can emit only what this repository's design system defines — which is the gap that blocks everything else.
+- **The real guest has never run on the web.** The web sample's guest is hand-written JavaScript, deliberately, so no Kotlin/Compose guest has run in a Worker.
+- **There is no server.** Payloads are served by a Gradle task on `localhost:8080`. No publish pipeline, no rollout, no rollback.
+
+Everything blocked on a person rather than on work — the Apple ruling among them — is in [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
 
 The full risk register is section 7 of the [technical specification](high-level-tech-spec-final.md); every architectural decision and its evidence is recorded in [`adrs/`](adrs/).

@@ -151,11 +151,14 @@ exists; the machinery to operate one does not.**
 
 ### 4.2 What does not exist
 
-- **Nothing ships the `SkewReport` anywhere.** It is collected per experience and a host "can ship it
-  as telemetry" — no host does. This is the feedback loop that tells a team a design-system update
-  reached payloads before it reached devices, and it is currently a data structure nobody reads.
-  **This is the highest-value maintenance item**, because every degradation rule in the architecture
-  is silent by design and this is the only thing that makes them visible.
+- ✅ **The `SkewReport` can now leave the process.** `DogwoodSkewReporter` is a one-method interface a
+  product implements with whatever telemetry it already has; `SkewDrain` hands it what is **new**
+  since the last call, because the sets accumulate for the life of an experience and a reporter that
+  sent the whole report every time would send the same entries forever. Dogwood stores, the host
+  reports — no transport, batching policy or sampling rate is Dogwood's business. Verified end to
+  end by inducing real skew with `tools/skew-drill` and reading it out of logcat.
+  **What remains is per-product**: a host has to call `drain()`, on the thread that composes. The
+  Android sample is the reference implementation.
 - **No rollout, no rollback.** A payload is published and clients fetch it. There is no staged
   rollout, no canary, no kill switch, and no "go back to the previous manifest" that is not "publish
   the old bytes again by hand". For a delivery mechanism whose selling point is *shipping without a
@@ -177,6 +180,69 @@ exists; the machinery to operate one does not.**
 
 ---
 
+---
+
+## Part 4b — Documentation, demos and the server, which this plan did not have a place for
+
+The three questions that produced this section — *are the demos finished, is there documentation,
+how does this work on a server* — had no home in Parts 1–4, and the answers are worse than the
+engineering gaps because they are the parts a new team meets first.
+
+### The demos are four hosts, not one application on three platforms
+
+`slice-android`, `slice-ios` and `slice-desktop` run the **same** Kotlin guest. `web-slice` does
+not: its guest is a hundred lines of hand-written JavaScript, deliberately, so the protocol is
+proven to be an interface rather than an artefact of Kotlin on both ends. The consequence is that
+**there is no "one screen, three platforms" demonstration**, which is the demonstration the
+architecture's central claim deserves. Closing §2.1 closes this too.
+
+No sample has a README. `engine/README.md` carries the run commands for all of them, which is
+enough for somebody already in the repository and not enough for anybody else.
+
+### The documentation is a pitch, not a manual
+
+`developer-experience.md` explains what this is like to use and is written for someone deciding
+whether to adopt. Two statements in it were false until 2026-09-06 — it declared the system unbuilt,
+and it described a build-time dictionary check that does not exist — which is what a document nobody
+re-reads does over seven phases.
+
+What does not exist at all:
+
+| Document | For whom | Why it is missing today |
+|---|---|---|
+| **Getting started** | somebody adding Dogwood to an existing application | There is no supported way to consume it — the generator is an internal Gradle project (§1) |
+| **Authoring guide** | somebody writing screens | The rules are spread across `developer-experience.md` §5, Layer 1, and half a dozen ADRs |
+| **Operations guide** | whoever is on call | Nothing exists. See §4.2 — most of what it would document is not built |
+| **API reference** | everyone | The guest surface is generated, so this is generated too, and nothing generates it |
+
+`docs/checks.md` is the one operational document that exists, and it covers checks rather than
+operation.
+
+### There is no server
+
+This is the largest single omission on the page, and it is invisible from inside the repository
+because a Gradle task fills the gap. A payload today is served by
+`:samples:slice-guest:serveProductionWebpackZipline` on `localhost:8080`.
+
+A product needs, and none of it exists:
+
+- **A publish pipeline** — build, sign, upload, and make a manifest live, as one reviewable step
+  rather than a developer's Gradle invocation.
+- **Manifest hosting with the right cache semantics** — the payload files are content-addressed and
+  immutable, the *manifest* is not, and getting that backwards means either stale clients or no
+  caching at all.
+- **`Content-Encoding: br`** on the web bundle, whose absence silently costs 27%
+  ([ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+- **Rollout and rollback** — §4.2.
+- **A signing key that is not in the repository.** The keys in the samples are throwaway development
+  keys, committed on purpose and labelled as such.
+
+**The mechanism was always designed to be somebody's server, not to be one.** That is a defensible
+architecture and an indefensible omission from a production plan, which is why it is written down
+here rather than left as an assumption.
+
+---
+
 ## Part 5 — The order to do it in
 
 Sequenced by what unblocks the most, not by size.
@@ -185,13 +251,20 @@ Sequenced by what unblocks the most, not by size.
 |---|---|---|
 | 1 | **Component registration** (§1) | Nothing a product does is possible without it, and everything below is smaller |
 | 2 | **The real guest on web** (§2.1) | The largest alignment hole; also the last unproven assumption in the web profile |
-| 3 | **Ship the `SkewReport`** (§4.2) | Every degradation rule is silent by design; this is the only thing that makes them visible, and it is small |
+| 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | **Rollout, rollback, kill switch** (§4.2) | The other half of shipping without a store review. A bad publish currently has no defined recovery |
 | 5 | **The authoring checker** (§4.2) | Cheap, and it prevents the one class of guest code this architecture cannot absorb |
 | 6 | **Host tests on the other targets** (§3) | A build-configuration change that upgrades three claims from inference to assertion |
 | 7 | **The holders a product hits early** (§2.2) | `SnackbarHostState` first, because it is the one unproven shape |
 | 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |
-| 9 | **Key ceremony and payload hosting** (§4.2) | Needed before a first ship, not before a first product build |
+| 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
+| 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
 
 **Items 1 and 2 are the two that change what the project *is*.** Everything from 3 down makes it
 operable; those two make it usable.
+
+**And one thing is not on the list because it is not sequenced — it is continuous.** Every document
+here goes stale silently. `developer-experience.md` spent seven phases telling readers the system did
+not exist, and nothing caught it, because no check reads prose. The cheapest guard is the habit this
+repository already has elsewhere: when a record's claim stops being true, the record says so in the
+place it said the opposite.

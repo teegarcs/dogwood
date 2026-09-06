@@ -146,7 +146,11 @@ object DogwoodDictionary {
     Spacer.value -> "Spacer"
     VerticalList.value -> "VerticalList"
     HorizontalList.value -> "HorizontalList"
-    else -> if (knows(tag)) "Widget#${tag.value}" else "Unknown#${tag.value}"
+    // The generated segment names itself, so a withheld `PrimaryButton` is reported as one rather
+    // than as `Widget#16777217`. `Unknown#` stays a number on purpose: a tag this client does not
+    // carry comes from a dictionary it has never seen, and there is no name to give it.
+    else -> DogwoodDesignSystemNames[tag.value]
+      ?: if (knows(tag)) "Widget#${tag.value}" else "Unknown#${tag.value}"
   }
 
   /** Per-segment versions, handed to the guest so it can branch on client capability. */
