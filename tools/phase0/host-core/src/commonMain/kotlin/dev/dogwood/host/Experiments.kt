@@ -143,6 +143,25 @@ data class GcPoint(
   val memoryAfterChurn: MemorySnapshot,
 )
 
+/**
+ * What the pauses under load actually were.
+ *
+ * The two "worst" figures are the point: a large [worstCollectionMs] means collection is the
+ * source of jank, and a large [worstOtherMs] with a small [worstCollectionMs] means it is not --
+ * which is the reading experiment 0.4 could not produce.
+ */
+@Serializable
+data class PauseAttribution(
+  val observed: Int,
+  val collections: Int,
+  val worstCollectionMs: Double,
+  val worstOtherMs: Double,
+  val totalCollectionMs: Double,
+  val bytesReclaimed: Long,
+  val othersOverAFrame: Int,
+  val collectionsOverAFrame: Int,
+)
+
 @Serializable
 data class Experiment04(
   val method: String,
@@ -454,6 +473,47 @@ class Phase0Driver(
    * the signal that actually matters. If the tail does not move with the threshold, garbage
    * collection is not the source of the jank.
    */
+  /**
+   * Attributes the pauses under load, which experiment 0.4 could only infer.
+   *
+   * 0.4 forced collections from the host and timed them, because Zipline exposes no collection
+   * hook -- so it could say what a *forced* collection costs and not whether a naturally occurring
+   * outlier was one. The roadmap has carried that caveat since Phase 0: "without the hook, a 22 ms
+   * outlier cannot be attributed to garbage collection rather than to the scheduler."
+   *
+   * `PauseWatcher` answers it from the public application programming interface. See that file for
+   * why the specified patched-QuickJS build could not: the outlier is on a phone, and a patch built
+   * for the development machine would instrument a host where it has never appeared.
+   */
+  fun pauseAttribution(rows: Int, churnIterations: Int, rounds: Int): PauseAttribution {
+    val loaded = load()
+    return try {
+      loaded.guest.measureClockOverhead(1000)
+      loaded.guest.composeReferenceScreen(rows, warmups = 5, iterations = 5)
+
+      val watcher = PauseWatcher(loaded.zipline.quickJs)
+      watcher.install()
+      watcher.reset()
+      repeat(rounds) { loaded.guest.churn(rows, churnIterations) }
+      watcher.remove()
+
+      val collections = watcher.pauses.filter { it.isCollection }
+      val others = watcher.pauses.filterNot { it.isCollection }
+      PauseAttribution(
+        observed = watcher.pauses.size,
+        collections = collections.size,
+        worstCollectionMs = watcher.worstCollectionMillis,
+        worstOtherMs = watcher.worstOtherMillis,
+        totalCollectionMs = collections.sumOf { it.millis },
+        bytesReclaimed = collections.sumOf { it.heapReclaimed },
+        othersOverAFrame = others.count { it.millis > 16.7 },
+        collectionsOverAFrame = collections.count { it.millis > 16.7 },
+      )
+    } finally {
+      loaded.zipline.close()
+    }
+  }
+
   fun experiment04(rows: Int, thresholds: List<Long>, churnIterations: Int): Experiment04 {
     val points = thresholds.map { threshold ->
       val loaded = load(gcThresholdBytes = threshold)

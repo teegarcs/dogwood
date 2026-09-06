@@ -1,0 +1,10 @@
+{
+    "observed": 54,
+    "collections": 22,
+    "worstCollectionMs": 3.689917,
+    "worstOtherMs": 7.445417,
+    "totalCollectionMs": 58.30849600000001,
+    "bytesReclaimed": 8539312,
+    "othersOverAFrame": 0,
+    "collectionsOverAFrame": 0
+}

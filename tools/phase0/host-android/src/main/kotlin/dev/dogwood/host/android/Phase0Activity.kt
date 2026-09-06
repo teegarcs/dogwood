@@ -28,6 +28,7 @@ import dev.dogwood.host.Phase0Driver
 import dev.dogwood.host.Phase0Results
 import dev.dogwood.host.Toolchain
 import dev.dogwood.host.renderMarkdown
+import dev.dogwood.host.PauseAttribution
 import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -85,6 +86,13 @@ class Phase0Activity : Activity() {
     // Experiment 0.5 is long and answers a different question, so it is opt-in:
     //   adb shell am start -n dev.dogwood.host.android/.Phase0Activity --es experiment alloc
     // With no extra, the activity runs experiments 0.1 through 0.4 exactly as before.
+    if (intent?.getStringExtra("experiment") == "pauses") {
+      // The one experiment that must run on a phone to mean anything: the outlier it explains was
+      // measured on one, and a development machine has never produced it.
+      runBlocking(dispatcher) { runPauseAttribution(payload, dispatcher) }
+      return
+    }
+
     if (intent?.getStringExtra("experiment") == "alloc") {
       runBlocking(dispatcher) { runAllocationGc(payload, dispatcher) }
       return
@@ -176,6 +184,30 @@ class Phase0Activity : Activity() {
    * produces no numbers at all. They are reported in the result file, so nothing about the
    * sample size has to be taken on trust.
    */
+  /**
+   * Attributes the pauses under load, on the device where the outlier lives.
+   *
+   * Experiment 0.4 could time a *forced* collection and not say whether a naturally occurring
+   * 22 ms frame was one. `PauseWatcher` reads the interval between QuickJS interrupt callbacks and
+   * pairs it with the interpreter heap, which separates a collection from the scheduler without
+   * the patched native build the Phase 0 appendix specified -- a build that would have needed the
+   * Native Development Kit to run here at all.
+   */
+  private fun runPauseAttribution(
+    payload: GuestPayload,
+    dispatcher: kotlinx.coroutines.CoroutineDispatcher,
+  ) {
+    val driver = Phase0Driver(dispatcher, payload, warmups = 20, iterations = 200)
+    val result = driver.pauseAttribution(rows = ROW_COUNTS.first(), churnIterations = 500, rounds = 20)
+    Log.i(TAG, "pauses observed=${result.observed} collections=${result.collections}")
+    Log.i(TAG, "pauses worstCollection=${result.worstCollectionMs} worstOther=${result.worstOtherMs}")
+    Log.i(TAG, "pauses overAFrame collection=${result.collectionsOverAFrame} other=${result.othersOverAFrame}")
+    val outDir = File(getExternalFilesDir(null) ?: filesDir, "results").apply { mkdirs() }
+    File(outDir, "pauses-${Build.MODEL.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.json")
+      .writeText(Json { prettyPrint = true }.encodeToString(PauseAttribution.serializer(), result))
+    Log.i(TAG, "pauses written to $outDir")
+  }
+
   private fun runAllocationGc(
     payload: GuestPayload,
     dispatcher: kotlinx.coroutines.CoroutineDispatcher,

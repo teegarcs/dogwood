@@ -156,10 +156,20 @@ buffers *larger* on the wire than positional JSON as well as 45% slower.
 4. **The two parallel tracks below** — the Apple Developer Technical Support incident and the
    iOS organisation's written yes — neither of which is engineering work.
 
-The patched-QuickJS `JS_RunGC` hook was not built; 0.4 used the forced-`gc()` fallback this
-appendix permits, and reports which method produced its numbers. The Pixel's tail behaviour
-above is the argument for building it: without the hook, a 22 ms outlier cannot be attributed
-to garbage collection rather than to the scheduler.
+The patched-QuickJS `JS_RunGC` hook was **not built, and will not be**
+([Layer 4 ADR-013](adrs/layer-4/ADR-013-attributing-a-pause-without-patching-quickjs.md)). The
+reason is not difficulty: the outlier it was meant to explain is on a **Pixel**, so the hook would
+have to be built for Android and a patch built for the development machine would instrument a host
+where that outlier has never appeared.
+
+Attribution comes from the public application programming interface instead. `PauseWatcher` reads
+the interval between QuickJS interrupt callbacks — `JS_RunGC` runs without calling them, so a
+collection shows as a gap — and pairs each gap with the interpreter heap, which falls when the
+mark-and-sweep collector runs and does not fall when the scheduler merely takes the thread away.
+On both hosts measured, **the worst pause is not a collection** (3.69 ms against 7.45 ms on the
+development machine; 5.80 ms against 7.48 ms on an emulator), which is the statement 0.4 could not
+make. Neither host reproduced the 22.1 ms sample, so the original question is now *answerable*
+rather than answered: one run of `--es experiment pauses` on that Pixel decides it.
 
 ### Phase 0 Harness Appendix — the decisions the experiments depend on
 
@@ -417,8 +427,6 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 - **The remaining live state holders** — `LazyListState` is built; ~30 holder types remain, each
   needing mirrored state and a conflict rule ([ADR-014](adrs/layer-5/ADR-014-live-state-holders.md),
   subsystem 4, ◐).
-- **The patched-QuickJS `JS_RunGC` hook**, so a tail outlier can be attributed to collection
-  rather than the scheduler (Phase 0 appendix).
 - **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
   deliberately last, because nothing above it is blocked on it.)*
 
