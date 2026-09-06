@@ -67,6 +67,31 @@ make this page meaningfully smaller.
 estimating Dogwood's own host code, which is comparable in size to a design system — an estimate,
 not a measurement.
 
+## The shipped page, which this harness does not measure
+
+The modules above are **spikes**: they establish what Compose Multiplatform costs, and no product
+change can move them. That is exactly the trap `tools/conformance/from_web_weight.py` fell into when
+it graded the budget against them — it reported a steady 2.92 MB through a change that grew the real
+page by 463 KB, and reported that steadiness as evidence the change was free. The budget now measures
+`engine/samples/web-slice`.
+
+Measured on the shipped slice at Compose Multiplatform 1.10.3 / Skiko 0.9.37.4
+([ADR-045](../../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)):
+
+| Chunk | Raw | brotli | Share |
+|---|---:|---:|---:|
+| `skiko.wasm` | 8,642,989 | 2,596,146 | **73%** |
+| application WebAssembly | 3,881,843 | 893,710 | 25% |
+| `app.js` glue | 595,741 | 86,203 | 2% |
+| **total** | **13,121,993** | **3,576,606** | |
+
+Two numbers from that investigation are worth having here, because both were measured with this
+harness's method and neither is obvious:
+
+- **The design-system bindings cost 297,251 bytes brotli** — measured by unlinking the generated
+  dispatch and rebuilding, which is the ceiling on what any registration seam could save.
+- **Serving gzip instead of brotli costs 987,107 bytes**, which is more than three times that.
+
 ## A second question, in `results/bridge.md`
 
 `:bridge` is a third module in this build, and it does not weigh anything. It measures what a

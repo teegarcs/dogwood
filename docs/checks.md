@@ -70,6 +70,27 @@ it could not do instead of reporting green.
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
+## One check that is not automated, and costs the most
+
+**Serve the web page with `Content-Encoding: br`.**
+
+Every page-weight figure in this project — the `G5` budget, ADR-030's table, ADR-038's first-frame
+measurements — is brotli at quality 11. `tools/web-ttff/run.sh` refuses to measure at all unless the
+server is actually sending it, so no recorded number was ever taken against uncompressed files.
+
+A **deployment** has no such check, and the failure is silent: the page works, and is 27% heavier
+than every number in these records.
+
+| Encoding | Total | Fast 3G first frame |
+|---|---:|---:|
+| brotli −q 11 | 3,576,606 | 18.45 s |
+| gzip −9 | 4,563,713 | 23.38 s |
+| penalty | **+987,107 (27.6%)** | **+4.94 s** |
+
+That is more than three times the entire design system, and more than any page-weight lever
+available to this project could deliver ([ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+It costs one server setting.
+
 ## Checks that are not conformance claims
 
 Worth listing so nobody assumes the matrix covers them.

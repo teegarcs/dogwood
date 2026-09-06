@@ -366,7 +366,7 @@ Precedes the Web host build, which will mount experiences through the same shell
 
 ---
 
-## Phase 7 — Cross-Client Conformance & Web Parity *(current)*
+## Phase 7 — Cross-Client Conformance & Web Parity ✅
 
 Phases 0–6 built the engine and brought it up on three shipping clients plus the desktop
 development loop. What they did not produce is *consistency*: every verification instrument was
@@ -450,69 +450,65 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
   (focus), and position-over-a-continuous-quantity (scroll) — and the standing expectation is that a
   new holder is one of them plus a mirror, until one is not, at which point it gets its own record
   the way `TextFieldState` did.
-- **Investigate web page-size reduction.** *(Last item of Phase 7 — measured, scoped, and
-  deliberately last, because nothing above it is blocked on it.)*
+- ✅ **Web page-size reduction, investigated and closed**
+  ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)). The gate was "a
+  decision recorded per line — measured saving, or a reason it does not pay". Every line is now a
+  measurement rather than an estimate, taken on the shipped slice rather than on the spike modules,
+  and **the answer to all four of the roadmap's lines is no.**
 
-  **The measurement.** The shipped slice is **3,573,294 bytes brotli**, all of it fetched before
-  the first frame — nothing is lazy, because Compose cannot draw without Skiko and Skiko does
-  nothing without the application. First frame, three cold loads per preset:
-
-  | Connection | First frame |
+  | Line | Verdict |
   |---|---|
-  | unthrottled | 139 ms |
-  | 5G — 100 Mbit/s, 30 ms | 520 ms |
-  | 4G — 9 Mbit/s, 85 ms | 3,606 ms |
-  | Fast 3G — 1.6 Mbit/s, 562 ms | 19,822 ms |
+  | Load the design-system half after the first frame | **The split does not exist.** The two chunks are `skiko.wasm` and the *whole* application; five Gradle modules compile to one WebAssembly module, and Kotlin/Wasm has no code splitting. |
+  | A registration seam, so a product links only what it uses | **Ceiling measured at 297 KB brotli** — 8% of the page, ~1.5 s on Fast 3G, and only if a product used *no* components. Declined on architecture: a client linking a subset can meet a payload naming a component it does not have, which turns an impossible skew case into a routine one. |
+  | Skiko's own configuration | **Measured across four versions: it has grown.** The pinned 0.9.37.4 is the smallest; the newest costs 22 KB more. One `skiko.wasm` in the jar, no variants. |
+  | A Document Object Model tier | **The only line that moves the number**, and declined on architecture rather than size: it is a second design-system implementation for the web, which [ADR-041](adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) has just finished deleting. Recorded with the product condition that would reopen it. |
 
-  **Only the tail hurts**, and that is what makes this an investigation rather than an emergency.
+  **The lever that pays was not on the list.** Serving gzip instead of brotli costs **987,107 bytes
+  — 27.6%, and 4.94 s on Fast 3G** — which is more than three times the entire design system and
+  more than any of the four lines above could deliver. It costs one server setting. The measurement
+  harness has always refused to run without `Content-Encoding: br`; what was missing was the
+  instruction to whoever deploys it, and that is now in [`docs/checks.md`](docs/checks.md).
 
-  **What the bytes are**, because the two halves have entirely different prospects:
-
-  | Chunk | Brotli | What it is |
-  |---|---:|---|
-  | `*.wasm` (Skiko) | 2,596 KB | Skia compiled to WebAssembly — a JetBrains build artifact |
-  | `*.wasm` (application) | 890 KB | Compose runtime, Material 3, `dogwood-host` core, the slice |
-  | `app.js` | 86 KB | the loader |
-
-  **73% is Skiko and Dogwood has no lever on it** beyond choosing a version. The 890 KB is the part
-  this project controls, and it is unremarkable for an application of its kind — a heavy
-  single-page-application bundle lands in the same range. The nearest architectural peer is Flutter
-  Web with CanvasKit, which pays a comparable 1.5–2 MB for the same reason: a canvas renderer
-  instead of the Document Object Model.
-
-  **Lines worth investigating**, in the order their payoff looks likeliest:
-  - **Whether both WebAssembly chunks are needed on the first frame.** They are fetched together
-    today. If the design-system half could load after the layout tier has painted, the first frame
-    would be gated on Skiko plus a smaller application chunk.
-  - **What the design-system bindings actually pull from Material 3**, and whether a registration
-    seam could let a product link only the components it uses. `DesignSystemImpl` reaches Material
-    3 broadly; whether Kotlin/Wasm's dead-code elimination already handles this is an unknown to
-    measure rather than assume.
-  - **Skiko's own configuration.** A version choice and possibly a build variant; the ceiling on
-    this is whatever JetBrains ships.
-  - **Whether the profile wants a Document Object Model tier at all** for text-and-layout screens,
-    which would sidestep Skiko entirely for a subset of surfaces. This is a large question and is
-    named here so it is not mistaken for a small one.
-
-  **What this is not.** It is not a regression to undo. The web host gained 463 KB when it stopped
-  reimplementing the host, and that bought Material 3, the icon set and the whole design system —
-  pre-split `dogwood-web` linked `compose.runtime`, `foundation` and `ui` and could render five
-  layout widgets. The before-and-after is not like-for-like, and reading it as waste would be
-  reading a capability as a defect.
-
-  **What would make it urgent.** A product that needs a first visit on a slow connection — a
-  landing page, anything search-driven. The profile suits a returning-user application surface,
-  where the bytes are cached, far better than a first-impression page. That is a product judgement
-  and belongs with whoever chooses the profile, which is why it is written down rather than left to
-  be discovered at 19.8 seconds.
-
-  Gate: a decision recorded per line above — measured saving, or a reason it does not pay. The
-  budget in `tools/conformance/budgets.tsv` holds the number in place meanwhile.
+  Three quarters of the page is a prebuilt binary this project cannot shrink, configure or defer.
+  The quarter it controls is 894 KB, which is unremarkable for an application of its kind. **The
+  page is not heavy because of anything this project did**, which is why the levers are small,
+  absent, or architectural.
 
 **Standing non-engineering items, unchanged:** the Apple ruling and the iOS organisation's written
 yes (parallel track); the Phase 0 gate device, not acquired by decision
 ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); three upstream reports
 drafted and unfiled by decision.
+
+### Phase 7 is closed, and what closing it means
+
+The conformance rollout is complete, web parity is built, both deferred engineering items are
+resolved, and every claim this machine can grade is met — **android 38, desktop 25, iOS 39, web 32**,
+generated from real runs rather than maintained by hand.
+
+Two of those closures are worth separating from the list, because they are the ones that changed how
+the work is done rather than what it does:
+
+- **The mechanical half of a live-state holder is now paid once.** ADR-014 left ~29 holders each
+  needing their wire form hand-written twice; a holder is now declared on the surface and generated
+  on both sides, with only the host mirror — the part that requires a decision — written by hand.
+  Three shapes are proven end to end, and the remaining holders arrive **with their widget** rather
+  than as a queue.
+- **The host half of every mirror is asserted rather than demonstrated.** It had been verified by
+  running the sample and looking at it, on the strength of a claim — repeated across three records —
+  that the project had no Compose UI test harness. It had one the whole time. Correcting that found
+  a defect no screenshot could: a scroll container reporting `Int.MAX_VALUE` as its maximum before
+  the first layout.
+
+**What is deliberately not closed** is carried in `plans/conformance.md` Part 7 with a reason
+attached to each: tier C cannot gate in continuous integration without a device lab; the performance
+budgets `G1`–`G4` cannot be closed by any host that exists, because the gate device was not acquired;
+skew containment has a drill on Android and not on iOS or web; and `D8`/`D9` are asserted on one
+Java Virtual Machine and claimed for four clients on the strength of shared code.
+
+**The engineering roadmap ends here.** What follows is not another phase of building the same thing:
+it is a product choosing a profile — which is why the page-weight record above ends in a product
+condition rather than a task, and why the two largest remaining risks (the Apple ruling, the gate
+device) are decisions rather than work.
 
 ---
 

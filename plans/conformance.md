@@ -151,6 +151,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D7 | A disabled control is announced as disabled | C | ✅ Android; iOS reports none on screen |
 | D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S | ✅ both halves — guest and host binding |
 | D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S | ✅ both halves — guest and host binding |
+| D10 | A guest can drive and observe a list's position; a target for an item that does not exist yet waits rather than clamping | S | ✅ both halves — guest and host binding |
 
 ### E. Lifecycle and resources
 
@@ -210,6 +211,7 @@ Last generated 2026-09-06, with the performance budgets graded:
 | D6 | ✅ | ✅ | ✅ | ✅ |
 | D8 | ✅ | ✅ | ✅ | ✅ |
 | D9 | ✅ | ✅ | ✅ | ✅ |
+| D10 | ✅ | ✅ | ✅ | ✅ |
 | E1 | ✅ | ✅ | ✅ | ✅ |
 | E2 | ✅ | ✅ | ✅ | ✅ |
 | E3 | ✅ | ✅ | ✅ | ✅ |
@@ -239,10 +241,10 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 37, skip 4
-- **desktop**: pass 24
-- **ios**: pass 38, skip 4
-- **web**: pass 31, skip 1
+- **android**: pass 38, skip 4
+- **desktop**: pass 25
+- **ios**: pass 39, skip 4
+- **web**: pass 32, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -256,7 +258,7 @@ argument for `claims.tsv` naming clients explicitly rather than a scope keyword 
 
 1. ~~Web is graded on 8 claims of 28.~~ ✅ **Closed by
    [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md): web is graded on
-   29 of 30.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
+   30 of 31.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
    inherited rather than earned one at a time, because `dogwood-web` now renders through
    `dogwood-host`'s core instead of a copy of it; the exempt ones are in `exempt.tsv` with ADR-032
    as the reason; and the ones called "blocked on parity" were exactly the ones the split
@@ -470,7 +472,7 @@ ranks below everything above.)*
 
 ## Part 7 — Carried forward, not closed
 
-Five things, each recorded where somebody will meet it rather than left to be rediscovered.
+Four things, each recorded where somebody will meet it rather than left to be rediscovered.
 
 - **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
   the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
@@ -489,10 +491,10 @@ Five things, each recorded where somebody will meet it rather than left to be re
   implementations, and the redirect-policy row is the standing reminder that a shared rule can refuse
   on one client and quietly not on another. Running `runComposeUiTest` on the other targets is the
   instrument, and it is not wired up.
-- **`LazyListMirror` has no host test.** `FocusMirror` and `ScrollMirror` do; the holder that
-  established the pattern is still demonstrated on a device rather than asserted, which is now an
-  omission rather than a limit — [ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md) has had its
-  claim to the contrary withdrawn.
+- ~~`LazyListMirror` has no host test.~~ ✅ Closed: `LazyListMirrorTest` asserts the held target that
+  a device found and reasoning did not, the item-granular throttle, and the re-report a replacement
+  guest depends on — each watched to fail with the line it covers removed. All three mirrors are now
+  asserted rather than demonstrated.
 - **Tier C does not gate in continuous integration**, and cannot: it needs a booted simulator with
   VoiceOver, an attached device, a browser with a graphics stack and the guest being served. It
   gates locally and before a release. If this project ever acquires a device lab, the command to
