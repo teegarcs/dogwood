@@ -33,10 +33,28 @@ versions ("Fast 3G" became "Slow 4G") while the numbers did not:
 | preset | download | upload | round trip |
 |---|---|---|---|
 | `none` | unthrottled | unthrottled | 0 ms |
+| `5g` | 100 Mbit/s | 20 Mbit/s | 30 ms |
 | `4g` | 9 Mbit/s | 3.75 Mbit/s | 85 ms |
 | `fast-3g` | 1.6 Mbit/s | 750 kbit/s | 562.5 ms |
 
-## Results, 2026-09-03
+## Results, 2026-09-05
+
+Three cold loads per preset, after the host split. **3,573,294 bytes brotli, all fetched before the
+first frame** — nothing is lazy, because Compose cannot draw without Skiko and Skiko does nothing
+without the application.
+
+| preset | p50 |
+|---|---|
+| unthrottled | 139 ms |
+| `5g` | **520 ms** |
+| `4g` | 3,606 ms |
+| `fast-3g` | **19,822 ms** |
+
+Where the bytes are: 2,596 KB Skiko (a JetBrains artifact, 73% of the page), 890 KB application
+(Compose, Material 3, the host core and the slice), 86 KB loader. Reduction is scoped as its own
+investigation in the roadmap's Phase 7.
+
+## Results, 2026-09-03 — before the host split
 
 Ten cold loads per preset, headless Chrome on Apple silicon, macOS. **3,103,293 bytes transferred**
 on the render path in every load of every preset — identical across presets, which is itself the

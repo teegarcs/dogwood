@@ -35,6 +35,22 @@ because interpolating between two of ten measurements invents a number nobody ob
 | 4G — 9 Mbit/s, 85 ms round trip | 3,185 ms | 3,206 ms |
 | Fast 3G — 1.6 Mbit/s, 562.5 ms round trip | **17,415 ms** | 17,469 ms |
 
+**Re-measured 2026-09-05**, after the host split gave the web client the design system
+([ADR-041](ADR-041-one-host-core-split-at-the-zipline-seam.md)) and a 5G preset was added. The page
+is 3,573,294 bytes brotli now, up from 3,099,170:
+
+| preset | p50 |
+|---|---|
+| unthrottled | 139 ms |
+| 5G — 100 Mbit/s, 30 ms round trip | **520 ms** |
+| 4G | 3,606 ms |
+| Fast 3G | **19,822 ms** |
+
+The mid-band 5G figure is the one worth carrying alongside the Fast-3G one: this profile is
+half a second on a good connection and twenty seconds on a poor one, and quoting either alone
+misrepresents it. Millimetre-wave 5G would be faster still and covers a small fraction of any
+country, which is why the preset is mid-band.
+
 3,103,293 bytes transferred on the render path, **identical in every load of every preset**. That
 equality is the check that the throttle changed only how fast the bytes arrived and not which bytes
 were asked for; a figure that drifted between presets would mean the measurement was not comparing
