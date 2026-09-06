@@ -16,11 +16,29 @@ Everything blocked on a person rather than on work is in
 
 ---
 
-## Part 1 — The one gap that blocks everything else
+## Part 1 — The gap that blocked everything else ✅
 
-### A product cannot register its own components
+### A product can now register its own components
 
-**This is the gap.** Everything else on this page is smaller than it.
+**Closed** ([ADR-046](../adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md)). A product
+writes a surface, one `*Impl` per component, and a build file naming a segment identifier; the
+generator emits both sides and a host calls `DogwoodRegistry.register(…)` once, at application
+start. `samples/product-design-system` is the worked example — Acme's three components in
+`dev.acme.*`, rendering and handling events on a device.
+
+Adding the second caller is what found the three places that had quietly assumed one: the guest
+runtime's recording seam was `internal`, generated code assumed it shared a package with the
+runtime, and a segment's Kotlin name and its wire name were the same field — which put the design
+system in the version map twice the moment a binding named itself.
+
+**What remains is packaging, not design.** The generator is still an internal Gradle project, so
+Acme consumes it as `project(":dogwood-codegen")` and a real product cannot. Publishing it —
+coordinates, a plugin marker, a supported way to point it at a source directory — is item 1 below
+and it is the last thing standing between this and somebody outside the repository using it.
+
+### The original entry, kept because it is what the plan said
+
+**This was the gap.** Everything else on this page is smaller than it.
 
 `specs/layer-5-host.md` names it as item (c) of bespoke subsystem 9 and says why in one sentence:
 
@@ -249,7 +267,7 @@ Sequenced by what unblocks the most, not by size.
 
 | # | Item | Why here |
 |---|---|---|
-| 1 | **Component registration** (§1) | Nothing a product does is possible without it, and everything below is smaller |
+| 1 | **Publish the generator** (§1) | Registration works; consuming it from outside this repository does not. It is the last step of §1 and it is packaging |
 | 2 | **The real guest on web** (§2.1) | The largest alignment hole; also the last unproven assumption in the web profile |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | **Rollout, rollback, kill switch** (§4.2) | The other half of shipping without a store review. A bad publish currently has no defined recovery |
@@ -260,7 +278,8 @@ Sequenced by what unblocks the most, not by size.
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
 | 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
 
-**Items 1 and 2 are the two that change what the project *is*.** Everything from 3 down makes it
+**Item 2 is now the one that changes what the project *is*.** Item 1 was, and is closed but for
+its packaging. Everything from 3 down makes it
 operable; those two make it usable.
 
 **And one thing is not on the list because it is not sequenced — it is continuous.** Every document

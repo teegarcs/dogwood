@@ -10,6 +10,13 @@
  * Text, Column, Row, Box, Spacer; segment 1 is the design-system slice. Both dictionary
  * segments are exercised from day one, which is the point of the assignment.
  */
+/*
+ * These are the hand-written equivalent of generated stubs -- the layout tier and the two lazy
+ * containers the generator does not model -- so they are the seam's intended caller in exactly the
+ * way generated code is, and they opt in for the same reason. See `GeneratedApi.kt`.
+ */
+@file:OptIn(dev.dogwood.compose.DogwoodGeneratedApi::class)
+
 package dev.dogwood.compose
 
 import androidx.compose.runtime.Composable
@@ -43,7 +50,8 @@ import dev.dogwood.protocol.ModifierTags
  * ([Layer 5 ADR-016](../../../../../../adrs/layer-5/ADR-016-leak-detection.md)), and a stale
  * callback firing into a dead closure is the same bug wearing different clothes.
  */
-internal fun applyModifier(id: Id, modifier: Modifier) {
+@DogwoodGeneratedApi
+fun applyModifier(id: Id, modifier: Modifier) {
   for (index in modifier.elements.indices) {
     val tag = EventTag(ANIMATION_EVENT_BASE + index)
     val callback = modifier.completions[index]
@@ -237,9 +245,11 @@ class RecordingContext(
 )
 
 /** Set once per composition, before `setContent`. Single-threaded guest, so this is safe. */
-internal lateinit var recording: RecordingContext
+@DogwoodGeneratedApi
+lateinit var recording: RecordingContext
 
-internal fun newWidget(tag: WidgetTag): WidgetNode {
+@DogwoodGeneratedApi
+fun newWidget(tag: WidgetTag): WidgetNode {
   val id = recording.recorder.newId()
   recording.recorder.create(id, tag)
   return WidgetNode(id, tag)
@@ -251,7 +261,8 @@ internal fun newWidget(tag: WidgetTag): WidgetNode {
  * and cost no protocol change.
  */
 @Composable
-internal fun Children(tag: ChildrenTag, content: @Composable () -> Unit) {
+@DogwoodGeneratedApi
+fun Children(tag: ChildrenTag, content: @Composable () -> Unit) {
   ComposeNode<ChildrenNode, DogwoodApplier>(
     factory = { ChildrenNode(tag) },
     update = {},

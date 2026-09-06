@@ -30,6 +30,10 @@ include(":samples:slice-guest")
 include(":samples:slice-desktop")
 include(":samples:slice-android")
 
+// A product's own design system, in a package the engine has never heard of. It is what proves
+// the registration mechanism is a mechanism rather than a special case with one caller.
+include(":samples:product-design-system")
+
 // The web profile (Layer 5 ADR-032): the Kotlin/WebAssembly host and its runnable sample.
 include(":dogwood-web", ":samples:web-slice")
 

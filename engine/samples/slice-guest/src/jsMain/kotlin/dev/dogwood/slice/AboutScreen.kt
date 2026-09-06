@@ -46,6 +46,9 @@ import dev.dogwood.compose.height
 import dev.dogwood.compose.TextField
 import dev.dogwood.compose.TextValue
 import dev.dogwood.compose.ScrollArea
+import dev.acme.guest.AcmeAction
+import dev.acme.guest.AcmePanel
+import dev.acme.guest.AcmePrice
 import dev.dogwood.compose.rememberFocusRequester
 import dev.dogwood.compose.rememberScrollState
 import dev.dogwood.compose.rememberTextFieldState
@@ -138,6 +141,33 @@ fun AboutScreen() {
         label = "Dismiss keyboard",
         onClick = { cardFocus.freeFocus() },
       )
+    }
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    var acmeTaps by remember { mutableStateOf(0) }
+    SectionHeader(
+      title = "A product's own components",
+      description = "Segment 2. Acme wrote a surface and three implementations; the generator did " +
+        "the rest, and this guest calls them exactly like Dogwood's own.",
+    )
+    // Nothing in this block is Dogwood's. `AcmePanel`, `AcmePrice` and `AcmeAction` come from
+    // `dev.acme.guest`, generated from Acme's surface into Acme's module, and they record widgets
+    // in a segment the engine has never heard of. If they render, a product can ship its own
+    // design system -- which is the claim `specs/layer-5-host.md` calls item (c) of subsystem 9.
+    AcmePanel(modifier = Modifier.fillMaxWidth(), inset = 16) {
+      AcmePrice(amount = 129_900, currency = "USD", emphasis = "strong")
+      AcmePrice(amount = 129_900, currency = "JPY")
+      Spacer(modifier = Modifier.height(8))
+      AcmeAction(
+        label = "Acme action",
+        onClick = { acmeTaps += 1 },
+      )
+      Text("tapped $acmeTaps times")
+      // Deliberately disabled, and `enabled` is marked `@Affordance` on Acme's surface — so this
+      // control is withheld rather than drawn if a payload ever says something about it this
+      // client cannot read. A product gets that guard by declaring it, not by remembering it.
+      AcmeAction(label = "Acme unavailable", enabled = false, onClick = { })
     }
 
     Divider(modifier = Modifier.fillMaxWidth())

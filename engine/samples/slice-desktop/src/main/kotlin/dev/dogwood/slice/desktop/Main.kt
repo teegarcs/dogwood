@@ -63,6 +63,9 @@ private const val DEV_SERVER = "http://localhost:8080"
 private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
 
 fun main() = application {
+  // Acme's design system, registered before anything renders. One call, with an object the
+  // generator emitted from Acme's own surface -- see `samples/product-design-system`.
+  dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
   Window(
     onCloseRequest = ::exitApplication,
     state = rememberWindowState(width = 420.dp, height = 900.dp),

@@ -248,6 +248,18 @@ data class ParsedComponent(
 @Serializable
 data class Dictionary(
   val segmentName: String,
+  /**
+   * What this segment is called **on the wire**, where a guest reads it from
+   * `LocalSegmentVersions`.
+   *
+   * Separate from [segmentName] because that one names Kotlin declarations — `bindFooBar`,
+   * `FooBarTags` — and must be an identifier, while this one is a string a guest compares and is
+   * conventionally dotted. They were the same field, reconciled by a `replace()` in the generator's
+   * entry point, and the consequence surfaced the moment a segment had to name itself in two
+   * places: the same segment appeared in the version map twice, under both spellings, and a guest
+   * branching on either would have been half right.
+   */
+  val wireName: String = segmentName,
   val segmentId: Int,
   val version: Int,
   val components: List<DictionaryEntry>,

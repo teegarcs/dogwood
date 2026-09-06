@@ -43,6 +43,10 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
     listOf(
       "--source", surface.absolutePath,
       "--segment", "dogwoodDesignSystem",
+      // What a guest calls it. Dotted on the wire, camel-cased in Kotlin; the generator used to
+      // reconcile the two with a `replace()` and that stopped being enough once a segment had to
+      // name itself in more than one emitted file.
+      "--wire-name", "dogwood.designsystem",
       "--segment-id", "1",
       // VerticalList and HorizontalList are hand-written in this same segment, because the
       // generator does not model lazy layouts yet. Their tags are not the generator's to give.

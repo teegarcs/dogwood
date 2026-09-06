@@ -126,9 +126,15 @@ object DogwoodDictionary {
    * and the failure mode of forgetting is a component the client renders correctly while
    * *reporting* it as unknown.
    */
-  private val known = layoutTags + handWrittenDesignSystemTags + DogwoodDesignSystemTags
+  private val builtIn = layoutTags + handWrittenDesignSystemTags
 
-  fun knows(tag: WidgetTag): Boolean = tag.value in known
+  /**
+   * Computed on read rather than once, because a product registers its segments at application
+   * start — which may be after this object is first touched. A cached set would have answered
+   * "unknown" for every product component that happened to render before something else read it,
+   * and reported each one as skew.
+   */
+  fun knows(tag: WidgetTag): Boolean = tag.value in builtIn || DogwoodRegistry.knows(tag)
 
   /**
    * A readable name for a tag, for diagnostics only.
@@ -146,15 +152,24 @@ object DogwoodDictionary {
     Spacer.value -> "Spacer"
     VerticalList.value -> "VerticalList"
     HorizontalList.value -> "HorizontalList"
-    // The generated segment names itself, so a withheld `PrimaryButton` is reported as one rather
-    // than as `Widget#16777217`. `Unknown#` stays a number on purpose: a tag this client does not
-    // carry comes from a dictionary it has never seen, and there is no name to give it.
-    else -> DogwoodDesignSystemNames[tag.value]
+    // Registered segments name themselves, so a withheld `PrimaryButton` is reported as one rather
+    // than as `Widget#16777217` — and a product's own component by its own name. `Unknown#` stays a
+    // number on purpose: a tag no registered segment carries comes from a dictionary this client
+    // has never seen, and there is no name to give it.
+    else -> DogwoodRegistry.name(tag)
       ?: if (knows(tag)) "Widget#${tag.value}" else "Unknown#${tag.value}"
   }
 
-  /** Per-segment versions, handed to the guest so it can branch on client capability. */
-  val segmentVersions: Map<String, Int> = mapOf(
+  /**
+   * Per-segment versions, handed to the guest so it can branch on client capability.
+   *
+   * A property with a getter, not a stored map: a product's segments join it when they register,
+   * and a value computed at class-initialisation time would have told every guest that the
+   * product's own components did not exist.
+   */
+  val segmentVersions: Map<String, Int> get() = builtInVersions + DogwoodRegistry.versions()
+
+  private val builtInVersions: Map<String, Int> = mapOf(
     // Both dictionary segments come from the generated vector in `dogwood-wire`, so a host that
     // cannot see `dogwood-host` -- the Web one -- reads the same numbers rather than a second copy
     // of them. The design-system version was already generated for this reason after a hand-typed
@@ -162,8 +177,9 @@ object DogwoodDictionary {
     // simply had not moved yet.
     dev.dogwood.protocol.DogwoodSegments.LAYOUT to
       dev.dogwood.protocol.DogwoodSegments.LAYOUT_VERSION,
-    dev.dogwood.protocol.DogwoodSegments.DESIGN_SYSTEM to
-      dev.dogwood.protocol.DogwoodSegments.DESIGN_SYSTEM_VERSION,
+    // The design system is **not** listed here any more: it is a registered segment like any
+    // other, and the registry supplies its version. Listing it in both places put the same segment
+    // in this map twice under two spellings the moment the binding started naming itself.
     // The host service surface is versioned through the same channel but is not a dictionary
     // segment: it describes Zipline services, which the Web profile has none of.
     dev.dogwood.protocol.SERVICES_SEGMENT to dev.dogwood.protocol.SERVICES_VERSION,
@@ -182,10 +198,13 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
   LocalRenderCounter.current?.record()
   val transcript = LocalRenderTranscript.current
   transcript?.record(node, DogwoodDictionary.name(node.tag))
-  // The registered segment is dispatched by generated code. Nine of the eleven components in it
-  // are bound without a line of hand-written dispatch; what remains below is the layout tier and
-  // the two lazy containers the generator does not yet model.
-  if (bindDogwoodDesignSystem(node, scope, events)) return
+  // Every registered segment gets a chance at the tag, in registration order. Dogwood's own design
+  // system is one of them and has no privilege beyond being registered first; a product's segment
+  // is dispatched by exactly this loop. What remains below is the layout tier and the two lazy
+  // containers the generator does not yet model.
+  for (binding in DogwoodRegistry.bindings) {
+    if (binding.bind(node, scope, events)) return
+  }
   val modifier = node.composeModifier(scope, events)
   when (node.tag.value) {
     DogwoodDictionary.Text.value -> {

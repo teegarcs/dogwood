@@ -6,6 +6,7 @@
 
   <!-- Cleartext is scoped to the development server in res/xml/network_security_config.xml. -->
   <application
+      android:name=".SliceApplication"
       android:label="Dogwood Slice"
       android:allowBackup="false"
       android:networkSecurityConfig="@xml/network_security_config">
