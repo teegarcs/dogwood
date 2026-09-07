@@ -34,6 +34,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import dev.dogwood.protocol.WebStartPayload
 
 /** The report, built up as the page runs and republished on every change. */
 private val log = mutableListOf<String>()
@@ -114,6 +118,19 @@ private fun setReport(json: String) {
 private fun manifestParameter(): String =
   js("new URLSearchParams(location.search).get('manifest') || 'dogwood-manifest.json'")
 
+/**
+ * Which experience to open.
+ *
+ * The *host's* choice now, rather than the guest reading its own Worker URL. That is the shape
+ * every other client has -- `TabsActivity` names the entry and hands it launch parameters -- and it
+ * is what lets one guest script serve four experiences from a page that decides between them.
+ */
+private fun entryParameter(): String =
+  js("new URLSearchParams(location.search).get('entry') || 'about'")
+
+/** This page's origin, which is the address the guest's own data service is served from. */
+private fun origin(): String = js("location.origin")
+
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun main() {
   // Acme's design system, registered before anything renders — the same one call the Android host
@@ -145,7 +162,46 @@ fun main() {
   field("environment", environment.toString())
 
   val transcript = RenderTranscript()
-  val experience = DogwoodWebExperience(environment, { line -> note(line) }, transcript)
+  /*
+   * What this page tells the guest about itself.
+   *
+   * The same four things the Android and iOS hosts pass through `DogwoodServiceHost` and
+   * `DogwoodShell.activate`, and until now the web passed none of them -- which is why the sample's
+   * own Diagnostics screen read `surface revision 0 (unreported)` and `host clock unavailable`
+   * while claiming to run the same screens as the mobile payload. It did run them; it ran them
+   * blind.
+   */
+  val services = WebStartPayload(
+    entryPoint = entryParameter(),
+    // The same parameters `TabsActivity` and the iOS host pass. `apiBaseUrl` is the page's own
+    // origin, because only the host knows which name reaches the machine serving the payload --
+    // `10.0.2.2` on an Android emulator, `localhost` on a simulator, and this on the web.
+    launchParams = buildJsonObject {
+      put("city", JsonPrimitive("Tokyo"))
+      put("country", JsonPrimitive("Japan"))
+      put("apiBaseUrl", JsonPrimitive(origin()))
+    },
+    featureFlags = mapOf("explore.showWasPrice" to "true"),
+    // Deliberately empty, and empty means "this host does not enumerate" rather than "handles
+    // nothing" -- `DogwoodNavigation.routes` says so. The sample's own route button is therefore
+    // expected to be declined and recorded as skew, which is the path worth exercising.
+    routes = emptySet(),
+    // The one line that answers "surface revision 0 (unreported)". A guest branches on this to
+    // decide what it may use, so a client that reports nothing is a client every guest assumes is
+    // empty.
+    segmentVersions = DogwoodDictionary.segmentVersions,
+  )
+  val experience = DogwoodWebExperience(
+    environment,
+    { line -> note(line) },
+    transcript,
+    services = services,
+    onAnalytics = { event -> note("analytics: ${event.name} ${event.properties}") },
+    onNavigate = { request ->
+      note("navigation refused: no route '${request.route}'")
+      false
+    },
+  )
 
   ComposeViewport(document.body!!) {
     experience.Content()
@@ -169,10 +225,59 @@ fun main() {
       is DeliveryOutcome.Started -> {
         field("workerCreated", "true")
         experience.attach(outcome.bridge)
+        // A code update, on demand, because on this architecture it is the *normal* case and the
+        // web profile had never once been made to do it. The harness asks by setting a global; the
+        // page does the whole thing a publish would do -- fetch the manifest again, create a new
+        // Worker, and hand the running guest's state to its successor.
+        scope.launch { serveCodeUpdates(delivery, manifest, experience) }
+        // Polled alongside the drive rather than read once after it, and the difference is not
+        // cosmetic. `SkewReport` is plain sets written *during* composition -- `Skew.kt` explains
+        // why it cannot be snapshot state -- so a single read after the batches have applied sees
+        // only what the tree recorded while applying them, and none of what the bindings recorded
+        // while drawing them. Reading it once reported the unknown widget tag and missed the
+        // withheld one, which is precisely the half that matters: the drill's `A4-reported` went
+        // red on a client that had withheld the control correctly.
+        scope.launch { pollSkew(experience) }
         drive(experience, transcript)
       }
     }
   }
+}
+
+/**
+ * Runs a code update whenever the harness asks for one.
+ *
+ * Polling a global rather than exporting a function, because a Kotlin/WebAssembly function is not a
+ * JavaScript value and wrapping one to be called from a headless browser would be more interop than
+ * the thing it is testing.
+ */
+private suspend fun serveCodeUpdates(
+  delivery: WebDelivery,
+  manifest: String,
+  experience: DogwoodWebExperience,
+) {
+  while (true) {
+    delay(200)
+    if (!codeUpdateRequested()) continue
+    clearCodeUpdateRequest()
+    when (val outcome = delivery.start(manifest, experience)) {
+      is DeliveryOutcome.Started -> {
+        experience.update(outcome.bridge)
+        updates += 1
+        field("codeUpdates", updates.toString())
+      }
+
+      is DeliveryOutcome.Refused -> note("a code update was refused: ${outcome.refusal.message}")
+    }
+  }
+}
+
+private var updates = 0
+
+private fun codeUpdateRequested(): Boolean = js("globalThis.__dogwoodCodeUpdate === true")
+
+private fun clearCodeUpdateRequest() {
+  js("globalThis.__dogwoodCodeUpdate = false")
 }
 
 /**
@@ -224,6 +329,21 @@ private suspend fun drive(experience: DogwoodWebExperience, transcript: RenderTr
   field("transcript", transcript.dump())
   field("renderedNodes", transcript.count.toString())
   field("done", "true")
+}
+
+/**
+ * Republishes the skew report while the page runs.
+ *
+ * This is what a host wiring `SkewReport` to telemetry actually does -- `SkewDrain` in the
+ * engine is the same shape -- and it is the only way to see an entry a binding recorded during
+ * composition, because nothing invalidates when one lands. Bounded rather than endless: the page
+ * is a harness, and a coroutine that never finishes would keep it from ever looking idle.
+ */
+private suspend fun pollSkew(experience: DogwoodWebExperience) {
+  repeat(60) {
+    field("skew", experience.tree.skew.toString())
+    delay(250)
+  }
 }
 
 private suspend fun awaitBatches(experience: DogwoodWebExperience, count: Int): Boolean {

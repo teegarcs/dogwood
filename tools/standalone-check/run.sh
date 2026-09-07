@@ -39,6 +39,11 @@ compiled="$ROOT/samples-standalone/umbra/build/classes/kotlin/main/dev/umbra/des
   echo "FAIL -- the generated binding did not compile" >&2; exit 1; }
 [ -f "$ROOT/samples-standalone/umbra/surface/umbra.designsystem.lock.json" ] || {
   echo "FAIL -- no dictionary lock was written beside the surface" >&2; exit 1; }
+# The component reference, which a product asks for with one line in the `dogwood` block. Asserted
+# on its *content* rather than its existence: an empty file would satisfy `-f`, and the number a
+# reader actually comes here for is the widget tag.
+grep -q "33554435\|50331649" "$ROOT/samples-standalone/umbra/REFERENCE.md" 2>/dev/null || {
+  echo "FAIL -- no component reference was generated, or it carries no widget tags" >&2; exit 1; }
 
 echo
 echo "PASS -- a build outside this repository generated, compiled and locked its own segment"

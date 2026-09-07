@@ -70,7 +70,7 @@ class FocusMirrorTest {
     }
 
   @Test
-  fun aFieldNobodyAskedAboutIsNotFocused() {
+  fun aFieldNobodyAskedAboutIsNotFocused() = run {
     // The control. Without it, every assertion below could be satisfied by a field that is always
     // focused because it is the only focusable thing on screen.
     show(tree()) {
@@ -80,7 +80,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun aRequesterThatHasNotBeenUsedIsInert() {
+  fun aRequesterThatHasNotBeenUsedIsInert() = run {
     // Sequence zero means "nobody has asked for anything", and the host acts on it by not acting.
     // The properties are on the wire — a holder was passed — so this is the case that separates
     // "a holder exists" from "a request was made".
@@ -90,7 +90,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun aGuestRequestTakesTheFocus() {
+  fun aGuestRequestTakesTheFocus() = run {
     show(tree(requested = true, sequence = 1)) {
       waitForIdle()
       field().assertIsFocused()
@@ -98,7 +98,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun givingFocusUpIsARequestAndNotTheAbsenceOfOne() {
+  fun givingFocusUpIsARequestAndNotTheAbsenceOfOne() = run {
     // The mistake this exists to catch: reading `requested = false` as "nothing was asked" leaves
     // the keyboard up. It is also a different call — `FocusRequester.freeFocus()` releases
     // *captured* focus and would not do this — and getting that wrong is silent.
@@ -115,7 +115,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun askingTwiceForFocusActsTwice() {
+  fun askingTwiceForFocusActsTwice() = run {
     // The reason the target is a counter rather than a flag. A user who dismissed the keyboard and
     // tapped the same control again expects the field back — and with a flag the second tap would
     // change no property, cross nothing, and do nothing.
@@ -136,7 +136,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun aRepeatedSequenceDoesNotReFire() {
+  fun aRepeatedSequenceDoesNotReFire() = run {
     // The other half: the target is level-triggered on the *sequence*, so a property batch that
     // says the same thing again must not act again. Without this the mirror would re-take the
     // focus on every recomposition, which is a keyboard that cannot be dismissed.
@@ -158,7 +158,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun aRefusedRequestIsReportedRatherThanThrown() {
+  fun aRefusedRequestIsReportedRatherThanThrown() = run {
     // A request arriving for a field that cannot take focus must not take the screen down: the
     // payload is delivered over the air without a store review, and an exception inside composition
     // lands on every client at once (ADR-035). A disabled field is the reachable case.
@@ -179,7 +179,7 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun aReplacementGuestDoesNotTakeTheKeyboardBack() {
+  fun aReplacementGuestDoesNotTakeTheKeyboardBack() = run {
     // The pair from the device run, as an assertion. The guest's saver carries the request *count*
     // and deliberately not the direction, so a restored requester is not asking for anything — and
     // a screen the user had moved on from does not grab the keyboard seconds later.
@@ -209,12 +209,14 @@ class FocusMirrorTest {
   }
 
   @Test
-  fun nothingAboutFocusIsRecordedAsSkewOnTheOrdinaryPath() {
+  fun nothingAboutFocusIsRecordedAsSkewOnTheOrdinaryPath() = run {
     val tree = tree(requested = true, sequence = 1)
-    show(tree) { waitForIdle() }
-    assertTrue(
-      tree.skew.rejectedFocusRequests.isEmpty(),
-      "an ordinary request was reported as refused: ${tree.skew.rejectedFocusRequests}",
-    )
+    show(tree) {
+      waitForIdle()
+      assertTrue(
+        tree.skew.rejectedFocusRequests.isEmpty(),
+        "an ordinary request was reported as refused: ${tree.skew.rejectedFocusRequests}",
+      )
+    }
   }
 }

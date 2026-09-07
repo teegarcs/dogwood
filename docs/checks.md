@@ -16,6 +16,13 @@ Tier C is not in continuous integration because a hosted runner has none of what
 it in anyway would produce a green tick that means less than it appears to, which is the failure the
 conformance plan exists to avoid.
 
+**One tier-C run is in continuous integration, and it is an exception on the evidence rather than on
+the rule.** `tools/skew-drill/run-web.sh` puts a real web client in front of a real payload built
+against a newer dictionary, and needs no device to do it: the host is a WebAssembly module in a
+directory and the guest is a script beside it. It is its own job in the workflow so that it does not
+compete with the tier-S build for one two-processor runner, and it fails loudly if the runner has no
+Chrome rather than reporting a drill that could not run as one that passed.
+
 ## Tier S — on every pull request
 
 | Check | What it proves | Fails when |
@@ -23,6 +30,8 @@ conformance plan exists to avoid.
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
 | `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.70 MB brotli against 3.57 MB today) | the page grows past the ceiling, or cannot be measured at all |
+| `render-shape/check.py` | every shared render test **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
+| `link-check/check.py` | every relative link in the repository's markdown resolves | a document sends a reader to a file that has moved or never existed. It checks links rather than prose, because that is the part of a document a machine can see is wrong |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
 opening a log.

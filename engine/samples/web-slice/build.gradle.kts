@@ -173,6 +173,26 @@ val copyKotlinGuest by tasks.registering(Copy::class) {
   into(layout.buildDirectory.dir("dist/wasmJs/productionExecutable"))
 }
 
+/*
+ * The sample's data endpoint, beside the page that serves it.
+ *
+ * `slice-guest` copies these next to the payload so the mobile hosts can reach them; the web needs
+ * its own copy because the page is served from a different directory. The guest is never told this
+ * address at compile time -- the page passes its own origin in the launch parameters, exactly as
+ * the Android host passes `10.0.2.2` and the iOS host passes `localhost`.
+ *
+ * Without this the Explore screen's fetch resolves to a 404 and the screen renders its empty state,
+ * which is correct behaviour and looks exactly like a network service that does not work.
+ */
+val copyExploreApi by tasks.registering(Copy::class) {
+  from(project(":samples:slice-guest").layout.projectDirectory.dir("api")) {
+    include("*.json")
+  }
+  into(layout.buildDirectory.dir("dist/wasmJs/productionExecutable"))
+}
+
+tasks.named("wasmJsBrowserDistribution") { finalizedBy(copyExploreApi) }
+
 tasks.named("wasmJsBrowserDistribution") {
   // The guest is built as a *dependency* of the distribution and copied as a finalizer. Both on
   // the finalizer deadlocked Gradle -- "items queued for execution but none of them can be

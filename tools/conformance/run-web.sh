@@ -32,5 +32,14 @@ set +e
 python3 "$HERE/web_accessibility.py" "http://127.0.0.1:$PORT/index.html" "$CHROME" $((PORT + 500)) \
   | tee "$OUT"
 status=${PIPESTATUS[0]}
+
+# The host-services claims, against the same distribution and the same real guest. A second script
+# and a second browser rather than more assertions in the first: they answer a different question,
+# and a drill named for accessibility that also graded services would be the kind of file nobody
+# can tell whether they have finished reading.
+python3 "$HERE/web_services.py" "http://127.0.0.1:$PORT/index.html" "$CHROME" $((PORT + 700)) \
+  | tee -a "$OUT"
+services=${PIPESTATUS[0]}
 set -e
-exit "$status"
+[ "$status" = "0" ] || exit "$status"
+exit "$services"

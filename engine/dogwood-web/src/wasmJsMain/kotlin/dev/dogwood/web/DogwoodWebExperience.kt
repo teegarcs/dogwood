@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -51,6 +52,9 @@ import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.HostEnvironment
+import dev.dogwood.protocol.WebAnalyticsEvent
+import dev.dogwood.protocol.WebNavigationRequest
+import dev.dogwood.protocol.WebStartPayload
 import dev.dogwood.protocol.ProtocolMismatch
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.coroutines.channels.Channel
@@ -58,11 +62,17 @@ import kotlinx.serialization.json.JsonElement
 import dev.dogwood.host.WidgetView
 import dev.dogwood.host.RenderTranscript
 import dev.dogwood.host.RenderChildren
+import dev.dogwood.host.ExpressionEvaluator
+import dev.dogwood.host.LocalExpressionEvaluator
+import dev.dogwood.host.LocalGuestGeneration
+import dev.dogwood.host.LocalSkewReport
 import dev.dogwood.host.LocalRenderTranscript
 import dev.dogwood.host.LayoutScope
 import dev.dogwood.host.HostTree
 import dev.dogwood.host.EventSink
 import dev.dogwood.host.DogwoodLeakWatcher
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
 
 /** The single content slot the root node exposes, matching the layout tier's containers. */
 private const val ROOT_CONTENT = 1
@@ -110,6 +120,29 @@ class DogwoodWebExperience(
    * `BrowserLeakWatcher` is what a page that *is* investigating passes here.
    */
   leakWatcher: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
+  /**
+   * What this page tells the guest about itself: flags, routes, launch parameters, the entry
+   * point, and the dictionary versions this client implements.
+   *
+   * Defaulted to an empty declaration so an existing page keeps working, and an empty declaration
+   * is honest rather than convenient -- it says "no flags, no routes, no parameters, and no
+   * versions reported", which is exactly what this profile did before there was anything to say
+   * it with. `WebStartPayload` documents each field.
+   */
+  services: WebStartPayload = WebStartPayload(),
+  /**
+   * Where a guest's analytics events go. Dropped by default, and dropping is a decision the page
+   * takes rather than one this class takes for it.
+   */
+  private val onAnalytics: (WebAnalyticsEvent) -> Unit = {},
+  /**
+   * What to do when the guest asks to navigate.
+   *
+   * Returns whether the host handled it, so an unhandled route is recorded as skew here rather
+   * than disappearing. The guest is never told either way -- navigation is a request on every
+   * platform, and a guest that could observe the answer would start depending on it.
+   */
+  private val onNavigate: (WebNavigationRequest) -> Boolean = { false },
 ) : WorkerBridgeListener {
 
   val tree = HostTree(leakDetector = leakWatcher)
@@ -173,7 +206,74 @@ class DogwoodWebExperience(
       return
     }
     this.bridge = bridge
+    // A new bridge is a new guest, which is the only thing that makes a generation change.
+    guestGeneration = Any()
     if (bridge.isReady) sendConfiguration()
+  }
+
+  /**
+   * Identity that changes exactly when a guest is replaced, and never otherwise.
+   *
+   * Snapshot state rather than a plain field, because the effects that key on it are inside the
+   * composition: a generation nothing recomposes on is a generation nothing observes.
+   */
+  private var guestGeneration by mutableStateOf<Any>(Any())
+
+  /**
+   * What this host declares to the guest, which a code update rewrites once.
+   *
+   * A `var` for exactly one reason: [update] carries the previous guest's state into the next
+   * one's start message, and there is no other route between two Workers.
+   */
+  private var services: WebStartPayload = services
+
+  /**
+   * Replaces the running guest with [next], carrying its state across.
+   *
+   * **This is a code update, which on this architecture is the normal case rather than an
+   * exceptional one.** A publish lands while a screen is open; the user is mid-form; nothing about
+   * it should feel like a crash.
+   *
+   * The order is the whole of the design, and each step is doing something:
+   *
+   *   1. **Snapshot the old guest first.** It is the only thing that knows its own
+   *      `rememberSaveable` values, and in a moment it will not exist -- a new Worker is a new
+   *      module with a new composition, so nothing survives implicitly.
+   *   2. **Close the old bridge**, so a batch still in flight from a guest being replaced cannot
+   *      land on a tree that now belongs to its successor.
+   *   3. **Clear the tree.** What arrives next is a whole tree rather than a patch -- the new guest
+   *      composes from nothing and its sequence numbering starts again -- so applying it onto the
+   *      old one would duplicate every node. The screen is blank for one round trip, which is
+   *      honest: the host genuinely does not know what should be on it.
+   *   4. **Attach**, which bumps the generation and sends the start message carrying the snapshot.
+   *
+   * Suspending because step 1 is a correlated request across a Worker boundary and there is no
+   * synchronous way to ask.
+   */
+  suspend fun update(next: WorkerBridge) {
+    val previous = bridge
+    val carried = if (previous == null) {
+      null
+    } else {
+      suspendCoroutine<StateSnapshot?> { continuation ->
+        previous.snapshotState(
+          onResult = { continuation.resume(it) },
+          onFailure = { failure ->
+            // Answered as well as reported: a code update that hangs waiting for a snapshot is
+            // worse than one that loses state, because the screen never comes back at all.
+            report("snapshotState failed during a code update: $failure")
+            continuation.resume(null)
+          },
+        )
+      }
+    }
+    previous?.close()
+    bridge = null
+    configuredBridge = null
+    tree.clear()
+    services = services.copy(restoredState = carried)
+    report("code update: carrying ${carried?.values?.size ?: 0} saved keys into the next guest")
+    attach(next)
   }
 
   /** Checked once per page, not once per attach. */
@@ -272,7 +372,24 @@ class DogwoodWebExperience(
     if (configuredBridge === bridge) return
     val bridge = this.bridge ?: return
     configuredBridge = bridge
+    // Before the configuration, always: the configuration is what starts the composition, and a
+    // guest that composed first would compose without its launch parameters.
+    bridge.start(services)
     bridge.updateConfiguration(environment)
+  }
+
+  override fun onAnalytics(event: WebAnalyticsEvent) {
+    onAnalytics.invoke(event)
+  }
+
+  override fun onNavigate(request: WebNavigationRequest) {
+    // Recorded as skew when nothing handled it, for the reason every other unknown name here is:
+    // the visible symptom is a control that does nothing, and a control that does nothing is
+    // indistinguishable from a slow one until somebody reads a report.
+    if (!onNavigate.invoke(request)) {
+      tree.skew.unknownRoutes += request.route
+      report("no host route for '${request.route}'")
+    }
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -294,7 +411,35 @@ class DogwoodWebExperience(
         withFrameNanos { nanos -> bridge?.deliverFrame(correlation, nanos) }
       }
     }
-    CompositionLocalProvider(LocalRenderTranscript provides transcript) {
+    /*
+     * The same three locals `DogwoodTree` provides on the mobile hosts, and this client went
+     * without all three until the skew drill ran against it.
+     *
+     * The bindings are shared code (Layer 5 ADR-041 stopped the web keeping its own), and they
+     * read what they need through composition locals. Every one of those locals has a *default*,
+     * so a host that provides none of them renders perfectly and is wrong in three quiet ways:
+     *
+     *  1. **The skew report is an orphan.** Everything a binding records -- a withheld control, an
+     *     unresolved colour token, a clamped value -- landed in the throwaway `SkewReport()` the
+     *     composition local defaults to, which nothing reads. `tools/skew-drill/run-web.sh` found
+     *     this on its first run: the client withheld a control carrying an unreadable
+     *     affordance-bearing property, exactly as it should, and reported nothing. Only the
+     *     unknown *widget tag* showed, because `HostTree.apply` writes that one straight onto
+     *     [tree] rather than through the local.
+     *  2. **The expression cache was not tied to a guest.** A default `ExpressionEvaluator` is
+     *     shared and keyed to nothing, so host objects built from one guest's recipes would
+     *     outlive it.
+     *  3. **Live-state mirrors had no generation to key on.** They report on change, so a
+     *     replacement guest -- which starts knowing nothing -- would never be told what it is
+     *     looking at. See `LocalGuestGeneration`.
+     */
+    val evaluator = remember(tree) { ExpressionEvaluator(tree.skew) }
+    CompositionLocalProvider(
+      LocalRenderTranscript provides transcript,
+      LocalSkewReport provides tree.skew,
+      LocalExpressionEvaluator provides evaluator,
+      LocalGuestGeneration provides guestGeneration,
+    ) {
       Box(Modifier.fillMaxSize()) {
         RenderChildren(tree.root, ROOT_CONTENT, LayoutScope(), events)
       }

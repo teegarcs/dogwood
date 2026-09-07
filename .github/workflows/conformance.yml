@@ -11,6 +11,13 @@
 # Wiring tier C in anyway would produce a green tick that means less than it appears to, which is
 # the failure the whole conformance plan exists to avoid. `docs/checks.md` is the full inventory of
 # what runs where, so the boundary is written down rather than inferred from this file.
+#
+# **With one exception, and it is an exception on the evidence rather than on the rule.** The web
+# skew drill is a tier-C run -- a real client meeting a real payload built against a newer
+# dictionary -- that needs no device at all: the host is a WebAssembly module in a directory and
+# the guest is a script beside it. A runner has Chrome, so it can produce the condition honestly.
+# It is a second job rather than a step in the first, because the two would otherwise compete for
+# one two-processor runner, and the tier-S build already came close to being killed for memory.
 name: conformance
 
 on:
@@ -84,6 +91,20 @@ jobs:
           kotlin.daemon.jvmargs=-Xmx1600m
           PROPS
 
+      - name: Check the shared render tests can report at all
+        # Before the build, because it costs a second and it answers a question the build cannot:
+        # `runComposeUiTest` returns a promise on Kotlin/WebAssembly that the test framework awaits
+        # only if the test function returns it, so a render test with a block body composes nothing
+        # there and is green either way. Every shared render test was written that way once, and
+        # they were green on the web for weeks while composing nothing.
+        run: python3 tools/render-shape/check.py
+
+      - name: Check every documentation link resolves
+        # Prose rots silently and this repository is mostly prose. It does not read prose -- it
+        # reads links, which is the part of a document that can be wrong in a way a machine can
+        # see, and the part that goes wrong first when a file moves or a source set is renamed.
+        run: python3 tools/link-check/check.py
+
       - name: Build, and run every shared test
         working-directory: engine
         # Android lint is excluded for the reason it is excluded locally: it is a style pass over a
@@ -141,4 +162,87 @@ jobs:
         with:
           name: conformance-tier-s
           path: /tmp/tier-s.conf
+          if-no-files-found: ignore
+
+  web-skew:
+    name: Skew containment — the web client
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Cache the Kotlin/JS toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/yarn
+            ~/.gradle/nodejs
+          key: ${{ runner.os }}-web-skew-${{ hashFiles('engine/gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-web-skew-
+
+      - name: Size the build for this runner
+        # The same reasoning as the tier-S job: two processors and seven gigabytes, and a
+        # WebAssembly compile that will take the runner down if Gradle, the Kotlin daemon and Node
+        # all ask for a development machine's share.
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2500m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=1
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: Find Chrome
+        # Asserted rather than assumed. If the runner image stops shipping Chrome, this job must
+        # fail loudly here instead of reporting a drill that could not run as one that passed.
+        run: |
+          for candidate in google-chrome google-chrome-stable chromium-browser chromium; do
+            if command -v "$candidate" >/dev/null; then
+              echo "CHROME=$(command -v "$candidate")" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "no Chrome on this runner; the drill cannot run" >&2
+          exit 1
+
+      - name: Run the drill
+        # Two builds by construction: the whole distribution at dictionary version N, then **only**
+        # the guest script at N+1, copied over the one in that distribution. The script hashes
+        # `app.js` before and after and fails if it changed, because a host rebuilt alongside the
+        # guest is a drill that quietly tests nothing. It restores the surface on every exit path.
+        run: tools/skew-drill/run-web.sh
+
+      - name: Put the claim table in the run summary
+        if: always()
+        run: |
+          {
+            echo '## Skew containment — web'
+            echo
+            if [ -s tools/skew-drill/build/skew-web.conf ]; then
+              echo '```'
+              cat tools/skew-drill/build/skew-web.conf
+              echo '```'
+            else
+              echo 'The drill did not reach the point of grading a claim.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the claim results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-web-skew
+          path: tools/skew-drill/build/skew-web.conf
           if-no-files-found: ignore

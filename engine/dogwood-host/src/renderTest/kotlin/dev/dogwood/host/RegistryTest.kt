@@ -71,7 +71,7 @@ class RegistryTest {
   }
 
   @Test
-  fun aRegisteredSegmentRenders() {
+  fun aRegisteredSegmentRenders() = run {
     DogwoodRegistry.register(FakeBinding("acme.widgets", WIDGET_A, "from a product"))
     val tree = treeOf(WIDGET_A)
     runComposeUiTest {
@@ -79,12 +79,12 @@ class RegistryTest {
         Box(Modifier.size(300.dp)) { DogwoodTree(tree, EventSink { _, _, _ -> }, skew = tree.skew) }
       }
       onNodeWithText("from a product").assertIsDisplayed()
+      assertTrue(tree.skew.isEmpty, "a registered segment was reported as skew: ${tree.skew}")
     }
-    assertTrue(tree.skew.isEmpty, "a registered segment was reported as skew: ${tree.skew}")
   }
 
   @Test
-  fun anUnregisteredSegmentIsAPlaceholderAndIsReported() {
+  fun anUnregisteredSegmentIsAPlaceholderAndIsReported() = run {
     // The control for the test above, and the behaviour a client one release behind actually has:
     // a product component whose binding this client does not carry renders as an inert box that
     // keeps its slot, and says so. It does not crash and it does not silently vanish.
@@ -94,12 +94,12 @@ class RegistryTest {
         Box(Modifier.size(300.dp)) { DogwoodTree(tree, EventSink { _, _, _ -> }, skew = tree.skew) }
       }
       assertEquals(0, onAllNodesWithText("from a product").fetchSemanticsNodes().size)
+      assertEquals(setOf(WIDGET_B), tree.skew.unknownWidgetTags)
     }
-    assertEquals(setOf(WIDGET_B), tree.skew.unknownWidgetTags)
   }
 
   @Test
-  fun twoProductSegmentsCoexist() {
+  fun twoProductSegmentsCoexist() = run {
     DogwoodRegistry.register(FakeBinding("acme.widgets", WIDGET_A, "from acme"))
     DogwoodRegistry.register(FakeBinding("umbra.widgets", WIDGET_B, "from umbra"))
     val tree = HostTree().also {
@@ -117,7 +117,7 @@ class RegistryTest {
   }
 
   @Test
-  fun dogwoodsOwnSegmentStillRendersAlongsideAProductsp() {
+  fun dogwoodsOwnSegmentStillRendersAlongsideAProductsp() = run {
     // A product registering its own segment must not displace the engine's. The registry has no
     // notion of replacing, only of adding, and this is what that has to mean on screen.
     DogwoodRegistry.register(FakeBinding("acme.widgets", WIDGET_A, "from acme"))

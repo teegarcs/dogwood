@@ -60,6 +60,19 @@ abstract class DogwoodSegmentSpec @Inject constructor(val name: String, objects:
    * has wanted so far and a third package option is a third thing to get wrong.
    */
   val implPackage: Property<String> = objects.property(String::class.java)
+
+  /**
+   * Where to write this segment's component reference, if you want one.
+   *
+   * A Markdown page listing every component, its tags, its properties and which of them govern an
+   * affordance -- generated from the same parse as the bindings, so it cannot disagree with them.
+   * Off by default: it is a document, and a product that keeps its documentation elsewhere should
+   * not find one appearing in its tree.
+   *
+   * Point it somewhere committed rather than into `build/`. A reference nobody can open is not a
+   * reference, which is the same reasoning that puts the lock beside the surface.
+   */
+  val referenceFile: Property<String> = objects.property(String::class.java)
 }
 
 /** The `dogwood { }` block. */
@@ -105,6 +118,9 @@ class DogwoodPlugin : Plugin<Project> {
         val surface = project.file(spec.surfaceDir.get())
         exec.inputs.dir(surface).withPathSensitivity(PathSensitivity.RELATIVE)
         exec.outputs.dir(outputs)
+        // Declared as an output, so deleting the reference regenerates it rather than leaving the
+        // task up to date with a file that is no longer there.
+        spec.referenceFile.orNull?.let { exec.outputs.file(project.file(it)) }
 
         exec.argumentProviders.add {
           val root = outputs.get().asFile
@@ -139,7 +155,11 @@ class DogwoodPlugin : Plugin<Project> {
             // and the lock is the record that they never moved.
             "--lock",
             java.io.File(surface, "${spec.wireName.get()}.lock.json").absolutePath,
-          )
+          ) + (
+            spec.referenceFile.orNull
+              ?.let { listOf("--docs-out", project.file(it).absolutePath) }
+              .orEmpty()
+            )
         }
       }
 

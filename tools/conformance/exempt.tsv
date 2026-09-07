@@ -11,3 +11,8 @@ desktop	E4	one collector, so no cross-language cycles are possible
 android	E4	one collector, so no cross-language cycles are possible
 web	E4	one heap, so no cross-language cycles are possible
 web	F	the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
+web	D7	Compose Multiplatform publishes role and name only for a web accessibility element -- a disabled control reaches the tree as <div role="button"> with no properties at all, so nothing distinguishes it from the enabled button beside it. The composition marks it disabled and the platform drops that; drafted as upstream report 3
+desktop	J1	desktop is a development loop, not a shipping target
+desktop	J2	desktop is a development loop, not a shipping target
+desktop	J3	desktop is a development loop, not a shipping target
+desktop	J4	desktop is a development loop, not a shipping target

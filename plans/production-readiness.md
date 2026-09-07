@@ -14,6 +14,16 @@ answers:
 Everything blocked on a person rather than on work is in
 [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) and is not repeated here.
 
+**Where this stands, 2026-09-07.** Every item in Part 5's ordered list is closed or has moved to the
+owner. A product can declare its own components, consume the whole thing from outside this
+repository, run the real guest on all three shipping targets from one set of screens, survive a bad
+publish without a server, report what it could not understand, and read four manuals — one of which
+is generated so it cannot go stale. What is left below is not a queue of gaps: §2.2 to §2.4 are
+**product-scale** work that arrives with a product's own components, and the alignment table's
+remaining rows say what each claim rests on rather than what is missing. The honest summary is that
+the engineering plan is finished and the two things still between this and a first ship —
+[signing keys and payload hosting](../DECISIONS-FOR-THE-OWNER.md) — are decisions rather than code.
+
 ---
 
 ## Part 1 — The gap that blocked everything else ✅
@@ -107,11 +117,28 @@ first frame's critical path. `dogwood-compose`'s applier behaves identically wit
 loop, because it never depended on one: `Dispatchers.Unconfined` and a `BroadcastFrameClock` are
 transport-free. The service bridge is the one that did **not** resolve — see below.
 
-**What is still thin is the service surface.** `WorkerServices` answers `log` locally and declares
-everything else absent, so a screen renders "host clock unavailable" rather than failing. Network,
-clock, analytics, feature flags and navigation over the Worker bridge are ADR-032's remaining work.
-Launch parameters and segment versions are not carried into `start()` yet either, and a code update
-has never been exercised on web.
+~~**What is still thin is the service surface.**~~ ✅ **Closed on 2026-09-07**
+([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)). `WorkerServices`
+answered `log` and declared everything else absent, so the sample's own Diagnostics screen read
+`this client offers no services at all`, `surface revision 0 (unreported)` and `host clock
+unavailable` — it ran the same screens as the mobile payload and ran them **blind**.
+
+All of it crosses now, split by *who can answer*: the Worker answers `log`, `clock` and `network`
+itself, and a single `start` message carries the entry point, launch parameters, feature flags,
+routes and segment versions before the first composition, with `analytics` and `navigate` going back
+one-way. The same screen now reads `analytics, clock, featureFlags, log, navigation, network`,
+`surface revision 2 (2)` and a real clock — and the Explore screen, which needs a launch parameter
+*and* a network fetch to render anything, renders on the web for the first time.
+
+**The remaining honest asymmetry is `network`**, and it is the browser's rather than Dogwood's: the
+guest calls `fetch` inside the page's origin, constrained by the page's Content Security Policy
+rather than by a host allow-list that refuses everything by default. ADR-032 recorded that for the
+profile; ADR-055 §4 makes it concrete. ~~**A code update has still never been exercised on web.**~~ ✅ It has now, and it is graded:
+`DogwoodWebExperience.update` snapshots the running guest, closes its bridge, clears the tree and
+attaches a new Worker with the snapshot riding the start message — because a new Worker is a new
+module with a new composition and nothing survives implicitly. Claim `A7` on the web moves off the
+default tab, publishes, and asserts the screen comes back where the user left it, with a control
+proving the tab had moved and the whole check watched to fail with the restore removed.
 
 ### 2.2 Live-state holders ◐
 
@@ -169,7 +196,7 @@ a shared catalogue and grammar, per-client instruments.
 | Claim | What is actually asserted | Gap |
 |---|---|---|
 | `D8`, `D9`, `D10` (holders) | a composition on **three** targets | ✅ Closed. Running them on iOS and in a browser found a hostile-value clamp that fires on the Java Virtual Machine and not on the web — see `conformance.md` Part 7 |
-| `A2`–`A4` (skew containment) | Android only, via `tools/skew-drill` | The two-build procedure — a skewed payload served to an installed binary — does not exist for iOS or web. The shape is portable |
+| `A2`–`A4` (skew containment) | ✅ three real clients, three instruments, one procedure | Closed 2026-09-06. `run-ios.sh` and `run-web.sh` found one host-integration defect each ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)). The web drill runs in continuous integration; desktop still has none |
 | `D1`–`D5`, `D7` (accessibility) | three real clients, three instruments | Sound. What no instrument covers is whether the *speech is good*, reading order as experienced, and typing and selection |
 | `F1`–`F4` (network policy) | mobile enforce; web is the browser's Content Security Policy | Recorded as **weaker on web, not equal** — correct, and a product should know it |
 | `G1`–`G4` (performance) | nothing | No host that exists can grade them; see the decisions file |
@@ -220,12 +247,12 @@ exists; the machinery to operate one does not.**
   manifest that still serves it. There is no staged rollout: `InstallCohort` gives a device a stable
   bucket a server could stage against, and there is no server. And nothing reports a refusal to a
   publisher, so a fleet-wide quarantine is visible only if the host wires it to telemetry.
-- **No key ceremony.** Production signing keys need generating, storing, rotating and revoking by
-  somebody. The mechanism supports it; there is no procedure.
-- **No payload hosting story.** The samples serve from a Gradle task on `localhost:8080`. A real
-  deployment needs a content delivery network, cache headers that match the manifest's immutability,
-  and — per [ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md) —
-  `Content-Encoding: br`, whose absence silently costs 27%.
+- **No key ceremony, and no payload hosting story.** Both are the owner's rather than the
+  engineering plan's, and both now live in
+  [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) so they stop being restated
+  here: production keys need generating, holding, rotating and revoking by somebody, and the samples
+  serve from a Gradle task on `localhost:8080`. [`docs/operating.md`](../docs/operating.md) §5 is
+  what the person picking that up reads.
 - ✅ **The authoring check exists** ([ADR-050](../adrs/layer-5/ADR-050-the-authoring-check.md)).
   `dev.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
   `check`, and names the replacement for each. Best-effort by construction, as Layer 1 always said:
@@ -265,10 +292,10 @@ What does not exist at all:
 
 | Document | For whom | Why it is missing today |
 |---|---|---|
-| **Getting started** | somebody adding Dogwood to an existing application | There is no supported way to consume it — the generator is an internal Gradle project (§1) |
-| **Authoring guide** | somebody writing screens | The rules are spread across `developer-experience.md` §5, Layer 1, and half a dozen ADRs |
-| **Operations guide** | whoever is on call | Nothing exists. See §4.2 — most of what it would document is not built |
-| **API reference** | everyone | The guest surface is generated, so this is generated too, and nothing generates it |
+| ~~**Getting started**~~ ✅ | somebody adding Dogwood to an existing application | [`docs/getting-started.md`](../docs/getting-started.md). Consumable since item 1: the plugin publishes and `samples-standalone/umbra` builds against it with no path into this repository |
+| ~~**Authoring guide**~~ ✅ | somebody writing screens | [`docs/authoring.md`](../docs/authoring.md). Each rule with the reason it exists, because a rule whose reason is missing gets worked around |
+| ~~**Operations guide**~~ ✅ | whoever is on call | [`docs/operating.md`](../docs/operating.md). Written around what *is* built — the three protections that need no operator, the kill switch, the skew report — and §6 of it lists what does not exist, because a runbook describing a capability nobody built is worse than none |
+| ~~**API reference**~~ ✅ | everyone | [`docs/api/`](../docs/api/), emitted by the generator from the same parse as the bindings. A product asks for its own with one line — `referenceFile.set(...)` — and `tools/standalone-check` asserts one is produced outside this repository |
 
 `docs/checks.md` is the one operational document that exists, and it covers checks rather than
 operation.
@@ -305,15 +332,15 @@ Sequenced by what unblocks the most, not by size.
 | # | Item | Why here |
 |---|---|---|
 | 1 | ~~Publish the generator~~ ✅ done | `dev.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
-| 2 | ~~The real guest on web~~ ✅ done | Closed. What remains of it is the Worker service surface, launch parameters and segment versions — smaller, and listed in §2.1 |
+| 2 | ~~The real guest on web~~ ✅ done | Closed, and so is the clause it left behind: the Worker service surface, launch parameters and segment versions all cross now ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)) |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
 | 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
 | 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
 | 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
-| 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |
-| 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
-| 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
+| 8 | ~~Skew drill on iOS and web~~ ✅ done | `run-ios.sh` and `run-web.sh`, same five steps, read off each platform's accessibility tree. It found one host-integration defect per client ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)) |
+| 9 | ~~Key ceremony and payload hosting~~ → the owner | Not engineering work: the mechanism is built and verified. Moved to [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) |
+| 10 | ~~The four documents~~ ✅ done | Getting started, authoring, operating, and a **generated** component reference. The first three are in `docs/`; the fourth is emitted by the generator, because a hand-written page about the components is a fifth thing that can disagree with the surface |
 
 **Both of the items that changed what the project *is* are closed.** A product can declare its own
 components, a build outside this repository can consume the whole thing, and the real guest runs on

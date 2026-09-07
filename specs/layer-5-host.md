@@ -298,6 +298,65 @@ This was invisible for the life of the project because every host here wired eve
 
 **Launch parameters are start-time, and a route cannot change that.** `navigate(route, params)` carries the destination's launch parameters, which are read when a session starts. A host keeping experiences warm will often route to a destination that is already running and therefore never restarts, so it never reads them; `params` mean "what to open this with if it opens", not "a message for it". Telling a *running* experience something needs a pushed value with its own dedupe rules, like `HostEnvironment`, which this is not.
 
+#### The same surface on the web, arranged differently
+
+A Web Worker boundary **cannot carry an object reference**, so the arrangement above has no analogue
+there: nothing can hand a guest a `DogwoodNetwork` it will later call. The web profile therefore
+splits the same surface by *who can answer*, and the split is a capability question rather than a
+convenience one ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)).
+
+```mermaid
+sequenceDiagram
+  participant Page as Page (Kotlin/Wasm host)
+  participant Del as WebDelivery
+  participant Br as WorkerBridge
+  participant W as Worker (Kotlin/JS guest)
+  participant Net as fetch / Date / console
+
+  Page->>Del: start(manifestUrl)
+  Del->>Del: checkDictionary(segmentVersions)
+  Del->>W: new Worker(guestScript)
+  W-->>Br: ready(revision)
+  Br->>W: start(WebStartPayload)
+  Br->>W: configuration(HostEnvironment)
+  W->>W: DogwoodGuest.start(entryPoint, launchParams, segmentVersions, restoredState)
+  W->>Net: clock, log, network — answered locally
+  W-->>Br: changes(positional batch)
+  W-->>Br: analytics(WebAnalyticsEvent)
+  W-->>Br: navigate(WebNavigationRequest)
+  Note over Page,W: a code update
+  Page->>Br: snapshotState()
+  Br-->>Page: StateSnapshot
+  Page->>W: close()
+  Page->>Del: start(manifestUrl) — a second Worker
+  Page->>Br: start(WebStartPayload with restoredState)
+```
+
+**Diagram node definitions.** Every actor above, and what it is:
+
+- **Page (Kotlin/WebAssembly host)** — `DogwoodWebExperience`. Owns the tree, the bindings and the
+  composition, and holds the declaration it makes to the guest. It is the *only* participant that
+  knows the application's flags, routes and launch parameters.
+- **`WebDelivery`** — fetches the sidecar manifest, checks the payload's declared dictionary versions
+  **before** creating the Worker, and refuses outright if the client is behind. This is the pre-flight
+  check the mobile profile does not have; there, the render-time containment rules are the only line.
+- **`WorkerBridge`** — the envelope. Presents the same four host-to-guest calls and receives the same
+  guest-to-host calls as the Zipline boundary, over `postMessage`, with a correlation identifier
+  where a call has a reply.
+- **Worker (Kotlin/JavaScript guest)** — the real composition. A *new module* per code update, which
+  is why nothing survives one implicitly.
+- **`fetch` / `Date` / `console`** — what the Worker can answer without the host. `log`, `clock` and
+  `network` are answered here; `featureFlags`, `navigation` and `analytics` cannot be, and cross.
+- **`WebStartPayload`** — one message carrying entry point, launch parameters, feature flags, routes,
+  segment versions and (on a code update) the previous guest's state. Sent **before** the first
+  configuration, because that is what starts the composition.
+
+**Two consequences worth stating rather than deducing.** `network` on this profile is enforced by the
+page's Content Security Policy rather than by Dogwood's default-deny allow rule — weaker, and
+recorded as such in [ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md). And a code update is the
+only route by which a guest's `rememberSaveable` values reach its successor, because the successor
+is a different module in a different Worker.
+
 ### Live-State Holders
 
 Layer 4 forbids per-frame state in the guest. That invariant is stated as a prohibition, and this is its constructive half: what a guest gets *instead* of a holder it owns. The decision record is [ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md); `LazyListState` is the first of roughly thirty.
@@ -618,7 +677,7 @@ tree — so the default capacity of three sits about 20 megabytes above a single
 
 ## 4a. Conformance Across Clients
 
-**Four clients, one capability list** ([ADR-040](../adrs/layer-5/ADR-040-conformance-is-a-catalogue-not-a-suite.md), catalogue in [`plans/conformance.md`](../../plans/conformance.md)). Verification grew the opposite way from the architecture: every drill was built to answer a problem on the client where it happened, so accessibility is asserted on iOS and nowhere else, skew containment ran once on Android, and desktop has no drill at all. That is a lopsided map, and it is invisible until the drills are laid side by side.
+**Four clients, one capability list** ([ADR-040](../adrs/layer-5/ADR-040-conformance-is-a-catalogue-not-a-suite.md), catalogue in [`plans/conformance.md`](../plans/conformance.md)). Verification grew the opposite way from the architecture: every drill was built to answer a problem on the client where it happened, so accessibility is asserted on iOS and nowhere else, skew containment ran once on Android, and desktop has no drill at all. That is a lopsided map, and it is invisible until the drills are laid side by side.
 
 The instinct — one cross-platform test suite — is **not available**, and the reason is worth stating rather than discovering: the thing under test on an accessibility row is UIKit's `UIAccessibility`, Android's `AccessibilityNodeInfo`, and the DOM accessibility tree. There is no shared surface, and the same is true of storage, the network stack and the collector. So what is shared sits one level up: a **numbered claim** (`D4` means the same thing everywhere), a **text report grammar** every client emits (`CONF <id> PASS|FAIL|SKIP`), and a **tier** assigning each claim the cheapest instrument that can honestly settle it — shared `commonTest` where the code really is shared, a per-client drill where the platform genuinely is the thing under test. Getting that boundary wrong in the permissive direction is the expensive mistake: a claim marked shared that actually depends on platform behaviour is untested on three clients and reads as green.
 
@@ -641,7 +700,7 @@ Milestones 1 to 5 build the generated path. Milestones 6 onward build the bespok
 11. **Milestone 11 — Text input.** Version vector plus optimistic host state.
 12. **Milestone 12 — Leak detection.** Adopt `redwood-leak-detector`; port its leak test. Bind, unbind, and assert every node, widget, and lambda is collected. **Before iOS, not after.**
 13. **Milestone 13 — Skew containment drill.** Build a guest against a newer dictionary and confirm the three requirements in overview section 6 hold: placeholder nodes keep index arithmetic consistent, unknown properties fall back to documented defaults, and safety-relevant parameters trigger a declared fallback rather than rendering wrong.
-14. **Milestone 14 — Web host profile.** ⚠️ **Partly done.** A Web host exists and renders (`engine/dogwood-web/`, sample at `engine/samples/web-slice/`), designed in [ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md): a JavaScript guest in a Web Worker, the **unchanged** positional protocol over `postMessage`, and a Kotlin/WebAssembly host drawing through Compose Multiplatform. **The honest scope is narrow**: five layout bindings, no host services, and no design system — so no expression evaluator, palette, lazy containers or text recipes. The generated bindings are *not* reused, because `dogwood-host` cannot compile for WebAssembly for four separable reasons: Zipline in its common source set, the threading actuals, Coil and OkHttp, and generated bindings that must avoid Java Virtual Machine types. Once those are addressed most of `dogwood-web` deletes itself — `HostTree`, `WidgetView`, `Bindings`, `Modifiers`, `Expressions` and `Theme` are already platform-neutral Compose. That work is the remainder of this milestone.
+14. **Milestone 14 — Web host profile.** ✅ **Done.** A Web host renders in a browser (`engine/dogwood-web/`, sample at `engine/samples/web-slice/`), designed in [ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md): a guest in a Web Worker, the **unchanged** positional protocol over `postMessage`, and a Kotlin/WebAssembly host drawing through Compose Multiplatform. **Three things this entry described as its remainder are closed, and each was larger than it looked.** The generated bindings *are* reused now — [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md) split the host core at the Zipline seam, so `HostTree`, the bindings, modifiers, expressions and the theme are one implementation compiled for every client and most of `dogwood-web` did delete itself. The guest is the **real** Kotlin/Compose one, running the same screens as the mobile payload ([ADR-048](../adrs/layer-5/ADR-048-the-real-guest-runs-on-the-web.md)); the hand-written JavaScript one stays because it is the only evidence the protocol is writable by something that is not this codebase. And host services cross ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)) — the Worker answers `log`, `clock` and `network` itself and one `start` message carries the entry point, launch parameters, feature flags, routes and segment versions, which also made a **code update** possible on this profile for the first time. **What remains is one honest asymmetry rather than missing work**: `network` on the web is enforced by the browser's Content Security Policy, not by Dogwood's default-deny allow-list, and `D7` cannot be met at all because Compose publishes no disabled state to the accessibility tree.
 
 15. **Milestone 15 — iOS host profile.** ✅ **Done** — [ADR-033](../adrs/layer-5/ADR-033-the-ios-host-profile.md). The same host, on Kotlin/Native, with four platform-shaped differences: a dedicated `NSThread` with an 8 MB stack, `UrlSessionNetwork` in place of OkHttp, platform clock and formatting, and iOS-specific storage rules that reopened [ADR-010](../adrs/layer-4/ADR-010-state-that-outlives-the-process.md) — everything outside `Caches/` is iCloud-backed by default. Accessibility *structure* is verified; accessibility *interaction* is not, and needs a person.
 15. **Milestone 15 — iOS parity.** Confirm VoiceOver, the input method editor, and text selection work, and that no cross-language reference cycles leak. Entered only with the iOS organisation's yes and the Apple ruling in hand (roadmap Phase 6).

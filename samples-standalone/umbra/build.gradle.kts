@@ -45,5 +45,8 @@ dogwood {
     version.set(1)
     guestPackage.set("dev.umbra.guest")
     hostPackage.set("dev.umbra.design")
+    // The component reference, generated from the same parse as the bindings. Committed rather
+    // than left in `build/`, for the reason the lock is: a file nobody can open is not a record.
+    referenceFile.set("REFERENCE.md")
   }
 }

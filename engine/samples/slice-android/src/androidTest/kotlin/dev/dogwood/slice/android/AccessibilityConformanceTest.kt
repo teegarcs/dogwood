@@ -240,6 +240,22 @@ class AccessibilityConformanceTest {
 
   // -----------------------------------------------------------------------------------------
 
+  /**
+   * Waits for any announcement satisfying [predicate], and returns it.
+   *
+   * By outcome rather than by a fixed delay, for the reason this project keeps rediscovering: a
+   * sleep long enough on a development machine is not long enough on a loaded emulator, and a
+   * check that asserts a schedule reports a product failure when the schedule slipped.
+   */
+  private fun awaitLabelMatching(timeoutMs: Long, predicate: (String) -> Boolean): String? {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (System.currentTimeMillis() < deadline) {
+      labels().firstOrNull(predicate)?.let { return it }
+      Thread.sleep(200)
+    }
+    return null
+  }
+
   @Before
   fun openTheDiagnosticsScreen() {
     val context = instrumentation.targetContext
@@ -275,6 +291,31 @@ class AccessibilityConformanceTest {
       "D1",
       labels().any { it.contains("Diagnostics") },
       "looked for \"Diagnostics\" among ${labels().size} announcements",
+    )
+
+    // J1 and J3 -- the host's services reached the guest.
+    //
+    // Graded here rather than in a drill of its own because this is already the Diagnostics screen
+    // and these announcements are already in hand; a separate drill would be a second copy of the
+    // tree walk to assert on strings this one has collected. They are graded at all because the
+    // capability existed on this platform since Phase 4 and nothing ever checked it -- the only
+    // client where a machine did was the web, which had none of it until 2026-09-07.
+    //
+    // The clock is the one with an observable value: a millisecond count the guest could not have
+    // invented, and which reads `host clock unavailable` when no clock crossed.
+    conform(
+      "J1",
+      labels().any { it.startsWith("host clock ") && it.last().isDigit() } &&
+        labels().any { it.startsWith("time zone ") && it.contains("/") },
+      labels().filter { it.startsWith("host clock") || it.startsWith("time zone") }.toString(),
+    )
+
+    // What a guest branches on to decide what it may use. An empty map renders as `unreported`.
+    val revision = labels().firstOrNull { it.startsWith("surface revision ") }
+    conform(
+      "J3",
+      revision != null && !revision.contains("unreported"),
+      revision ?: "no surface revision line on screen",
     )
 
     // D2 -- no anonymous elements. A node a screen reader stops on with nothing to announce is
@@ -363,8 +404,110 @@ class AccessibilityConformanceTest {
       conform("D7", !disabled.isEnabled, "\"Unavailable\" enabled=${disabled.isEnabled}")
     }
 
+    // J4 -- a route the host does not handle is declined, and *recorded* rather than dropped.
+    //
+    // Last, and deliberately: it has to scroll further down the screen to reach its button, and a
+    // check that moved the page before `D2`, `D3` or `D4` had looked at it would change what those
+    // three were asserting on. The order here is not cosmetic.
+    //
+    // The button asks for `experience/nowhere`, which is not in this host's route set. The
+    // observable consequence is the host's own skew line appearing on screen with a route in it --
+    // the sample polls the report and displays it, because containment nobody can see teaches no
+    // team that its payloads have moved ahead of its devices.
+    // Matched by prefix rather than by equality. The label is a whole sentence, and a screen reader
+    // announcement is not always the composable's string verbatim -- a trailing state, a truncation
+    // or a container's own text can ride along. Equality was what made the first run report this
+    // control unreachable while it was on screen.
+    fun routeNode() = nodes().firstOrNull { it.spokenLabel().startsWith(UNKNOWN_ROUTE_BUTTON) }
+    var toRoute = 0
+    while (routeNode() == null && toRoute < MAX_SCROLLS) {
+      if (!scrollPageForward()) break
+      toRoute++
+    }
+    val routeButton = routeNode()
+    if (routeButton == null) {
+      // What the screen actually ended on, because "not reachable" is a claim about the drill as
+      // often as about the product, and a reader cannot tell the two apart without this.
+      emit(
+        "CONF NOTE after $toRoute scrolls: " +
+          "${labels().count()} announcements, " +
+          "anything mentioning a route: ${labels().filter { it.contains("route", ignoreCase = true) }}",
+      )
+      skip("J4", "the screen's unknown-route button was not reachable in $toRoute scrolls")
+    } else {
+      perform(routeButton, AccessibilityNodeInfo.ACTION_CLICK)
+      val recorded = awaitLabelMatching(timeoutMs = 10_000) {
+        it.startsWith("SkewReport(") && it.contains("routes=")
+      }
+      conform(
+        "J4",
+        recorded != null,
+        recorded ?: "no skew line naming a route appeared; saw " +
+          labels().filter { it.startsWith("SkewReport(") },
+      )
+    }
+
     assertEquals("failed conformance claims", 0, failed)
   }
+
+  /**
+   * Scrolls until the screen actually *moves*, trying each scrollable in turn.
+   *
+   * [scrollForward] answers "did something accept the action", and on this screen that is not the
+   * same question. The Diagnostics screen demonstrates a **nested** scrolling container, and a
+   * nested container accepts a scroll forever once it is on screen -- so forty actions were
+   * accepted, forty times, while the page stood still and a control four sections further down was
+   * reported unreachable. That is a true sentence about the drill and a false one about the
+   * product, which is the failure mode this whole file exists to avoid.
+   *
+   * The outcome, not the acceptance: the announcements have to change. When the largest scrollable
+   * takes the action without moving anything, the next one is tried.
+   */
+  private fun scrollPageForward(): Boolean {
+    val before = labels()
+    val candidates = nodes()
+      .filter { it.isScrollable }
+      .sortedByDescending { node ->
+        val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+        bounds.width().toLong() * bounds.height()
+      }
+    for (candidate in candidates) {
+      if (!perform(candidate, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) continue
+      if (awaitLabelsChanged(before)) return true
+    }
+    // A finger, when the action does not move the page.
+    //
+    // `ACTION_SCROLL_FORWARD` is a request to a container and a container may decline it while a
+    // swipe would still move the page -- Compose's own scroll handling and the accessibility
+    // action are not the same code path. This is not a weakening of "assert through the
+    // accessibility layer": that rule is about the D-group claims, which are *about* the
+    // accessibility layer. Reaching a control in order to press it is allowed to be a gesture,
+    // because a user's finger is one.
+    val width = device.displayWidth
+    val height = device.displayHeight
+    device.swipe(width / 2, (height * 0.75).toInt(), width / 2, (height * 0.25).toInt(), 12)
+    return awaitLabelsChanged(before)
+  }
+
+  /**
+   * Waits for the announcements to differ from [before], which is what "the screen moved" means.
+   *
+   * A fixed sleep after a scroll is the same mistake as a fixed sleep after a tap, and it made this
+   * loop stop one screen short of its control: the swipe had moved the page, the tree had not been
+   * rebuilt 400 ms later, and the drill concluded the screen had stopped. The control it was
+   * looking for appeared in the very next thing that read the tree.
+   */
+  private fun awaitLabelsChanged(before: List<String>, timeoutMs: Long = 3_000): Boolean {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (System.currentTimeMillis() < deadline) {
+      if (labels() != before) return true
+      Thread.sleep(150)
+    }
+    return false
+  }
+
+  /** The Diagnostics screen's own button for the case, named once so the two uses cannot drift. */
+  private val UNKNOWN_ROUTE_BUTTON = "Ask for a route"
 
   /**
    * Sends a scroll to the scrollable container, the way a screen reader's gesture does.

@@ -112,12 +112,12 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | ID | Claim | Tier | Today |
 |---|---|---|---|
 | A1 | A batch applies whole or not at all; a rejected one leaves the previous tree drawing | S | ✅ `TransactionalApplyTest`, `WebTreeTransactionTest` |
-| A2 | An unknown widget tag becomes a placeholder and later indices in the batch stay correct | S + C | S ✅; C Android only |
-| A3 | An unknown property on a widget with no affordance is ignored and the widget renders | S + C | S ✅; C Android only |
-| A4 | An unknown property on a widget that owns an affordance withholds the widget | S + C | S ✅; C Android only |
+| A2 | An unknown widget tag becomes a placeholder and later indices in the batch stay correct | S + C | S ✅; C Android, iOS, web |
+| A3 | An unknown property on a widget with no affordance is ignored and the widget renders | S + C | S ✅; C Android, iOS, web |
+| A4 | An unknown property on a widget that owns an affordance withholds the widget | S + C | S ✅; C Android, iOS, web |
 | A5 | Out-of-range numeric values are clamped and reported, never thrown | S + C | S ✅; C Android + iOS |
 | A6 | An undecodable batch is rejected whole and reported | S | ✅ |
-| A7 | Node identity survives a code update, so `remember` is preserved | S | ✅ |
+| A7 | Node identity survives a code update, so `remember` is preserved | S + C | S ✅; C ✅ web — a real Worker swap, with a control proving the tab had moved |
 
 ### B. Delivery and trust
 
@@ -176,6 +176,66 @@ half a capability; **un-shipping** without one is the other half, and until
 | I1 | Guest code calling a per-frame animation API fails the build | S | ✅ |
 | I2 | Guest code calling a resource loader fails the build | S | ✅ |
 | I3 | The check does not fire on comments, strings, or similarly-named code | S | ✅ |
+
+### J. Host services — what a guest may ask its host for
+
+The surface a host wires and a guest calls: a log, a clock, feature flags, analytics, navigation,
+the network, the launch parameters an experience opens with, and the dictionary versions the client
+implements. It has existed since Phase 4 on mobile and was **never graded**, which is why the web
+profile could ship without any of it and nothing said so — for as long as the web guest existed, the
+sample's own Diagnostics screen read `surface revision 0 (unreported)` and `host clock unavailable`,
+and every summary of that client said it ran "the same screens as the mobile payload". It did. It
+ran them blind.
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| J1 | The services a host wired reach the guest, and the guest can read them | C | ✅ Android, iOS, web |
+| J2 | Launch parameters reach the experience **the host named** | C | ✅ Android, web |
+| J3 | The dictionary versions this client implements reach the guest | C | ✅ Android, iOS, web |
+| J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ Android, web |
+| J5 | Host and guest read **one** declaration of the start payload, not two | S | ✅ `WorkerPayloadTest` |
+
+`A7` is graded on the web by this group's drill rather than by the skew one, and the placement is a
+statement rather than filing: **what carries a guest's state across a code update on this platform
+is the start message**, so the two are one mechanism. Until 2026-09-07 the web profile had never
+performed a code update at all — the normal case on this architecture, and its whole selling point.
+It does now, with `restoredState` riding the same message; the drill moves off the default tab,
+publishes, and asserts the screen comes back where the user left it. Watched to fail with the
+restore removed.
+
+**`J1` and `J3` are graded on all three shipping clients**, and on Android and iOS by the drill that
+already had the Diagnostics screen and the tree walk in hand — a separate drill would have been a
+second copy of both to assert on strings the first had already collected. Each reads a real
+millisecond count off the screen, which is the value a guest could not have invented and which shows
+as `host clock unavailable` when nothing crossed.
+
+**`J4` found a real gap on the way to being graded, which is the argument for the whole group.**
+`SkewReport.unknownRoutes` has existed since it was written — *"routes a guest asked for that this
+client does not handle; the host stayed where it was"* — and **nothing on mobile ever filled it**.
+An unknown route was declined and silently dropped. The web records it inside
+`DogwoodWebExperience`, because there the navigate call passes through the experience; on mobile it
+does not, and cannot: a navigation service is constructed by the **application**, before any
+experience exists, and handed in. So the engine has no seam at which to record this and the host is
+the only thing that can. The Android sample now does, and is the reference for it.
+
+**`J2` and `J4` are not graded on iOS**, and the reason is the host rather than the drill: that
+sample wires no navigation service at all, which is a legitimate choice the surface explicitly
+allows — every service is optional and its absence is normal. Its launch parameters are graded by
+nothing, which is an evidence gap and stays written down as one.
+
+**Two things about the Android drill had to change to grade `J4`, and both were the drill lying.**
+It scrolled by asking whether a container *accepted* the action, and the Diagnostics screen
+demonstrates a **nested** scrolling container that accepts one forever — forty accepted actions, a
+motionless page, and a control four sections below reported unreachable. And it settled for a fixed
+400 ms after a scroll, so the page moved and the tree had not been rebuilt when it looked. Both are
+the same mistake in different clothes: asserting a schedule rather than an outcome.
+
+`J5` is the one that is not about a platform. The host half of the web boundary is
+Kotlin/WebAssembly and the guest half is Kotlin/JavaScript; they do not link, so the envelope's
+*kind* constants are mirrored by hand in each. The payloads deliberately are not — they live in
+`dogwood-wire`, the one module both halves compile — and `WorkerPayloadTest` is what makes that
+checkable rather than merely stated, including the tolerance a newer field depends on, with a
+control proving the fixture really carries one.
 
 ### E. Lifecycle and resources
 
@@ -466,9 +526,20 @@ format is cheap; discovering it was wrong across four implementations is not.
    feeder, and `pipefail` calls that a failed pipeline; the arrival check said "not yet" against a
    file that plainly contained the marker, twice, before the pipe was removed altogether.
 
-   **Still open: `A2`–`A4` end-to-end on iOS and web.** Both now render through the same core, so
-   the shared tests cover the rules; what is missing is the two-build procedure on those clients,
-   which needs a skewed payload served to an already-installed binary.
+   **Closed on 2026-09-06: `A2`–`A4` end to end on iOS and web too.** `run-ios.sh` and
+   `run-web.sh` are the same five steps against the other two clients, reading the outcome off each
+   platform's accessibility tree — `uiautomator` has no equivalent on either. The web one also runs
+   `B3` against a genuinely newer payload rather than a hand-written manifest, which is a claim the
+   mobile clients cannot make at all: they have no pre-flight dictionary check, so their
+   render-time rules are the only containment they have. See
+   [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md).
+
+   **Each port found a defect on its first run, in host integration code no shared test covers.**
+   The web host provided none of the composition locals its bindings read, so `A4` passed while
+   `A4-reported` failed — every binding-recorded entry was landing in a throwaway `SkewReport` that
+   nothing reads. And iOS never registered the product design system, so Acme's three components
+   were inert placeholders on that client alone. This is the whole argument for a per-client tier
+   stated as a result rather than as a principle.
 8. ✅ **Budgets for the numeric harnesses.** `budgets.tsv` is where the roadmap's thresholds stop
    being prose: `from_phase0.py` reads the Phase 0 results and `from_web_weight.py` the page
    weight, and both emit verdicts. **The gate-validity rule is asymmetric, deliberately.** No host
@@ -521,23 +592,47 @@ ranks below everything above.)*
 
 ## Part 7 — Carried forward, not closed
 
-Four things, each recorded where somebody will meet it rather than left to be rediscovered.
+Three things, each recorded where somebody will meet it rather than left to be rediscovered.
 
-- **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
-  the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
-  skewed payload served to an already-installed binary — on those two platforms. Android has it
-  (`tools/skew-drill`), and the shape is portable.
+- ~~**`A2`–`A4` end to end on iOS and web.**~~ Closed on 2026-09-06 by `run-ios.sh` and
+  `run-web.sh`, which found one host-integration defect each. See
+  [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md). What remains from it is
+  smaller and named here rather than dropped: **desktop has no skew drill.** It is a development
+  loop rather than a shipping target and is not graded on the per-client groups, so this is
+  consistent rather than an omission — but it is the one client where the containment rules have
+  never met a real skewed payload.
 - **The performance budgets cannot be closed by any host that exists.** `G1`–`G4` read `SKIP`
   everywhere, correctly: the Phase 0 gate names a low-end 2022-tier Android device that this
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
   The grading is wired and asymmetric, so the first such device to run it closes or reopens the
   gate without further work, and a regression on faster hardware still fails today.
-- **What the web's claims are graded against has changed, and for the better.** Until
+- ~~**No web row is graded against the real guest.**~~ ✅ **Closed on 2026-09-07.** Until
   [ADR-048](../adrs/layer-5/ADR-048-the-real-guest-runs-on-the-web.md) the web slice's guest was
-  hand-written JavaScript, so every web row was evidence about shared *host* code or about a guest no
-  product would write. The real Kotlin/Compose guest now runs in a Worker from the same screens as
-  the mobile payload. The claims themselves have not moved — no row is graded against the new guest
-  yet — and doing so is the cheapest remaining upgrade to what the web column means.
+  hand-written JavaScript, so every web row was evidence about shared *host* code or about a guest
+  no product would write. The accessibility drill now loads
+  `?manifest=dogwood-manifest-kotlin.json` and asserts on the **same Diagnostics screen** the
+  Android and iOS drills use, and the skew drill runs the same guest against a newer dictionary.
+
+  Three things came out of the move that the hand-written guest could not have shown:
+
+  1. **`D2` was failing on a control the payload did not compose.** Compose keeps one transparent
+     `<input>` over the focused field to collect keystrokes — it cannot receive them on a canvas —
+     and Chrome publishes it as an unnamed `textbox` a screen reader stops on. It is excluded by
+     *identifying the element* (its inline style is written with
+     `--compose-internal-web-backing-input-*` custom properties), and the exclusion is counted in
+     the verdict rather than dropped.
+  2. **One viewport is not the screen.** Compose publishes accessibility elements only for what it
+     has laid out, so reading the tree once asserts about the top of a page — and the first run
+     reported "no Expand/Collapse control" for a control four screens down. The drill now scrolls
+     the way a user does: 36 named nodes in one viewport, **178** across the screen. Operating a
+     control needs a *live* node as well, not the one that walk returned, because by then Compose
+     has taken its element out of the tree.
+  3. **`D7` cannot be met on this client, and the reason is not Dogwood's.** A disabled button
+     reaches the accessibility tree as `<div role="button">` with a correct name and **no properties
+     at all** — indistinguishable from the enabled button beside it. The identical composition
+     announces it correctly on iOS. Recorded as an exemption with its reason in `exempt.tsv` and
+     drafted as [upstream report 3](../tools/upstream-reports/README.md), rather than as a red cell
+     that would sit there forever.
 - ~~`D8` and `D9` are asserted on one Java Virtual Machine and claimed for four clients.~~ ✅
   **Closed.** The shared-core tests moved to `commonTest` and now run on the Java Virtual Machine,
   an iOS simulator and a real browser — **236, 77 and 68 tests**. `DogwoodTree` moved with them: its
@@ -553,18 +648,29 @@ Four things, each recorded where somebody will meet it rather than left to be re
   third rendering environment to trust, to run tests whose whole purpose is being run where the code
   runs.
 
-- **A hostile-value clamp fires on the Java Virtual Machine and not on the web.** Found by that
-  move, and it is the reason the move was worth making. `ADR-035` exists because Compose enforces
-  some numeric ranges by throwing *inside composition*, so an out-of-range value in a payload can
-  take a screen down on every client at once; the clamp keeps the screen and the **report** is what
-  stops the clamp being a silent difference between what a payload asked for and what a user sees.
-  On the web today it is that silent difference.
+- ~~**A hostile-value clamp fires on the Java Virtual Machine and not on the web.**~~ ✅ **Resolved
+  on 2026-09-07, and it was never a clamp.** There is no platform divergence: the web clamps and
+  reports the same value, `StarRating.rating=-40.0 outside 0.0..5.0`, in the same place.
 
-  What is established: the value is not the problem. On WebAssembly the property decodes and reads
-  back as `-40.0`, so the reader is fine and the clamp does not fire. What is **not** established is
-  why, and it is written down rather than guessed at. The reproduction is
-  `ClampedValueReportingTest`, kept in `jvmTest` alone rather than weakened until it passes
-  everywhere — a test that passes by asking less is how a gap stops being visible.
+  What was actually wrong is worse and was hiding behind it. `runComposeUiTest` returns `Unit` on
+  the Java Virtual Machine and `Promise<JsAny?>` on Kotlin/WebAssembly, and the test framework
+  awaits that promise **only if the test function returns it**. Every shared render test was written
+  with a block body — `render(tree)` as a statement, assertions after — so on the web the
+  composition never happened: assertions after the call read an un-composed tree, and assertions
+  inside the block were never observed at all. A deliberate `fail()` inside a discarded block was
+  watched to **pass** on that target, which is what settled it.
+
+  So the whole shared render suite — 49 tests across six files — was green on the web while
+  composing nothing, and the clamp test was **the only one sensitive enough to notice**, because it
+  is the only assertion in that file about something a *binding* records during composition. The
+  rest are recorded by `HostTree.apply`, or assert an emptiness that an un-composed tree satisfies.
+  Filing it as a platform divergence was the wrong conclusion drawn from the right observation.
+
+  Every one of those tests is now an expression body that returns the harness's result, and they
+  compose on the web for the first time — watched, by breaking one assertion and reading a real
+  browser measurement (`maxOffsetDp=320`) in the failure. `tools/render-shape/check.py` fails the
+  build on the old shape and runs on every pull request. See
+  [ADR-054](../adrs/layer-5/ADR-054-a-render-test-that-returns-nothing.md).
 - ~~`LazyListMirror` has no host test.~~ ✅ Closed: `LazyListMirrorTest` asserts the held target that
   a device found and reasoning did not, the item-granular throttle, and the re-report a replacement
   guest depends on — each watched to fail with the line it covers removed. All three mirrors are now

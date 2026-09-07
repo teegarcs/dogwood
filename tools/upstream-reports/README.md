@@ -1,7 +1,8 @@
 # Upstream reports, drafted and not filed
 
-Two toolchain defects found while building the Web host. Both are reproduced, both have a
-workaround in this repository, and **neither has been filed**.
+Three defects found while building and grading the Web host. All are reproduced, and **none has
+been filed**. The first two have a workaround in this repository; the third does not, because it is
+not something a consumer can work around.
 
 They are drafted rather than submitted deliberately: filing a public bug report publishes this
 project's name, a reproduction, and an implicit claim about a vendor's product. That is an
@@ -15,6 +16,7 @@ is the honest tense.
 |---|---|---|---|
 | 1 | `wasm-opt` GUFA miscompiles `String.toCharArray()` | `tools/web-weight/bridge/run.sh` | `--gufa` filtered from the pass list |
 | 2 | Kotlin/Wasm klib checker crash | any rebuild after an edit to a source set | clear `build/kotlin` and `build/classes` (the documented flag is **not** enough — see the correction) |
+| 3 | Compose Multiplatform for Web publishes no disabled state to the accessibility tree | `tools/conformance/run-web.sh`, claim `D7` | none available to a consumer |
 
 ---
 
@@ -96,3 +98,50 @@ one arrives with no source location and no message beyond an array index.
 
 This correction is why the entry is worth keeping rather than closing: the original text would have
 sent a reader to a flag that is already on.
+
+---
+
+## 3. Compose Multiplatform for Web publishes no disabled state to the accessibility tree
+
+**Where:** Compose Multiplatform 1.10.3, `wasmJs` target, Chrome 152 headless.
+**Severity:** an accessibility defect in shipped output. A screen reader user is not told that a
+control is disabled, tries to operate it, and is met with nothing.
+
+**What happens.** Compose draws to a canvas and publishes a parallel DOM for assistive technology.
+A `Button(enabled = false)` reaches that DOM as
+
+```html
+<div role="button" style="position: fixed; left: 16px; top: 379px; width: 868px; height: 40px;">
+```
+
+with a correct accessible name and **no properties at all** — no `aria-disabled`, and nothing in
+Chrome's accessibility tree either. It is byte-for-byte the same shape as the enabled button beside
+it. The composition knows the control is disabled; the platform drops that on the way out.
+
+**Reproduction.** `tools/conformance/run-web.sh` in this repository. The shared Diagnostics screen
+carries two deliberately disabled buttons, `Unavailable` and `Acme unavailable`, and the drill
+walks the whole screen through `Accessibility.getFullAXTree`:
+
+```
+CONF D7 SKIP -- 2 disabled controls are on screen and none of them is announced as disabled:
+               Compose publishes role and name only, with no properties at all.
+```
+
+Directly, over the Chrome DevTools Protocol, for the same node:
+
+```
+BUTTON 'Ask for a route this client does not have' props= {}
+BUTTON 'Delete a row'                              props= {}
+```
+
+Every button on the screen carries an empty property set, enabled or not.
+
+**What the other platforms do.** The identical composition, from the same source, announces the
+state correctly on iOS: `UIAccessibilityTraitNotEnabled` is set, and `tools/a11y-drill` grades `D7`
+on it. So this is the web accessibility layer specifically rather than a Compose semantics gap.
+
+**Expected.** `aria-disabled="true"` on the published element when the composition's semantics carry
+`Disabled`, in the same way the role and name are published.
+
+**Not worked around here.** There is nothing a consumer can do: the DOM is Compose's, built inside
+the framework, and a host has no seam to add an attribute to it.

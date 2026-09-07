@@ -36,6 +36,21 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * How long an outcome may take to arrive.
+ *
+ * Compose's default is one second, which is a development machine's second. These waits are on
+ * outcomes that take several frames -- a held target that waits for a list to grow, an animated
+ * scroll settling, a guest being answered -- and a two-processor continuous-integration runner
+ * under load does not have the same second. `aTargetForAnItemThatDoesNotExistYetWaits...` timed out
+ * there while passing everywhere else, which is the shape of a threshold rather than of a defect.
+ *
+ * Generous rather than tuned: a wait that ends when the outcome arrives costs nothing extra by
+ * being allowed to wait longer, and a test that fails for want of a second teaches a team to rerun
+ * the build rather than to read it.
+ */
+private const val WAIT = 10_000L
+
 private val VERTICAL_LIST = DogwoodDictionary.VerticalList.value
 private val TEXT = DogwoodDictionary.Text.value
 
@@ -115,7 +130,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aListReportsTheRangeItActuallyLaidOut() {
+  fun aListReportsTheRangeItActuallyLaidOut() = run {
     // The control. A window of four rows shows items 0 through 3; without a real measurement every
     // claim below would hold against a list that laid nothing out.
     show(tree(rows = 12)) { reports ->
@@ -126,7 +141,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aListNobodyIsWatchingReportsNothing() {
+  fun aListNobodyIsWatchingReportsNothing() = run {
     // Presence is a property because the host cannot see guest closures. Without it every list on
     // every screen would pay for a viewport observer nobody reads.
     show(tree(rows = 12, observed = false)) { reports ->
@@ -136,7 +151,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aDeclaredTargetMovesTheList() {
+  fun aDeclaredTargetMovesTheList() = run {
     show(tree(rows = 12, targetIndex = 7, sequence = 1)) { reports ->
       waitForIdle()
       onNodeWithText("Row 8").assertIsDisplayed()
@@ -145,7 +160,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun askingTwiceForTheSamePlaceMovesTheListTwice() {
+  fun askingTwiceForTheSamePlaceMovesTheListTwice() = run {
     // The reason the target is a counter rather than a flag: a user who taps "back to top",
     // scrolls away, and taps again expects to go back.
     val tree = tree(rows = 12, targetIndex = 7, sequence = 1)
@@ -165,7 +180,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aTargetForAnItemThatDoesNotExistYetWaitsRatherThanClampingToTheEnd() {
+  fun aTargetForAnItemThatDoesNotExistYetWaitsRatherThanClampingToTheEnd() = run {
     // The finding a device produced and reasoning did not, now an assertion.
     //
     // A replacement guest re-runs its `LaunchedEffect`, so its content is being *fetched* while it
@@ -188,7 +203,7 @@ class LazyListMirrorTest {
       // A single `waitForIdle` passed on a development machine and failed on a slower continuous
       // integration runner, which is the classic shape of a test that asserts a schedule instead
       // of an outcome.
-      waitUntil("the held target never fired") { reports.last?.first == 7 }
+      waitUntil("the held target never fired", timeoutMillis = WAIT) { reports.last?.first == 7 }
 
       assertEquals(7, reports.last?.first, "the held target never fired: ${reports.all}")
       onNodeWithText("Row 8").assertIsDisplayed()
@@ -196,7 +211,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun anUnchangedViewportCostsNoTraffic() {
+  fun anUnchangedViewportCostsNoTraffic() = run {
     // The throttle, and the honest limit of the mirror: reports are item-granular, so a list that
     // has not crossed an item boundary produces nothing at all.
     val tree = tree(rows = 12)
@@ -219,7 +234,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aReplacementGuestIsToldWhereTheListIsWithoutItHavingMoved() {
+  fun aReplacementGuestIsToldWhereTheListIsWithoutItHavingMoved() = run {
     // The same defect `ScrollMirrorTest` asserts for a scrolling container. This list survived a
     // code update on a device *before* the fix — but by accident, because clearing and rebuilding
     // the tree churns the visible range and happens to make the flow emit again. Depending on

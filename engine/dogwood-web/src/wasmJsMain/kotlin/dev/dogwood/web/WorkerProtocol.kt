@@ -139,6 +139,37 @@ object WorkerMessages {
    * prevent.
    */
   const val SNAPSHOT_STATE = "snapshotState"
+
+  /**
+   * Host to guest: everything the page knows about this experience, once, before it composes.
+   *
+   * The payload is a serialised [WebStartPayload] -- entry point, launch parameters, feature
+   * flags, the routes the host handles, and the dictionary versions it implements. One message
+   * rather than five accessors, because a Worker boundary carries no object references and five
+   * round trips before the first frame would be five round trips before the first frame.
+   *
+   * **Sent before the first [UPDATE_CONFIGURATION]**, which is what actually starts the
+   * composition. A guest that receives no start message must still compose: this is additive, and
+   * a page serving a newer guest to an older host is the ordinary shape of skew here.
+   */
+  const val START = "start"
+
+  /**
+   * Guest to host: one analytics event, as a serialised [WebAnalyticsEvent].
+   *
+   * One-way, with correlation `0`. `DogwoodAnalytics.track` returns nothing on every platform, and
+   * a reply the guest would not read is a round trip nobody needs.
+   */
+  const val ANALYTICS = "analytics"
+
+  /**
+   * Guest to host: a navigation request, as a serialised [WebNavigationRequest].
+   *
+   * One-way for the same reason, and with the same meaning it has on mobile: the guest is *asking*.
+   * A host that does not handle the route does nothing, and records it as skew -- a guest cannot
+   * tell the difference and must not depend on one.
+   */
+  const val NAVIGATE = "navigate"
 }
 
 /**

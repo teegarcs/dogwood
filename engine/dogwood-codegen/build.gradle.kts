@@ -64,8 +64,12 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
   mainClass.set("dev.dogwood.codegen.MainKt")
 
   val surface = rootProject.file("surface")
+  val reference = rootProject.file("../docs/api/dogwood.designsystem.md")
   inputs.dir(surface).withPathSensitivity(PathSensitivity.RELATIVE)
   outputs.dir(generatedRoot)
+  // Declared, so deleting the reference regenerates it rather than leaving the task up to date
+  // with a missing output. It lives in the source tree on purpose; see `Docs.kt`.
+  outputs.file(reference)
 
   argumentProviders.add {
     val root = generatedRoot.get().asFile
@@ -90,6 +94,9 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       "--wire-out", File(root, "wire/dev/dogwood/protocol/DogwoodSegments.kt").absolutePath,
       // Committed, unlike the generated sources: the lock is the record that tags never moved.
       "--lock", rootProject.file("surface/dogwood.designsystem.lock.json").absolutePath,
+      // Also committed, and for a related reason: a reference generated into a build directory is
+      // a reference nobody reads. See `Docs.kt`.
+      "--docs-out", rootProject.file("../docs/api/dogwood.designsystem.md").absolutePath,
     )
   }
 }

@@ -17,14 +17,23 @@ and client, from one source of truth.
 
 **Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 
-> **Status: specification, plus a working Android implementation through Phase 4.5.** The design
-> documents remain the substance of this repository, but the load-bearing assumptions are no
+> **Status: a working implementation on Android, iOS and the web, from one set of screens.** The
+> design documents remain the substance of this repository, but the load-bearing assumptions are no
 > longer unmeasured. [`tools/phase0/`](tools/phase0/) measures the architecture and
-> [`engine/`](engine/) implements it: real screens, authored as ordinary Kotlin Compose, executed
-> inside QuickJS, rendered by native Compose Multiplatform, responding to taps — with a generator,
-> nine bespoke subsystems, and a host shell that keeps several separately deployed experiences warm
-> so switching between them costs nothing the shell controls. Phase 5's page-weight gate is
-> [now measured](adrs/layer-5/ADR-030-web-page-weight-measured.md) rather than quoted.
+> [`engine/`](engine/) implements it: real screens, authored as ordinary Kotlin Compose, executed in
+> a sandbox — QuickJS on mobile, a Web Worker in a browser — rendered by native Compose
+> Multiplatform, responding to taps. A generator emits both halves of the boundary from one surface;
+> a product can [declare its own components](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md)
+> and [consume the whole thing from outside this repository](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md);
+> a bad publish is [survivable without a server](adrs/layer-5/ADR-049-surviving-a-bad-publish.md);
+> and a payload published while a screen is open carries the user's state across on every client.
+> Phase 5's page-weight gate is
+> [measured](adrs/layer-5/ADR-030-web-page-weight-measured.md) rather than quoted.
+>
+> **What is left is not engineering.** [`plans/production-readiness.md`](plans/production-readiness.md)
+> is closed; the two things between this and a first ship — production signing keys and somewhere to
+> serve payloads from — are decisions, and they live in
+> [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
 > **The Phase 0 gate is formally not closed**, and that is now a decision rather than a pending
 > task: the low-end device it is defined on is not available and will not be acquired
 > ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)). Every number was taken
@@ -78,6 +87,7 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`roadmap.md`](roadmap.md) | The phased delivery plan, gates, and what would stop the project. **Phases 0–7 are closed.** |
 | [`plans/production-readiness.md`](plans/production-readiness.md) | **What remains before a product can ship on this**, sequenced. The engine works; this is the difference between that and a product. |
 | [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
+| [`docs/`](docs/) | **The manuals.** [Getting started](docs/getting-started.md) for adding Dogwood to an application, [authoring](docs/authoring.md) for writing screens, [operating](docs/operating.md) for whoever is on call, and a [component reference](docs/api/) generated from the surface. |
 | [`docs/checks.md`](docs/checks.md) | Every check this repository runs, what each proves, and when it fails. |
 | [`developer-experience.md`](developer-experience.md) | What this is like to use, with worked example code. |
 | [`specs/`](specs/) | One deep-dive specification per layer. |

@@ -35,6 +35,7 @@ import dev.dogwood.protocol.LogLevel
 import dev.dogwood.protocol.DogwoodNavigation
 import dev.dogwood.protocol.DogwoodNetwork
 import dev.dogwood.protocol.DogwoodServices
+import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.HostEnvironment
@@ -48,6 +49,16 @@ import dev.dogwood.slice.FeedScreen
 import dev.dogwood.slice.exploreParams
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.coroutines.await
+import kotlin.js.Promise
+import dev.dogwood.protocol.WebStartPayload
+import dev.dogwood.protocol.WebNavigationRequest
+import dev.dogwood.protocol.WebAnalyticsEvent
+import dev.dogwood.protocol.HttpResponse
+import dev.dogwood.protocol.HttpRequest
 
 /*
  * The envelope, mirrored from `dogwood-web/WorkerProtocol.kt`.
@@ -68,6 +79,9 @@ private const val FRAME = "frame"
 private const val SEND_EVENT = "event"
 private const val UPDATE_CONFIGURATION = "configuration"
 private const val SNAPSHOT_STATE = "snapshotState"
+private const val START = "start"
+private const val ANALYTICS = "analytics"
+private const val NAVIGATE = "navigate"
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -127,8 +141,52 @@ private object WorkerHost : DogwoodHost {
  * locally because a Worker has a console; everything else says it is absent, and every screen is
  * written to degrade when a service is missing rather than to assume one.
  */
+/**
+ * What the host told this guest about itself, before it composed.
+ *
+ * Replaced once, by the `start` message, and read from there on. A guest that is never sent one --
+ * an older page, or a harness that only sends a configuration -- keeps the empty default and every
+ * service below degrades to what it can answer on its own, which is most of them.
+ */
+private var startPayload = WebStartPayload()
+
+/**
+ * The services this guest has, and where each answer actually comes from.
+ *
+ * The mobile profile carries `DogwoodServiceHost`'s objects across Zipline and the host answers
+ * every call. A Worker boundary carries no object references
+ * ([ADR-032](../../../../../../../../adrs/layer-5/ADR-032-the-web-profile.md)), so this profile
+ * splits the same surface three ways, and the split is by **who can answer**, not by convenience:
+ *
+ *  | Service | Answered by | Why |
+ *  |---|---|---|
+ *  | `log` | the Worker | it has a `console` |
+ *  | `clock` | the Worker | it has `Date.now()` and `Intl`; the page's clock is the same clock |
+ *  | `network` | the Worker | it has `fetch`, and see the warning below |
+ *  | `featureFlags` | the host, once, in `start` | only the application knows them |
+ *  | `navigation` | the host | it owns the routing, so a request crosses and an answer does not |
+ *  | `analytics` | the host | it owns the pipeline |
+ *
+ * **`network` is not the mobile guarantee and this is the one place that matters.** On Android and
+ * iOS `DogwoodNetwork` is implemented by the host, which enforces an allow-list that **refuses
+ * everything by default** -- the payload is replaceable over the air without a store review, so an
+ * open network service inside it would be an exfiltration channel. Here the guest calls `fetch`
+ * itself, inside the page's origin, and what constrains it is the page's Content Security Policy.
+ * That is weaker, it is the browser's rather than Dogwood's, and ADR-032 records it as such. A
+ * product that wants the mobile guarantee on the web sets a `connect-src` policy on the page.
+ *
+ * Routing `fetch` through the page would not fix it: the Worker would still have `fetch`, and a
+ * payload that wanted to bypass the host would simply not ask.
+ */
 private object WorkerServices : DogwoodServices {
-  override fun available(): Set<String> = setOf("log")
+  override fun available(): Set<String> = buildSet {
+    add("log")
+    add("clock")
+    add("network")
+    add("analytics")
+    if (startPayload.featureFlags.isNotEmpty()) add("featureFlags")
+    add("navigation")
+  }
 
   override fun log(): DogwoodLog? = object : DogwoodLog {
     override fun log(level: LogLevel, tag: String, message: String) =
@@ -136,12 +194,99 @@ private object WorkerServices : DogwoodServices {
     override fun close() = Unit
   }
 
-  override fun clock(): DogwoodClock? = null
-  override fun analytics(): DogwoodAnalytics? = null
-  override fun featureFlags(): DogwoodFeatureFlags? = null
-  override fun network(): DogwoodNetwork? = null
-  override fun navigation(): DogwoodNavigation? = null
+  /**
+   * The Worker's own clock.
+   *
+   * `Intl` exists here and does not exist in QuickJS, which is why the mobile guest has to ask its
+   * host for a time zone and this one does not. It does **not** follow that a guest may format
+   * dates itself: formatting is host-resolved on every platform because the *result* has to look
+   * the way the platform's own applications look, and `Intl` in a Worker is not the platform's
+   * formatter. This answers what time it is; `TextValue` still decides how it reads.
+   */
+  override fun clock(): DogwoodClock? = object : DogwoodClock {
+    override fun nowEpochMillis(): Long = nowMillis().toLong()
+    override fun timeZoneId(): String = resolvedTimeZone()
+    override fun close() = Unit
+  }
+
+  override fun analytics(): DogwoodAnalytics? = object : DogwoodAnalytics {
+    override fun track(name: String, properties: Map<String, String>) {
+      post(ANALYTICS, 0, DogwoodJson.encodeToString(WebAnalyticsEvent.serializer(), WebAnalyticsEvent(name, properties)))
+    }
+    override fun close() = Unit
+  }
+
+  override fun featureFlags(): DogwoodFeatureFlags? =
+    if (startPayload.featureFlags.isEmpty()) {
+      null
+    } else {
+      object : DogwoodFeatureFlags {
+        override fun snapshot(): Map<String, String> = startPayload.featureFlags
+        override fun close() = Unit
+      }
+    }
+
+  override fun network(): DogwoodNetwork? = object : DogwoodNetwork {
+    override suspend fun fetch(request: HttpRequest): HttpResponse = workerFetch(request)
+    override fun close() = Unit
+  }
+
+  override fun navigation(): DogwoodNavigation? = object : DogwoodNavigation {
+    override fun routes(): Set<String> = startPayload.routes
+    override fun navigate(route: String, params: JsonObject) {
+      post(NAVIGATE, 0, DogwoodJson.encodeToString(WebNavigationRequest.serializer(), WebNavigationRequest(route, params)))
+    }
+    override fun close() = Unit
+  }
+
   override fun close() = Unit
+}
+
+private fun nowMillis(): Double = js("Date.now()")
+
+private fun resolvedTimeZone(): String =
+  js("(Intl && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC'")
+
+/**
+ * One request, as a promise of a JavaScript Object Notation (JSON) document.
+ *
+ * The whole request lives in JavaScript and comes back as one string rather than as a `Response`
+ * object, for a reason worth stating: a `Response` is read asynchronously *again* for its body, and
+ * a Kotlin wrapper around that is two suspension points and a second place errors can be dropped.
+ * Failing inside the `catch` here means a network failure and a refusal arrive as the same shape as
+ * a success, which is what `HttpResponse.failure` already asks for.
+ */
+private fun jsFetch(url: String, method: String, headersJson: String, body: String?): Promise<JsAny?> =
+  js("""
+    fetch(url, { method: method, headers: JSON.parse(headersJson), body: body })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          var h = {};
+          r.headers.forEach(function (v, k) { h[k] = v; });
+          return JSON.stringify({ code: r.status, headers: h, body: t });
+        });
+      })
+      .catch(function (e) {
+        return JSON.stringify({ code: 0, headers: {}, body: '', failure: String(e) });
+      })
+  """)
+
+private suspend fun workerFetch(request: HttpRequest): HttpResponse {
+  val headers = json.encodeToString(
+    MapSerializer(String.serializer(), String.serializer()),
+    request.headers,
+  )
+  val raw = try {
+    jsFetch(request.url, request.method, headers, request.body).await().toString()
+  } catch (failure: Throwable) {
+    // A rejected promise the `catch` above did not see -- a malformed URL rejects synchronously.
+    return HttpResponse(code = 0, failure = failure.message ?: "fetch failed")
+  }
+  return try {
+    json.decodeFromString(HttpResponse.serializer(), raw)
+  } catch (failure: Throwable) {
+    HttpResponse(code = 0, failure = "the fetch bridge returned something undecodable")
+  }
 }
 
 private fun console(level: String, message: String) {
@@ -194,14 +339,22 @@ private fun onMessage(message: dynamic) {
           guest.start(
             host = WorkerHost,
             services = WorkerServices,
-            entryPoint = entryPoint(),
+            // The host's choice when it made one, and the Worker's own URL when it did not. The
+            // fallback is what keeps a newer guest working on a page that never sends `start`.
+            entryPoint = startPayload.entryPoint.ifBlank { entryPoint() },
             configuration = configuration,
-            launchParams = JsonNull,
-            segmentVersions = emptyMap(),
-            restoredState = null,
+            launchParams = startPayload.launchParams,
+            segmentVersions = startPayload.segmentVersions,
+            // Carried across a code update by the host, because a new Worker is a new module with
+            // a new composition and nothing survives implicitly. Null on a first load.
+            restoredState = startPayload.restoredState,
           )
         }
       }
+
+      // Everything the host knows about this experience, before it composes. Stored rather than
+      // acted on: the composition starts on the first configuration, which arrives next.
+      START -> startPayload = DogwoodJson.decodeFromString(WebStartPayload.serializer(), payload)
 
       SEND_EVENT -> guest.sendEvent(json.decodeFromString(Event.serializer(), payload))
 
