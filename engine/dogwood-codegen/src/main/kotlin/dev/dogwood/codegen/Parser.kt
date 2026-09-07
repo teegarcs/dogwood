@@ -291,6 +291,31 @@ class SurfaceParser(
           ),
         ),
       ),
+
+      /*
+       * Snackbars: a request that answers.
+       *
+       * The first shape where the report is not an observation but a **reply**. It carries the
+       * sequence it is answering, which is what stops two requests in flight being confused -- the
+       * sequence that went down is the sequence that comes back. See ADR-051.
+       */
+      HolderShape(
+        type = "SnackbarHostState",
+        mirror = "rememberSnackbarMirror",
+        properties = listOf(
+          HolderProperty(suffix = "Message", type = "String", field = "message", absent = "\"\""),
+          HolderProperty(suffix = "ActionLabel", type = "String", field = "actionLabel", absent = "\"\""),
+          HolderProperty(suffix = "Sequence", type = "Int", field = "sequence", absent = "0"),
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("sequence", "Int", "0"),
+            HolderArgument("actionPerformed", "Boolean", "false"),
+          ),
+        ),
+      ),
     )
 
     val LIVE_STATE = listOf(

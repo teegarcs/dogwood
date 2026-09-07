@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 9,
+    "version": 10,
     "components": [
         {
             "name": "PrimaryButton",
@@ -250,6 +250,31 @@
             },
             "eventTypes": {
                 "scrollReport": "(Int, Int, Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "SnackbarArea",
+            "localTag": 16,
+            "properties": {
+                "snackbarsMessage": 1,
+                "snackbarsActionLabel": 2,
+                "snackbarsSequence": 3,
+                "snackbarsWatching": 4
+            },
+            "propertyTypes": {
+                "snackbarsMessage": "String",
+                "snackbarsActionLabel": "String",
+                "snackbarsSequence": "Int",
+                "snackbarsWatching": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "snackbarsReport": 1
+            },
+            "eventTypes": {
+                "snackbarsReport": "(Int, Boolean) -> Unit"
             }
         }
     ],

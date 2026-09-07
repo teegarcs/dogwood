@@ -122,10 +122,18 @@ half of adding one now costs a table entry plus a host mirror
 remain, and **most belong to widgets no dictionary here carries**, so they arrive with their widget
 rather than as a queue.
 
-The ones a product will hit early, and none is more than a mirror: `PagerState`, `SheetState` /
-`DrawerState`, `SnackbarHostState`, and the picker states (`DatePickerState`, `TimePickerState`).
-`SnackbarHostState` is the one shape not yet proven — a *host-invoked, one-shot action with a
-result* — so it is worth doing before it is needed rather than during.
+✅ **The fourth shape is proven** ([ADR-051](../adrs/layer-5/ADR-051-a-holder-that-answers.md)):
+`SnackbarHostState`, a request that **answers**. The three before it run one way at a time — a
+target goes down, or a report comes up, and the two are independent. This is the first thing a guest
+asks for and waits on, and what comes back decides what it does next.
+
+It needs no new protocol: the request is properties, the reply is an event carrying **the sequence
+it answers**, which is what stops two requests in flight being confused. Verified on three targets
+and on a device, where the user tapping *Undo* resumed the guest into the branch that undoes.
+
+The ones a product will hit early are now all one of four known shapes, and none is more than a
+mirror: `PagerState`, `SheetState` / `DrawerState`, and the picker states (`DatePickerState`,
+`TimePickerState`).
 
 ### 2.3 The design system is a slice, not a system
 
@@ -302,7 +310,7 @@ Sequenced by what unblocks the most, not by size.
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
 | 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
 | 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
-| 7 | **The holders a product hits early** (§2.2) | `SnackbarHostState` first, because it is the one unproven shape |
+| 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
 | 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
 | 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |

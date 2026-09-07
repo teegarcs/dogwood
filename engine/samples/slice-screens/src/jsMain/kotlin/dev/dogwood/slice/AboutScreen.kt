@@ -26,9 +26,11 @@ import dev.dogwood.compose.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import dev.dogwood.compose.Animations
 import dev.dogwood.compose.Box
+import dev.dogwood.compose.Column
 import dev.dogwood.compose.Color
 import dev.dogwood.compose.Keyboards
 import dev.dogwood.compose.PrimaryButton
@@ -49,7 +51,11 @@ import dev.dogwood.compose.ScrollArea
 import dev.acme.guest.AcmeAction
 import dev.acme.guest.AcmePanel
 import dev.acme.guest.AcmePrice
+import kotlinx.coroutines.launch
+import dev.dogwood.compose.SnackbarArea
+import dev.dogwood.compose.SnackbarResult
 import dev.dogwood.compose.rememberFocusRequester
+import dev.dogwood.compose.rememberSnackbarHostState
 import dev.dogwood.compose.rememberScrollState
 import dev.dogwood.compose.rememberTextFieldState
 import dev.dogwood.compose.services
@@ -255,6 +261,48 @@ fun AboutScreen() {
         .background(Color.token(if (expanded) "primaryContainer" else "canvasContrast").animate()),
     )
     Text("arrived $arrivals times")
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    /*
+     * Placed after the animation section on purpose.
+     *
+     * The Android accessibility drill reaches `Expand` and `Unavailable` by scrolling, and every
+     * demonstration added above them pushes them further down. Two additions were enough to put
+     * them out of reach, and the drill reported "the Expand button was never reachable" -- a true
+     * sentence about the drill and a false one about the accessibility layer.
+     *
+     * The drill's scroll was made more robust at the same time; this is the other half, and it is
+     * the cheaper one. A sample screen that a check depends on should not bury the thing it checks.
+     */
+    SectionHeader(
+      title = "A holder that answers",
+      description = "The guest asks for a snackbar and waits. What the user does decides what " +
+        "happens next, which is the whole reason a snackbar is not a notification.",
+    )
+    val snackbars = rememberSnackbarHostState()
+    val snackbarScope = rememberCoroutineScope()
+    var undone by remember { mutableStateOf(0) }
+    var expired by remember { mutableStateOf(0) }
+    SnackbarArea(modifier = Modifier.fillMaxWidth(), snackbars = snackbars) {
+      Column {
+        Text("undone $undone · let it expire $expired")
+        PrimaryButton(
+          label = "Delete a row",
+          modifier = Modifier.fillMaxWidth(),
+          onClick = {
+            snackbarScope.launch {
+              // Suspends. The branch below is the point: a guest that ignored this answer would
+              // have written a notification.
+              when (snackbars.showSnackbar("Row deleted", actionLabel = "Undo")) {
+                SnackbarResult.ACTION_PERFORMED -> undone += 1
+                SnackbarResult.DISMISSED -> expired += 1
+              }
+            }
+          },
+        )
+      }
+    }
 
     Divider(modifier = Modifier.fillMaxWidth())
 

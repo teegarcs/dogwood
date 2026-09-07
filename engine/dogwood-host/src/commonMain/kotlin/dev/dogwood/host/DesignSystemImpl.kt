@@ -453,3 +453,25 @@ private fun exitTransitionOf(names: String?): androidx.compose.animation.ExitTra
     }
     .reduce { a, b -> a + b }
 }
+
+/**
+ * Where snackbars appear, over whatever this wraps.
+ *
+ * A `Box` rather than a `Scaffold`: a scaffold owns an app bar, a floating action button and its
+ * own insets, none of which a guest asked for here. What a snackbar needs is somewhere to be drawn
+ * on top of, and that is a box.
+ */
+@Composable
+fun SnackbarAreaImpl(
+  modifier: Modifier,
+  snackbars: SnackbarMirror,
+  content: @Composable () -> Unit,
+) {
+  androidx.compose.foundation.layout.Box(modifier) {
+    content()
+    androidx.compose.material3.SnackbarHost(
+      hostState = snackbars.hostState,
+      modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+    )
+  }
+}

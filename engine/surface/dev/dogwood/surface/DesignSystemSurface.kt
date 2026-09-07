@@ -267,3 +267,21 @@ fun ScrollArea(
   @Holder scroll: ScrollState? = null,
   content: @Composable () -> Unit,
 ) {}
+
+/**
+ * Where snackbars appear.
+ *
+ * Place it once, around the content it should overlay. A guest asks for a snackbar through the
+ * holder and **waits for the answer**: whether the user tapped the action decides what happens
+ * next, which is the whole reason a snackbar is not a notification.
+ *
+ * @param snackbars the request, mirrored. Optional, and a container without one shows nothing —
+ *   there is no such thing as a snackbar nobody asked for. See [Holder] and
+ *   [ADR-051](../../../../adrs/layer-5/ADR-051-a-holder-that-answers.md).
+ */
+@Composable
+fun SnackbarArea(
+  modifier: Modifier = Modifier,
+  @Holder snackbars: SnackbarHostState? = null,
+  content: @Composable () -> Unit,
+) {}
