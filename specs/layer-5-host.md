@@ -298,6 +298,65 @@ This was invisible for the life of the project because every host here wired eve
 
 **Launch parameters are start-time, and a route cannot change that.** `navigate(route, params)` carries the destination's launch parameters, which are read when a session starts. A host keeping experiences warm will often route to a destination that is already running and therefore never restarts, so it never reads them; `params` mean "what to open this with if it opens", not "a message for it". Telling a *running* experience something needs a pushed value with its own dedupe rules, like `HostEnvironment`, which this is not.
 
+#### The same surface on the web, arranged differently
+
+A Web Worker boundary **cannot carry an object reference**, so the arrangement above has no analogue
+there: nothing can hand a guest a `DogwoodNetwork` it will later call. The web profile therefore
+splits the same surface by *who can answer*, and the split is a capability question rather than a
+convenience one ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)).
+
+```mermaid
+sequenceDiagram
+  participant Page as Page (Kotlin/Wasm host)
+  participant Del as WebDelivery
+  participant Br as WorkerBridge
+  participant W as Worker (Kotlin/JS guest)
+  participant Net as fetch / Date / console
+
+  Page->>Del: start(manifestUrl)
+  Del->>Del: checkDictionary(segmentVersions)
+  Del->>W: new Worker(guestScript)
+  W-->>Br: ready(revision)
+  Br->>W: start(WebStartPayload)
+  Br->>W: configuration(HostEnvironment)
+  W->>W: DogwoodGuest.start(entryPoint, launchParams, segmentVersions, restoredState)
+  W->>Net: clock, log, network — answered locally
+  W-->>Br: changes(positional batch)
+  W-->>Br: analytics(WebAnalyticsEvent)
+  W-->>Br: navigate(WebNavigationRequest)
+  Note over Page,W: a code update
+  Page->>Br: snapshotState()
+  Br-->>Page: StateSnapshot
+  Page->>W: close()
+  Page->>Del: start(manifestUrl) — a second Worker
+  Page->>Br: start(WebStartPayload with restoredState)
+```
+
+**Diagram node definitions.** Every actor above, and what it is:
+
+- **Page (Kotlin/WebAssembly host)** — `DogwoodWebExperience`. Owns the tree, the bindings and the
+  composition, and holds the declaration it makes to the guest. It is the *only* participant that
+  knows the application's flags, routes and launch parameters.
+- **`WebDelivery`** — fetches the sidecar manifest, checks the payload's declared dictionary versions
+  **before** creating the Worker, and refuses outright if the client is behind. This is the pre-flight
+  check the mobile profile does not have; there, the render-time containment rules are the only line.
+- **`WorkerBridge`** — the envelope. Presents the same four host-to-guest calls and receives the same
+  guest-to-host calls as the Zipline boundary, over `postMessage`, with a correlation identifier
+  where a call has a reply.
+- **Worker (Kotlin/JavaScript guest)** — the real composition. A *new module* per code update, which
+  is why nothing survives one implicitly.
+- **`fetch` / `Date` / `console`** — what the Worker can answer without the host. `log`, `clock` and
+  `network` are answered here; `featureFlags`, `navigation` and `analytics` cannot be, and cross.
+- **`WebStartPayload`** — one message carrying entry point, launch parameters, feature flags, routes,
+  segment versions and (on a code update) the previous guest's state. Sent **before** the first
+  configuration, because that is what starts the composition.
+
+**Two consequences worth stating rather than deducing.** `network` on this profile is enforced by the
+page's Content Security Policy rather than by Dogwood's default-deny allow rule — weaker, and
+recorded as such in [ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md). And a code update is the
+only route by which a guest's `rememberSaveable` values reach its successor, because the successor
+is a different module in a different Worker.
+
 ### Live-State Holders
 
 Layer 4 forbids per-frame state in the guest. That invariant is stated as a prohibition, and this is its constructive half: what a guest gets *instead* of a holder it owns. The decision record is [ADR-014](../adrs/layer-5/ADR-014-live-state-holders.md); `LazyListState` is the first of roughly thirty.
