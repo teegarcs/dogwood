@@ -391,6 +391,14 @@ Three properties of that arrangement are load-bearing:
 
 A text field therefore carries **two holders with different conflict rules**: version-vectored text and a level-triggered focus target. Folding one into the other would mean a guest behind on the text could not focus the field.
 
+#### The fourth shape: a request that answers
+
+The three shapes above all run one way at a time — a target goes down, or a report comes up, and the two are independent. `SnackbarHostState` is the first thing a guest asks for **and waits on** ([ADR-051](../adrs/layer-5/ADR-051-a-holder-that-answers.md)): `showSnackbar` suspends, and what it returns decides what happens next. A user who tapped *Undo* gets their row back; a guest that ignored the answer has written a notification.
+
+It needs no new protocol. The request is ordinary properties; the reply is an ordinary event carrying **the sequence it is answering**, which is what turns a report into an answer and stops two requests in flight being confused. The suspension is guest-side — a deferred per request — so the boundary pays nothing for the wait.
+
+Two rules fall out of the correlation, and both exist because a snackbar resolves *later* than the guest moved on: a reply for a sequence nobody is waiting on is **dropped**, because resuming the newest request with an old one's answer would undo the wrong row; and a superseded request is answered as **dismissed** rather than left suspended, because that is what actually happened to it on screen.
+
 #### The third shape: a position over a continuous quantity
 
 `ScrollArea` is a container whose content scrolls and is **not** lazy, and it closes a capability gap rather than refining one — a guest could not scroll anything that was not a list, because `Column` fills and clips and `VerticalList` wants items. Its holder is the first that `LazyListState`'s shape genuinely does not fit ([ADR-044](../adrs/layer-5/ADR-044-scroll-position-is-a-declared-quantum.md)).

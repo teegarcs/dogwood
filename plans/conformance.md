@@ -152,6 +152,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D8 | A guest can move focus, and a code update neither loses it nor takes the keyboard back | S | ✅ both halves — guest and host binding |
 | D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S | ✅ both halves — guest and host binding |
 | D10 | A guest can drive and observe a list's position; a target for an item that does not exist yet waits rather than clamping | S | ✅ both halves — guest and host binding |
+| D11 | A guest can ask the host for something and **wait for the answer**; a reply carries the request it answers | S + C | ✅ S on three targets; C Android |
 
 ### H. Release control — surviving a bad publish
 
@@ -250,6 +251,7 @@ Last generated 2026-09-06, with the performance budgets graded:
 | I1 | ✅ | ✅ | ✅ | ✅ |
 | I2 | ✅ | ✅ | ✅ | ✅ |
 | I3 | ✅ | ✅ | ✅ | ✅ |
+| D11 | ✅ | ✅ | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
 | D2 | ✅ | n/a | ✅ | ✅ |
 | D3 | ✅ | n/a | ✅ | ✅ |
@@ -272,10 +274,10 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 46, skip 4
-- **desktop**: pass 33
-- **ios**: pass 47, skip 4
-- **web**: pass 40, skip 1
+- **android**: pass 47, skip 4
+- **desktop**: pass 34
+- **ios**: pass 48, skip 4
+- **web**: pass 41, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:

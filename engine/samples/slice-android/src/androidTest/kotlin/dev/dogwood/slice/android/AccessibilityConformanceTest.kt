@@ -54,6 +54,15 @@ private fun emit(line: String) {
 @RunWith(AndroidJUnit4::class)
 class AccessibilityConformanceTest {
 
+  /**
+   * A runaway guard, not a budget.
+   *
+   * High enough that it never decides an outcome -- `scrollForward()` returning false is what ends
+   * the loop on a real screen. It exists so a bug in scrolling cannot hang the drill forever.
+   */
+  private val MAX_SCROLLS = 40
+
+
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
   private val automation get() = instrumentation.uiAutomation
   private val device: UiDevice = UiDevice.getInstance(instrumentation)
@@ -109,7 +118,12 @@ class AccessibilityConformanceTest {
     val root = automation.rootInActiveWindow ?: return emptyList()
     val found = mutableListOf<AccessibilityNodeInfo>()
     fun walk(node: AccessibilityNodeInfo?, depth: Int) {
-      if (node == null || depth > 40 || found.size >= 400) return
+      // The cap is a runaway guard, not a budget, and it was too low to be one: the About screen
+      // grew a scrolling demonstration with two dozen rows in it, and a depth-first walk that stops
+      // at four hundred nodes stops *somewhere in the middle of the screen*. Everything after that
+      // point is invisible to every check in this file, which reads as a control being unreachable
+      // rather than as a walk being truncated.
+      if (node == null || depth > 40 || found.size >= 4_000) return
       found += node
       for (i in 0 until node.childCount) walk(node.getChild(i), depth + 1)
     }
@@ -294,8 +308,18 @@ class AccessibilityConformanceTest {
 
     // D5 -- the screen scrolls through the accessibility layer. Asserted before D4 because the
     // control D4 needs is below the fold, so reaching it is the evidence for D5.
+    //
+    // Scrolls until the target is found or the screen **stops moving**, rather than a fixed number
+    // of times. A fixed budget measures the sample's length instead of the claim: adding a section
+    // to the About screen pushed `Expand` past six scrolls and this reported "never reachable",
+    // which is a true sentence about the drill and a false one about the accessibility layer. The
+    // iOS drill met the same shape from the other direction, where a viewport boundary made a
+    // labelled control look anonymous.
+    //
+    // `scrollForward()` returning false is what "the screen stopped moving" means, so the loop
+    // still terminates on a screen with no `Expand` on it at all.
     var scrolls = 0
-    while (find("Expand") == null && scrolls < 6) {
+    while (find("Expand") == null && scrolls < MAX_SCROLLS) {
       if (!scrollForward()) break
       scrolls++
       Thread.sleep(500)
@@ -352,8 +376,41 @@ class AccessibilityConformanceTest {
    * `IllegalStateException: LayoutCoordinate operations are only valid when isAttached is true`.
    * A stale node is not an error to report; it is a snapshot that has expired.
    */
+  /**
+   * Scrolls the page, not whatever happens to be scrollable first.
+   *
+   * `firstOrNull { it.isScrollable }` was enough while the sample had one scrollable thing on it.
+   * It stopped being enough the moment a screen demonstrated a *nested* scrolling container: the
+   * drill scrolled the inner one to its end, `ACTION_SCROLL_FORWARD` returned false, and the loop
+   * concluded the screen had stopped moving. `D4` then reported "the Expand button was never
+   * reachable" — a true sentence about the drill and a false one about the accessibility layer.
+   *
+   * The largest scrollable is the page. That is what a user scrolls when they want to reach the
+   * bottom of a screen, and it is the only choice here that does not depend on traversal order.
+   */
   private fun scrollForward(): Boolean {
-    val scrollable = nodes().firstOrNull { it.isScrollable } ?: return false
-    return perform(scrollable, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+    // Largest first, because the largest scrollable is the page and that is what a user scrolls to
+    // reach the bottom of a screen. But *try them all*: an inner container that has reached its own
+    // end refuses the action, and a drill that took the first refusal as "the screen stopped
+    // moving" would report a control unreachable because something else on the screen was.
+    //
+    // That is not hypothetical. `firstOrNull { it.isScrollable }` was enough while the sample had
+    // one scrollable thing on it, and stopped being enough the moment a screen demonstrated a
+    // nested scrolling container: `D4` reported "the Expand button was never reachable", which is a
+    // true sentence about the drill and a false one about the accessibility layer.
+    // Retried, because "no scrollable right now" is not the same as "the screen stopped moving".
+    // `rootInActiveWindow` is momentarily null while a scroll is settling, and a single look that
+    // happened to land there would end the loop and report the control below as unreachable.
+    repeat(3) { attempt ->
+      val scrollables = nodes()
+        .filter { it.isScrollable }
+        .sortedByDescending { node ->
+          val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+          bounds.width().toLong() * bounds.height()
+        }
+      if (scrollables.any { perform(it, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) }) return true
+      if (attempt < 2) Thread.sleep(400)
+    }
+    return false
   }
 }
