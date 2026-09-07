@@ -81,6 +81,35 @@ Three of those deserve a sentence:
 `DogwoodShell` instead of a bare experience. It keeps a bounded number of them warm, restores their
 saved state, and evicts the rest.
 
+**On the web the shape is the same and the parts have different names**, because a Web Worker
+boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page
+declares what it knows in one value and the guest answers the rest itself.
+
+```kotlin
+val experience = DogwoodWebExperience(
+  environment,
+  report = { line -> console.log(line) },
+  services = WebStartPayload(
+    entryPoint = "home",
+    launchParams = buildJsonObject { put("apiBaseUrl", JsonPrimitive(window.location.origin)) },
+    featureFlags = yourFlags,
+    routes = yourRoutes,
+    segmentVersions = DogwoodDictionary.segmentVersions,
+  ),
+  onAnalytics = { event -> yourTelemetry.track(event.name, event.properties) },
+  onNavigate = { request -> yourRouter.go(request.route) },   // return whether you handled it
+)
+WebDelivery(DogwoodDictionary.segmentVersions).start("dogwood-manifest.json", experience)
+```
+
+Two things differ from mobile and both are worth knowing before you rely on them. **The client checks
+the payload's declared dictionary versions before creating the Worker**, so a payload that honestly
+declares itself newer is refused rather than degraded — the mobile hosts have no such pre-flight
+check. And **`network` is the browser's guarantee, not Dogwood's**: your guest calls `fetch` inside
+the page's origin, so set a `connect-src` Content Security Policy if you want the mobile allow-list's
+behaviour. To publish an update to a live page, call `experience.update(newBridge)`; it carries the
+running guest's saved state into its successor.
+
 ## 2. Your own components
 
 Dogwood's design system is not the point; **your** components are. You declare a *surface* — a file
