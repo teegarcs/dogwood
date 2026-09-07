@@ -12,6 +12,8 @@ grades them.
 | **S** | claims about code every client compiles, plus page weight | **every pull request**, `.github/workflows/conformance.yml` | a Java Development Kit and a browser |
 | **C** | accessibility, network policy, skew containment, timing budgets | **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device, Chrome, and the guest served on `:8080` |
 
+**The Android drills run against the minified release build** (`testBuildType = "release"`), so every Android cell is graded against what a user would install — R8 on, shrinking and optimization included. See ADR-056 for why the sample's keep rules exist and why an adopter needs none of them.
+
 Tier C is not in continuous integration because a hosted runner has none of what it needs. Wiring
 it in anyway would produce a green tick that means less than it appears to, which is the failure the
 conformance plan exists to avoid.

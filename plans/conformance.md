@@ -107,6 +107,11 @@ and it will read as green.
 Rows are the architecture's own promises, taken from the specifications rather than invented here.
 "Today" is the honest state as of 2026-09-04.
 
+**The Android column is graded against the minified release build.** Since 2026-09-07 the
+instrumented drills attach to the R8-shrunk APK (`testBuildType = "release"`), so every Android
+cell below is a claim about what a user would install, not about a debug build
+([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md)).
+
 ### A. Protocol and containment
 
 | ID | Claim | Tier | Today |

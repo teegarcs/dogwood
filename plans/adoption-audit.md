@@ -18,7 +18,17 @@ exercised even once — and this project's own history says the first run of any
 
 ## Part A — Verified blockers. Each of these has never been exercised, and this repository's record is that the first run of anything finds a defect
 
-### A1. The system has never been built with code shrinking enabled
+### A1. ✅ Closed — the drills now run against the minified build ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md))
+
+The finding held right up to the word "rules": the first minified run rendered, round-tripped and
+recorded skew with **zero Dogwood-specific keep rules**, because the reflective surfaces belong to
+Zipline and kotlinx-serialization, which carry their own. Everything that *did* break — nine
+failures, one per run — was the instrumentation harness meeting a shrunk app, each fix documented
+at the rule that makes it. `testBuildType = "release"` now points the whole instrumented suite at
+the shrunk APK permanently: `passed=19 failed=0` under R8, and continuous integration assembles the
+shrunk build on every pull request. Original finding kept below for the record.
+
+### A1 (original). The system has never been built with code shrinking enabled
 
 No module declares `consumerProguardFiles`, no rules file exists anywhere, and no sample sets
 `isMinifyEnabled`. **Every Android build this project has ever made is unminified.** Production
@@ -191,7 +201,7 @@ resolution, and the generated-source seams.
 
 | # | Item | Done means |
 |---|---|---|
-| 1 | **A1 — R8** | one sample builds and runs minified on a device; `consumer-rules.pro` ships in the artifacts so an adopter inherits the rules without knowing they exist; the minified build is a check |
+| 1 | ~~A1 — R8~~ ✅ | Done, and better than specified: the full instrumented suite runs against the minified build rather than a smoke check, and the verified finding is that an adopter needs **no** Dogwood-specific rules — so none ship, on evidence rather than neglect |
 | 2 | **A2 — the standalone product** | Umbra grows a guest payload and a host application, both against published artifacts only; `tools/standalone-check` serves the signed payload to the host and asserts a render, not a build |
 | 3 | **A3 — protection by default** | the guarded path is the default path in the engine, every sample rides it, and getting-started shows it |
 | 4 | **A4 — readable crashes** | a deliberate guest exception is thrown on a device and the stack that reaches the host is read before deciding what, if anything, to build — Zipline may already carry source context, and the claim goes whichever way the evidence does |

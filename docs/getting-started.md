@@ -119,6 +119,13 @@ the page's origin, so set a `connect-src` Content Security Policy if you want th
 behaviour. To publish an update to a live page, call `experience.update(newBridge)`; it carries the
 running guest's saved state into its successor.
 
+**Enable code shrinking; you need no Dogwood-specific rules.** That is a verified finding, not an
+assurance: the conformance drills run against the R8-minified build and pass with zero keep rules
+for the engine — its reflective surfaces belong to Zipline and kotlinx-serialization, which ship
+their own consumer rules ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md)).
+The keep rules you will find in the sample serve its *test harness*, not the engine; do not copy
+them into a product.
+
 ## 2. Your own components
 
 Dogwood's design system is not the point; **your** components are. You declare a *surface* — a file
