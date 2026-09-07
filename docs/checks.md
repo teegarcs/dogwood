@@ -88,13 +88,19 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21
 tools/standalone-check/run.sh
 ```
 
-Publishes Dogwood to the local repository and builds `samples-standalone/umbra`, which is a
-**separate Gradle build**: no `includeBuild`, no project dependency, no path into `engine/`. It
-resolves the plugin by identifier, the generator as a dependency and the runtime as artifacts.
+Publishes Dogwood to the local repository and runs `samples-standalone/umbra` — a **whole product**
+in a separate Gradle build: no `includeBuild`, no project dependency, no path into `engine/`. Since
+the adoption audit's A2 ([ADR-057](../adrs/layer-5/ADR-057-a-whole-product-outside-the-repository.md))
+its verdict is a **render, not a build**: Umbra's `:design` generates its segment, `:guest` compiles
+one screen against the published `dogwood-compose` and signs it, and `:app` fetches, verifies and
+renders it over the guarded delivery path — the check reads the render transcript for the payload's
+marker string, the product's own generated bindings, and a non-zero measured box. Its first run
+failed on the marker, which is how it earned belief.
 
-Not in continuous integration, because it publishes into the developer's own local repository, and a
-check that mutates a shared location on a build agent is a check that fails somebody else's build.
-Run it before a release, and after anything that touches publishing.
+Not in continuous integration, for two reasons now: it publishes into the developer's own local
+repository (a check that mutates a shared location on a build agent fails somebody else's build),
+and the render half opens a real window. Run it before a release, and after anything that touches
+publishing, the generator, or the delivery path.
 
 **It asserts four things a green build does not imply**, because a product's own implementations
 compile whether or not the generated bindings exist:
