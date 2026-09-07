@@ -267,7 +267,7 @@ What does not exist at all:
 |---|---|---|
 | **Getting started** | somebody adding Dogwood to an existing application | There is no supported way to consume it — the generator is an internal Gradle project (§1) |
 | **Authoring guide** | somebody writing screens | The rules are spread across `developer-experience.md` §5, Layer 1, and half a dozen ADRs |
-| **Operations guide** | whoever is on call | Nothing exists. See §4.2 — most of what it would document is not built |
+| ~~**Operations guide**~~ ✅ | whoever is on call | [`docs/operating.md`](../docs/operating.md). Written around what *is* built — the three protections that need no operator, the kill switch, the skew report — and §6 of it lists what does not exist, because a runbook describing a capability nobody built is worse than none |
 | **API reference** | everyone | The guest surface is generated, so this is generated too, and nothing generates it |
 
 `docs/checks.md` is the one operational document that exists, and it covers checks rather than
@@ -311,7 +311,7 @@ Sequenced by what unblocks the most, not by size.
 | 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
 | 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
 | 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
-| 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |
+| 8 | ~~Skew drill on iOS and web~~ ✅ done | `run-ios.sh` and `run-web.sh`, same five steps, read off each platform's accessibility tree. It found one host-integration defect per client ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)) |
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
 | 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
 

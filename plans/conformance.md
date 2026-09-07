@@ -112,9 +112,9 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | ID | Claim | Tier | Today |
 |---|---|---|---|
 | A1 | A batch applies whole or not at all; a rejected one leaves the previous tree drawing | S | ✅ `TransactionalApplyTest`, `WebTreeTransactionTest` |
-| A2 | An unknown widget tag becomes a placeholder and later indices in the batch stay correct | S + C | S ✅; C Android only |
-| A3 | An unknown property on a widget with no affordance is ignored and the widget renders | S + C | S ✅; C Android only |
-| A4 | An unknown property on a widget that owns an affordance withholds the widget | S + C | S ✅; C Android only |
+| A2 | An unknown widget tag becomes a placeholder and later indices in the batch stay correct | S + C | S ✅; C Android, iOS, web |
+| A3 | An unknown property on a widget with no affordance is ignored and the widget renders | S + C | S ✅; C Android, iOS, web |
+| A4 | An unknown property on a widget that owns an affordance withholds the widget | S + C | S ✅; C Android, iOS, web |
 | A5 | Out-of-range numeric values are clamped and reported, never thrown | S + C | S ✅; C Android + iOS |
 | A6 | An undecodable batch is rejected whole and reported | S | ✅ |
 | A7 | Node identity survives a code update, so `remember` is preserved | S | ✅ |
@@ -466,9 +466,20 @@ format is cheap; discovering it was wrong across four implementations is not.
    feeder, and `pipefail` calls that a failed pipeline; the arrival check said "not yet" against a
    file that plainly contained the marker, twice, before the pipe was removed altogether.
 
-   **Still open: `A2`–`A4` end-to-end on iOS and web.** Both now render through the same core, so
-   the shared tests cover the rules; what is missing is the two-build procedure on those clients,
-   which needs a skewed payload served to an already-installed binary.
+   **Closed on 2026-09-06: `A2`–`A4` end to end on iOS and web too.** `run-ios.sh` and
+   `run-web.sh` are the same five steps against the other two clients, reading the outcome off each
+   platform's accessibility tree — `uiautomator` has no equivalent on either. The web one also runs
+   `B3` against a genuinely newer payload rather than a hand-written manifest, which is a claim the
+   mobile clients cannot make at all: they have no pre-flight dictionary check, so their
+   render-time rules are the only containment they have. See
+   [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md).
+
+   **Each port found a defect on its first run, in host integration code no shared test covers.**
+   The web host provided none of the composition locals its bindings read, so `A4` passed while
+   `A4-reported` failed — every binding-recorded entry was landing in a throwaway `SkewReport` that
+   nothing reads. And iOS never registered the product design system, so Acme's three components
+   were inert placeholders on that client alone. This is the whole argument for a per-client tier
+   stated as a result rather than as a principle.
 8. ✅ **Budgets for the numeric harnesses.** `budgets.tsv` is where the roadmap's thresholds stop
    being prose: `from_phase0.py` reads the Phase 0 results and `from_web_weight.py` the page
    weight, and both emit verdicts. **The gate-validity rule is asymmetric, deliberately.** No host
@@ -521,12 +532,14 @@ ranks below everything above.)*
 
 ## Part 7 — Carried forward, not closed
 
-Four things, each recorded where somebody will meet it rather than left to be rediscovered.
+Three things, each recorded where somebody will meet it rather than left to be rediscovered.
 
-- **`A2`–`A4` end to end on iOS and web.** Both clients render through the same host core now, so
-  the shared tests cover the containment *rules*; what is missing is the two-build procedure — a
-  skewed payload served to an already-installed binary — on those two platforms. Android has it
-  (`tools/skew-drill`), and the shape is portable.
+- ~~**`A2`–`A4` end to end on iOS and web.**~~ Closed on 2026-09-06 by `run-ios.sh` and
+  `run-web.sh`, which found one host-integration defect each. See
+  [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md). What remains from it is
+  smaller and named here rather than dropped: **the web drill could run in continuous integration
+  and does not.** It needs no device — only Chrome and a two-stage Gradle build — and the workflow
+  grades tier S only.
 - **The performance budgets cannot be closed by any host that exists.** `G1`–`G4` read `SKIP`
   everywhere, correctly: the Phase 0 gate names a low-end 2022-tier Android device that this
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
