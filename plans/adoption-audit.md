@@ -178,6 +178,30 @@ formatting and plurals (group C); state across process death and code updates on
 (E1, A7); skew containment run end to end on three real clients; signing with rotation (B1/B2);
 and the documentation set, one quarter of which is generated so it cannot drift.
 
+## Part D — The plan to close it
+
+Adopted 2026-09-07, in the recommended order below. One constraint from the owner shapes A2: **a
+fully outside-the-repository exercise is not available, so the proof is a complete standalone
+sample that lives in this repository and is deliberately disconnected from the Dogwood source** —
+the `samples-standalone` pattern, extended from "a host module" to "a whole product": its own
+Gradle build, no `includeBuild`, no path into `engine/`, everything resolved from a repository. That
+is weaker than a genuinely external build in exactly one way (it shares a checkout) and equal in
+every way that has ever caught a defect here: publication metadata, module naming, plugin
+resolution, and the generated-source seams.
+
+| # | Item | Done means |
+|---|---|---|
+| 1 | **A1 — R8** | one sample builds and runs minified on a device; `consumer-rules.pro` ships in the artifacts so an adopter inherits the rules without knowing they exist; the minified build is a check |
+| 2 | **A2 — the standalone product** | Umbra grows a guest payload and a host application, both against published artifacts only; `tools/standalone-check` serves the signed payload to the host and asserts a render, not a build |
+| 3 | **A3 — protection by default** | the guarded path is the default path in the engine, every sample rides it, and getting-started shows it |
+| 4 | **A4 — readable crashes** | a deliberate guest exception is thrown on a device and the stack that reaches the host is read before deciding what, if anything, to build — Zipline may already carry source context, and the claim goes whichever way the evidence does |
+| 5 | **A6 — the version policy** | a supported-versions table in getting-started, and the over-the-air coupling stated rather than discovered |
+| 6 | **A5 — the runaway payload** | what the runtime offers is established from its actual sources, a bound is configured and reported like any other refusal, and a hostile payload drill watches it hold |
+| 7 | **B2 — the inner loop** | the payload development workflow documented with whatever watch/serve support actually exists, plus an author-facing screen-test recipe |
+
+B1 (catalogue), B3 (multi-payload) and B4 (iOS framework packaging) stay on this page as the first
+adopter's roadmap rather than becoming engine work now; each is product-scale.
+
 ## Recommended order
 
 By what unblocks adoption soonest per unit of work, and by this project's own heuristic that the
