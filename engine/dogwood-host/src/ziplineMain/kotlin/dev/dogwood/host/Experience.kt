@@ -307,35 +307,12 @@ fun DogwoodSurface(experience: DogwoodExperience, modifier: Modifier = Modifier)
   DogwoodTree(experience.tree, sink, modifier, evaluatorKey = experience, skew = experience.skew)
 }
 
-/**
- * Renders a host tree, with no Zipline instance in sight.
+/*
+ * `DogwoodTree` moved to `commonMain`.
  *
- * Split out from [DogwoodSurface] because the tree is the renderable thing and the experience is
- * only where this one came from. A host that gets its tree some other way -- a test, a preview, or
- * the Web profile, where the guest loads into the browser's own engine rather than through
- * `ZiplineLoader` -- renders it here without pretending to have a QuickJS instance.
- *
- * @param evaluatorKey what the expression cache's lifetime is tied to. The cache holds host
- *   objects built from one guest's recipes, so a new guest must not inherit the old one's.
+ * Its own documentation said it renders "a host tree, with no Zipline instance in sight" and named
+ * the Web profile as a caller, and it sat in the Zipline source set anyway -- which is exactly why
+ * no shared test could exercise a host binding on the web. `DogwoodSurface` above stays here,
+ * because it takes a `DogwoodExperience` and that genuinely is Zipline's.
  */
-@Composable
-fun DogwoodTree(
-  tree: HostTree,
-  events: EventSink,
-  modifier: Modifier = Modifier,
-  evaluatorKey: Any? = tree,
-  skew: SkewReport = androidx.compose.runtime.remember(evaluatorKey) { SkewReport() },
-) {
-  val evaluator = androidx.compose.runtime.remember(evaluatorKey, skew) { ExpressionEvaluator(skew) }
-  androidx.compose.runtime.CompositionLocalProvider(
-    LocalExpressionEvaluator provides evaluator,
-    LocalSkewReport provides skew,
-    // The same key the expression cache uses, for the same reason: it identifies one guest. A
-    // mirror that reports on change needs to know when the thing it reports *to* was replaced.
-    LocalGuestGeneration provides (evaluatorKey ?: tree),
-  ) {
-    androidx.compose.foundation.layout.Column(modifier) {
-      RenderChildren(tree.root, slot = 1, scope = LayoutScope(column = this), events = events)
-    }
-  }
-}
+

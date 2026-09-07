@@ -19,6 +19,12 @@ gradlePlugin {
       displayName = "Dogwood component generator"
       description = "Generates guest stubs and host bindings from a component surface"
     }
+    create("dogwoodGuest") {
+      id = "dev.dogwood.guest"
+      implementationClass = "dev.dogwood.codegen.gradle.DogwoodGuestPlugin"
+      displayName = "Dogwood guest authoring check"
+      description = "Rejects guest code that would tick the boundary every frame"
+    }
   }
 }
 

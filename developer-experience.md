@@ -223,6 +223,44 @@ a real deployment at a real repository is in
 
 ---
 
+## 4c. The Check That Says No
+
+Two families of Compose API are **rejected at build time**, and the reason is that neither of them
+fails on its own.
+
+```
+Dogwood: 1 forbidden call(s) in guest code.
+
+These compile and run. That is the problem: the guest has a working frame clock, so
+they would tick the boundary every frame and the screen would look correct.
+
+  src/…/FeedScreen.kt:60  animateFloatAsState — per-frame state in the guest: it ticks
+      the boundary every frame it animates
+      instead: Modifier.alpha(animate(target, spec)) — declare a target, the host runs the frames
+```
+
+**Animation state** — `animateFloatAsState`, `Animatable`, `updateTransition`,
+`rememberInfiniteTransition`, `withFrameNanos` and relatives. The guest *has* a working frame clock,
+so these compile, run, animate, and cross the boundary sixty times a second for as long as they are
+on screen. The screen looks right; the bill arrives months later as a battery complaint about a
+screen nobody changed. **The rejection is permanent**, and [ADR-020](adrs/layer-5/ADR-020-animation.md)
+is what makes that acceptable: declare a target and the host runs the frames, so a whole animation
+costs one crossing whatever its duration.
+
+**Resource loaders** — `painterResource`, `stringResource` and relatives. There is no file system in
+the sandbox, no stable host resource identifiers, and the payload ships months apart from the host.
+Name an image by URL and a string from a payload-carried table instead ([ADR-017](adrs/layer-5/ADR-017-resources-and-assets.md)).
+
+Apply it with `plugins { id("dev.dogwood.guest") }` on your guest module; it joins `check`.
+
+**It is best-effort and says so.** A call assembled at runtime or hidden behind an alias is
+invisible to it. It catches a directly-named API, which is the case that actually happens, and it is
+not a guarantee. It also does not fire on comments, strings, or your own similarly-named helper —
+half its tests are about that, because a check that rejects the comment explaining its own rule is a
+check that gets suppressed.
+
+---
+
 ## 5. Rules You Have to Follow
 
 Honest constraints, not fine print.

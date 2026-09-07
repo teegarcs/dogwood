@@ -181,7 +181,14 @@ class LazyListMirrorTest {
       // The content arrives.
       // `rowsFrom` leads with a comma, because it is normally appended after the header.
       tree.apply(decodePositional("[2,[${rowsFrom(3, 10).removePrefix(",")}]]"))
-      waitForIdle()
+
+      // `waitUntil`, not `waitForIdle`, and the difference is the whole point of this test. The
+      // target is *held* -- it waits on a `snapshotFlow` for the list to grow, then scrolls, then
+      // the viewport reports -- and that is several frames rather than one settled composition.
+      // A single `waitForIdle` passed on a development machine and failed on a slower continuous
+      // integration runner, which is the classic shape of a test that asserts a schedule instead
+      // of an outcome.
+      waitUntil("the held target never fired") { reports.last?.first == 7 }
 
       assertEquals(7, reports.last?.first, "the held target never fired: ${reports.all}")
       onNodeWithText("Row 8").assertIsDisplayed()

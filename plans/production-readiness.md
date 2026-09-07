@@ -160,7 +160,7 @@ a shared catalogue and grammar, per-client instruments.
 
 | Claim | What is actually asserted | Gap |
 |---|---|---|
-| `D8`, `D9`, `D10` (holders) | one Java Virtual Machine composition | `FocusManager.clearFocus()` and `Modifier.verticalScroll` are one call and three implementations. Running `runComposeUiTest` on the other targets is the instrument and is not wired up |
+| `D8`, `D9`, `D10` (holders) | a composition on **three** targets | ✅ Closed. Running them on iOS and in a browser found a hostile-value clamp that fires on the Java Virtual Machine and not on the web — see `conformance.md` Part 7 |
 | `A2`–`A4` (skew containment) | Android only, via `tools/skew-drill` | The two-build procedure — a skewed payload served to an installed binary — does not exist for iOS or web. The shape is portable |
 | `D1`–`D5`, `D7` (accessibility) | three real clients, three instruments | Sound. What no instrument covers is whether the *speech is good*, reading order as experienced, and typing and selection |
 | `F1`–`F4` (network policy) | mobile enforce; web is the browser's Content Security Policy | Recorded as **weaker on web, not equal** — correct, and a product should know it |
@@ -218,10 +218,10 @@ exists; the machinery to operate one does not.**
   deployment needs a content delivery network, cache headers that match the manifest's immutability,
   and — per [ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md) —
   `Content-Encoding: br`, whose absence silently costs 27%.
-- **No authoring checker.** [Layer 1](../specs/layer-1-authoring.md) requires a checker that
-  **rejects** guest code using per-frame animation APIs, "because the failure mode of not rejecting
-  them is silent". A guest author can today write `animateFloatAsState` and get code that ticks the
-  boundary every frame.
+- ✅ **The authoring check exists** ([ADR-050](../adrs/layer-5/ADR-050-the-authoring-check.md)).
+  `dev.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
+  `check`, and names the replacement for each. Best-effort by construction, as Layer 1 always said:
+  it catches a directly-named API and not one assembled at runtime. Capability group **I**.
 
 ---
 
@@ -300,8 +300,8 @@ Sequenced by what unblocks the most, not by size.
 | 2 | ~~The real guest on web~~ ✅ done | Closed. What remains of it is the Worker service surface, launch parameters and segment versions — smaller, and listed in §2.1 |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
-| 5 | **The authoring checker** (§4.2) | Cheap, and it prevents the one class of guest code this architecture cannot absorb |
-| 6 | **Host tests on the other targets** (§3) | A build-configuration change that upgrades three claims from inference to assertion |
+| 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
+| 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
 | 7 | **The holders a product hits early** (§2.2) | `SnackbarHostState` first, because it is the one unproven shape |
 | 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
