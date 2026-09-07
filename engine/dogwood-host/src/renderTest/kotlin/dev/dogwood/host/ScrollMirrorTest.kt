@@ -36,6 +36,21 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * How long an outcome may take to arrive.
+ *
+ * Compose's default is one second, which is a development machine's second. These waits are on
+ * outcomes that take several frames -- a held target that waits for a list to grow, an animated
+ * scroll settling, a guest being answered -- and a two-processor continuous-integration runner
+ * under load does not have the same second. `aTargetForAnItemThatDoesNotExistYetWaits...` timed out
+ * there while passing everywhere else, which is the shape of a threshold rather than of a defect.
+ *
+ * Generous rather than tuned: a wait that ends when the outcome arrives costs nothing extra by
+ * being allowed to wait longer, and a test that fails for want of a second teaches a team to rerun
+ * the build rather than to read it.
+ */
+private const val WAIT = 10_000L
+
 private val SCROLL_AREA = widgetTag(1, 15).value
 private val TEXT = DogwoodDictionary.Text.value
 
@@ -138,7 +153,7 @@ class ScrollMirrorTest {
     // second half is the one that matters: "Row 1 is gone" is also what a broken container looks
     // like.
     scrolling(tree(targetDp = 200, sequence = 1)) { reports ->
-      waitUntil("the container never moved") { reports.last?.offsetDp == 200 }
+      waitUntil("the container never moved", timeoutMillis = WAIT) { reports.last?.offsetDp == 200 }
       // Not `fetchSemanticsNodes().size`: this container is **not lazy**, so every row is composed
       // and present in the semantics tree whether or not it is on screen. What moved is what is
       // *displayed*, which is the assertion this test means to make.
@@ -151,7 +166,7 @@ class ScrollMirrorTest {
   @Test
   fun aTargetPastTheEndSettlesAtTheEndRatherThanThrowing() = run {
     scrolling(tree(targetDp = 100_000, sequence = 1)) { reports ->
-      waitUntil("never settled at the end") { reports.last?.offsetDp == expectedMaxDp }
+      waitUntil("never settled at the end", timeoutMillis = WAIT) { reports.last?.offsetDp == expectedMaxDp }
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
       assertEquals(expectedMaxDp, reports.last?.maxOffsetDp)
     }
@@ -164,7 +179,7 @@ class ScrollMirrorTest {
     scrolling(tree(targetDp = -1, sequence = 1)) { reports ->
       // A held target: the sentinel waits for a layout before it can resolve, which is several
       // frames rather than one settled composition.
-      waitUntil("the end sentinel never resolved") { reports.last?.offsetDp == expectedMaxDp }
+      waitUntil("the end sentinel never resolved", timeoutMillis = WAIT) { reports.last?.offsetDp == expectedMaxDp }
       onNodeWithText("Row $ROWS").assertIsDisplayed()
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
     }
@@ -176,7 +191,7 @@ class ScrollMirrorTest {
     // value between two of them -- that is what "the guest declares the quantum" means, as opposed
     // to "the host reports whenever it feels like it".
     scrolling(tree(targetDp = 130, sequence = 1)) { reports ->
-      waitUntil("the target never landed") { reports.last?.offsetDp == 120 }
+      waitUntil("the target never landed", timeoutMillis = WAIT) { reports.last?.offsetDp == 120 }
       val offending = reports.offsets.filter {
         it % QUANTUM_DP != 0 && it != 0 && it != expectedMaxDp
       }
@@ -194,7 +209,7 @@ class ScrollMirrorTest {
     val quantum = 36
     assertTrue(expectedMaxDp % quantum != 0, "this test needs a maximum the quantum does not divide")
     scrolling(tree(targetDp = -1, sequence = 1, quantumDp = quantum)) { reports ->
-      waitUntil("the end was never reported exactly") { reports.last?.offsetDp == expectedMaxDp }
+      waitUntil("the end was never reported exactly", timeoutMillis = WAIT) { reports.last?.offsetDp == expectedMaxDp }
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
     }
   }
@@ -249,7 +264,7 @@ class ScrollMirrorTest {
       assertTrue(beforeUpdate > 0, "nothing was reported at all")
 
       generation = "second"
-      waitUntil("a replacement guest was told nothing") { reports.all.size > beforeUpdate }
+      waitUntil("a replacement guest was told nothing", timeoutMillis = WAIT) { reports.all.size > beforeUpdate }
 
       val afterUpdate = reports.all.drop(beforeUpdate)
       assertTrue(

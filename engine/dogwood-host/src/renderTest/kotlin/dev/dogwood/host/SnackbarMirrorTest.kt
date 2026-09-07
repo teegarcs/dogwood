@@ -29,6 +29,21 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * How long an outcome may take to arrive.
+ *
+ * Compose's default is one second, which is a development machine's second. These waits are on
+ * outcomes that take several frames -- a held target that waits for a list to grow, an animated
+ * scroll settling, a guest being answered -- and a two-processor continuous-integration runner
+ * under load does not have the same second. `aTargetForAnItemThatDoesNotExistYetWaits...` timed out
+ * there while passing everywhere else, which is the shape of a threshold rather than of a defect.
+ *
+ * Generous rather than tuned: a wait that ends when the outcome arrives costs nothing extra by
+ * being allowed to wait longer, and a test that fails for want of a second teaches a team to rerun
+ * the build rather than to read it.
+ */
+private const val WAIT = 10_000L
+
 private val SNACKBAR_AREA = widgetTag(1, 16).value
 private val TEXT = DogwoodDictionary.Text.value
 
@@ -86,7 +101,7 @@ class SnackbarMirrorTest {
   @Test
   fun aRequestShowsTheMessage() = run {
     show(tree("Deleted")) {
-      waitUntil("the snackbar never appeared") {
+      waitUntil("the snackbar never appeared", timeoutMillis = WAIT) {
         onAllNodesWithText("Deleted").fetchSemanticsNodes().isNotEmpty()
       }
       onNodeWithText("Deleted").assertIsDisplayed()
@@ -98,11 +113,11 @@ class SnackbarMirrorTest {
     // The whole reason a snackbar is not a notification: what the user did decides what the guest
     // does next, and the guest is waiting to be told.
     show(tree("Deleted", actionLabel = "Undo")) {
-      waitUntil("the action never appeared") {
+      waitUntil("the action never appeared", timeoutMillis = WAIT) {
         onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty()
       }
       onNodeWithText("Undo").performClick()
-      waitUntil("the guest was never answered") { answers.isNotEmpty() }
+      waitUntil("the guest was never answered", timeoutMillis = WAIT) { answers.isNotEmpty() }
 
       assertEquals(Answer(sequence = 1, actionPerformed = true), answers.single())
     }
@@ -113,11 +128,11 @@ class SnackbarMirrorTest {
     // Not the current sequence: by the time a snackbar resolves the guest may have asked again,
     // and answering the new request with the old one's outcome would undo the wrong row.
     show(tree("Deleted", actionLabel = "Undo", sequence = 7)) {
-      waitUntil("the action never appeared") {
+      waitUntil("the action never appeared", timeoutMillis = WAIT) {
         onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty()
       }
       onNodeWithText("Undo").performClick()
-      waitUntil("the guest was never answered") { answers.isNotEmpty() }
+      waitUntil("the guest was never answered", timeoutMillis = WAIT) { answers.isNotEmpty() }
 
       assertEquals(7, answers.single().sequence)
     }

@@ -36,6 +36,21 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * How long an outcome may take to arrive.
+ *
+ * Compose's default is one second, which is a development machine's second. These waits are on
+ * outcomes that take several frames -- a held target that waits for a list to grow, an animated
+ * scroll settling, a guest being answered -- and a two-processor continuous-integration runner
+ * under load does not have the same second. `aTargetForAnItemThatDoesNotExistYetWaits...` timed out
+ * there while passing everywhere else, which is the shape of a threshold rather than of a defect.
+ *
+ * Generous rather than tuned: a wait that ends when the outcome arrives costs nothing extra by
+ * being allowed to wait longer, and a test that fails for want of a second teaches a team to rerun
+ * the build rather than to read it.
+ */
+private const val WAIT = 10_000L
+
 private val VERTICAL_LIST = DogwoodDictionary.VerticalList.value
 private val TEXT = DogwoodDictionary.Text.value
 
@@ -188,7 +203,7 @@ class LazyListMirrorTest {
       // A single `waitForIdle` passed on a development machine and failed on a slower continuous
       // integration runner, which is the classic shape of a test that asserts a schedule instead
       // of an outcome.
-      waitUntil("the held target never fired") { reports.last?.first == 7 }
+      waitUntil("the held target never fired", timeoutMillis = WAIT) { reports.last?.first == 7 }
 
       assertEquals(7, reports.last?.first, "the held target never fired: ${reports.all}")
       onNodeWithText("Row 8").assertIsDisplayed()
