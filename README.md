@@ -78,6 +78,7 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`roadmap.md`](roadmap.md) | The phased delivery plan, gates, and what would stop the project. **Phases 0–7 are closed.** |
 | [`plans/production-readiness.md`](plans/production-readiness.md) | **What remains before a product can ship on this**, sequenced. The engine works; this is the difference between that and a product. |
 | [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
+| [`docs/`](docs/) | **The manuals.** [Getting started](docs/getting-started.md) for adding Dogwood to an application, [authoring](docs/authoring.md) for writing screens, [operating](docs/operating.md) for whoever is on call, and a [component reference](docs/api/) generated from the surface. |
 | [`docs/checks.md`](docs/checks.md) | Every check this repository runs, what each proves, and when it fails. |
 | [`developer-experience.md`](developer-experience.md) | What this is like to use, with worked example code. |
 | [`specs/`](specs/) | One deep-dive specification per layer. |

@@ -265,10 +265,10 @@ What does not exist at all:
 
 | Document | For whom | Why it is missing today |
 |---|---|---|
-| **Getting started** | somebody adding Dogwood to an existing application | There is no supported way to consume it — the generator is an internal Gradle project (§1) |
-| **Authoring guide** | somebody writing screens | The rules are spread across `developer-experience.md` §5, Layer 1, and half a dozen ADRs |
+| ~~**Getting started**~~ ✅ | somebody adding Dogwood to an existing application | [`docs/getting-started.md`](../docs/getting-started.md). Consumable since item 1: the plugin publishes and `samples-standalone/umbra` builds against it with no path into this repository |
+| ~~**Authoring guide**~~ ✅ | somebody writing screens | [`docs/authoring.md`](../docs/authoring.md). Each rule with the reason it exists, because a rule whose reason is missing gets worked around |
 | ~~**Operations guide**~~ ✅ | whoever is on call | [`docs/operating.md`](../docs/operating.md). Written around what *is* built — the three protections that need no operator, the kill switch, the skew report — and §6 of it lists what does not exist, because a runbook describing a capability nobody built is worse than none |
-| **API reference** | everyone | The guest surface is generated, so this is generated too, and nothing generates it |
+| ~~**API reference**~~ ✅ | everyone | [`docs/api/`](../docs/api/), emitted by the generator from the same parse as the bindings. A product asks for its own with one line — `referenceFile.set(...)` — and `tools/standalone-check` asserts one is produced outside this repository |
 
 `docs/checks.md` is the one operational document that exists, and it covers checks rather than
 operation.
@@ -313,7 +313,7 @@ Sequenced by what unblocks the most, not by size.
 | 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
 | 8 | ~~Skew drill on iOS and web~~ ✅ done | `run-ios.sh` and `run-web.sh`, same five steps, read off each platform's accessibility tree. It found one host-integration defect per client ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)) |
 | 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
-| 10 | **The four documents** (§4b) | Getting-started and the authoring guide are worth writing the day §1 lands, because that is when somebody outside this repository first tries to use it |
+| 10 | ~~The four documents~~ ✅ done | Getting started, authoring, operating, and a **generated** component reference. The first three are in `docs/`; the fourth is emitted by the generator, because a hand-written page about the components is a fifth thing that can disagree with the surface |
 
 **Both of the items that changed what the project *is* are closed.** A product can declare its own
 components, a build outside this repository can consume the whole thing, and the real guest runs on
