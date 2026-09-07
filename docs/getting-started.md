@@ -99,7 +99,16 @@ val experience = DogwoodWebExperience(
   onAnalytics = { event -> yourTelemetry.track(event.name, event.properties) },
   onNavigate = { request -> yourRouter.go(request.route) },   // return whether you handled it
 )
-WebDelivery(DogwoodDictionary.segmentVersions).start("dogwood-manifest.json", experience)
+// `start` is suspending — it fetches the manifest and checks it before any guest code runs.
+scope.launch {
+  val delivery = WebDelivery(DogwoodDictionary.segmentVersions) { refusal ->
+    console.log("delivery refused: ${refusal.message}")
+  }
+  when (val outcome = delivery.start("dogwood-manifest.json", experience)) {
+    is DeliveryOutcome.Started -> experience.attach(outcome.bridge)
+    is DeliveryOutcome.Refused -> Unit   // nothing was created; the page shows its own screen
+  }
+}
 ```
 
 Two things differ from mobile and both are worth knowing before you rely on them. **The client checks
