@@ -92,7 +92,19 @@ first bad publish — the one moment the mechanism exists for.
 `DogwoodShell`) so the protected path is the default path, wire it in the remaining samples, and
 put it in getting-started §1.
 
-### A4. A production crash in a payload cannot be read
+### A4. ✅ Closed — and the probe found the crash was not merely unreadable but unobservable ([ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md))
+
+Run before built, as the plan required, and the evidence went both ways. Worse than the finding: a
+crash in a guest effect never reached the host at all (no exception handler on the composition's
+scope), and the host's `{ throw it }` default boomeranged anything that did arrive back into the
+sandbox — a Zipline service dispatch returns a handler's throw to the *guest*. Better than the
+finding: Zipline applies source maps at build time, so once routed, frames name real Kotlin files
+from the payload with nothing to deploy. Both fixed, pinned by `GuestCrashRoutingTest` with a
+control, re-verified on the production pipeline. Attribution is file-level (functions minified,
+no line numbers); the web Worker path carries a message rather than a stack and stays open here.
+Original finding kept below.
+
+### A4 (original). A production crash in a payload cannot be read
 
 The payload ships as minified JavaScript, no build produces or preserves source maps, and no
 mapping is published anywhere a crash reporter could use. `handleUncaughtException` hands the host
@@ -223,7 +235,7 @@ resolution, and the generated-source seams.
 | 1 | ~~A1 — R8~~ ✅ | Done, and better than specified: the full instrumented suite runs against the minified build rather than a smoke check, and the verified finding is that an adopter needs **no** Dogwood-specific rules — so none ship, on evidence rather than neglect |
 | 2 | ~~A2 — the standalone product~~ ✅ | Done as specified, and the first guest compilation outside the repository found a real generator defect (a `(Int) -> Unit` callback rejected as lazy-layout machinery) — the audit's reasoning, confirmed by the build |
 | 3 | ~~A3 — protection by default~~ ✅ | Done: the parameters lost their defaults, every Zipline host rides the guarded path, and the worked example copies the protection with it. The web host is the recorded remainder |
-| 4 | **A4 — readable crashes** | a deliberate guest exception is thrown on a device and the stack that reaches the host is read before deciding what, if anything, to build — Zipline may already carry source context, and the claim goes whichever way the evidence does |
+| 4 | ~~A4 — readable crashes~~ ✅ | The claim went both ways: crashes were *unobservable* (no scope handler; a rethrowing default that returned the crash to the sandbox), and once routed, Zipline's built-in source maps give file-level Kotlin attribution with nothing to deploy. Web Worker path stays open |
 | 5 | **A6 — the version policy** | a supported-versions table in getting-started, and the over-the-air coupling stated rather than discovered |
 | 6 | **A5 — the runaway payload** | what the runtime offers is established from its actual sources, a bound is configured and reported like any other refusal, and a hostile payload drill watches it hold |
 | 7 | **B2 — the inner loop** | the payload development workflow documented with whatever watch/serve support actually exists, plus an author-facing screen-test recipe |

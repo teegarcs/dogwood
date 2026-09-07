@@ -112,6 +112,31 @@ button that does nothing, and no record anywhere that it happened.
 
 ---
 
+## 4b. Reading a guest crash
+
+A payload crash reaches your host through one channel — the `onGuestException` callback on the
+experience — and what arrives is worth routing to your crash reporter: Zipline applies source maps
+at build time, so the frames name **real Kotlin files from the payload**, with nothing to deploy
+alongside it.
+
+```
+app.cash.zipline.ZiplineException: IllegalStateException: ...
+    at os (dev/dogwood/slice/ExploreScreen.kt)
+    at Ye (dev/dogwood/slice/ExploreScreen.kt)
+```
+
+Three things to know, each learned by crashing a guest on purpose
+([ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md)):
+
+- **Attribution is file-level.** Function names stay minified and line numbers do not survive the
+  size-optimized build. One screen per file — the shape the authoring guide encourages — makes a
+  file name enough to start.
+- **Do not throw from the handler.** It runs inside a Zipline service dispatch, and a throw there is
+  returned to the *guest* as the call's failure — your process never sees it, and the crash
+  vanishes. The default prints; replace it with your pipeline, not with a rethrow.
+- **The web is different.** Its Worker path carries an error *message*, not a stack; crash
+  readability there is an open item on the audit's page.
+
 ## 5. Publishing
 
 There is no publish pipeline in this repository, and that is a real gap rather than an omission from
