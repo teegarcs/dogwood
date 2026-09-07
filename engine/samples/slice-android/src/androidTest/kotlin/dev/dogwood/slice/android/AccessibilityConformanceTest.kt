@@ -277,6 +277,31 @@ class AccessibilityConformanceTest {
       "looked for \"Diagnostics\" among ${labels().size} announcements",
     )
 
+    // J1 and J3 -- the host's services reached the guest.
+    //
+    // Graded here rather than in a drill of its own because this is already the Diagnostics screen
+    // and these announcements are already in hand; a separate drill would be a second copy of the
+    // tree walk to assert on strings this one has collected. They are graded at all because the
+    // capability existed on this platform since Phase 4 and nothing ever checked it -- the only
+    // client where a machine did was the web, which had none of it until 2026-09-07.
+    //
+    // The clock is the one with an observable value: a millisecond count the guest could not have
+    // invented, and which reads `host clock unavailable` when no clock crossed.
+    conform(
+      "J1",
+      labels().any { it.startsWith("host clock ") && it.last().isDigit() } &&
+        labels().any { it.startsWith("time zone ") && it.contains("/") },
+      labels().filter { it.startsWith("host clock") || it.startsWith("time zone") }.toString(),
+    )
+
+    // What a guest branches on to decide what it may use. An empty map renders as `unreported`.
+    val revision = labels().firstOrNull { it.startsWith("surface revision ") }
+    conform(
+      "J3",
+      revision != null && !revision.contains("unreported"),
+      revision ?: "no surface revision line on screen",
+    )
+
     // D2 -- no anonymous elements. A node a screen reader stops on with nothing to announce is
     // reachable, focusable and silent.
     val anonymous = visible.filter { it.spokenLabel().isEmpty() && isWhollyVisible(it) }

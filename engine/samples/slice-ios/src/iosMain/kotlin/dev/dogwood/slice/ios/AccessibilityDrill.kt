@@ -223,6 +223,40 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   )
 
   // ------------------------------------------------------------------------------------------
+  // 1b. The host's services reached the guest -- conformance group J.
+  // ------------------------------------------------------------------------------------------
+  //
+  // Graded here rather than in a drill of its own, and the reason is the walk: this screen is the
+  // Diagnostics screen and these labels are already in hand. A separate drill would be a second
+  // copy of the accessibility walker and a second launch of the application to assert on strings
+  // this one has already collected.
+  //
+  // They are graded at all because the capability was never graded anywhere. It has existed on this
+  // platform since Phase 4 and the only client where a machine checked it was the web, which had
+  // none of it until 2026-09-07 -- an inversion `plans/conformance.md` had to write down. This is
+  // half of closing it.
+  //
+  // The clock is the one with an observable value: a millisecond count the guest could not have
+  // invented, and which reads `host clock unavailable` when no clock crossed.
+  checks.check(
+    "J1",
+    "the services this host wired reached the guest",
+    labels.any { it.startsWith("host clock ") && it.last().isDigit() } &&
+      labels.any { it.startsWith("time zone ") && it.contains("/") },
+    labels.filter { it.startsWith("host clock") || it.startsWith("time zone") }.toString(),
+  )
+
+  // What a guest branches on to decide what it may use. An empty map renders as `unreported`, and a
+  // client that reports nothing is a client every guest must assume is empty.
+  val revision = labels.firstOrNull { it.startsWith("surface revision ") }
+  checks.check(
+    "J3",
+    "the dictionary versions this client implements reached the guest",
+    revision != null && !revision.contains("unreported"),
+    revision ?: "no surface revision line on screen",
+  )
+
+  // ------------------------------------------------------------------------------------------
   // 2. Controls are exposed AS controls, not as text.
   // ------------------------------------------------------------------------------------------
   //

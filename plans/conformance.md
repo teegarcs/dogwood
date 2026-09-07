@@ -189,9 +189,9 @@ ran them blind.
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| J1 | The services a host wired reach the guest, and the guest can read them | C | ✅ web |
+| J1 | The services a host wired reach the guest, and the guest can read them | C | ✅ Android, iOS, web |
 | J2 | Launch parameters reach the experience **the host named** | C | ✅ web |
-| J3 | The dictionary versions this client implements reach the guest | C | ✅ web |
+| J3 | The dictionary versions this client implements reach the guest | C | ✅ Android, iOS, web |
 | J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ web |
 | J5 | Host and guest read **one** declaration of the start payload, not two | S | ✅ `WorkerPayloadTest` |
 
@@ -203,11 +203,16 @@ It does now, with `restoredState` riding the same message; the drill moves off t
 publishes, and asserts the screen comes back where the user left it. Watched to fail with the
 restore removed.
 
-**The mobile cells are an evidence gap, not a capability gap, and the distinction matters both
-ways.** Android and iOS have had these services since Phase 4 and the samples demonstrably use them
-— the Diagnostics screen shows a real clock on a device. What no drill does is *assert* it, so the
-table says `—` rather than borrowing the web's tick. The inversion is uncomfortable and it is the
-truth: the client that had none of this six hours ago is the only one where a machine checks.
+**`J1` and `J3` are graded on all three shipping clients**, and on Android and iOS by the drill that
+already had the Diagnostics screen and the tree walk in hand — a separate drill would have been a
+second copy of both to assert on strings the first had already collected. Each reads a real
+millisecond count off the screen, which is the value a guest could not have invented and which shows
+as `host clock unavailable` when nothing crossed.
+
+**`J2` and `J4` remain web-only, and that is an evidence gap rather than a capability gap.** Android
+and iOS pass launch parameters through `DogwoodShell.activate` and have done since Phase 4; nothing
+asserts it, so the table says `—` rather than borrowing the web's tick. Closing them means driving a
+second entry point in each mobile drill, which is a bigger change to those drills than this one was.
 
 `J5` is the one that is not about a platform. The host half of the web boundary is
 Kotlin/WebAssembly and the guest half is Kotlin/JavaScript; they do not link, so the envelope's
