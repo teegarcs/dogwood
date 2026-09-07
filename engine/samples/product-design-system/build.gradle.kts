@@ -27,6 +27,20 @@ kotlin {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
   }
+  /*
+   * The web, and the reason it is here is a finding rather than a plan.
+   *
+   * The first run of the real Kotlin guest in a Worker composed the whole About screen and reported
+   * Acme's three components as `Unknown#33554433`. That is correct behaviour -- a widget tag no
+   * registered segment binds is an inert placeholder, reported as skew -- and it is the right
+   * failure for the wrong reason: the host had not failed to register Acme, it had no Acme to
+   * register, because this module targeted the Java Virtual Machine and Android only.
+   *
+   * **A product's design system has to target every platform its hosts run on.** That is obvious
+   * once stated and was invisible while every host was a Java Virtual Machine one.
+   */
+  @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+  wasmJs { browser() }
 
   sourceSets {
     commonMain {

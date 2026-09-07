@@ -116,6 +116,12 @@ private fun manifestParameter(): String =
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun main() {
+  // Acme's design system, registered before anything renders — the same one call the Android host
+  // makes in `Application.onCreate`. Without it a product's components arrive as inert
+  // placeholders and are reported as skew, which is what the first run of the real Kotlin guest
+  // showed: correct behaviour, and the wrong reason.
+  dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
+
   // -----------------------------------------------------------------------------------------
   // 1. The correctness gate, before anything else.
   //
@@ -231,7 +237,14 @@ private suspend fun awaitBatches(experience: DogwoodWebExperience, count: Int): 
 
 /** The first `Row` the guest marked as carrying a handler, which is where a tap would land. */
 private fun findClickableRow(node: WidgetView): WidgetView? {
+  // Two shapes, because there are two guests and the harness must not be written for one of them.
+  //
+  // The hand-written JavaScript guest builds a clickable `Row`. The real Kotlin guest composes the
+  // sample's About screen, which has no such row and a great many buttons -- so this looked for a
+  // shape only one guest produced and reported "the event path was not exercised", which is true
+  // and reads like an absence of buttons rather than an absence of *rows*.
   if (node.tag.value == DogwoodDictionary.Row.value && node.boolean(1, false)) return node
+  if (node.tag.value == PRIMARY_BUTTON && node.boolean(2, true)) return node
   for (slot in 1..2) {
     for (child in node.children(slot)) {
       findClickableRow(child)?.let { return it }
@@ -239,6 +252,16 @@ private fun findClickableRow(node: WidgetView): WidgetView? {
   }
   return null
 }
+
+/**
+ * `PrimaryButton`, whose `onClick` is event tag 1 exactly as a clickable `Row`'s is.
+ *
+ * Named by tag rather than imported, because this page links `dogwood-host`'s core and the
+ * design-system dictionary is generated -- and a page that hard-codes a *number* would be the kind
+ * of hand-maintained copy the generator exists to remove. This is a test harness reaching for one
+ * widget, and it says which.
+ */
+private val PRIMARY_BUTTON = dev.dogwood.protocol.widgetTag(1, 1).value
 
 /**
  * The time to the first frame Compose produced, which is the figure ADR-030 says actually decides

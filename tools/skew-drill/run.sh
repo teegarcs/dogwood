@@ -44,7 +44,7 @@ curl -fs -m 5 http://localhost:8080/manifest.zipline.json >/dev/null 2>&1 || {
   echo "the guest is not being served on :8080 --" >&2
   echo "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline" >&2; exit 2; }
 
-ABOUT="samples/slice-guest/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
+ABOUT="samples/slice-screens/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
 TOUCHED=("$SURFACE" "$LOCK" "$CODEGEN" "$ABOUT")
 
 # Saved before anything is patched, and restored from these copies rather than from git. The
