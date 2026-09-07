@@ -99,9 +99,16 @@ kinds worth alerting on, in rough order of seriousness:
 | `UNKNOWN_WIDGET` | a payload used a component this client does not have |
 | `CLAMPED_VALUE` | a payload sent a value out of range; the screen survived because it was clamped |
 | `REFUSED_IMAGE` | an image origin your policy does not allow |
+| `UNKNOWN_ROUTE` | a payload asked to navigate somewhere this client does not handle. The host stayed where it was, and a control did nothing |
 
 The first two are pages. The rest are usually a design-system update that reached payloads before it
 reached devices, which is ordinary and worth a dashboard rather than a page.
+
+**`UNKNOWN_ROUTE` needs one line from you on mobile and nothing on the web.** A navigation service is
+built by your application before any experience exists, so the engine never sees the call and cannot
+record it; your `onUnknownRoute` callback is the only place that can. The Android sample does it in
+one line and is the reference. Without it a payload asking for a destination you removed produces a
+button that does nothing, and no record anywhere that it happened.
 
 ---
 
