@@ -151,7 +151,58 @@ The rule that costs nothing to follow now and cannot be retrofitted:
   fatal, and every containment is reported — [operating](operating.md) §4 is how a team sees that
   its payloads have moved ahead of its devices, and it is worth wiring before you need it.
 
-## 8. What is not there
+## 8. The loop you live in
+
+Both halves of a fast inner loop exist; neither was documented until the adoption audit asked.
+
+**Live reload, with your state carried across.** Serve the *development* payload continuously:
+
+```
+./gradlew --continuous :your-guest:serveDevelopmentWebpackZipline
+```
+
+`--continuous` rebuilds on every save, the development bundle skips the size optimizer, and any
+running host does the rest on its own: the shell polls the manifest every five seconds and swaps in
+the new guest **carrying your `rememberSaveable` state with it** — the same machinery as a
+production code update (claim `A7`), which is why editing a screen you are three taps deep into
+puts you back three taps deep into the new code. Nothing to install, nothing to wire; it is the
+default behaviour of every shell host pointed at the serve task's port.
+
+**Testing a screen without a host.** Your screens are functions from state to a tree, and the tree
+crosses as data — so a screen test is: compose against a fake host, pump one frame, decode what
+crossed with the real decoder. All three pieces are public:
+
+```kotlin
+class RecordingHost : DogwoodHost {
+  val batches = mutableListOf<String>()
+  override fun sendChanges(positionalBatch: String) { batches += positionalBatch }
+  override fun requestFrame() = Unit
+  override fun onUnknownEvent(widgetTag: WidgetTag, tag: EventTag) = Unit
+  override fun onUnknownEventNode(id: Id, tag: EventTag) = Unit
+  override fun handleUncaughtException(exception: Throwable) = throw exception  // fine in a test
+  override fun close() = Unit
+}
+
+@Test fun theHeadingRenders() {
+  val host = RecordingHost()
+  val composition = DogwoodComposition(
+    host = host, initialConfiguration = HostEnvironment(),
+    segmentVersions = emptyMap(), restoredState = null,
+    services = HostServices.None, launchParams = JsonNull,
+    content = { CheckoutScreen() },
+  )
+  composition.frame(0L)                                   // effects run on the frame after composition
+  val batch = decodePositional(host.batches.first())      // the REAL decoder, from dogwood-protocol
+  // assert on the changes: which widgets were created, what properties crossed
+  composition.dispose()
+}
+```
+
+What this asserts is what the engine's own guest tests assert: *what crossed the wire*, through the
+real encoder and the real decoder — not what a screen looks like, which is the host's business and
+graded by the host's own conformance suite.
+
+## 9. What is not there
 
 Named so you look for the alternative rather than for the bug.
 

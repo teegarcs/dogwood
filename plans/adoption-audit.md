@@ -179,7 +179,17 @@ arrived: **the fourth holder shape is proven; the fifth through eighth are promi
 evaluating this should budget the design-system build-out as the first milestone of adoption, not a
 tail.
 
-### B2. There is no payload development loop
+### B2. ✅ Closed — the loop existed and was undocumented
+
+Both halves were already built: `serveDevelopmentWebpackZipline` under `--continuous` rebuilds the
+unoptimized bundle on every save (verified the task exists by dry run), and every shell host polls
+the manifest every five seconds and swaps the new guest in live, carrying `rememberSaveable` state
+across — the production code-update machinery (`A7`) doubling as hot reload. And a screen test
+needs no harness the engine does not already export: `DogwoodHost`, `DogwoodComposition` and
+`decodePositional` are public, and `docs/authoring.md` §8 now carries the recipe — compose against
+a fake host, pump a frame, decode what crossed with the real decoder. Original below.
+
+### B2 (original). There is no payload development loop
 
 The documented workflow is `serveProductionWebpackZipline` — a full production webpack build per
 edit. No watch mode, no incremental serve, no way to preview a screen without a running host, and
@@ -257,7 +267,7 @@ resolution, and the generated-source seams.
 | 4 | ~~A4 — readable crashes~~ ✅ | The claim went both ways: crashes were *unobservable* (no scope handler; a rethrowing default that returned the crash to the sandbox), and once routed, Zipline's built-in source maps give file-level Kotlin attribution with nothing to deploy. Web Worker path stays open |
 | 5 | ~~A6 — the version policy~~ ◐ | The table and the hosts-first rule are written; the cross-version drill waits for a second engine version to exist |
 | 6 | ~~A5 — the runaway payload~~ ✅ | Established from the artifact (`Zipline.quickJs` exposes both knobs), on by default, watched at two levels including a full-pipeline hostile drill whose negative control hung rather than failed |
-| 7 | **B2 — the inner loop** | the payload development workflow documented with whatever watch/serve support actually exists, plus an author-facing screen-test recipe |
+| 7 | ~~B2 — the inner loop~~ ✅ | Both halves already existed and were undocumented: continuous dev-serve plus the shell's five-second poll is hot reload with state carried, and the screen-test recipe uses only public API and the real decoder |
 
 B1 (catalogue), B3 (multi-payload) and B4 (iOS framework packaging) stay on this page as the first
 adopter's roadmap rather than becoming engine work now; each is product-scale.
