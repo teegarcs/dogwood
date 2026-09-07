@@ -92,8 +92,16 @@ def main(paths):
         cells = []
         for client in clients:
             related = {k: v for k, v in runs[client].items() if k.split('-')[0] == claim_id}
+            # An exemption outranks whatever a drill said about the claim. It has to: a drill that
+            # walks a screen and finds the platform cannot express the thing has *something* to
+            # report, and reporting it as `·` -- "nothing here to judge" -- is the one reading that
+            # is wrong. There is something to judge and a decision was taken about it; `n/a` sends
+            # the reader to `exempt.tsv`, where the reason is.
+            if exempt(client, claim_id):
+                cells.append('n/a')
+                continue
             if not related:
-                cells.append('n/a' if exempt(client, claim_id) else '—')
+                cells.append('—')
                 continue
             verdicts = {v[0] for v in related.values()}
             # Worst verdict wins: a claim with one failing sub-check has not been met.

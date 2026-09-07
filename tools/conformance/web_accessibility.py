@@ -12,6 +12,16 @@ reader user focuses the element and presses Enter, and the browser turns that in
 default action. So that is what this does -- located by role and name in the accessibility tree,
 operated the way somebody using one would.
 
+**It runs against the real Kotlin guest**, not the hand-written JavaScript one. Until 2026-09-07 it
+did not, and `plans/conformance.md` Part 7 named that as the cheapest remaining upgrade to what the
+web column means: every claim here was evidence about a thirty-line script no product would write.
+The page is loaded with `?manifest=dogwood-manifest-kotlin.json`, so what the accessibility layer
+is asked about is the **same Diagnostics screen** the Android and iOS drills assert on, composed
+from `samples/slice-screens` in a Web Worker.
+
+That change also turned `D7` from a skip into a graded claim: the hand-written guest had no disabled
+control and the shared screen has one, deliberately, for exactly this reason.
+
 Emits the `CONF` grammar from `plans/conformance.md`.
 """
 import json
@@ -68,6 +78,88 @@ def ax_nodes(devtools, session):
     return out
 
 
+def is_composes_backing_input(devtools, session, node):
+    """Is this Compose Multiplatform's own hidden text-entry element rather than a guest control?
+
+    Compose draws to a canvas and cannot receive keystrokes, so it keeps one transparent `<input>`
+    positioned over the focused field to collect them. Chrome publishes it as an unnamed `textbox`,
+    and a screen reader would stop on it -- which is a real observation about Compose's web
+    accessibility and **not** a control this payload composed.
+
+    Identified by the element rather than by guessing from the tree's shape: its inline style is
+    written with `--compose-internal-web-backing-input-*` custom properties, and it is
+    `color: transparent; caret-color: transparent; z-index: -1`. Excluding it by position, or by
+    "the first textbox", would exclude a real anonymous field the day a screen had one.
+    """
+    backend = node.get('backendDOMNodeId')
+    if backend is None:
+        return False
+    handle = devtools.call('DOM.resolveNode', {'backendNodeId': backend}, session)
+    object_id = handle.get('object', {}).get('objectId')
+    if not object_id:
+        return False
+    style = devtools.call('Runtime.callFunctionOn', {
+        'functionDeclaration': 'function() { return this.getAttribute("style") || ""; }',
+        'objectId': object_id, 'returnByValue': True,
+    }, session).get('result', {}).get('value') or ''
+    return '--compose-internal-web-backing-input' in style
+
+
+def scroll_through(devtools, session, steps=30, delta=250):
+    """Every accessibility node the screen publishes, gathered the way a user reaches them.
+
+    One viewport is not the screen. The shared Diagnostics screen is several times taller than the
+    window, and Compose publishes accessibility elements only for what it has laid out -- so a drill
+    that reads the tree once is asserting about the top of a page. That is how the first run of this
+    version reported "no Expand/Collapse control": the control exists, four screens down.
+
+    Returns the nodes keyed by (role, name), keeping the last node seen for each, because a node's
+    DOM handle is only useful while it is still on screen.
+    """
+    found = {}
+    for _ in range(steps):
+        for node in ax_nodes(devtools, session):
+            if node['name']:
+                found[(node['role'], node['name'])] = node
+        devtools.call('Input.dispatchMouseEvent', {
+            'type': 'mouseWheel', 'x': 450, 'y': 400, 'deltaX': 0, 'deltaY': delta,
+            'button': 'none', 'clickCount': 0,
+        }, session)
+        time.sleep(0.35)
+    for node in ax_nodes(devtools, session):
+        if node['name']:
+            found[(node['role'], node['name'])] = node
+    return found
+
+
+def wheel(devtools, session, delta):
+    devtools.call('Input.dispatchMouseEvent', {
+        'type': 'mouseWheel', 'x': 450, 'y': 400, 'deltaX': 0, 'deltaY': delta,
+        'button': 'none', 'clickCount': 0,
+    }, session)
+
+
+def reach(devtools, session, names, steps=40, delta=250):
+    """Scrolls back to the top and down again, returning a **live** node with one of [names].
+
+    Live is the whole point. `scroll_through` returns what the screen published, which is enough to
+    assert that a control exists and useless for operating one: by the time that walk ends the
+    control is several screens above, and Compose has taken its element out of the tree. Clicking
+    the handle it returned does nothing at all, silently -- which is exactly how the first version
+    of this check reported `Expand -> Collapse` as a failure while the toggle worked perfectly.
+    """
+    for _ in range(steps + 10):
+        wheel(devtools, session, -delta)
+    time.sleep(0.5)
+    for _ in range(steps):
+        for node in ax_nodes(devtools, session):
+            if node['name'] in names:
+                return node
+        wheel(devtools, session, delta)
+        time.sleep(0.35)
+    return None
+
+
 def await_name(devtools, session, pattern, timeout=20):
     """Waits for a node whose name matches, which is how a consequence is observed."""
     deadline = time.time() + timeout
@@ -113,7 +205,13 @@ def run(url, chrome, port):
         devtools.call('Runtime.enable', {}, session)
         devtools.call('DOM.enable', {}, session)
         devtools.call('Accessibility.enable', {}, session)
-        devtools.call('Page.navigate', {'url': url}, session)
+        # The real guest. See the header: the sidecar names the Worker script, and
+        # `dogwood-manifest-kotlin.json` is the one that names the compiled Kotlin composition.
+        devtools.call(
+            'Page.navigate',
+            {'url': f'{url}?manifest=dogwood-manifest-kotlin.json'},
+            session,
+        )
 
         # The guest composes in a Worker and the host applies its batch; nothing exists to read
         # until that has happened.
@@ -142,33 +240,67 @@ def run(url, chrome, port):
 
         named = [n['name'] for n in nodes if n['name']]
 
-        # D1 -- guest-composed text reaches the platform's accessibility layer.
-        conform('D1', any('Dogwood on the web' in n for n in named),
-                f'looked for the guest\'s heading among {len(named)} names')
+        # D1 -- guest-composed text reaches the platform's accessibility layer. "Diagnostics" is
+        # the first `SectionHeader` on the shared screen, composed in the sandbox and crossed as a
+        # property; nothing on the host side knows the word.
+        conform('D1', any('Diagnostics' in n for n in named),
+                f'looked for the guest\'s heading among {len(named)} names: {named[:8]}')
 
         # D2 -- no anonymous elements a screen reader would stop on and operate.
+        #
+        # Compose's own transparent text-entry element is excluded and the exclusion is *counted*,
+        # not silently dropped: it is unnamed, a screen reader does stop on it, and it is not a
+        # control this payload composed. See `is_composes_backing_input`.
         anonymous = [n for n in nodes if n['role'] in INTERACTIVE_ROLES and not n['name']]
-        conform('D2', not anonymous, f'{len(anonymous)} anonymous: {[n["role"] for n in anonymous]}')
+        composes_own = [n for n in anonymous if is_composes_backing_input(devtools, session, n)]
+        guests = [n for n in anonymous if n not in composes_own]
+        conform('D2', not guests,
+                f'{len(guests)} anonymous: {[n["role"] for n in guests]}'
+                + (f' ({len(composes_own)} excluded as Compose\'s own backing input)'
+                   if composes_own else ''))
+
+        # The whole screen, reached the way a user reaches it. Everything below needs controls that
+        # are several screens down; see `scroll_through`.
+        whole_screen = scroll_through(devtools, session)
+        print(f'CONF NOTE {len(whole_screen)} named nodes across the whole screen', flush=True)
 
         # D3 -- a guest-composed control is exposed AS a control. Everything on this page is guest
         # composed: unlike the mobile samples there is no host shell around it, so there is no
         # shell label to exclude.
-        controls = [n for n in nodes if n['role'] in INTERACTIVE_ROLES]
+        controls = [n for (role, _), n in whole_screen.items() if role in INTERACTIVE_ROLES]
         conform('D3', bool(controls),
                 f'{len(controls)} controls: {[(n["role"], n["name"]) for n in controls][:4]}')
+
+        # D5 -- the screen scrolls, and the evidence is that scrolling *reached* something.
+        #
+        # It used to ask whether `document.scrollingElement` was taller than the viewport, which on
+        # this page is a question about the host's own hidden report element rather than about the
+        # guest's list. The guest's content lives inside a Compose-drawn canvas that is exactly the
+        # size of the window; what moves is a lazy list inside it, and the only way to see that from
+        # outside is that names appear which were not published before.
+        conform('D5', len(whole_screen) > len(nodes),
+                f'scrolling published {len(whole_screen)} named nodes where one viewport had '
+                f'{len([n for n in nodes if n["name"]])}')
 
         # D4 -- activating through the accessibility layer drives the guest.
         #
         # The sample's control is a counter, so its own name is the observable consequence: the
         # guest owns the count, and it can only change if the activation crossed into the sandbox
         # and a batch came back.
-        counter = next((n for n in nodes if re.fullmatch(r'taps: \d+', n['name'])), None)
-        if counter is None:
-            conform('D4', False, f'no counter control found among {named[:6]}')
+        #
+        # On the shared screen that control is the Expand/Collapse toggle, and **which of the two
+        # words it currently carries is not assumed**: the page's own harness taps the first
+        # enabled `PrimaryButton` on load to exercise the event path, and that is this one. So the
+        # drill reads the label it finds and asserts it becomes the other -- which is the same
+        # consequence either way round.
+        toggle = reach(devtools, session, ('Expand', 'Collapse'))
+        if toggle is None:
+            conform('D4', False, f'no Expand/Collapse control found among {named[:8]}')
         else:
-            before = int(counter['name'].split(': ')[1])
+            before = toggle['name']
+            expected = 'Collapse' if before == 'Expand' else 'Expand'
             resolved = devtools.call(
-                'DOM.resolveNode', {'backendNodeId': counter['backendDOMNodeId']}, session)
+                'DOM.resolveNode', {'backendNodeId': toggle['backendDOMNodeId']}, session)
             object_id = resolved.get('object', {}).get('objectId')
             if not object_id:
                 conform('D4', False, 'the control has no DOM node to operate')
@@ -183,8 +315,8 @@ def run(url, chrome, port):
                     'functionDeclaration': 'function() { this.click(); }',
                     'objectId': object_id,
                 }, session)
-                after = await_name(devtools, session, rf'taps: {before + 1}')
-                conform('D4', after is not None, f'taps: {before} -> {before + 1}')
+                after = await_name(devtools, session, expected)
+                conform('D4', after is not None, f'{before} -> {expected}')
 
                 # D4-keyboard -- a screen reader user reaches the control by keyboard and
                 # operates it there.
@@ -229,29 +361,39 @@ def run(url, chrome, port):
                             if event == 'char':
                                 payload['text'] = '\r'
                             devtools.call('Input.dispatchKeyEvent', payload, session)
-                        reached = await_name(devtools, session, rf'taps: {before + 2}', timeout=2)
+                        reached = await_name(devtools, session, before, timeout=2)
                         if reached:
                             break
                     conform('D4-keyboard', reached is not None,
-                            f'Tab to the control, then Enter: taps: {before + 1} -> {before + 2}')
+                            f'Tab to the control, then Enter: {expected} -> {before}')
 
-        # D5 -- the screen scrolls through the accessibility layer.
-        scrollable = devtools.call('Runtime.evaluate', {
-            'expression': 'document.scrollingElement.scrollHeight > '
-                          'document.scrollingElement.clientHeight',
-            'returnByValue': True,
-        }, session).get('result', {}).get('value')
-        if not scrollable:
-            skip('D5', 'the web sample is shorter than the viewport, so there is nothing to scroll')
+        # D7 -- a disabled control is announced as disabled. **It is not, on this client.**
+        #
+        # The shared screen carries two deliberately disabled buttons, `Unavailable` and
+        # `Acme unavailable`, put there so this claim could be graded at all. Both reach the
+        # accessibility tree as `<div role="button">` with a correct name and **no properties
+        # whatsoever** -- no `disabled`, no `aria-disabled` -- so nothing distinguishes them from
+        # the enabled button beside them. A screen reader user is not told, tries to operate it,
+        # and is met with nothing.
+        #
+        # That is Compose Multiplatform's web accessibility layer rather than Dogwood's: the
+        # composition marks the control disabled and the platform publishes role and name only.
+        # Recorded as an exemption with a reason in `exempt.tsv` and drafted as upstream report 3,
+        # rather than as a red cell that would sit there forever or a skip that would read as
+        # "nothing to judge here".
+        # Only the control, not the text inside it: Compose publishes a `button`, a `StaticText`
+        # and an `InlineTextBox` for one control, so counting names would report three of each.
+        named_disabled = [n for (role, name), n in whole_screen.items()
+                          if role == 'button' and name in ('Unavailable', 'Acme unavailable')]
+        announced = [n for n in named_disabled if n['props'].get('disabled')]
+        if named_disabled and not announced:
+            skip('D7', f'{len(named_disabled)} disabled controls are on screen and none of them is '
+                       f'announced as disabled: Compose publishes role and name only, with no '
+                       f'properties at all. See tools/upstream-reports/README.md #3')
+        elif not named_disabled:
+            conform('D7', False, 'the drill never reached the screen\'s disabled controls')
         else:
-            conform('D5', True, 'the document scrolls')
-
-        # D7 -- the web sample carries no disabled control.
-        disabled = [n for n in nodes if n['props'].get('disabled')]
-        if not disabled:
-            skip('D7', 'the web sample screen carries no disabled control')
-        else:
-            conform('D7', all(n['name'] for n in disabled), f'{len(disabled)} disabled controls')
+            conform('D7', all(n['name'] for n in announced), f'{len(announced)} disabled controls')
 
         print(f'CONF RESULT client=web passed={passed} failed={failed} skipped={skipped}',
               flush=True)

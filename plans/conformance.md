@@ -546,12 +546,33 @@ Three things, each recorded where somebody will meet it rather than left to be r
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
   The grading is wired and asymmetric, so the first such device to run it closes or reopens the
   gate without further work, and a regression on faster hardware still fails today.
-- **What the web's claims are graded against has changed, and for the better.** Until
+- ~~**No web row is graded against the real guest.**~~ ✅ **Closed on 2026-09-07.** Until
   [ADR-048](../adrs/layer-5/ADR-048-the-real-guest-runs-on-the-web.md) the web slice's guest was
-  hand-written JavaScript, so every web row was evidence about shared *host* code or about a guest no
-  product would write. The real Kotlin/Compose guest now runs in a Worker from the same screens as
-  the mobile payload. The claims themselves have not moved — no row is graded against the new guest
-  yet — and doing so is the cheapest remaining upgrade to what the web column means.
+  hand-written JavaScript, so every web row was evidence about shared *host* code or about a guest
+  no product would write. The accessibility drill now loads
+  `?manifest=dogwood-manifest-kotlin.json` and asserts on the **same Diagnostics screen** the
+  Android and iOS drills use, and the skew drill runs the same guest against a newer dictionary.
+
+  Three things came out of the move that the hand-written guest could not have shown:
+
+  1. **`D2` was failing on a control the payload did not compose.** Compose keeps one transparent
+     `<input>` over the focused field to collect keystrokes — it cannot receive them on a canvas —
+     and Chrome publishes it as an unnamed `textbox` a screen reader stops on. It is excluded by
+     *identifying the element* (its inline style is written with
+     `--compose-internal-web-backing-input-*` custom properties), and the exclusion is counted in
+     the verdict rather than dropped.
+  2. **One viewport is not the screen.** Compose publishes accessibility elements only for what it
+     has laid out, so reading the tree once asserts about the top of a page — and the first run
+     reported "no Expand/Collapse control" for a control four screens down. The drill now scrolls
+     the way a user does: 36 named nodes in one viewport, **178** across the screen. Operating a
+     control needs a *live* node as well, not the one that walk returned, because by then Compose
+     has taken its element out of the tree.
+  3. **`D7` cannot be met on this client, and the reason is not Dogwood's.** A disabled button
+     reaches the accessibility tree as `<div role="button">` with a correct name and **no properties
+     at all** — indistinguishable from the enabled button beside it. The identical composition
+     announces it correctly on iOS. Recorded as an exemption with its reason in `exempt.tsv` and
+     drafted as [upstream report 3](../tools/upstream-reports/README.md), rather than as a red cell
+     that would sit there forever.
 - ~~`D8` and `D9` are asserted on one Java Virtual Machine and claimed for four clients.~~ ✅
   **Closed.** The shared-core tests moved to `commonTest` and now run on the Java Virtual Machine,
   an iOS simulator and a real browser — **236, 77 and 68 tests**. `DogwoodTree` moved with them: its
