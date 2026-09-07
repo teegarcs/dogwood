@@ -31,6 +31,7 @@ Chrome rather than reporting a drill that could not run as one that passed.
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
 | `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.70 MB brotli against 3.57 MB today) | the page grows past the ceiling, or cannot be measured at all |
 | `render-shape/check.py` | every shared render test **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
+| `link-check/check.py` | every relative link in the repository's markdown resolves | a document sends a reader to a file that has moved or never existed. It checks links rather than prose, because that is the part of a document a machine can see is wrong |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
 opening a log.

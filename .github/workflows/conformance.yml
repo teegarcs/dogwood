@@ -99,6 +99,12 @@ jobs:
         # they were green on the web for weeks while composing nothing.
         run: python3 tools/render-shape/check.py
 
+      - name: Check every documentation link resolves
+        # Prose rots silently and this repository is mostly prose. It does not read prose -- it
+        # reads links, which is the part of a document that can be wrong in a way a machine can
+        # see, and the part that goes wrong first when a file moves or a source set is renamed.
+        run: python3 tools/link-check/check.py
+
       - name: Build, and run every shared test
         working-directory: engine
         # Android lint is excluded for the reason it is excluded locally: it is a style pass over a
