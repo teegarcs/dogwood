@@ -94,6 +94,49 @@ kotlin {
 
     // Runs in headless Chrome, which is the only place `localStorage` exists -- the durable
     // saved-state file system cannot be verified anywhere else.
+    /*
+     * Tests every target runs.
+     *
+     * `plans/conformance.md` Part 7 carried this as a gap: the holder claims were asserted on one
+     * Java Virtual Machine and claimed for four clients on the strength of shared code. That is a
+     * sound argument and it is not evidence -- `FocusManager.clearFocus()` and
+     * `Modifier.verticalScroll` are one call each and three implementations.
+     *
+     * `compose.uiTest` publishes for every target this module has, so `runComposeUiTest` runs where
+     * the code runs rather than only where it is convenient.
+     */
+    commonTest {
+      dependencies {
+        implementation(kotlin("test"))
+      }
+    }
+
+    /*
+     * Tests that render, on every target that can render.
+     *
+     * Not `commonTest`, and the reason is Android: its **unit** test target runs against a stubbed
+     * framework jar with no real Android in it, so a Compose UI test there dies on
+     * `android.os.Build.FINGERPRINT is null` before it composes anything. Android renders in its
+     * *instrumented* tests, which is where this project's accessibility drill already lives.
+     *
+     * So this is an intermediate source set that the three targets which can host a composition
+     * out of process depend on, and Android's unit tests do not. The alternative -- Robolectric --
+     * would be a third rendering environment to trust, to run tests whose whole purpose is being
+     * run where the code runs.
+     */
+    val renderTest by creating {
+      dependsOn(commonTest.get())
+      dependencies {
+        implementation(kotlin("test"))
+        @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+        implementation(compose.uiTest)
+      }
+    }
+    jvmTest.get().dependsOn(renderTest)
+    iosTest.get().dependsOn(renderTest)
+    val wasmJsTestSourceSet = getByName("wasmJsTest")
+    wasmJsTestSourceSet.dependsOn(renderTest)
+
     val wasmJsTest by getting {
       dependencies {
         implementation(kotlin("test"))

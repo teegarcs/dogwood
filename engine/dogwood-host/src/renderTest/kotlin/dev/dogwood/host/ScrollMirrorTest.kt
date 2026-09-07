@@ -138,7 +138,7 @@ class ScrollMirrorTest {
     // second half is the one that matters: "Row 1 is gone" is also what a broken container looks
     // like.
     scrolling(tree(targetDp = 200, sequence = 1)) { reports ->
-      waitForIdle()
+      waitUntil("the container never moved") { reports.last?.offsetDp == 200 }
       // Not `fetchSemanticsNodes().size`: this container is **not lazy**, so every row is composed
       // and present in the semantics tree whether or not it is on screen. What moved is what is
       // *displayed*, which is the assertion this test means to make.
@@ -151,7 +151,7 @@ class ScrollMirrorTest {
   @Test
   fun aTargetPastTheEndSettlesAtTheEndRatherThanThrowing() {
     scrolling(tree(targetDp = 100_000, sequence = 1)) { reports ->
-      waitForIdle()
+      waitUntil("never settled at the end") { reports.last?.offsetDp == expectedMaxDp }
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
       assertEquals(expectedMaxDp, reports.last?.maxOffsetDp)
     }
@@ -162,7 +162,9 @@ class ScrollMirrorTest {
     // A guest cannot compute the end: the maximum is host layout and the guest's copy of it is as
     // stale as its last report. The sentinel is resolved here, against the layout that exists.
     scrolling(tree(targetDp = -1, sequence = 1)) { reports ->
-      waitForIdle()
+      // A held target: the sentinel waits for a layout before it can resolve, which is several
+      // frames rather than one settled composition.
+      waitUntil("the end sentinel never resolved") { reports.last?.offsetDp == expectedMaxDp }
       onNodeWithText("Row $ROWS").assertIsDisplayed()
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
     }
@@ -174,7 +176,7 @@ class ScrollMirrorTest {
     // value between two of them -- that is what "the guest declares the quantum" means, as opposed
     // to "the host reports whenever it feels like it".
     scrolling(tree(targetDp = 130, sequence = 1)) { reports ->
-      waitForIdle()
+      waitUntil("the target never landed") { reports.last?.offsetDp == 120 }
       val offending = reports.offsets.filter {
         it % QUANTUM_DP != 0 && it != 0 && it != expectedMaxDp
       }
@@ -192,7 +194,7 @@ class ScrollMirrorTest {
     val quantum = 36
     assertTrue(expectedMaxDp % quantum != 0, "this test needs a maximum the quantum does not divide")
     scrolling(tree(targetDp = -1, sequence = 1, quantumDp = quantum)) { reports ->
-      waitForIdle()
+      waitUntil("the end was never reported exactly") { reports.last?.offsetDp == expectedMaxDp }
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
     }
   }
@@ -247,7 +249,7 @@ class ScrollMirrorTest {
       assertTrue(beforeUpdate > 0, "nothing was reported at all")
 
       generation = "second"
-      waitForIdle()
+      waitUntil("a replacement guest was told nothing") { reports.all.size > beforeUpdate }
 
       val afterUpdate = reports.all.drop(beforeUpdate)
       assertTrue(

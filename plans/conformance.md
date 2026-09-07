@@ -536,14 +536,33 @@ Four things, each recorded where somebody will meet it rather than left to be re
   product would write. The real Kotlin/Compose guest now runs in a Worker from the same screens as
   the mobile payload. The claims themselves have not moved — no row is graded against the new guest
   yet — and doing so is the cheapest remaining upgrade to what the web column means.
-- **`D8` and `D9` are asserted on one Java Virtual Machine, and claimed for four clients.** Both
-  halves are shared code — the guest holder and the host mirror alike, since the mirror lives in
-  `dogwood-host`'s transport-free core — so the claim is sound in the way every other tier-S row is.
-  What is untried is whether *taking the keyboard away* and *scrolling* mean the same thing on each
-  platform: `FocusManager.clearFocus()` and `Modifier.verticalScroll` are one call each and three
-  implementations, and the redirect-policy row is the standing reminder that a shared rule can refuse
-  on one client and quietly not on another. Running `runComposeUiTest` on the other targets is the
-  instrument, and it is not wired up.
+- ~~`D8` and `D9` are asserted on one Java Virtual Machine and claimed for four clients.~~ ✅
+  **Closed.** The shared-core tests moved to `commonTest` and now run on the Java Virtual Machine,
+  an iOS simulator and a real browser — **236, 77 and 68 tests**. `DogwoodTree` moved with them: its
+  own documentation said it renders "a host tree, with no Zipline instance in sight" and named the
+  Web profile as a caller, and it had been sitting in the Zipline source set, which is precisely why
+  no shared test could reach a host binding on the web.
+
+- **Android renders in its instrumented tests, not its unit tests.** Moving the render tests to a
+  shared source set put them on Android's *unit* test target too, where they died on
+  `android.os.Build.FINGERPRINT is null` — that target runs against a stubbed framework jar with no
+  Android in it. They live in an intermediate `renderTest` source set that the Java Virtual Machine,
+  iOS and WebAssembly targets depend on and Android's unit tests do not. Robolectric would be a
+  third rendering environment to trust, to run tests whose whole purpose is being run where the code
+  runs.
+
+- **A hostile-value clamp fires on the Java Virtual Machine and not on the web.** Found by that
+  move, and it is the reason the move was worth making. `ADR-035` exists because Compose enforces
+  some numeric ranges by throwing *inside composition*, so an out-of-range value in a payload can
+  take a screen down on every client at once; the clamp keeps the screen and the **report** is what
+  stops the clamp being a silent difference between what a payload asked for and what a user sees.
+  On the web today it is that silent difference.
+
+  What is established: the value is not the problem. On WebAssembly the property decodes and reads
+  back as `-40.0`, so the reader is fine and the clamp does not fire. What is **not** established is
+  why, and it is written down rather than guessed at. The reproduction is
+  `ClampedValueReportingTest`, kept in `jvmTest` alone rather than weakened until it passes
+  everywhere — a test that passes by asking less is how a gap stops being visible.
 - ~~`LazyListMirror` has no host test.~~ ✅ Closed: `LazyListMirrorTest` asserts the held target that
   a device found and reasoning did not, the item-granular throttle, and the re-report a replacement
   guest depends on — each watched to fail with the line it covers removed. All three mirrors are now
