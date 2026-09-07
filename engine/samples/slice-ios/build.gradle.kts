@@ -51,6 +51,10 @@ kotlin {
     iosMain {
       dependencies {
         implementation(project(":dogwood-host"))
+        // Acme's design system, so a product's own components render here too -- the same
+        // dependency the Android, desktop and web hosts already had. Its absence was invisible
+        // until `tools/skew-drill/run-ios.sh` reported three unknown widget tags on a simulator.
+        implementation(project(":samples:product-design-system"))
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)

@@ -49,6 +49,22 @@ if [ -f "$HERE/../skew-drill/build/skew.conf" ]; then
   grep -E "^CONF [A-G][0-9]" "$HERE/../skew-drill/build/skew.conf" > "$HERE/build/android-skew.conf" || true
 fi
 
+echo "==> ios skew containment"
+# The same two-build procedure as Android's, on a simulator: a client at version N and a payload at
+# N+1. It restores the surface on every exit path.
+"$HERE/../skew-drill/run-ios.sh" >/dev/null 2>&1 || status=1
+if [ -f "$HERE/../skew-drill/build/skew-ios.conf" ]; then
+  grep -E "^CONF [A-Z][0-9]" "$HERE/../skew-drill/build/skew-ios.conf" > "$HERE/build/ios-skew.conf" || true
+fi
+
+echo "==> web skew containment"
+# Needs no device -- the only skew drill that could run in continuous integration, and does not
+# today because it wants a real Chrome and a two-stage Gradle build.
+"$HERE/../skew-drill/run-web.sh" >/dev/null 2>&1 || status=1
+if [ -f "$HERE/../skew-drill/build/skew-web.conf" ]; then
+  grep -E "^CONF [A-Z][0-9]" "$HERE/../skew-drill/build/skew-web.conf" > "$HERE/build/web-skew.conf" || true
+fi
+
 echo "==> web accessibility"
 "$HERE/run-web.sh" "$HERE/build/web-a11y.conf" >/dev/null 2>&1 || status=1
 

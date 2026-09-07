@@ -169,6 +169,14 @@ fun main() {
       is DeliveryOutcome.Started -> {
         field("workerCreated", "true")
         experience.attach(outcome.bridge)
+        // Polled alongside the drive rather than read once after it, and the difference is not
+        // cosmetic. `SkewReport` is plain sets written *during* composition -- `Skew.kt` explains
+        // why it cannot be snapshot state -- so a single read after the batches have applied sees
+        // only what the tree recorded while applying them, and none of what the bindings recorded
+        // while drawing them. Reading it once reported the unknown widget tag and missed the
+        // withheld one, which is precisely the half that matters: the drill's `A4-reported` went
+        // red on a client that had withheld the control correctly.
+        scope.launch { pollSkew(experience) }
         drive(experience, transcript)
       }
     }
@@ -224,6 +232,21 @@ private suspend fun drive(experience: DogwoodWebExperience, transcript: RenderTr
   field("transcript", transcript.dump())
   field("renderedNodes", transcript.count.toString())
   field("done", "true")
+}
+
+/**
+ * Republishes the skew report while the page runs.
+ *
+ * This is what a host wiring `SkewReport` to telemetry actually does -- `SkewDrain` in the
+ * engine is the same shape -- and it is the only way to see an entry a binding recorded during
+ * composition, because nothing invalidates when one lands. Bounded rather than endless: the page
+ * is a harness, and a coroutine that never finishes would keep it from ever looking idle.
+ */
+private suspend fun pollSkew(experience: DogwoodWebExperience) {
+  repeat(60) {
+    field("skew", experience.tree.skew.toString())
+    delay(250)
+  }
 }
 
 private suspend fun awaitBatches(experience: DogwoodWebExperience, count: Int): Boolean {

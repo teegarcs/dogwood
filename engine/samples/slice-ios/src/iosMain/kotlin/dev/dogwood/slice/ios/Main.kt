@@ -147,6 +147,12 @@ class DogwoodAppDelegate : UIResponder, UIApplicationDelegateProtocol {
 
 @OptIn(ExperimentalForeignApi::class)
 fun main() {
+  // Acme's design system, registered before anything renders -- the same one call the Android host
+  // makes in `Application.onCreate` and the web page makes in its own `main`. Without it a
+  // product's components arrive as inert placeholders and are reported as skew, which is what the
+  // iOS skew drill found: `widgets=[33554433, 33554434, 33554435]` is segment 2, tags 1 to 3.
+  dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
+
   val args = arrayOf("DogwoodSlice")
   memScoped {
     autoreleasepool {
@@ -315,6 +321,36 @@ private fun SliceHost(configuration: HostEnvironment) {
     } else {
       val failures = runAccessibilityDrill(root)
       println("A11Y DONE failures=$failures")
+    }
+  }
+
+  /*
+   * The skew containment drill, which needs two builds and therefore a script around it.
+   *
+   * `tools/skew-drill/run-ios.sh` installs this application at dictionary version N, rebuilds
+   * **only** the guest payload at N+1, and serves it to the still-installed binary. Nothing here
+   * can arrange that -- which is exactly why the drill is worth running: the condition it puts the
+   * client in is the one a real deployment reaches by shipping a payload faster than a store
+   * review, and no unit test can produce it.
+   *
+   * Separate from `--dogwood-a11y` and `--dogwood-drill` for the same reason those are separate
+   * from each other: it needs the Diagnostics screen left still while it reads the geometry, and a
+   * drill switching tabs underneath it would look like a failure.
+   */
+  LaunchedEffect(shell) {
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-skew")) return@LaunchedEffect
+    val live = shell ?: return@LaunchedEffect
+    // The Diagnostics screen is where the drill's patch composes its markers.
+    current = "about"
+    kotlinx.coroutines.delay(8_000)
+    val root = (UIApplication.sharedApplication.delegate as? DogwoodAppDelegate)?.window()
+    if (root == null) {
+      println("SKEW REFUSED there is no key window to walk")
+    } else {
+      // Sampled, not observed: `SkewReport` is plain sets written during composition, so a
+      // composable reading it sees whatever was there when its pass began.
+      val failures = runSkewDrill(root, live.active.value?.skew)
+      println("SKEW DONE failures=$failures")
     }
   }
 

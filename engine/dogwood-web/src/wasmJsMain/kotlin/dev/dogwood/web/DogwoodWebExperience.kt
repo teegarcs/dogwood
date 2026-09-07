@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -58,6 +59,10 @@ import kotlinx.serialization.json.JsonElement
 import dev.dogwood.host.WidgetView
 import dev.dogwood.host.RenderTranscript
 import dev.dogwood.host.RenderChildren
+import dev.dogwood.host.ExpressionEvaluator
+import dev.dogwood.host.LocalExpressionEvaluator
+import dev.dogwood.host.LocalGuestGeneration
+import dev.dogwood.host.LocalSkewReport
 import dev.dogwood.host.LocalRenderTranscript
 import dev.dogwood.host.LayoutScope
 import dev.dogwood.host.HostTree
@@ -173,8 +178,18 @@ class DogwoodWebExperience(
       return
     }
     this.bridge = bridge
+    // A new bridge is a new guest, which is the only thing that makes a generation change.
+    guestGeneration = Any()
     if (bridge.isReady) sendConfiguration()
   }
+
+  /**
+   * Identity that changes exactly when a guest is replaced, and never otherwise.
+   *
+   * Snapshot state rather than a plain field, because the effects that key on it are inside the
+   * composition: a generation nothing recomposes on is a generation nothing observes.
+   */
+  private var guestGeneration by mutableStateOf<Any>(Any())
 
   /** Checked once per page, not once per attach. */
   private var gateResult: GateResult? = null
@@ -294,7 +309,35 @@ class DogwoodWebExperience(
         withFrameNanos { nanos -> bridge?.deliverFrame(correlation, nanos) }
       }
     }
-    CompositionLocalProvider(LocalRenderTranscript provides transcript) {
+    /*
+     * The same three locals `DogwoodTree` provides on the mobile hosts, and this client went
+     * without all three until the skew drill ran against it.
+     *
+     * The bindings are shared code (Layer 5 ADR-041 stopped the web keeping its own), and they
+     * read what they need through composition locals. Every one of those locals has a *default*,
+     * so a host that provides none of them renders perfectly and is wrong in three quiet ways:
+     *
+     *  1. **The skew report is an orphan.** Everything a binding records -- a withheld control, an
+     *     unresolved colour token, a clamped value -- landed in the throwaway `SkewReport()` the
+     *     composition local defaults to, which nothing reads. `tools/skew-drill/run-web.sh` found
+     *     this on its first run: the client withheld a control carrying an unreadable
+     *     affordance-bearing property, exactly as it should, and reported nothing. Only the
+     *     unknown *widget tag* showed, because `HostTree.apply` writes that one straight onto
+     *     [tree] rather than through the local.
+     *  2. **The expression cache was not tied to a guest.** A default `ExpressionEvaluator` is
+     *     shared and keyed to nothing, so host objects built from one guest's recipes would
+     *     outlive it.
+     *  3. **Live-state mirrors had no generation to key on.** They report on change, so a
+     *     replacement guest -- which starts knowing nothing -- would never be told what it is
+     *     looking at. See `LocalGuestGeneration`.
+     */
+    val evaluator = remember(tree) { ExpressionEvaluator(tree.skew) }
+    CompositionLocalProvider(
+      LocalRenderTranscript provides transcript,
+      LocalSkewReport provides tree.skew,
+      LocalExpressionEvaluator provides evaluator,
+      LocalGuestGeneration provides guestGeneration,
+    ) {
       Box(Modifier.fillMaxSize()) {
         RenderChildren(tree.root, ROOT_CONTENT, LayoutScope(), events)
       }
