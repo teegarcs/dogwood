@@ -85,7 +85,8 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | --- | --- |
 | [`high-level-tech-spec-final.md`](high-level-tech-spec-final.md) | **Start here.** The v4.0 architecture blueprint, layer map, and risk register. |
 | [`roadmap.md`](roadmap.md) | The phased delivery plan, gates, and what would stop the project. **Phases 0–7 are closed.** |
-| [`plans/production-readiness.md`](plans/production-readiness.md) | **What remains before a product can ship on this**, sequenced. The engine works; this is the difference between that and a product. |
+| [`plans/adoption-audit.md`](plans/adoption-audit.md) | **What stops a production application from adopting this**, audited against the code with each finding verified. The successor to the readiness plan. |
+| [`plans/production-readiness.md`](plans/production-readiness.md) | The engineering plan that got the engine here — closed, and superseded by the audit above. |
 | [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
 | [`docs/`](docs/) | **The manuals.** [Getting started](docs/getting-started.md) for adding Dogwood to an application, [authoring](docs/authoring.md) for writing screens, [operating](docs/operating.md) for whoever is on call, and a [component reference](docs/api/) generated from the surface. |
 | [`docs/checks.md`](docs/checks.md) | Every check this repository runs, what each proves, and when it fails. |
