@@ -149,7 +149,7 @@ adb shell am start -n dev.dogwood.slice.android/.SliceActivity
 This is also where a caching default went wrong and was caught by trying it. `DogwoodDelivery`
 first shipped with a twenty-four-hour manifest freshness window — an ordinary caching policy,
 and completely wrong here: an update published to the server did not reach a restarted client at
-all. The default is now [`REVALIDATE_EVERY_LAUNCH`](dogwood-host/src/jvmAndroidMain/kotlin/dev/dogwood/host/Delivery.kt).
+all. The default is now [`REVALIDATE_EVERY_LAUNCH`](dogwood-host/src/ziplineMain/kotlin/dev/dogwood/host/Delivery.kt).
 A longer window remains available, but it has to be chosen.
 
 ## Rendering strategy
