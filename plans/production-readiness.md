@@ -218,10 +218,10 @@ exists; the machinery to operate one does not.**
   deployment needs a content delivery network, cache headers that match the manifest's immutability,
   and — per [ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md) —
   `Content-Encoding: br`, whose absence silently costs 27%.
-- **No authoring checker.** [Layer 1](../specs/layer-1-authoring.md) requires a checker that
-  **rejects** guest code using per-frame animation APIs, "because the failure mode of not rejecting
-  them is silent". A guest author can today write `animateFloatAsState` and get code that ticks the
-  boundary every frame.
+- ✅ **The authoring check exists** ([ADR-050](../adrs/layer-5/ADR-050-the-authoring-check.md)).
+  `dev.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
+  `check`, and names the replacement for each. Best-effort by construction, as Layer 1 always said:
+  it catches a directly-named API and not one assembled at runtime. Capability group **I**.
 
 ---
 
@@ -300,7 +300,7 @@ Sequenced by what unblocks the most, not by size.
 | 2 | ~~The real guest on web~~ ✅ done | Closed. What remains of it is the Worker service surface, launch parameters and segment versions — smaller, and listed in §2.1 |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
-| 5 | **The authoring checker** (§4.2) | Cheap, and it prevents the one class of guest code this architecture cannot absorb |
+| 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
 | 6 | **Host tests on the other targets** (§3) | A build-configuration change that upgrades three claims from inference to assertion |
 | 7 | **The holders a product hits early** (§2.2) | `SnackbarHostState` first, because it is the one unproven shape |
 | 8 | **Skew drill on iOS and web** (§3) | The shape is portable from Android; it closes the last per-client evidence gap |

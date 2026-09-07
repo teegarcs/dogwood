@@ -60,3 +60,6 @@ H2	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
 H3	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
 H4	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
 H6	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
+I1	android,ios,desktop,web	dev.dogwood.codegen.GuestCheckTest
+I2	android,ios,desktop,web	dev.dogwood.codegen.GuestCheckTest
+I3	android,ios,desktop,web	dev.dogwood.codegen.GuestCheckTest

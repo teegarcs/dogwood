@@ -42,3 +42,24 @@ kotlin {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
   dependsOn(":samples:product-design-system:generateAcme")
 }
+
+/*
+ * The authoring check Layer 1 requires.
+ *
+ * Invoked as a command rather than through the `dev.dogwood.guest` plugin, for the reason the
+ * generator is invoked as one here too: the plugin lives in this build, and applying it by
+ * identifier inside the build that defines it would need a composite build or a prior publish. A
+ * product applies the plugin and never sees this shape.
+ */
+val dogwoodGuestCheck by tasks.registering(JavaExec::class) {
+  group = "verification"
+  description = "Rejects guest code that would tick the boundary every frame"
+  classpath = project(":dogwood-codegen").sourceSets["main"].runtimeClasspath
+  mainClass.set("dev.dogwood.codegen.guest.GuestCheckKt")
+  val sources = project.file("src")
+  inputs.dir(sources).withPathSensitivity(PathSensitivity.RELATIVE)
+  outputs.upToDateWhen { false }
+  argumentProviders.add { listOf(sources.absolutePath) }
+}
+
+tasks.named("check") { dependsOn(dogwoodGuestCheck) }

@@ -168,6 +168,14 @@ half a capability; **un-shipping** without one is the other half, and until
 | H5 | A refusal leaves a working guest running and says why | C | ✅ Android |
 | H6 | A release forgiven by a later success is not refused forever | S | ✅ |
 
+### I. Authoring — what a guest may not be
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| I1 | Guest code calling a per-frame animation API fails the build | S | ✅ |
+| I2 | Guest code calling a resource loader fails the build | S | ✅ |
+| I3 | The check does not fire on comments, strings, or similarly-named code | S | ✅ |
+
 ### E. Lifecycle and resources
 
 | ID | Claim | Tier | Today |
@@ -239,6 +247,9 @@ Last generated 2026-09-06, with the performance budgets graded:
 | H3 | ✅ | ✅ | ✅ | ✅ |
 | H4 | ✅ | ✅ | ✅ | ✅ |
 | H6 | ✅ | ✅ | ✅ | ✅ |
+| I1 | ✅ | ✅ | ✅ | ✅ |
+| I2 | ✅ | ✅ | ✅ | ✅ |
+| I3 | ✅ | ✅ | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
 | D2 | ✅ | n/a | ✅ | ✅ |
 | D3 | ✅ | n/a | ✅ | ✅ |
@@ -261,10 +272,10 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 43, skip 4
-- **desktop**: pass 30
-- **ios**: pass 44, skip 4
-- **web**: pass 37, skip 1
+- **android**: pass 46, skip 4
+- **desktop**: pass 33
+- **ios**: pass 47, skip 4
+- **web**: pass 40, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -362,6 +373,12 @@ Recorded so that an absence is a decision somebody can point at.
   composition, and each was watched to fail with the line it covers removed. What *remains* outside
   any assertion is the same thing `D6` records — the keyboard itself, driven by hardware input that
   `adb` and `simctl` cannot supply.
+- **Group `I` is best-effort by construction, and Layer 1 said so first.** A call assembled at
+  runtime, aliased behind another name, or reached through reflection is invisible to a source scan.
+  It catches a directly-named forbidden API, which is *the* case — nobody reaches for
+  `rememberInfiniteTransition` by accident through an alias — and it must never be described as a
+  guarantee. Half its tests are about **false** positives, which is the right proportion: a check
+  that rejects a comment is a check that gets suppressed, and a suppressed check enforces nothing.
 - **`H2`'s device half cannot be provoked, and that is the point.** Quarantine is arithmetic over
   state persisted before a payload runs; the device evidence is that the state *is* persisted
   (`H1`), and the arithmetic is unit-tested as the loop it models. Making a real payload crash on
