@@ -58,8 +58,9 @@ if [ -f "$HERE/../skew-drill/build/skew-ios.conf" ]; then
 fi
 
 echo "==> web skew containment"
-# Needs no device -- the only skew drill that could run in continuous integration, and does not
-# today because it wants a real Chrome and a two-stage Gradle build.
+# Needs no device, so this one also runs in continuous integration (`conformance.yml`). It is kept
+# here too because this script is the whole-matrix run, and a client graded in one place and not the
+# other is how a matrix starts lying.
 "$HERE/../skew-drill/run-web.sh" >/dev/null 2>&1 || status=1
 if [ -f "$HERE/../skew-drill/build/skew-web.conf" ]; then
   grep -E "^CONF [A-Z][0-9]" "$HERE/../skew-drill/build/skew-web.conf" > "$HERE/build/web-skew.conf" || true

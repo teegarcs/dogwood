@@ -537,9 +537,10 @@ Three things, each recorded where somebody will meet it rather than left to be r
 - ~~**`A2`–`A4` end to end on iOS and web.**~~ Closed on 2026-09-06 by `run-ios.sh` and
   `run-web.sh`, which found one host-integration defect each. See
   [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md). What remains from it is
-  smaller and named here rather than dropped: **the web drill could run in continuous integration
-  and does not.** It needs no device — only Chrome and a two-stage Gradle build — and the workflow
-  grades tier S only.
+  smaller and named here rather than dropped: **desktop has no skew drill.** It is a development
+  loop rather than a shipping target and is not graded on the per-client groups, so this is
+  consistent rather than an omission — but it is the one client where the containment rules have
+  never met a real skewed payload.
 - **The performance budgets cannot be closed by any host that exists.** `G1`–`G4` read `SKIP`
   everywhere, correctly: the Phase 0 gate names a low-end 2022-tier Android device that this
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).

@@ -104,9 +104,14 @@ running the thing rather than reasoning about it.
 - **The skew report must be polled, not observed.** `SkewReport` is plain sets written during
   composition, so nothing invalidates when an entry lands. The web page now republishes it on a
   timer; reading it once reported the unknown tag and missed the withheld one.
-- **Neither drill runs in continuous integration.** The web one could — it needs no device — and does
-  not today, because it wants a real Chrome and a two-stage Gradle build, and the workflow grades
-  tier S only. That is a gap, and it is named rather than implied.
+- **The web drill runs in continuous integration; the iOS and Android ones cannot.** The web host
+  is a WebAssembly module in a directory and its guest is a script beside it, so a hosted runner
+  with Chrome produces the condition honestly — it is a second job in
+  `.github/workflows/conformance.yml`, separate so it does not compete with the tier-S build for one
+  two-processor runner, and it asserts Chrome is present rather than assuming it. The other two need
+  a device and remain in `run-all.sh`. **Desktop has no drill at all**, which is consistent with it
+  not being graded on the per-client groups and is still the one client where these rules have never
+  met a real skewed payload.
 
 ## 5. Updated Documents
 
@@ -115,6 +120,9 @@ running the thing rather than reasoning about it.
 - [`plans/production-readiness.md`](../../plans/production-readiness.md) — item 8 closed.
 - [`tools/skew-drill/README.md`](../../tools/skew-drill/README.md) — the three runs and what each
   found.
+- [`.github/workflows/conformance.yml`](../../.github/workflows/conformance.yml) and
+  [`docs/checks.md`](../../docs/checks.md) — the web drill as its own continuous-integration job,
+  and why that one tier-C run belongs on a hosted runner.
 - [`engine/dogwood-web/src/wasmJsMain/kotlin/dev/dogwood/web/DogwoodWebExperience.kt`](../../engine/dogwood-web/src/wasmJsMain/kotlin/dev/dogwood/web/DogwoodWebExperience.kt)
 - [`engine/samples/product-design-system/build.gradle.kts`](../../engine/samples/product-design-system/build.gradle.kts)
 - [`engine/samples/slice-ios/`](../../engine/samples/slice-ios/) — the dependency, the registration,

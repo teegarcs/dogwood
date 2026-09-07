@@ -179,7 +179,7 @@ a shared catalogue and grammar, per-client instruments.
 | Claim | What is actually asserted | Gap |
 |---|---|---|
 | `D8`, `D9`, `D10` (holders) | a composition on **three** targets | ✅ Closed. Running them on iOS and in a browser found a hostile-value clamp that fires on the Java Virtual Machine and not on the web — see `conformance.md` Part 7 |
-| `A2`–`A4` (skew containment) | ✅ three real clients, three instruments, one procedure | Closed 2026-09-06. `run-ios.sh` and `run-web.sh` found one host-integration defect each ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)). Desktop still has none, and the web drill could run in continuous integration and does not |
+| `A2`–`A4` (skew containment) | ✅ three real clients, three instruments, one procedure | Closed 2026-09-06. `run-ios.sh` and `run-web.sh` found one host-integration defect each ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)). The web drill runs in continuous integration; desktop still has none |
 | `D1`–`D5`, `D7` (accessibility) | three real clients, three instruments | Sound. What no instrument covers is whether the *speech is good*, reading order as experienced, and typing and selection |
 | `F1`–`F4` (network policy) | mobile enforce; web is the browser's Content Security Policy | Recorded as **weaker on web, not equal** — correct, and a product should know it |
 | `G1`–`G4` (performance) | nothing | No host that exists can grade them; see the decisions file |

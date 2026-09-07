@@ -20,9 +20,10 @@
 # This client also checks the payload's declared dictionary versions before it creates the Worker,
 # which the mobile clients do not, so the drill runs that half too -- see `check_web.py`.
 #
-# No device is needed, which makes this the one skew drill that could run in continuous
-# integration. It does not today: it wants a real Chrome and a two-stage Gradle build, and
-# `.github/workflows/conformance.yml` grades tier S only.
+# No device is needed, which makes this the one skew drill that runs in continuous integration --
+# `.github/workflows/conformance.yml`, as its own job so it does not compete with the tier-S build
+# for one two-processor runner. It is a tier-C claim graded on a hosted runner because the runner
+# can honestly produce the condition, not because the tier boundary was relaxed.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$HERE/build"
@@ -41,6 +42,14 @@ DIST="samples/web-slice/build/dist/wasmJs/productionExecutable"
 GUEST="samples/web-guest/build/kotlin-webpack/js/productionExecutable/guest-kotlin.js"
 
 [ -x "$CHROME" ] || { echo "Chrome not found at $CHROME; set CHROME=..." >&2; exit 1; }
+
+# macOS ships `shasum`; a Linux runner ships `sha256sum` and often not the other. The drill has no
+# opinion about which -- it only needs the same function applied twice.
+if command -v shasum >/dev/null; then
+  hash_of() { shasum -a 256 "$1" | cut -c1-16; }
+else
+  hash_of() { sha256sum "$1" | cut -c1-16; }
+fi
 
 SAVED="$(mktemp -d)"
 for file in "${TOUCHED[@]}"; do
@@ -66,7 +75,7 @@ echo "==> building the whole distribution at the committed version"
 [ -f "$DIST/app.js" ] || { echo "no distribution in $DIST" >&2; exit 1; }
 # The client's identity, recorded before it can be disturbed. If this changes across the run, the
 # host was rebuilt and there was no skew -- the one way this drill could quietly test nothing.
-host_before="$(shasum -a 256 "$DIST/app.js" | cut -c1-16)"
+host_before="$(hash_of "$DIST/app.js")"
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
@@ -94,7 +103,7 @@ json.dump({
 }, open(path, "w"), indent=2)
 PY
 
-host_after="$(shasum -a 256 "$DIST/app.js" | cut -c1-16)"
+host_after="$(hash_of "$DIST/app.js")"
 if [ "$host_before" != "$host_after" ]; then
   echo "the host module was rebuilt ($host_before -> $host_after); there is no skew to test" >&2
   exit 1

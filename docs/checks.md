@@ -16,6 +16,13 @@ Tier C is not in continuous integration because a hosted runner has none of what
 it in anyway would produce a green tick that means less than it appears to, which is the failure the
 conformance plan exists to avoid.
 
+**One tier-C run is in continuous integration, and it is an exception on the evidence rather than on
+the rule.** `tools/skew-drill/run-web.sh` puts a real web client in front of a real payload built
+against a newer dictionary, and needs no device to do it: the host is a WebAssembly module in a
+directory and the guest is a script beside it. It is its own job in the workflow so that it does not
+compete with the tier-S build for one two-processor runner, and it fails loudly if the runner has no
+Chrome rather than reporting a drill that could not run as one that passed.
+
 ## Tier S — on every pull request
 
 | Check | What it proves | Fails when |

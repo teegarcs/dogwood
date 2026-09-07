@@ -155,6 +155,11 @@ tools/skew-drill/run-web.sh    # Web: needs Chrome, and no device or payload ser
 `tools/conformance/run-all.sh` runs all three. Each refuses rather than fails when its prerequisite
 is missing, so a partial run reports what it could not do instead of reporting green.
 
+**The web one also runs on every pull request** — `.github/workflows/conformance.yml`, as its own
+job. It is a tier-C run on a hosted runner because the runner can honestly produce the condition,
+not because the tier boundary was relaxed: no device is involved, only a directory with a
+WebAssembly module in it and a script beside it.
+
 **VoiceOver has to be on for the iOS run**, because Compose Multiplatform builds its accessibility
 tree only while an assistive technology is active — with it off, the walk finds the rendering view
 and nothing under it. `run-ios.sh` turns it on and `SkewDrill.kt` refuses rather than reports if it
