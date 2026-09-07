@@ -200,14 +200,18 @@ exists; the machinery to operate one does not.**
   end by inducing real skew with `tools/skew-drill` and reading it out of logcat.
   **What remains is per-product**: a host has to call `drain()`, on the thread that composes. The
   Android sample is the reference implementation.
-- **No rollout, no rollback.** A payload is published and clients fetch it. There is no staged
-  rollout, no canary, no kill switch, and no "go back to the previous manifest" that is not "publish
-  the old bytes again by hand". For a delivery mechanism whose selling point is *shipping without a
-  store review*, the ability to un-ship is the other half and it is missing.
-- **No crash story for the guest.** What a host does when a guest throws — retry, fall back to the
-  previous generation, fall back to a native screen — is not designed. On mobile the payload is
-  replaceable over the air, so a bad publish is recoverable in principle; nothing implements the
-  recovery.
+- ✅ **A bad publish is survivable**
+  ([ADR-049](../adrs/layer-5/ADR-049-surviving-a-bad-publish.md)). An attempt is recorded and
+  **persisted before the payload runs**, which is what makes a crash-on-launch loop terminate rather
+  than repeat forever; a version that fails twice is quarantined and the last known good one is
+  named; and a publisher can stop a release from the manifest's signed metadata. Verified on a
+  device: the kill switch refuses while the running guest keeps rendering, a cold launch under it
+  shows the host's own screen and the reason, and removing it restores the payload. Capability group
+  **H** in `conformance.md`.
+- **What is still missing is the server half.** Nothing *resumes* a previous payload — that needs a
+  manifest that still serves it. There is no staged rollout: `InstallCohort` gives a device a stable
+  bucket a server could stage against, and there is no server. And nothing reports a refusal to a
+  publisher, so a fleet-wide quarantine is visible only if the host wires it to telemetry.
 - **No key ceremony.** Production signing keys need generating, storing, rotating and revoking by
   somebody. The mechanism supports it; there is no procedure.
 - **No payload hosting story.** The samples serve from a Gradle task on `localhost:8080`. A real
@@ -295,7 +299,7 @@ Sequenced by what unblocks the most, not by size.
 | 1 | ~~Publish the generator~~ ✅ done | `dev.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
 | 2 | ~~The real guest on web~~ ✅ done | Closed. What remains of it is the Worker service surface, launch parameters and segment versions — smaller, and listed in §2.1 |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
-| 4 | **Rollout, rollback, kill switch** (§4.2) | The other half of shipping without a store review. A bad publish currently has no defined recovery |
+| 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
 | 5 | **The authoring checker** (§4.2) | Cheap, and it prevents the one class of guest code this architecture cannot absorb |
 | 6 | **Host tests on the other targets** (§3) | A build-configuration change that upgrades three claims from inference to assertion |
 | 7 | **The holders a product hits early** (§2.2) | `SnackbarHostState` first, because it is the one unproven shape |

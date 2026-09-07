@@ -58,6 +58,8 @@ import dev.dogwood.host.Theme
 import dev.dogwood.host.ThemeStore
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.DogwoodDelivery
+import dev.dogwood.host.FileReleaseStore
+import dev.dogwood.host.ReleaseGuard
 import dev.dogwood.host.allowHosts
 import dev.dogwood.host.cachePath
 import dev.dogwood.host.dogwoodLeakDetector
@@ -159,6 +161,10 @@ class SliceActivity : ComponentActivity() {
   private fun SliceHost() {
     var status by remember { mutableStateOf(SessionStatus()) }
     var failure by remember { mutableStateOf<String?>(null) }
+    // A refusal is not a failure and is shown as its own thing: the previous guest, if there was
+    // one, is still running and the screen is still up. What the user must not see is a bad
+    // publish rendering as a blank screen with no explanation.
+    var refused by remember { mutableStateOf<String?>(null) }
     var environment by remember { mutableStateOf(HostEnvironment()) }
     var entryPoint by remember { mutableStateOf(ENTRY_POINTS.first()) }
     // Composes a second experience beneath the first, from a second runtime. See [SPLIT_COMPANION].
@@ -226,6 +232,14 @@ class SliceActivity : ComponentActivity() {
         }
       }
 
+      refused?.let {
+        Text(
+          it,
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+          color = Palette.Light.warning,
+          style = MaterialTheme.typography.labelSmall,
+        )
+      }
       failure?.let {
         Text(it, Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()))
       }
@@ -254,6 +268,7 @@ class SliceActivity : ComponentActivity() {
           onEnvironment = { environment = it },
           onStatus = { status = it },
           onFailure = { failure = it },
+        onRefused = { refused = it },
         )
       }
     }
@@ -287,6 +302,8 @@ class SliceActivity : ComponentActivity() {
     onEnvironment: (HostEnvironment) -> Unit,
     onStatus: (SessionStatus) -> Unit,
     onFailure: (String?) -> Unit,
+    /** Reported separately from a failure: a refusal leaves the previous guest running. */
+    onRefused: (String?) -> Unit,
   ) {
     val uiScope = rememberCoroutineScope()
     var shell by remember { mutableStateOf<DogwoodShell?>(null) }
@@ -391,7 +408,25 @@ class SliceActivity : ComponentActivity() {
             ),
           )
         }
+        // The guard's memory. One small file in the application's own storage, written *before* a
+        // release runs -- which is what makes a payload that crashes on launch terminate rather
+        // than loop, because an attempt counted in memory is erased by the crash counting it.
+        val guard = ReleaseGuard(
+          store = FileReleaseStore(
+            file = cachePath(filesDir.resolve("dogwood-release.json").absolutePath),
+          ),
+          onReport = { onFailure(it) },
+        )
         shell = DogwoodShell(
+          releaseGuard = guard,
+          onRefused = { entryPoint, refusal ->
+            // Not an error: the previous guest is still running, if there was one. What a host
+            // owes the user is its own screen when there was not.
+            onRefused(
+              "$entryPoint refused: ${refusal.reason}" +
+                (refusal.fallbackVersion?.let { " (last good: $it)" } ?: ""),
+            )
+          },
           delivery = delivery,
           applicationName = "dogwood-slice",
           manifestUrl = MANIFEST_URL,
@@ -403,6 +438,10 @@ class SliceActivity : ComponentActivity() {
           capacity = 3,
           onSwap = { entry, swapped ->
             onFailure(null)
+            // A release that ran clears the refusal, or the banner outlives the problem: the
+            // recovery run showed "the publisher disabled this release" above a screen the guest
+            // had just successfully rendered.
+            onRefused(null)
             onStatus(swapped)
             Log.i(
               TAG,
