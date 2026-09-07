@@ -73,7 +73,7 @@ class SnackbarMirrorTest {
     }
 
   @Test
-  fun theContentRendersWithNoRequest() {
+  fun theContentRendersWithNoRequest() = run {
     // The control. A `SnackbarArea` is a container first; nothing about it should depend on a
     // snackbar having been asked for.
     show(tree("", sequence = 0)) {
@@ -84,7 +84,7 @@ class SnackbarMirrorTest {
   }
 
   @Test
-  fun aRequestShowsTheMessage() {
+  fun aRequestShowsTheMessage() = run {
     show(tree("Deleted")) {
       waitUntil("the snackbar never appeared") {
         onAllNodesWithText("Deleted").fetchSemanticsNodes().isNotEmpty()
@@ -94,7 +94,7 @@ class SnackbarMirrorTest {
   }
 
   @Test
-  fun tappingTheActionAnswersWithTheActionPerformed() {
+  fun tappingTheActionAnswersWithTheActionPerformed() = run {
     // The whole reason a snackbar is not a notification: what the user did decides what the guest
     // does next, and the guest is waiting to be told.
     show(tree("Deleted", actionLabel = "Undo")) {
@@ -109,7 +109,7 @@ class SnackbarMirrorTest {
   }
 
   @Test
-  fun theAnswerCarriesTheSequenceItIsAnswering() {
+  fun theAnswerCarriesTheSequenceItIsAnswering() = run {
     // Not the current sequence: by the time a snackbar resolves the guest may have asked again,
     // and answering the new request with the old one's outcome would undo the wrong row.
     show(tree("Deleted", actionLabel = "Undo", sequence = 7)) {
@@ -124,7 +124,7 @@ class SnackbarMirrorTest {
   }
 
   @Test
-  fun anAreaNobodyIsWatchingShowsNothing() {
+  fun anAreaNobodyIsWatchingShowsNothing() = run {
     show(tree("Deleted", sequence = 1, watching = false)) {
       onNodeWithText("body").assertIsDisplayed()
       waitForIdle()

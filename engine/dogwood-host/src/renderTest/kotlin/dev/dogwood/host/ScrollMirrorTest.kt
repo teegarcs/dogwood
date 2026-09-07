@@ -113,7 +113,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun aContainerTallerThanItsWindowReportsAMaximumItMeasured() {
+  fun aContainerTallerThanItsWindowReportsAMaximumItMeasured() = run {
     // The control for everything below: without a real measurement the maximum would be zero and
     // every claim about the ends would hold vacuously.
     scrolling(tree()) { reports ->
@@ -123,7 +123,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun aContainerWithoutAWatchingGuestReportsNothing() {
+  fun aContainerWithoutAWatchingGuestReportsNothing() = run {
     // Presence is a property because the host cannot see guest closures. Without this every
     // container on every screen would pay for an observer nobody reads.
     scrolling(tree(watching = false)) { reports ->
@@ -133,7 +133,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun aDeclaredTargetMovesTheContainer() {
+  fun aDeclaredTargetMovesTheContainer() = run {
     // Row 1 is scrolled out of the window and a row that was below the fold is on screen. The
     // second half is the one that matters: "Row 1 is gone" is also what a broken container looks
     // like.
@@ -149,7 +149,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun aTargetPastTheEndSettlesAtTheEndRatherThanThrowing() {
+  fun aTargetPastTheEndSettlesAtTheEndRatherThanThrowing() = run {
     scrolling(tree(targetDp = 100_000, sequence = 1)) { reports ->
       waitUntil("never settled at the end") { reports.last?.offsetDp == expectedMaxDp }
       assertEquals(expectedMaxDp, reports.last?.offsetDp, "reports: ${reports.all}")
@@ -158,7 +158,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun theEndIsAskedForAsAnIntentAndResolvedAgainstTheLayout() {
+  fun theEndIsAskedForAsAnIntentAndResolvedAgainstTheLayout() = run {
     // A guest cannot compute the end: the maximum is host layout and the guest's copy of it is as
     // stale as its last report. The sentinel is resolved here, against the layout that exists.
     scrolling(tree(targetDp = -1, sequence = 1)) { reports ->
@@ -171,7 +171,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun everyReportedOffsetIsAMultipleOfTheQuantumOrAnEnd() {
+  fun everyReportedOffsetIsAMultipleOfTheQuantumOrAnEnd() = run {
     // The claim ADR-044 is actually about. A guest that declared a quantum must never be handed a
     // value between two of them -- that is what "the guest declares the quantum" means, as opposed
     // to "the host reports whenever it feels like it".
@@ -187,7 +187,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun theEndIsReportedExactlyEvenWhenItIsNotAMultipleOfTheQuantum() {
+  fun theEndIsReportedExactlyEvenWhenItIsNotAMultipleOfTheQuantum() = run {
     // The row this design exists for. With a quantum that does not divide the maximum, a purely
     // quantised report never equals it -- so "am I at the bottom?", which is the question a
     // paginating guest asks, would be answerable only by accident.
@@ -200,7 +200,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun theTopIsReportedExactlyToo() {
+  fun theTopIsReportedExactlyToo() = run {
     // No target: a container that has just laid out is at the top, and says so. Declaring a target
     // here would be testing the wrong thing -- the scroll lands before the first report, so the
     // top is never a state the guest is told about.
@@ -211,7 +211,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun nothingIsReportedBeforeTheContainerHasBeenMeasured() {
+  fun nothingIsReportedBeforeTheContainerHasBeenMeasured() = run {
     // `ScrollState.maxValue` is `Int.MAX_VALUE` until the first measure -- Compose's "not laid out
     // yet", not a very tall container. Converting it produces a number with no meaning, and a guest
     // cannot tell that from a real one. This is the assertion that keeps it off the wire; on a
@@ -224,7 +224,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun aReplacementGuestIsToldWhereTheContainerIsWithoutItHavingMoved() {
+  fun aReplacementGuestIsToldWhereTheContainerIsWithoutItHavingMoved() = run {
     // The defect a device produced, as an assertion.
     //
     // A report is edge-triggered -- that is the whole throttle. A code update leaves the host's
@@ -262,7 +262,7 @@ class ScrollMirrorTest {
   }
 
   @Test
-  fun theSameGuestIsNotToldTwiceForNothing() {
+  fun theSameGuestIsNotToldTwiceForNothing() = run {
     // The other half, and the one that keeps the fix from being "report on every recomposition".
     // A generation that has not changed must produce no traffic, or the throttle is gone.
     val tree = tree()

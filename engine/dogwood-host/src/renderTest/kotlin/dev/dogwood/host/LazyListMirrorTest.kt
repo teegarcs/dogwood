@@ -115,7 +115,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aListReportsTheRangeItActuallyLaidOut() {
+  fun aListReportsTheRangeItActuallyLaidOut() = run {
     // The control. A window of four rows shows items 0 through 3; without a real measurement every
     // claim below would hold against a list that laid nothing out.
     show(tree(rows = 12)) { reports ->
@@ -126,7 +126,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aListNobodyIsWatchingReportsNothing() {
+  fun aListNobodyIsWatchingReportsNothing() = run {
     // Presence is a property because the host cannot see guest closures. Without it every list on
     // every screen would pay for a viewport observer nobody reads.
     show(tree(rows = 12, observed = false)) { reports ->
@@ -136,7 +136,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aDeclaredTargetMovesTheList() {
+  fun aDeclaredTargetMovesTheList() = run {
     show(tree(rows = 12, targetIndex = 7, sequence = 1)) { reports ->
       waitForIdle()
       onNodeWithText("Row 8").assertIsDisplayed()
@@ -145,7 +145,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun askingTwiceForTheSamePlaceMovesTheListTwice() {
+  fun askingTwiceForTheSamePlaceMovesTheListTwice() = run {
     // The reason the target is a counter rather than a flag: a user who taps "back to top",
     // scrolls away, and taps again expects to go back.
     val tree = tree(rows = 12, targetIndex = 7, sequence = 1)
@@ -165,7 +165,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aTargetForAnItemThatDoesNotExistYetWaitsRatherThanClampingToTheEnd() {
+  fun aTargetForAnItemThatDoesNotExistYetWaitsRatherThanClampingToTheEnd() = run {
     // The finding a device produced and reasoning did not, now an assertion.
     //
     // A replacement guest re-runs its `LaunchedEffect`, so its content is being *fetched* while it
@@ -196,7 +196,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun anUnchangedViewportCostsNoTraffic() {
+  fun anUnchangedViewportCostsNoTraffic() = run {
     // The throttle, and the honest limit of the mirror: reports are item-granular, so a list that
     // has not crossed an item boundary produces nothing at all.
     val tree = tree(rows = 12)
@@ -219,7 +219,7 @@ class LazyListMirrorTest {
   }
 
   @Test
-  fun aReplacementGuestIsToldWhereTheListIsWithoutItHavingMoved() {
+  fun aReplacementGuestIsToldWhereTheListIsWithoutItHavingMoved() = run {
     // The same defect `ScrollMirrorTest` asserts for a scrolling container. This list survived a
     // code update on a device *before* the fix — but by accident, because clearing and rebuilding
     // the tree churns the visible range and happens to make the flow emit again. Depending on

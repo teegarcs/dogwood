@@ -567,18 +567,29 @@ Three things, each recorded where somebody will meet it rather than left to be r
   third rendering environment to trust, to run tests whose whole purpose is being run where the code
   runs.
 
-- **A hostile-value clamp fires on the Java Virtual Machine and not on the web.** Found by that
-  move, and it is the reason the move was worth making. `ADR-035` exists because Compose enforces
-  some numeric ranges by throwing *inside composition*, so an out-of-range value in a payload can
-  take a screen down on every client at once; the clamp keeps the screen and the **report** is what
-  stops the clamp being a silent difference between what a payload asked for and what a user sees.
-  On the web today it is that silent difference.
+- ~~**A hostile-value clamp fires on the Java Virtual Machine and not on the web.**~~ ✅ **Resolved
+  on 2026-09-07, and it was never a clamp.** There is no platform divergence: the web clamps and
+  reports the same value, `StarRating.rating=-40.0 outside 0.0..5.0`, in the same place.
 
-  What is established: the value is not the problem. On WebAssembly the property decodes and reads
-  back as `-40.0`, so the reader is fine and the clamp does not fire. What is **not** established is
-  why, and it is written down rather than guessed at. The reproduction is
-  `ClampedValueReportingTest`, kept in `jvmTest` alone rather than weakened until it passes
-  everywhere — a test that passes by asking less is how a gap stops being visible.
+  What was actually wrong is worse and was hiding behind it. `runComposeUiTest` returns `Unit` on
+  the Java Virtual Machine and `Promise<JsAny?>` on Kotlin/WebAssembly, and the test framework
+  awaits that promise **only if the test function returns it**. Every shared render test was written
+  with a block body — `render(tree)` as a statement, assertions after — so on the web the
+  composition never happened: assertions after the call read an un-composed tree, and assertions
+  inside the block were never observed at all. A deliberate `fail()` inside a discarded block was
+  watched to **pass** on that target, which is what settled it.
+
+  So the whole shared render suite — 49 tests across six files — was green on the web while
+  composing nothing, and the clamp test was **the only one sensitive enough to notice**, because it
+  is the only assertion in that file about something a *binding* records during composition. The
+  rest are recorded by `HostTree.apply`, or assert an emptiness that an un-composed tree satisfies.
+  Filing it as a platform divergence was the wrong conclusion drawn from the right observation.
+
+  Every one of those tests is now an expression body that returns the harness's result, and they
+  compose on the web for the first time — watched, by breaking one assertion and reading a real
+  browser measurement (`maxOffsetDp=320`) in the failure. `tools/render-shape/check.py` fails the
+  build on the old shape and runs on every pull request. See
+  [ADR-054](../adrs/layer-5/ADR-054-a-render-test-that-returns-nothing.md).
 - ~~`LazyListMirror` has no host test.~~ ✅ Closed: `LazyListMirrorTest` asserts the held target that
   a device found and reasoning did not, the item-granular throttle, and the re-report a replacement
   guest depends on — each watched to fail with the line it covers removed. All three mirrors are now

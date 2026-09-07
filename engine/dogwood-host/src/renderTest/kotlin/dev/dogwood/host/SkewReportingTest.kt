@@ -31,85 +31,131 @@ private val TEXT = DogwoodDictionary.Text.value
 @OptIn(ExperimentalTestApi::class)
 class SkewReportingTest {
 
-  private fun render(tree: HostTree) = runComposeUiTest {
+  /**
+   * Renders [tree] and runs [assertions] **inside** the test block, and the result is returned
+   * from each test function rather than discarded.
+   *
+   * Both halves of that are load-bearing on Kotlin/WebAssembly, and neither is on the Java Virtual
+   * Machine, which is why this file was written the other way and looked fine for weeks.
+   * `runComposeUiTest` returns a `TestResult`; on the web that is a promise the test framework
+   * awaits **only if the test function returns it**. Written as a statement, the block's body is
+   * scheduled and the test function returns immediately -- so the composition never happens, and
+   * an assertion placed after the call reads an un-composed tree while an assertion placed inside
+   * it is never observed at all. A deliberate `fail()` inside a discarded block was watched to
+   * *pass* on this target; that is what settled it.
+   *
+   * The cost of the old shape was one wrong conclusion in this repository: the only test sensitive
+   * enough to notice -- a hostile value clamped and reported by a *binding*, during composition --
+   * was recorded in `plans/conformance.md` as a platform divergence in the clamp. There is no
+   * divergence. It is back in this file, below.
+   */
+  private fun rendered(tree: HostTree, assertions: () -> Unit) = runComposeUiTest {
     setContent {
       Box(Modifier.size(200.dp)) { DogwoodTree(tree, EventSink { _, _, _ -> }, skew = tree.skew) }
     }
     waitForIdle()
+    assertions()
   }
 
   @Test
-  fun aClientThatUnderstoodEverythingReportsNothing() {
+  fun aClientThatUnderstoodEverythingReportsNothing() = run {
     // The control, and it is the case that matters most in production: a reporter wired to a
     // healthy client must stay silent, or a team learns to ignore it.
     val tree = HostTree().also {
       it.apply(decodePositional("""[1,[[0,1,$TEXT],[1,1,1,"hello"],[3,0,1,1,0]]]"""))
     }
-    render(tree)
+    rendered(tree) {
+      val sent = mutableListOf<List<SkewEntry>>()
+      SkewDrain(tree.skew).drainTo { sent += it }
 
-    val sent = mutableListOf<List<SkewEntry>>()
-    SkewDrain(tree.skew).drainTo { sent += it }
-
-    assertTrue(tree.skew.isEmpty, "the fixture itself was skewed: ${tree.skew}")
-    assertTrue(sent.isEmpty(), "a healthy client reported $sent")
+      assertTrue(tree.skew.isEmpty, "the fixture itself was skewed: ${tree.skew}")
+      assertTrue(sent.isEmpty(), "a healthy client reported $sent")
+    }
   }
 
   @Test
-  fun anUnknownWidgetReachesAReporter() {
+  fun anUnknownWidgetReachesAReporter() = run {
     val tree = HostTree().also {
       it.apply(decodePositional("[1,[[0,1,$FROM_THE_FUTURE],[3,0,1,1,0]]]"))
     }
-    render(tree)
+    rendered(tree) {
+      val sent = mutableListOf<SkewEntry>()
+      SkewDrain(tree.skew).drainTo { sent += it }
 
-    val sent = mutableListOf<SkewEntry>()
-    SkewDrain(tree.skew).drainTo { sent += it }
-
-    assertEquals(
-      listOf(SkewEntry(SkewKind.UNKNOWN_WIDGET, "Unknown#$FROM_THE_FUTURE")),
-      sent,
-      "skew: ${tree.skew}",
-    )
+      assertEquals(
+        listOf(SkewEntry(SkewKind.UNKNOWN_WIDGET, "Unknown#$FROM_THE_FUTURE")),
+        sent,
+        "skew: ${tree.skew}",
+      )
+    }
   }
 
-  /*
-   * The clamped-value case lives in `jvmTest`, alone, and the reason is a finding rather than a
-   * convenience: it **passes on the Java Virtual Machine and fails on the web**, and moving this
-   * file to a shared source set is what surfaced that.
+  /**
+   * A hostile value is clamped **and reported**, on every target.
    *
-   * See `plans/conformance.md` Part 7. The value itself is not the problem -- on WebAssembly the
-   * property decodes and reads back as `-40.0` -- so what differs is the clamp firing, and the
-   * cause is not yet isolated. It is recorded rather than guessed at.
+   * This case spent a fortnight in `jvmTest` under a comment saying it passed on the Java Virtual
+   * Machine and failed on the web, with the cause unisolated and carried in
+   * `plans/conformance.md` Part 7 as a platform divergence. **There is no divergence.** It was the
+   * only assertion in this file that depended on a *binding* running -- everything else here is
+   * recorded by `HostTree.apply`, or asserts an emptiness that an un-composed tree satisfies -- so
+   * it was the only one that could notice that the composition never happened. See [rendered].
+   *
+   * What it guards is worth the fortnight.
+   * [ADR-035](../../../../../../../adrs/layer-5/ADR-035-hostile-property-values.md) exists because
+   * Compose enforces some numeric ranges by throwing *inside composition*, so an out-of-range value
+   * in a payload delivered over the air takes the screen down on every client that receives it, at
+   * once. The clamp keeps the screen; the report is what stops the clamp from becoming a silent
+   * difference between what the payload asked for and what the user sees.
    */
+  @Test
+  fun aClampedValueReachesAReporterWithTheValueAndTheRange() = run {
+    val tree = HostTree().also {
+      it.apply(
+        decodePositional(
+          """[1,[[0,1,${widgetTag(1, 8).value}],[1,1,1,-40.0],[3,0,1,1,0]]]""",
+        ),
+      )
+    }
+    rendered(tree) {
+      val sent = mutableListOf<SkewEntry>()
+      SkewDrain(tree.skew).drainTo { sent += it }
+
+      val clamped = sent.filter { it.kind == SkewKind.CLAMPED_VALUE }
+      assertEquals(1, clamped.size, "skew: ${tree.skew}; sent: $sent")
+      assertTrue("-40" in clamped.single().value, clamped.single().value)
+    }
+  }
+
 
   @Test
-  fun aSecondDrainSendsNothingNew() {
+  fun aSecondDrainSendsNothingNew() = run {
     // The difference between telemetry and noise. The sets accumulate for the life of an
     // experience, so a reporter that sent the whole report every time would send the same entries
     // forever and every count downstream would be wrong.
     val tree = HostTree().also {
       it.apply(decodePositional("[1,[[0,1,$FROM_THE_FUTURE],[3,0,1,1,0]]]"))
     }
-    render(tree)
-
-    val drain = SkewDrain(tree.skew)
-    assertEquals(1, drain.drain().size)
-    assertEquals(emptyList(), drain.drain())
-    assertEquals(emptyList(), drain.drain())
+    rendered(tree) {
+      val drain = SkewDrain(tree.skew)
+      assertEquals(1, drain.drain().size)
+      assertEquals(emptyList(), drain.drain())
+      assertEquals(emptyList(), drain.drain())
+    }
   }
 
   @Test
-  fun newSkewAfterADrainIsReported() {
+  fun newSkewAfterADrainIsReported() = run {
     val tree = HostTree().also {
       it.apply(decodePositional("[1,[[0,1,$FROM_THE_FUTURE],[3,0,1,1,0]]]"))
     }
-    render(tree)
+    rendered(tree) {
+      val drain = SkewDrain(tree.skew)
+      assertEquals(1, drain.drain().size)
 
-    val drain = SkewDrain(tree.skew)
-    assertEquals(1, drain.drain().size)
+      tree.skew.unknownIcons += "sparkle"
 
-    tree.skew.unknownIcons += "sparkle"
-
-    assertEquals(listOf(SkewEntry(SkewKind.UNKNOWN_ICON, "sparkle")), drain.drain())
+      assertEquals(listOf(SkewEntry(SkewKind.UNKNOWN_ICON, "sparkle")), drain.drain())
+    }
   }
 
   @Test

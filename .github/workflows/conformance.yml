@@ -91,6 +91,14 @@ jobs:
           kotlin.daemon.jvmargs=-Xmx1600m
           PROPS
 
+      - name: Check the shared render tests can report at all
+        # Before the build, because it costs a second and it answers a question the build cannot:
+        # `runComposeUiTest` returns a promise on Kotlin/WebAssembly that the test framework awaits
+        # only if the test function returns it, so a render test with a block body composes nothing
+        # there and is green either way. Every shared render test was written that way once, and
+        # they were green on the web for weeks while composing nothing.
+        run: python3 tools/render-shape/check.py
+
       - name: Build, and run every shared test
         working-directory: engine
         # Android lint is excluded for the reason it is excluded locally: it is a style pass over a
