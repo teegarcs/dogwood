@@ -56,7 +56,17 @@ class BrowserLeakWatcherTest {
 
     delay(200)
     forceGc()
-    delay(1_200)
+
+    // Waits for the outcome rather than for a fixed span, and the difference is not stylistic.
+    // The watcher's own threshold is 900 ms, so `delay(1_200)` left 500 ms of slack -- comfortable
+    // on a development machine and not on a loaded continuous-integration runner, where this went
+    // red. The assertion is unchanged: a watcher that never reports still fails, it just fails
+    // after four seconds instead of after one.
+    var waited = 0
+    while (reported.isEmpty() && waited < 4_000) {
+      delay(100)
+      waited += 100
+    }
 
     assertEquals(listOf("deliberately retained"), reported)
     assertTrue(retained.single() is Subject, "and it really is still alive, not merely reported")
