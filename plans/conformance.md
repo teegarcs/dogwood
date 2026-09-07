@@ -190,9 +190,9 @@ ran them blind.
 | ID | Claim | Tier | Today |
 |---|---|---|---|
 | J1 | The services a host wired reach the guest, and the guest can read them | C | ✅ Android, iOS, web |
-| J2 | Launch parameters reach the experience **the host named** | C | ✅ web |
+| J2 | Launch parameters reach the experience **the host named** | C | ✅ Android, web |
 | J3 | The dictionary versions this client implements reach the guest | C | ✅ Android, iOS, web |
-| J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ web |
+| J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ Android, web |
 | J5 | Host and guest read **one** declaration of the start payload, not two | S | ✅ `WorkerPayloadTest` |
 
 `A7` is graded on the web by this group's drill rather than by the skew one, and the placement is a
@@ -209,10 +209,26 @@ second copy of both to assert on strings the first had already collected. Each r
 millisecond count off the screen, which is the value a guest could not have invented and which shows
 as `host clock unavailable` when nothing crossed.
 
-**`J2` and `J4` remain web-only, and that is an evidence gap rather than a capability gap.** Android
-and iOS pass launch parameters through `DogwoodShell.activate` and have done since Phase 4; nothing
-asserts it, so the table says `—` rather than borrowing the web's tick. Closing them means driving a
-second entry point in each mobile drill, which is a bigger change to those drills than this one was.
+**`J4` found a real gap on the way to being graded, which is the argument for the whole group.**
+`SkewReport.unknownRoutes` has existed since it was written — *"routes a guest asked for that this
+client does not handle; the host stayed where it was"* — and **nothing on mobile ever filled it**.
+An unknown route was declined and silently dropped. The web records it inside
+`DogwoodWebExperience`, because there the navigate call passes through the experience; on mobile it
+does not, and cannot: a navigation service is constructed by the **application**, before any
+experience exists, and handed in. So the engine has no seam at which to record this and the host is
+the only thing that can. The Android sample now does, and is the reference for it.
+
+**`J2` and `J4` are not graded on iOS**, and the reason is the host rather than the drill: that
+sample wires no navigation service at all, which is a legitimate choice the surface explicitly
+allows — every service is optional and its absence is normal. Its launch parameters are graded by
+nothing, which is an evidence gap and stays written down as one.
+
+**Two things about the Android drill had to change to grade `J4`, and both were the drill lying.**
+It scrolled by asking whether a container *accepted* the action, and the Diagnostics screen
+demonstrates a **nested** scrolling container that accepts one forever — forty accepted actions, a
+motionless page, and a control four sections below reported unreachable. And it settled for a fixed
+400 ms after a scroll, so the page moved and the tree had not been rebuilt when it looked. Both are
+the same mistake in different clothes: asserting a schedule rather than an outcome.
 
 `J5` is the one that is not about a platform. The host half of the web boundary is
 Kotlin/WebAssembly and the guest half is Kotlin/JavaScript; they do not link, so the envelope's

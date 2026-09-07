@@ -55,7 +55,10 @@ p=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* PASS" "$OUT" || true)
 f=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* FAIL" "$OUT" || true)
 s=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* SKIP" "$OUT" || true)
 echo "CONF RESULT client=android passed=$p failed=$f skipped=$s" >> "$OUT"
-grep -E "^CONF (D|A|B|C|E|F|G)[0-9]" "$OUT" || true
+# `[A-Z]`, not a list of the groups that existed when this was written. The list form has now
+# silently dropped a whole group twice -- H when release control arrived, and J when host services
+# did -- and each time the claims were graded, in the file, and invisible in the console.
+grep -E "^CONF [A-Z][0-9]" "$OUT" || true
 grep -E "^CONF RESULT" "$OUT" || {
   echo "the drill never reported; see $HERE/build/gradle.log" >&2
   exit 1

@@ -249,6 +249,24 @@ private fun Tabs(
     routeParams = params
   }
 
+  /*
+   * An unknown route is skew, and skew that nobody records is skew nobody learns from.
+   *
+   * `SkewReport.unknownRoutes` has existed for this since it was written -- *"routes a guest asked
+   * for that this client does not handle; the host stayed where it was"* -- and nothing on this
+   * platform filled it. The web host records it inside `DogwoodWebExperience`, because there the
+   * navigate call passes through the experience; here it does not. A navigation service is
+   * constructed by the **application**, before any experience exists, and handed in -- so the
+   * engine has no seam at which to record this and the host is the only thing that can.
+   *
+   * Bound the same way `latestNavigate` is, and for the same reason: the service outlives any one
+   * session, so it has to reach the experience that is live *now*.
+   */
+  val latestUnknownRoute by rememberUpdatedState<(String) -> Unit> { route ->
+    Log.w(TAG, "navigate: unknown route '$route', staying put")
+    shell?.active?.value?.skew?.unknownRoutes?.add(route)
+  }
+
   val services = remember {
     DogwoodServiceHost(
       log = CallbackLog { level, tag, message ->
@@ -289,7 +307,7 @@ private fun Tabs(
           Log.i(TAG, "navigate: $route $params")
           latestNavigate(route.removePrefix("experience/"), params)
         },
-        onUnknownRoute = { Log.w(TAG, "navigate: unknown route '$it', staying put") },
+        onUnknownRoute = { latestUnknownRoute(it) },
       ),
     )
   }
