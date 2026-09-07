@@ -9,10 +9,19 @@ suspicions (right-to-left layout, licensing) were checked and dropped because th
 handles them. Findings already recorded elsewhere are listed once, in Part C, so Parts A and B are
 new information.
 
-The one-paragraph verdict: **the engine is real and the evidence behind it is unusually honest, but
-the adoption path has never been walked end to end.** Everything a *demo* needs exists and is
-verified on three clients. Several things only a *production integration* needs have never been
-exercised even once — and this project's own history says the first run of anything finds a defect.
+The one-paragraph verdict, as audited: **the engine is real and the evidence behind it is unusually
+honest, but the adoption path has never been walked end to end.** Everything a *demo* needs exists
+and is verified on three clients. Several things only a *production integration* needs have never
+been exercised even once — and this project's own history says the first run of anything finds a
+defect.
+
+> **Status, end of 2026-09-07: Part A is closed** (A6's cross-version drill waits for a second
+> engine version to exist) **and B2 with it** — each item by running the thing, each with an ADR
+> (056–060). The history held: the first R8 build needed nine rounds of harness fixes, the first
+> external payload compilation found a generator defect that had made a component unbindable for
+> its whole life, the crash probe found guest crashes were *unobservable* rather than unreadable,
+> and the runaway-loop negative control hung rather than failed. B1, B3 and B4 remain the first
+> adopter's roadmap; Part C remains the owner's.
 
 ---
 
