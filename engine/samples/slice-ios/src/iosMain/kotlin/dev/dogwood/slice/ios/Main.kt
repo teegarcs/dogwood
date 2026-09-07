@@ -93,6 +93,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.unit.dp
 import dev.dogwood.host.DogwoodShell
+import dev.dogwood.host.FileReleaseStore
+import dev.dogwood.host.ReleaseGuard
 import dev.dogwood.host.DogwoodStateStore
 import kotlinx.coroutines.launch
 import platform.Foundation.NSApplicationSupportDirectory
@@ -253,6 +255,20 @@ private fun SliceHost(configuration: HostEnvironment) {
         ziplineDispatcher = dispatcher,
         uiScope = uiScope,
         environment = latestConfiguration,
+        // Written before a release runs, so a crash-on-launch loop terminates (ADR-049). This
+        // host went without one until the parameter stopped having a default; application
+        // support rather than caches, because a purgeable record is a guard with amnesia.
+        releaseGuard = ReleaseGuard(
+          store = FileReleaseStore(
+            file = cachePath("${applicationSupportDirectory()}/dogwood-release.json"),
+          ),
+          onReport = { println("dogwood: release guard: $it") },
+        ),
+        onRefused = { entry, refusal ->
+          note = "[$entry] refused: ${refusal.reason}" +
+            (refusal.fallbackVersion?.let { " (last good: $it)" } ?: "")
+          println("dogwood: $note")
+        },
         services = DogwoodServiceHost(
           log = CallbackLog { level, tag, message -> println("[$level] $tag: $message") },
           clock = NSDateClock(),

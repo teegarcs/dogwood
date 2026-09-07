@@ -59,15 +59,26 @@ Then render a surface. The shortest complete host is
 in outline it is four things:
 
 ```kotlin
-DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->     // 1. tell the guest its viewport
-  val delivered = DogwoodDelivery(                                 // 2. fetch, verify, cache, load
+val guard = ReleaseGuard(                                          // 1. survive a bad publish
+  store = FileReleaseStore(file = cachePath(".../dogwood-release.json")),
+  onReport = { yourLog.warn(it) },
+)
+
+DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->     // 2. tell the guest its viewport
+  val guarded = DogwoodDelivery(                                   // 3. fetch, verify, cache, load
     dispatcher = ziplineDispatcher,                                //    ONE thread, 8 MB of stack
     trustedPublicKeys = yourPublicKeys,
     cache = ZiplineCache(...),
-  ).load(applicationName = "your-app", manifestUrl = MANIFEST_URL)
+  ).loadGuarded(applicationName = "your-app", manifestUrl = MANIFEST_URL, guard = guard)
 
-  val experience = DogwoodExperience(delivered.zipline, ziplineDispatcher, uiScope)
-  DogwoodSurface(experience, Modifier.fillMaxSize())               // 3. draw it
+  when (guarded) {
+    is GuardedLoad.Refused -> showYourOwnScreen(guarded.reason)    //    quarantined or kill-switched
+    is GuardedLoad.Running -> {
+      val experience = DogwoodExperience(guarded.guest.zipline, ziplineDispatcher, uiScope)
+      DogwoodSurface(experience, Modifier.fillMaxSize())           // 4. draw it
+      guard.succeeded(guarded.version)                             // 5. "loaded" is not success; this is
+    }
+  }
 }
 ```
 
@@ -79,6 +90,11 @@ Three of those deserve a sentence:
   needs eight megabytes of stack, because interpreted composition is deeply recursive; Apple gives a
   background thread 512 kilobytes by default, which is why `DogwoodZiplineDispatcher` exists on iOS.
 - **`trustedPublicKeys`** is what makes a payload yours. See §4.
+- **The guard is not optional to think about.** A payload ships without a store review, so a bad one
+  ships fast too; the guard persists an attempt *before* the release runs, which is what makes a
+  crash-on-launch loop terminate, and it honours the kill switch in the manifest's signed metadata
+  ([operating](operating.md) §2–3). `DogwoodShell` requires the parameter — passing `null` is
+  accepted and is a decision you write, not an omission nobody notices.
 
 **If you have several entry points** — tabs, a deep-link target, a settings section — use
 `DogwoodShell` instead of a bare experience. It keeps a bounded number of them warm, restores their

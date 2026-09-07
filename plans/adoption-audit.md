@@ -69,7 +69,16 @@ had no equivalent shakeout.
 published artifacts, signs it with throwaway keys, and serves it to Umbra's host; extend
 `tools/standalone-check/run.sh` to assert the payload loaded and rendered.
 
-### A3. Surviving a bad publish is opt-in, and four hosts of five do not opt in
+### A3. ✅ Closed — the guarded path is the default path ([ADR-058](../adrs/layer-5/ADR-058-protection-by-default.md))
+
+`DogwoodShell` requires `releaseGuard` and `onRefused` now; `null` is accepted and is a written
+decision. Removing the defaults turned the gap into two compile errors, which is the whole
+argument. Every host in the repository rides the guarded path — the shell-less ones through
+`loadGuarded`, calling `succeeded` on mount — and getting-started's outline opens with it. **The
+web host remains unguarded and is now the only one**; its delivery has no release-version
+bookkeeping, and that slice stays open here honestly. Original finding kept below.
+
+### A3 (original). Surviving a bad publish is opt-in, and four hosts of five do not opt in
 
 `ReleaseGuard` — the crash-loop quarantine, the last-known-good record, the kill switch: capability
 group H, and half the architecture's selling point per ADR-049 — is wired in exactly one place,
@@ -213,7 +222,7 @@ resolution, and the generated-source seams.
 |---|---|---|
 | 1 | ~~A1 — R8~~ ✅ | Done, and better than specified: the full instrumented suite runs against the minified build rather than a smoke check, and the verified finding is that an adopter needs **no** Dogwood-specific rules — so none ship, on evidence rather than neglect |
 | 2 | ~~A2 — the standalone product~~ ✅ | Done as specified, and the first guest compilation outside the repository found a real generator defect (a `(Int) -> Unit` callback rejected as lazy-layout machinery) — the audit's reasoning, confirmed by the build |
-| 3 | **A3 — protection by default** | the guarded path is the default path in the engine, every sample rides it, and getting-started shows it |
+| 3 | ~~A3 — protection by default~~ ✅ | Done: the parameters lost their defaults, every Zipline host rides the guarded path, and the worked example copies the protection with it. The web host is the recorded remainder |
 | 4 | **A4 — readable crashes** | a deliberate guest exception is thrown on a device and the stack that reaches the host is read before deciding what, if anything, to build — Zipline may already carry source context, and the claim goes whichever way the evidence does |
 | 5 | **A6 — the version policy** | a supported-versions table in getting-started, and the over-the-air coupling stated rather than discovered |
 | 6 | **A5 — the runaway payload** | what the runtime offers is established from its actual sources, a bound is configured and reported like any other refusal, and a hostile payload drill watches it hold |

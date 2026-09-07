@@ -74,10 +74,25 @@ class DogwoodShell(
   private val onFailure: (String, Exception) -> Unit = { _, _ -> },
   /** Called when an experience is snapshotted and closed, with how many state keys were kept. */
   private val onEvict: (String, Int) -> Unit = { _, _ -> },
-  /** Passed to every session. See `DogwoodSession`. Null means every release runs. */
-  private val releaseGuard: ReleaseGuard? = null,
-  /** Called when a release is refused, with the entry point it was refused for. */
-  private val onRefused: (String, GuardedRelease) -> Unit = { _, _ -> },
+  /*
+   * No default, deliberately, and the deliberateness is the adoption audit's A3.
+   *
+   * The guard is half of what this architecture sells -- surviving a bad publish without a store
+   * review (ADR-049) -- and with a `= null` default it was wired in exactly one host of five,
+   * because a parameter with a default is a parameter nobody is asked about. An adopter who
+   * follows the documentation must not discover during their first bad publish that they never
+   * had the protection; a compile error today is cheaper than a crash loop in the field.
+   *
+   * `null` is still accepted, because a host may genuinely have nowhere to persist a record --
+   * but it is now a decision somebody wrote, not an omission nobody noticed.
+   */
+  private val releaseGuard: ReleaseGuard?,
+  /**
+   * Called when a release is refused. Required alongside the guard for the same reason: a
+   * refusal with a defaulted no-op handler is a screen that silently shows nothing, and the whole
+   * point of the guard is that somebody finds out.
+   */
+  private val onRefused: (String, GuardedRelease) -> Unit,
 ) {
   private val pool = WarmPool(capacity)
   private val entries = mutableMapOf<String, ShellEntry>()

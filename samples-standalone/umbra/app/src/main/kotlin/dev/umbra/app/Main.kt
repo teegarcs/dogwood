@@ -34,6 +34,9 @@ import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodExperience
+import dev.dogwood.host.ReleaseGuard
+import dev.dogwood.host.GuardedLoad
+import dev.dogwood.host.FileReleaseStore
 import dev.dogwood.host.DogwoodRegistry
 import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.DogwoodSurface
@@ -76,6 +79,14 @@ fun main(args: Array<String>) {
       var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
       var failure by remember { mutableStateOf<String?>(null) }
       val transcript = remember { RenderTranscript() }
+      val guard = remember {
+        ReleaseGuard(
+          store = FileReleaseStore(
+            file = cachePath(File(System.getProperty("java.io.tmpdir"), "umbra-release.json").absolutePath),
+          ),
+          onReport = { println("UMBRA release guard: $it") },
+        )
+      }
       val dispatcher = remember {
         Executors.newSingleThreadExecutor { runnable ->
           Thread(null, runnable, "zipline", 8L * 1024 * 1024)
@@ -87,7 +98,7 @@ fun main(args: Array<String>) {
           DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->
             LaunchedEffect(Unit) {
               try {
-                val delivered = withContext(dispatcher) {
+                val guarded = withContext(dispatcher) {
                   DogwoodDelivery(
                     dispatcher = dispatcher,
                     trustedPublicKeys = TRUSTED_KEYS,
@@ -98,7 +109,19 @@ fun main(args: Array<String>) {
                       ),
                       maxSizeInBytes = 32L * 1024 * 1024,
                     ),
-                  ).load(applicationName = "umbra", manifestUrl = manifestUrl())
+                    // The guarded path IS the default path: an attempt is persisted before the
+                    // payload runs, so a release that crashes on launch is quarantined instead of
+                    // looping, and the kill switch in the manifest's signed metadata is honoured.
+                    // An adopter copying this file copies the protection with it.
+                  ).loadGuarded(applicationName = "umbra", manifestUrl = manifestUrl(), guard = guard)
+                }
+                val delivered = when (guarded) {
+                  is GuardedLoad.Refused -> {
+                    failure = "release ${guarded.version} refused: ${guarded.reason}" +
+                      (guarded.fallbackVersion?.let { " (last good: $it)" } ?: "")
+                    return@LaunchedEffect
+                  }
+                  is GuardedLoad.Running -> guarded.guest
                 }
                 println("UMBRA loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
                 val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
@@ -115,6 +138,9 @@ fun main(args: Array<String>) {
                   )
                 }
                 experience = created
+                // "It loaded" is not success -- a payload that throws on its first composition has
+                // loaded. Started and mounted is.
+                guard.succeeded(delivered.releaseVersion)
               } catch (e: Throwable) {
                 failure = "could not load the payload: ${e.message}"
                 e.printStackTrace()
