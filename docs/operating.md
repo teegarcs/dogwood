@@ -40,6 +40,13 @@ starts a version is quarantined and the host names the last version known to hav
 most**: without it, a payload that crashes on launch crashes on every relaunch, forever, on every
 device that fetched it.
 
+**A payload that will not stop is stopped.** Every guest runs under bounds
+([ADR-060](../adrs/layer-5/ADR-060-bounds-on-a-runaway-payload.md)): allocation past 256 MiB is
+refused, and any single uninterrupted run of guest execution past five seconds is interrupted —
+with the stack source-mapped to the payload file that was stuck. The host process survives both.
+These are tourniquets, not budgets: ordinary guest work yields many times a second, and nothing
+that behaves is ever touched by them.
+
 **A payload built against a newer dictionary degrades rather than breaking.** Unknown widgets become
 placeholders, unknown icons become the fallback glyph, unknown colour tokens become unspecified, and
 values Compose would throw on are clamped. The one exception is deliberate: a control that owns an

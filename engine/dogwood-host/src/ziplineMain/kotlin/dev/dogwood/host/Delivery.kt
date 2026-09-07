@@ -160,6 +160,12 @@ class DogwoodDelivery(
   /** See [REVALIDATE_EVERY_LAUNCH]. Zero revalidates on every launch. */
   private val manifestMaxAgeMs: Long = REVALIDATE_EVERY_LAUNCH,
   private val nowEpochMs: () -> Long = ::hostEpochMillis,
+  /**
+   * The bounds every loaded guest runs under. On by default -- the same argument as the release
+   * guard's missing default (ADR-058): a payload is replaceable over the air, so an unbounded
+   * interpreter is a standing invitation. `GuestLimits.none` is the written way out.
+   */
+  private val guestLimits: GuestLimits? = GuestLimits(),
 ) {
   init {
     require(trustedPublicKeys.isNotEmpty()) {
@@ -238,7 +244,11 @@ class DogwoodDelivery(
         zipline = result.zipline,
         manifest = result.manifest,
         verifiedByKey = result.manifest.signatures.keys.firstOrNull(),
-      )
+      ).also { delivered ->
+        // Before any guest code composes: a bound applied after the first slice began is a bound
+        // the first slice never had.
+        guestLimits?.let { applyGuestLimits(delivered.zipline, it) }
+      }
       is LoadResult.Failure -> throw result.exception
     }
   }
@@ -279,7 +289,11 @@ class DogwoodDelivery(
         zipline = result.zipline,
         manifest = result.manifest,
         verifiedByKey = result.manifest.signatures.keys.firstOrNull(),
-      )
+      ).also { delivered ->
+        // The code-update path gets the same bounds as the first load: a replacement guest is
+        // exactly as capable of a runaway loop as the guest it replaces.
+        guestLimits?.let { applyGuestLimits(delivered.zipline, it) }
+      }
       // A failed poll is not a reason to tear down a working screen: the previous guest keeps
       // running and the next poll tries again. It is every reason to say so.
       is LoadResult.Failure -> {

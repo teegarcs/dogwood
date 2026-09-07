@@ -117,7 +117,17 @@ first-month incident, not an edge case.
 the served artifact, and document the retrace step (or the deliberate decision not to have one) in
 `docs/operating.md`.
 
-### A5. Nothing bounds a runaway payload
+### A5. ✅ Closed — bounds on by default, watched to hold ([ADR-060](../adrs/layer-5/ADR-060-bounds-on-a-runaway-payload.md))
+
+`GuestLimits` (256 MiB, 5-second slice) applied by delivery on both load paths before any guest
+code composes; `GuestLimits.none` is the written way out. Watched at the engine level with hostile
+scripts and controls, and end-to-end on the production pipeline, where the interrupt fired
+source-mapped to the stuck payload file and the host survived. The negative control could not go
+red — it *hung*, which is the finding in its purest form. Recorded asymmetries: an interrupt inside
+Zipline's own resumption reaches the thread's handler rather than `onGuestException`, and the web
+profile has neither bound (the browser's process isolation is its containment). Original below.
+
+### A5 (original). Nothing bounds a runaway payload
 
 No memory limit, interrupt handler, or watchdog is configured on the QuickJS instance anywhere in
 `dogwood-host`, and no drill exercises a payload that allocates without bound or never yields.
@@ -246,7 +256,7 @@ resolution, and the generated-source seams.
 | 3 | ~~A3 — protection by default~~ ✅ | Done: the parameters lost their defaults, every Zipline host rides the guarded path, and the worked example copies the protection with it. The web host is the recorded remainder |
 | 4 | ~~A4 — readable crashes~~ ✅ | The claim went both ways: crashes were *unobservable* (no scope handler; a rethrowing default that returned the crash to the sandbox), and once routed, Zipline's built-in source maps give file-level Kotlin attribution with nothing to deploy. Web Worker path stays open |
 | 5 | ~~A6 — the version policy~~ ◐ | The table and the hosts-first rule are written; the cross-version drill waits for a second engine version to exist |
-| 6 | **A5 — the runaway payload** | what the runtime offers is established from its actual sources, a bound is configured and reported like any other refusal, and a hostile payload drill watches it hold |
+| 6 | ~~A5 — the runaway payload~~ ✅ | Established from the artifact (`Zipline.quickJs` exposes both knobs), on by default, watched at two levels including a full-pipeline hostile drill whose negative control hung rather than failed |
 | 7 | **B2 — the inner loop** | the payload development workflow documented with whatever watch/serve support actually exists, plus an author-facing screen-test recipe |
 
 B1 (catalogue), B3 (multi-payload) and B4 (iOS framework packaging) stay on this page as the first
