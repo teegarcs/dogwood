@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Project Dogwood -- conformance claims J1-J4 on the web client.
+"""Project Dogwood -- conformance claims J1-J4 and A7 on the web client.
 
 The host's services, and whether they actually reach a guest running in a Web Worker.
 
@@ -13,6 +13,11 @@ as long as the web guest existed. It ran the same screens as the mobile payload 
 **Read off the screen, not off the page's log.** The guest composes these values into text, so what
 the accessibility tree carries is what the guest actually received. A host log line saying "sent"
 is the host agreeing with itself.
+
+`A7` is here rather than with the other protocol claims for a reason that is not filing: what
+carries a guest's state across a code update on this platform **is** the start message, so the two
+are one mechanism. A code update is the normal case on this architecture -- it is the whole selling
+point -- and the web profile had never once been made to do one.
 
 Emits the `CONF` grammar from `plans/conformance.md`.
 """
@@ -148,6 +153,68 @@ def run(url, chrome, port):
         log = json.loads(raw).get('log', [])
         conform('J4', any('no host route for' in line for line in log),
                 f'the host refused and recorded it: {[l for l in log if "route" in l]}')
+
+        # ---------------------------------------------------------------------------------
+        # A7 -- a code update preserves what the user was doing.
+        #
+        # `entry=app` is the one experience with visible saveable state: which tab is open, held in
+        # `rememberSaveable` above the navigation. A code update replaces the Worker entirely -- a
+        # new script, a new module, a new composition -- so the only route from the old guest's
+        # values to the new one's is through the host, and the assertion is that the screen comes
+        # back where the user left it rather than at the default tab.
+        # ---------------------------------------------------------------------------------
+        devtools.call('Page.navigate', {
+            'url': f'{url}?manifest=dogwood-manifest-kotlin.json&entry=app'}, session)
+        for _ in range(240):
+            raw = devtools.call('Runtime.evaluate', {
+                'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
+            }, session).get('result', {}).get('value') or ''
+            if raw and json.loads(raw).get('done'):
+                break
+            time.sleep(0.25)
+        time.sleep(1.5)
+
+        # Move off the default tab, through the accessibility layer, the way a user would.
+        tab = next((n for n in ax_nodes(devtools, session)
+                    if n['role'] == 'button' and n['name'] == 'Diagnostics'), None)
+        moved = False
+        if tab is not None:
+            handle = devtools.call(
+                'DOM.resolveNode', {'backendNodeId': tab['backendDOMNodeId']}, session,
+            ).get('object', {}).get('objectId')
+            if handle:
+                devtools.call('Runtime.callFunctionOn', {
+                    'functionDeclaration': 'function() { this.click(); }', 'objectId': handle,
+                }, session)
+                for _ in range(40):
+                    if any(n['name'] == 'Diagnostics' and n['role'] != 'button'
+                           for n in ax_nodes(devtools, session)):
+                        moved = True
+                        break
+                    time.sleep(0.25)
+        # The control. Without it, "still on Diagnostics after the update" is satisfied by a screen
+        # that never left the default tab, and the claim would hold vacuously.
+        conform('A7-control', moved, 'the tab moved off its default before the update')
+
+        devtools.call('Runtime.evaluate', {
+            'expression': 'globalThis.__dogwoodCodeUpdate = true', 'returnByValue': True,
+        }, session)
+        updated = False
+        for _ in range(120):
+            raw = devtools.call('Runtime.evaluate', {
+                'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
+            }, session).get('result', {}).get('value') or '{}'
+            if json.loads(raw).get('codeUpdates') == '1':
+                updated = True
+                break
+            time.sleep(0.25)
+        time.sleep(2)
+
+        names_after = [n['name'] for n in ax_nodes(devtools, session) if n['name']]
+        back = any('Everything on this screen came from the host' in n for n in names_after)
+        conform('A7', updated and back,
+                f'the guest was replaced ({updated}) and came back on the tab the user left it on '
+                f'({back}): {names_after[:6]}')
 
         return 1 if failed else 0
     finally:

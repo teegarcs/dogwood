@@ -112,7 +112,30 @@ state — correct behaviour, and indistinguishable from a network service that d
   Bumping the revision would refuse an older guest outright for a change it can ignore.
 - **Nothing verifies the mobile side of `J1`–`J4`.** See §3.
 
-## 5. Updated Documents
+## 5. A code update, which this made possible
+
+The start message turned out to be the missing half of something larger. A **code update** — a
+payload published while a screen is open — is the normal case on this architecture and its whole
+selling point, and the web profile had never performed one. It could not: a new Worker is a new
+module with a new composition, so the only route from the old guest's `rememberSaveable` values to
+the new one's is through the host, and there was no message to carry them on.
+
+`DogwoodWebExperience.update` is that swap, in the order the design requires: snapshot the old guest
+(it is the only thing that knows its own state, and in a moment it will not exist), close its bridge
+(so a batch in flight cannot land on a tree that now belongs to its successor), clear the tree (what
+arrives next is a whole tree, not a patch), then attach — which bumps the generation and sends the
+start message carrying the snapshot.
+
+Graded as `A7` on the web: the drill moves off the default tab, publishes, and asserts the screen
+comes back where the user left it. It carries a control proving the tab had actually moved, and the
+check was **watched to fail** with `restoredState` removed:
+
+```
+CONF A7 FAIL -- the guest was replaced (True) and came back on the tab the user left it on (False)
+CONF A7 PASS -- the guest was replaced (True) and came back on the tab the user left it on (True)
+```
+
+## 6. Updated Documents
 
 - [`plans/conformance.md`](../../plans/conformance.md) — the new group **J**.
 - [`plans/production-readiness.md`](../../plans/production-readiness.md) — §2.1's remaining clause,

@@ -59,6 +59,15 @@ data class WebStartPayload(
   val featureFlags: Map<String, String> = emptyMap(),
   val routes: Set<String> = emptySet(),
   val segmentVersions: Map<String, Int> = emptyMap(),
+  /**
+   * What the previous guest was holding, when this start follows a code update.
+   *
+   * Null on a first load. A code update replaces the Worker -- a new script, a new module, a new
+   * composition -- so the only route from the old guest's `rememberSaveable` values to the new
+   * one's is through the host, exactly as it is on mobile: snapshot before the swap, restore into
+   * the start. Without it a publish empties every form on screen.
+   */
+  val restoredState: StateSnapshot? = null,
 )
 
 /** One analytics event, as the guest sent it. */

@@ -117,7 +117,7 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | A4 | An unknown property on a widget that owns an affordance withholds the widget | S + C | S ✅; C Android, iOS, web |
 | A5 | Out-of-range numeric values are clamped and reported, never thrown | S + C | S ✅; C Android + iOS |
 | A6 | An undecodable batch is rejected whole and reported | S | ✅ |
-| A7 | Node identity survives a code update, so `remember` is preserved | S | ✅ |
+| A7 | Node identity survives a code update, so `remember` is preserved | S + C | S ✅; C ✅ web — a real Worker swap, with a control proving the tab had moved |
 
 ### B. Delivery and trust
 
@@ -194,6 +194,14 @@ ran them blind.
 | J3 | The dictionary versions this client implements reach the guest | C | ✅ web |
 | J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ web |
 | J5 | Host and guest read **one** declaration of the start payload, not two | S | ✅ `WorkerPayloadTest` |
+
+`A7` is graded on the web by this group's drill rather than by the skew one, and the placement is a
+statement rather than filing: **what carries a guest's state across a code update on this platform
+is the start message**, so the two are one mechanism. Until 2026-09-07 the web profile had never
+performed a code update at all — the normal case on this architecture, and its whole selling point.
+It does now, with `restoredState` riding the same message; the drill moves off the default tab,
+publishes, and asserts the screen comes back where the user left it. Watched to fail with the
+restore removed.
 
 **The mobile cells are an evidence gap, not a capability gap, and the distinction matters both
 ways.** Android and iOS have had these services since Phase 4 and the samples demonstrably use them

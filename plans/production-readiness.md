@@ -133,7 +133,12 @@ one-way. The same screen now reads `analytics, clock, featureFlags, log, navigat
 **The remaining honest asymmetry is `network`**, and it is the browser's rather than Dogwood's: the
 guest calls `fetch` inside the page's origin, constrained by the page's Content Security Policy
 rather than by a host allow-list that refuses everything by default. ADR-032 recorded that for the
-profile; ADR-055 §4 makes it concrete. **A code update has still never been exercised on web.**
+profile; ADR-055 §4 makes it concrete. ~~**A code update has still never been exercised on web.**~~ ✅ It has now, and it is graded:
+`DogwoodWebExperience.update` snapshots the running guest, closes its bridge, clears the tree and
+attaches a new Worker with the snapshot riding the start message — because a new Worker is a new
+module with a new composition and nothing survives implicitly. Claim `A7` on the web moves off the
+default tab, publishes, and asserts the screen comes back where the user left it, with a control
+proving the tab had moved and the whole check watched to fail with the restore removed.
 
 ### 2.2 Live-state holders ◐
 

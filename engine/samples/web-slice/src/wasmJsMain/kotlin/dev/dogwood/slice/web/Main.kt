@@ -225,6 +225,11 @@ fun main() {
       is DeliveryOutcome.Started -> {
         field("workerCreated", "true")
         experience.attach(outcome.bridge)
+        // A code update, on demand, because on this architecture it is the *normal* case and the
+        // web profile had never once been made to do it. The harness asks by setting a global; the
+        // page does the whole thing a publish would do -- fetch the manifest again, create a new
+        // Worker, and hand the running guest's state to its successor.
+        scope.launch { serveCodeUpdates(delivery, manifest, experience) }
         // Polled alongside the drive rather than read once after it, and the difference is not
         // cosmetic. `SkewReport` is plain sets written *during* composition -- `Skew.kt` explains
         // why it cannot be snapshot state -- so a single read after the batches have applied sees
@@ -237,6 +242,42 @@ fun main() {
       }
     }
   }
+}
+
+/**
+ * Runs a code update whenever the harness asks for one.
+ *
+ * Polling a global rather than exporting a function, because a Kotlin/WebAssembly function is not a
+ * JavaScript value and wrapping one to be called from a headless browser would be more interop than
+ * the thing it is testing.
+ */
+private suspend fun serveCodeUpdates(
+  delivery: WebDelivery,
+  manifest: String,
+  experience: DogwoodWebExperience,
+) {
+  while (true) {
+    delay(200)
+    if (!codeUpdateRequested()) continue
+    clearCodeUpdateRequest()
+    when (val outcome = delivery.start(manifest, experience)) {
+      is DeliveryOutcome.Started -> {
+        experience.update(outcome.bridge)
+        updates += 1
+        field("codeUpdates", updates.toString())
+      }
+
+      is DeliveryOutcome.Refused -> note("a code update was refused: ${outcome.refusal.message}")
+    }
+  }
+}
+
+private var updates = 0
+
+private fun codeUpdateRequested(): Boolean = js("globalThis.__dogwoodCodeUpdate === true")
+
+private fun clearCodeUpdateRequest() {
+  js("globalThis.__dogwoodCodeUpdate = false")
 }
 
 /**

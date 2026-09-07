@@ -345,7 +345,9 @@ private fun onMessage(message: dynamic) {
             configuration = configuration,
             launchParams = startPayload.launchParams,
             segmentVersions = startPayload.segmentVersions,
-            restoredState = null,
+            // Carried across a code update by the host, because a new Worker is a new module with
+            // a new composition and nothing survives implicitly. Null on a first load.
+            restoredState = startPayload.restoredState,
           )
         }
       }

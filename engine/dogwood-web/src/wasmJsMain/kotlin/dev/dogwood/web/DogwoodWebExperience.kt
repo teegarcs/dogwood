@@ -71,6 +71,8 @@ import dev.dogwood.host.LayoutScope
 import dev.dogwood.host.HostTree
 import dev.dogwood.host.EventSink
 import dev.dogwood.host.DogwoodLeakWatcher
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
 
 /** The single content slot the root node exposes, matching the layout tier's containers. */
 private const val ROOT_CONTENT = 1
@@ -127,7 +129,7 @@ class DogwoodWebExperience(
    * versions reported", which is exactly what this profile did before there was anything to say
    * it with. `WebStartPayload` documents each field.
    */
-  private val services: WebStartPayload = WebStartPayload(),
+  services: WebStartPayload = WebStartPayload(),
   /**
    * Where a guest's analytics events go. Dropped by default, and dropping is a decision the page
    * takes rather than one this class takes for it.
@@ -216,6 +218,63 @@ class DogwoodWebExperience(
    * composition: a generation nothing recomposes on is a generation nothing observes.
    */
   private var guestGeneration by mutableStateOf<Any>(Any())
+
+  /**
+   * What this host declares to the guest, which a code update rewrites once.
+   *
+   * A `var` for exactly one reason: [update] carries the previous guest's state into the next
+   * one's start message, and there is no other route between two Workers.
+   */
+  private var services: WebStartPayload = services
+
+  /**
+   * Replaces the running guest with [next], carrying its state across.
+   *
+   * **This is a code update, which on this architecture is the normal case rather than an
+   * exceptional one.** A publish lands while a screen is open; the user is mid-form; nothing about
+   * it should feel like a crash.
+   *
+   * The order is the whole of the design, and each step is doing something:
+   *
+   *   1. **Snapshot the old guest first.** It is the only thing that knows its own
+   *      `rememberSaveable` values, and in a moment it will not exist -- a new Worker is a new
+   *      module with a new composition, so nothing survives implicitly.
+   *   2. **Close the old bridge**, so a batch still in flight from a guest being replaced cannot
+   *      land on a tree that now belongs to its successor.
+   *   3. **Clear the tree.** What arrives next is a whole tree rather than a patch -- the new guest
+   *      composes from nothing and its sequence numbering starts again -- so applying it onto the
+   *      old one would duplicate every node. The screen is blank for one round trip, which is
+   *      honest: the host genuinely does not know what should be on it.
+   *   4. **Attach**, which bumps the generation and sends the start message carrying the snapshot.
+   *
+   * Suspending because step 1 is a correlated request across a Worker boundary and there is no
+   * synchronous way to ask.
+   */
+  suspend fun update(next: WorkerBridge) {
+    val previous = bridge
+    val carried = if (previous == null) {
+      null
+    } else {
+      suspendCoroutine<StateSnapshot?> { continuation ->
+        previous.snapshotState(
+          onResult = { continuation.resume(it) },
+          onFailure = { failure ->
+            // Answered as well as reported: a code update that hangs waiting for a snapshot is
+            // worse than one that loses state, because the screen never comes back at all.
+            report("snapshotState failed during a code update: $failure")
+            continuation.resume(null)
+          },
+        )
+      }
+    }
+    previous?.close()
+    bridge = null
+    configuredBridge = null
+    tree.clear()
+    services = services.copy(restoredState = carried)
+    report("code update: carrying ${carried?.values?.size ?: 0} saved keys into the next guest")
+    attach(next)
+  }
 
   /** Checked once per page, not once per attach. */
   private var gateResult: GateResult? = null
