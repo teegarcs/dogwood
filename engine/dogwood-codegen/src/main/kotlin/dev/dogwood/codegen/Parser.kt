@@ -188,11 +188,21 @@ class SurfaceParser(
         name, type, ParameterKind.UNSUPPORTED, default != null, default,
         "host-invoked lambda returning $returns; the host cannot block on the guest mid-frame",
       )
-      // "Give me the content for index n" is the lazy-layout subsystem, not an event.
-      type.contains("(Int)") || type.contains("Int)") && type.contains("Scope") -> ParsedParameter(
-        name, type, ParameterKind.UNSUPPORTED, default != null, default,
-        "indexed content lambda; this is the lazy-layout subsystem, not a slot",
-      )
+      /*
+       * Everything else returning Unit is an event, ARGUMENTS INCLUDED.
+       *
+       * A branch here used to reject any lambda containing `(Int)` as "indexed content" -- and an
+       * operator-precedence slip aside, the idea itself was stale: an indexed *content* lambda is
+       * `@Composable` and became a slot two branches before this function was ever called, so the
+       * only thing the rejection could match was a plain callback that happens to carry an `Int`.
+       * `onChange: (Int) -> Unit` is the most ordinary shape a stepper, slider or pager can have,
+       * and the event machinery has carried positional serializable arguments since the first
+       * holder report (`(Int, Int, Boolean)`).
+       *
+       * Found by the first surface written outside this repository: Umbra's `UmbraStepper` was
+       * silently unbindable for as long as it existed, and nothing noticed until a payload tried
+       * to call it -- which is `plans/adoption-audit.md` A2's argument, made by the build.
+       */
       else -> ParsedParameter(name, type, ParameterKind.EVENT, default != null, default)
     }
   }

@@ -35,7 +35,10 @@ Consequences worth knowing before you write anything:
 
 Take the runtime and the generator. There is no `includeBuild` and no path into this repository —
 everything resolves from a repository, which
-[`samples-standalone/umbra`](../samples-standalone/umbra/) exists to prove.
+[`samples-standalone/umbra`](../samples-standalone/umbra/) exists to prove: **a complete worked
+example** of everything on this page — a product's own surface (`:design`), a signed payload
+(`:guest`) and a host application that renders it (`:app`), all against published artifacts. When a
+step below is unclear, Umbra is the same step with real files around it.
 
 ```kotlin
 plugins {

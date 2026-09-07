@@ -33,9 +33,11 @@
                 "enabled"
             ],
             "slots": {},
-            "events": {},
-            "rejected": {
-                "onChange": "indexed content lambda; this is the lazy-layout subsystem, not a slot"
+            "events": {
+                "onChange": 1
+            },
+            "eventTypes": {
+                "onChange": "(Int) -> Unit"
             }
         }
     ]

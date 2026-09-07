@@ -42,7 +42,17 @@ names.
 the resulting rules as `consumer-rules.pro` in `dogwood-host` so an adopter inherits them without
 knowing they exist, and add the minified build to the conformance run so it cannot regress.
 
-### A2. No build outside this repository has ever produced a payload
+### A2. ✅ Closed — Umbra is a whole product, and its first payload build found a generator defect ([ADR-057](../adrs/layer-5/ADR-057-a-whole-product-outside-the-repository.md))
+
+Umbra is three modules now — `:design`, `:guest`, `:app` — in one standalone build with no path
+into `engine/`. The payload compiles against the published `dogwood-compose`, signs, serves, and
+**renders** in Umbra's own host; the check's verdict is the render transcript, not the build, and
+its first run failed. The first compilation of a guest outside this repository found that the
+classifier rejected `onChange: (Int) -> Unit` as lazy-layout machinery — `UmbraStepper` had been
+silently unbindable for as long as it existed, which is this finding's argument made by the build.
+Original finding kept below for the record.
+
+### A2 (original). No build outside this repository has ever produced a payload
 
 `tools/standalone-check` proves the **host** half: Umbra applies the plugin by identifier, generates
 bindings, and compiles against published artifacts. Its source tree contains `dev/umbra/design` and
@@ -202,7 +212,7 @@ resolution, and the generated-source seams.
 | # | Item | Done means |
 |---|---|---|
 | 1 | ~~A1 — R8~~ ✅ | Done, and better than specified: the full instrumented suite runs against the minified build rather than a smoke check, and the verified finding is that an adopter needs **no** Dogwood-specific rules — so none ship, on evidence rather than neglect |
-| 2 | **A2 — the standalone product** | Umbra grows a guest payload and a host application, both against published artifacts only; `tools/standalone-check` serves the signed payload to the host and asserts a render, not a build |
+| 2 | ~~A2 — the standalone product~~ ✅ | Done as specified, and the first guest compilation outside the repository found a real generator defect (a `(Int) -> Unit` callback rejected as lazy-layout machinery) — the audit's reasoning, confirmed by the build |
 | 3 | **A3 — protection by default** | the guarded path is the default path in the engine, every sample rides it, and getting-started shows it |
 | 4 | **A4 — readable crashes** | a deliberate guest exception is thrown on a device and the stack that reaches the host is read before deciding what, if anything, to build — Zipline may already carry source context, and the claim goes whichever way the evidence does |
 | 5 | **A6 — the version policy** | a supported-versions table in getting-started, and the over-the-air coupling stated rather than discovered |
