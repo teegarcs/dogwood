@@ -130,7 +130,16 @@ this afternoon. The authoring check cannot catch a loop; only a runtime bound ca
 it in `DogwoodDelivery` with the refusal reported like any other, and add a hostile-payload drill —
 this project's own rule is that the claim does not exist until something watched it hold.
 
-### A6. There is no version-compatibility policy, and the coupling is triple
+### A6. ◐ Policy written; the cross-version drill remains
+
+[`docs/getting-started.md`](../docs/getting-started.md) now carries the supported-versions table
+(Umbra's root build is the same table as code) and the operational rule the coupling implies:
+**hosts first, payloads after the fleet**, because a payload meets installed hosts and a
+newer-payload-toolchain-on-older-host pairing is exercised by nothing. What stays open is exactly
+that drill — a conformance row loading a payload built at engine N with a host at N−1 — which
+needs two engine versions to exist and is deferred until there are two. Original finding below.
+
+### A6 (original). There is no version-compatibility policy, and the coupling is triple
 
 An adopter must reconcile **three** toolchains: their application's Kotlin/Compose, the engine's
 (Kotlin 2.3.20, Compose Multiplatform 1.10.3, Zipline 1.27.0), and the payload's — which must also
@@ -236,7 +245,7 @@ resolution, and the generated-source seams.
 | 2 | ~~A2 — the standalone product~~ ✅ | Done as specified, and the first guest compilation outside the repository found a real generator defect (a `(Int) -> Unit` callback rejected as lazy-layout machinery) — the audit's reasoning, confirmed by the build |
 | 3 | ~~A3 — protection by default~~ ✅ | Done: the parameters lost their defaults, every Zipline host rides the guarded path, and the worked example copies the protection with it. The web host is the recorded remainder |
 | 4 | ~~A4 — readable crashes~~ ✅ | The claim went both ways: crashes were *unobservable* (no scope handler; a rethrowing default that returned the crash to the sandbox), and once routed, Zipline's built-in source maps give file-level Kotlin attribution with nothing to deploy. Web Worker path stays open |
-| 5 | **A6 — the version policy** | a supported-versions table in getting-started, and the over-the-air coupling stated rather than discovered |
+| 5 | ~~A6 — the version policy~~ ◐ | The table and the hosts-first rule are written; the cross-version drill waits for a second engine version to exist |
 | 6 | **A5 — the runaway payload** | what the runtime offers is established from its actual sources, a bound is configured and reported like any other refusal, and a hostile payload drill watches it hold |
 | 7 | **B2 — the inner loop** | the payload development workflow documented with whatever watch/serve support actually exists, plus an author-facing screen-test recipe |
 

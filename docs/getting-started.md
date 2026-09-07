@@ -252,6 +252,39 @@ you, including the two things that are silent when wrong: cache headers that mat
 
 ---
 
+## Supported versions, and the one rule about upgrading
+
+The engine is built and verified with exactly one set of toolchains, and a product's safest
+position is to match it. Nothing off this table is known to work, because nothing off this table
+has ever been run — which is a statement about evidence, not about compatibility.
+
+| Toolchain | Version | Who must match it |
+|---|---|---|
+| Kotlin | 2.3.20 | the host application **and** the payload build |
+| Compose Multiplatform | 1.10.3 | the host application |
+| Zipline | 1.27.0 | the host application **and** the payload build |
+| Java toolchain | 21 | builds |
+
+`samples-standalone/umbra`'s root build file is this table as code — the one place an adopter
+declares all of it.
+
+**The rule: hosts first, payloads after the fleet.** A payload meets *installed* hosts, including
+every user who has not updated the app in months. So the three version streams move in a fixed
+order:
+
+1. **Upgrade the engine and your host application together**, ship through the stores, and wait for
+   fleet coverage.
+2. **Only then move the payload's toolchain**, because a payload built with a newer Kotlin or
+   Zipline will be served to hosts still running the old one — and that pairing is exercised by
+   nothing. The dictionary has versioning discipline for *component* skew; toolchain skew across
+   the over-the-air gap has no equivalent check and no test anywhere.
+3. **`0.1.0` makes no stability promise.** Nothing is API-frozen; a Dogwood upgrade is an
+   engine-and-host upgrade, and belongs in step 1.
+
+This is the honest whole of the policy today. What a cross-version guarantee would take — a
+conformance row that loads a payload built at engine N with a host at N−1 — is recorded in
+[`plans/adoption-audit.md`](../plans/adoption-audit.md) A6 rather than promised here.
+
 ## Where to go next
 
 - **[Authoring guide](authoring.md)** — what payload code may and may not do, and why.
