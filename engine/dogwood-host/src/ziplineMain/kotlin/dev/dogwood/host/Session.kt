@@ -85,6 +85,23 @@ class DogwoodSession(
   private val onSwap: (SessionStatus) -> Unit = {},
   /** Every failed poll, including the first. A silent failure is a blank screen with no cause. */
   private val onFailure: (Exception) -> Unit = {},
+  /**
+   * Decides whether a delivered release may run at all.
+   *
+   * Optional, because a host that has no persistent storage — a test, a preview — has nowhere to
+   * remember what worked, and a guard with no memory is worse than none: it would count every
+   * launch as a first one. Null means every release runs, which is what happened before this
+   * existed.
+   */
+  private val releaseGuard: ReleaseGuard? = null,
+  /**
+   * Called when a release is refused, on the user-interface thread.
+   *
+   * A refusal is not an error and must not be reported as one: the previous guest is still running
+   * and the screen is still up. What the host owes the user is its own fallback if there is no
+   * previous guest at all, which is the only case a refusal is visible in.
+   */
+  private val onRefused: (GuardedRelease) -> Unit = {},
 ) {
   private val currentExperience = mutableStateOf<DogwoodExperience?>(null)
 
@@ -127,6 +144,25 @@ class DogwoodSession(
       .collect { delivered ->
       val previous = currentExperience.value
 
+      // Before anything is mounted, and before any guest code composes. Loading a payload is not
+      // the dangerous part; running it is.
+      val version = delivered.releaseVersion
+      val verdict = releaseGuard?.verdict(version, delivered.disabledByPublisher)
+      if (verdict is ReleaseVerdict.Refused) {
+        // Closed rather than left open: a refused guest is a live QuickJS instance and a whole
+        // heap, and keeping one because it might be wanted is the leak this project already fixed
+        // from the other direction.
+        withContext(ziplineDispatcher) { delivered.zipline.close() }
+        withContext(uiScope.coroutineContext) {
+          onRefused(GuardedRelease(version, verdict.reason, verdict.fallbackVersion))
+        }
+        return@collect
+      }
+      // Recorded and **persisted** before the guest runs. An attempt counted in memory is erased
+      // by the crash it is counting, so an application that crashes on launch would relaunch, load
+      // the same payload, and crash again, forever.
+      releaseGuard?.starting(version)
+
       // Capture before teardown. The old guest is still alive at this point, which is the only
       // moment its state can be read at all.
       val carried: StateSnapshot? = pendingInitialState.also { pendingInitialState = null }
@@ -165,6 +201,10 @@ class DogwoodSession(
         verifiedByKey = delivered.verifiedByKey,
         restoredKeys = carried?.values?.size ?: 0,
       )
+      // The release worked, and *this* is what working means: a guest started, produced a tree, and
+      // the host mounted it. "It loaded" would not do -- a payload that throws on its first
+      // composition has loaded -- which is why this call is here and not next to `starting`.
+      releaseGuard?.succeeded(version)
       onSwap(status)
     }
   }

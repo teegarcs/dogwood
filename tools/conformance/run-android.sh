@@ -51,9 +51,9 @@ adb logcat -d -s DogwoodConf:I 2>/dev/null | grep -oE "CONF .*" > "$OUT" || true
 # The RESULT line is synthesised here rather than emitted by a test, because this client runs more
 # than one conformance test class and each would otherwise declare its own -- the aggregator reads
 # one run per client, and two RESULT lines make the second silently win.
-p=$(grep -cE "^CONF [A-G][0-9]+(-[a-z]+)* PASS" "$OUT" || true)
-f=$(grep -cE "^CONF [A-G][0-9]+(-[a-z]+)* FAIL" "$OUT" || true)
-s=$(grep -cE "^CONF [A-G][0-9]+(-[a-z]+)* SKIP" "$OUT" || true)
+p=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* PASS" "$OUT" || true)
+f=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* FAIL" "$OUT" || true)
+s=$(grep -cE "^CONF [A-Z][0-9]+(-[a-z]+)* SKIP" "$OUT" || true)
 echo "CONF RESULT client=android passed=$p failed=$f skipped=$s" >> "$OUT"
 grep -E "^CONF (D|A|B|C|E|F|G)[0-9]" "$OUT" || true
 grep -E "^CONF RESULT" "$OUT" || {

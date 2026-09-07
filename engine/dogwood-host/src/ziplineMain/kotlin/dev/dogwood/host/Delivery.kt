@@ -71,7 +71,68 @@ class DeliveredGuest(
   val manifest: ZiplineManifest,
   /** Which trusted key signed this manifest. Worth logging: it is the audit trail. */
   val verifiedByKey: String?,
+) {
+  /**
+   * What to call this release when remembering whether it worked.
+   *
+   * The manifest's own version when it has one. A payload published without one is not refused --
+   * that would break every build that has not started setting it -- but it cannot be tracked
+   * either, so it is named for the module it loads, which at least distinguishes two different
+   * payloads from each other.
+   */
+  val releaseVersion: String
+    get() = manifest.version ?: "unversioned:${manifest.mainModuleId}"
+
+  /**
+   * The publisher's kill switch, read from the manifest's **signed** metadata.
+   *
+   * Signed matters: an attacker who can rewrite an unsigned field can disable a competitor's
+   * application, which is a denial of service delivered through the update channel the update
+   * channel exists to secure. `metadata` is inside the signature payload; `unsigned` is not, and
+   * this deliberately does not look there.
+   */
+  val disabledByPublisher: Boolean
+    get() = manifest.metadata[DISABLED_KEY]?.lowercase() == "true"
+
+  companion object {
+    /** Set this to `"true"` in a manifest's metadata to stop devices running that release. */
+    const val DISABLED_KEY: String = "dogwood.disabled"
+  }
+}
+
+/**
+ * A release the guard refused, as a host is told about it.
+ *
+ * [fallbackVersion] names the last release known to have worked, when there is one. Naming it is
+ * not running it: resuming a previous payload means fetching a manifest that still serves it, which
+ * is a server's job.
+ */
+data class GuardedRelease(
+  val version: String,
+  val reason: String,
+  val fallbackVersion: String?,
 )
+
+/** What [DogwoodDelivery.loadGuarded] decided. */
+sealed interface GuardedLoad {
+  /** The release may run, and the attempt has been recorded. */
+  data class Running(val guest: DeliveredGuest, val version: String) : GuardedLoad
+
+  /**
+   * The release must not run.
+   *
+   * [fallbackVersion] names the last release known to have worked, when there is one. **Naming it
+   * is not the same as running it**, and this deliberately does not try: resuming a previous
+   * payload means fetching a manifest that still serves it, which is a server's job. What a host
+   * can always do without one is refuse, say why, and show something of its own — which is the
+   * difference between a bad publish being a bad hour and being a bad week.
+   */
+  data class Refused(
+    val version: String,
+    val reason: String,
+    val fallbackVersion: String?,
+  ) : GuardedLoad
+}
 
 /**
  * Fetches, verifies, caches, and loads a guest.
@@ -131,6 +192,41 @@ class DogwoodDelivery(
    * that now both exist -- `SaveableStateRegistry` on the guest and `DogwoodStateStore` on the
    * host -- so an update carries state rather than landing fresh on the next launch.
    */
+  /**
+   * Loads, then asks a [ReleaseGuard] whether this release may run.
+   *
+   * The check is after the load and not before it, and that is forced rather than chosen: the
+   * version and the kill switch are *in the manifest*, so nothing can be decided until it has been
+   * fetched and its signature verified. That is the right order anyway — loading a payload is not
+   * the dangerous part. **Running** it is, and this returns before anything composes.
+   *
+   * On [GuardedLoad.Running] the attempt has already been recorded and persisted. The caller owes
+   * the guard one call to [ReleaseGuard.succeeded] when the release has actually worked, and what
+   * counts as working is the caller's judgement: "it loaded" is not evidence, because a payload
+   * that throws on its first composition has loaded.
+   */
+  suspend fun loadGuarded(
+    applicationName: String,
+    manifestUrl: String,
+    guard: ReleaseGuard,
+  ): GuardedLoad {
+    val guest = load(applicationName, manifestUrl)
+    val version = guest.releaseVersion
+    return when (val verdict = guard.verdict(version, guest.disabledByPublisher)) {
+      is ReleaseVerdict.Refused -> {
+        // Closed rather than left open. A refused guest is a live QuickJS instance and an entire
+        // heap; keeping one around because it *might* be wanted is the leak this project has
+        // already fixed once, from the other direction.
+        guest.zipline.close()
+        GuardedLoad.Refused(version, verdict.reason, verdict.fallbackVersion)
+      }
+      ReleaseVerdict.Allowed -> {
+        guard.starting(version)
+        GuardedLoad.Running(guest, version)
+      }
+    }
+  }
+
   suspend fun load(applicationName: String, manifestUrl: String): DeliveredGuest {
     val result = loader.loadOnce(
       applicationName = applicationName,

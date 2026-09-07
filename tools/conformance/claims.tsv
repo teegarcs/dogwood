@@ -55,3 +55,8 @@ F1	ios	dev.dogwood.host.NetworkPolicyIosTest,dev.dogwood.host.UrlSessionPolicyTe
 F2	android,ios,desktop,web	dev.dogwood.host.RedirectPolicyTest
 F3	android,ios,desktop,web	dev.dogwood.host.ImagePolicyTest
 F4	android,ios,desktop,web	dev.dogwood.host.NetworkPolicyTest
+H1	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
+H2	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
+H3	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
+H4	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest
+H6	android,ios,desktop,web	dev.dogwood.host.ReleaseGuardTest

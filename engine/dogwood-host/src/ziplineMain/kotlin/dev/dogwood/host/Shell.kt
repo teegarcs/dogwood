@@ -74,6 +74,10 @@ class DogwoodShell(
   private val onFailure: (String, Exception) -> Unit = { _, _ -> },
   /** Called when an experience is snapshotted and closed, with how many state keys were kept. */
   private val onEvict: (String, Int) -> Unit = { _, _ -> },
+  /** Passed to every session. See `DogwoodSession`. Null means every release runs. */
+  private val releaseGuard: ReleaseGuard? = null,
+  /** Called when a release is refused, with the entry point it was refused for. */
+  private val onRefused: (String, GuardedRelease) -> Unit = { _, _ -> },
 ) {
   private val pool = WarmPool(capacity)
   private val entries = mutableMapOf<String, ShellEntry>()
@@ -300,6 +304,8 @@ class DogwoodShell(
       launchParams = entry.launchParams,
       services = services,
       leakDetector = leakDetector,
+      releaseGuard = releaseGuard,
+      onRefused = { refusal -> onRefused(entryPoint, refusal) },
       // The state this entry point had when it was evicted, if it ever was.
       initialState = entry.snapshot,
       // The shell owns the delivery; a session closing it would take its siblings down.

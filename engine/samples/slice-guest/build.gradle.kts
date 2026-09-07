@@ -58,6 +58,15 @@ zipline {
   mainFunction.set("dev.dogwood.slice.main")
   optimizeForSmallArtifactSize()
   version.set("1.0.0")
+  // The kill switch, and it is a publisher's control rather than a developer's. Setting it to
+  // "true" and republishing stops devices running this release without waiting for them to
+  // discover it is broken. It rides in the manifest's **signed** metadata: an attacker who could
+  // set it in an unsigned field could disable an application through the very channel that exists
+  // to secure its updates.
+  metadata.set(
+    providers.gradleProperty("dogwoodDisabled").map { mapOf("dogwood.disabled" to it) }
+      .getOrElse(emptyMap()),
+  )
   signingKeys {
     create("dogwood-development") {
       privateKeyHex.set(

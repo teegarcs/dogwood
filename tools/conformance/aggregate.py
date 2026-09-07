@@ -14,7 +14,11 @@ import re
 import sys
 from collections import OrderedDict
 
-CLAIM = re.compile(r'^CONF ([A-G]\d+(?:-[a-z]+)?) (PASS|FAIL|SKIP)(?: -- (.*))?$')
+# `[A-Z]`, not `[A-G]`. The catalogue was seven groups when this was written and the eighth was
+# added the moment release control existed; a pattern that names the groups it happens to know
+# **silently drops** the rest, which is the exact shape of failure this whole harness exists to
+# catch — a claim that is graded, reports PASS, and is counted by nobody.
+CLAIM = re.compile(r'^CONF ([A-Z]\d+(?:-[a-z]+)?) (PASS|FAIL|SKIP)(?: -- (.*))?$')
 RESULT = re.compile(r'^CONF RESULT client=(\w+) (.*)$')
 
 MARK = {'PASS': '✅', 'FAIL': '❌', 'SKIP': '·'}

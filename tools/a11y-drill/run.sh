@@ -89,7 +89,7 @@ out = sys.argv[1]
 claims = []
 for path in glob.glob("dogwood-host/build/test-results/iosSimulatorArm64Test/*NetworkPolicy*.xml"):
     text = html.unescape(open(path).read())
-    claims += [m.group(0) for m in re.finditer(r"CONF [A-G][0-9][^\n<]*", text)]
+    claims += [m.group(0) for m in re.finditer(r"CONF [A-Z][0-9][^\n<]*", text)]
 if claims:
     with open(out, "a") as f:
         f.write("\n".join(claims) + "\n")

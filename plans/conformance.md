@@ -153,6 +153,21 @@ Rows are the architecture's own promises, taken from the specifications rather t
 | D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S | ✅ both halves — guest and host binding |
 | D10 | A guest can drive and observe a list's position; a target for an item that does not exist yet waits rather than clamping | S | ✅ both halves — guest and host binding |
 
+### H. Release control — surviving a bad publish
+
+The half the architecture's selling point had been missing. Shipping without a store review is only
+half a capability; **un-shipping** without one is the other half, and until
+[ADR-049](../adrs/layer-5/ADR-049-surviving-a-bad-publish.md) nothing here had it.
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| H1 | A payload version that started is remembered across process death | S + C | ✅ S; C Android |
+| H2 | A crash loop terminates — a version that repeatedly fails to work is quarantined | S | ✅ (the device half cannot be provoked; see Part 5) |
+| H3 | A quarantined version names the last release known to have worked | S | ✅ |
+| H4 | A publisher can stop a release from a signed field in the manifest | S + C | ✅ S; C Android |
+| H5 | A refusal leaves a working guest running and says why | C | ✅ Android |
+| H6 | A release forgiven by a later success is not refused forever | S | ✅ |
+
 ### E. Lifecycle and resources
 
 | ID | Claim | Tier | Today |
@@ -219,6 +234,11 @@ Last generated 2026-09-06, with the performance budgets graded:
 | F2 | ✅ | ✅ | ✅ | ✅ |
 | F3 | ✅ | ✅ | ✅ | ✅ |
 | F4 | ✅ | ✅ | ✅ | ✅ |
+| H1 | ✅ | ✅ | ✅ | ✅ |
+| H2 | ✅ | ✅ | ✅ | ✅ |
+| H3 | ✅ | ✅ | ✅ | ✅ |
+| H4 | ✅ | ✅ | ✅ | ✅ |
+| H6 | ✅ | ✅ | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
 | D2 | ✅ | n/a | ✅ | ✅ |
 | D3 | ✅ | n/a | ✅ | ✅ |
@@ -241,10 +261,10 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
 
-- **android**: pass 38, skip 4
-- **desktop**: pass 25
-- **ios**: pass 39, skip 4
-- **web**: pass 32, skip 1
+- **android**: pass 43, skip 4
+- **desktop**: pass 30
+- **ios**: pass 44, skip 4
+- **web**: pass 37, skip 1
 
 **Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
 had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
@@ -342,6 +362,16 @@ Recorded so that an absence is a decision somebody can point at.
   composition, and each was watched to fail with the line it covers removed. What *remains* outside
   any assertion is the same thing `D6` records — the keyboard itself, driven by hardware input that
   `adb` and `simctl` cannot supply.
+- **`H2`'s device half cannot be provoked, and that is the point.** Quarantine is arithmetic over
+  state persisted before a payload runs; the device evidence is that the state *is* persisted
+  (`H1`), and the arithmetic is unit-tested as the loop it models. Making a real payload crash on
+  launch, on a device, on demand, would mean shipping a deliberately broken guest in the sample —
+  which is a thing that can be published by accident, and the one kind of accident this claim group
+  exists to survive.
+- **Staged rollout is not claimed at all.** `InstallCohort` gives a device a stable bucket a server
+  could stage against; choosing which cohorts get which manifest is a server's decision and there is
+  no server. The absence is a missing server rather than a missing capability on the device, and
+  that distinction is worth keeping because only one of the two is engineering here.
 - **Web's network policy is the browser's**, per ADR-032. The claim holds; the instrument is a
   policy header rather than a drill, and the guarantee is weaker than the mobile one rather than
   equal to it.
