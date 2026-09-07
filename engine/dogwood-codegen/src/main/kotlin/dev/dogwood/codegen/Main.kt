@@ -102,6 +102,21 @@ fun main(args: Array<String>) {
   guestOut.parentFile.mkdirs()
   hostOut.parentFile.mkdirs()
   dictionaryOut.parentFile.mkdirs()
+  /*
+   * The API reference, when a segment asks for one.
+   *
+   * Optional because it is a document rather than a compilation input, and emitted here rather
+   * than written by hand for the reason every other artifact is: a hand-written page about the
+   * components is a fifth thing that can disagree with the surface. It is written into the source
+   * tree and committed, exactly as the lock is -- a generated file nobody can read is not a
+   * reference.
+   */
+  options["docs-out"]?.let { path ->
+    val docsOut = File(path)
+    docsOut.parentFile.mkdirs()
+    docsOut.writeText(emitDocs(dictionary, components))
+  }
+
   guestOut.writeText(emitGuestStubs(guestPackage, dictionary, components))
   hostOut.writeText(emitHostBindings(hostPackage, implementationPackage, dictionary, components))
   dictionaryOut.writeText(dictionary.encode())
