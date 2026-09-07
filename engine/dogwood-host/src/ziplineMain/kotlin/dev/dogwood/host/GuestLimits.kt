@@ -57,20 +57,28 @@ internal fun applyGuestLimits(zipline: Zipline, limits: GuestLimits) {
   val quickJs = zipline.quickJs
   quickJs.memoryLimit = limits.memoryLimitBytes
   quickJs.interruptHandler = object : InterruptHandler {
-    /** Nanotime when the current unbroken run of polls began; 0 between slices. */
-    private var sliceStart = 0L
+    // `TimeSource.Monotonic` rather than a platform clock, because this file compiles for
+    // Kotlin/Native too -- the first draft used `System.nanoTime()` and the iOS target said no.
+    private val clock = kotlin.time.TimeSource.Monotonic
 
-    /** Nanotime of the previous poll, for detecting the idle gap that separates slices. */
-    private var lastPoll = 0L
+    /** When the current unbroken run of polls began; null between slices. */
+    private var sliceStart: kotlin.time.TimeMark? = null
+
+    /** The previous poll, for detecting the idle gap that separates slices. */
+    private var lastPoll: kotlin.time.TimeMark? = null
 
     override fun poll(): Boolean {
-      val now = System.nanoTime()
+      val previous = lastPoll
+      lastPoll = clock.markNow()
       // A gap of more than 100 ms since the previous poll means the engine went idle and this is
       // a fresh slice: polls during execution arrive far faster than that, and nothing polls at
       // all between slices.
-      if (sliceStart == 0L || now - lastPoll > 100_000_000L) sliceStart = now
-      lastPoll = now
-      return now - sliceStart > limits.sliceBudgetMillis * 1_000_000L
+      if (sliceStart == null || previous == null ||
+        previous.elapsedNow().inWholeMilliseconds > 100
+      ) {
+        sliceStart = clock.markNow()
+      }
+      return (sliceStart ?: return false).elapsedNow().inWholeMilliseconds > limits.sliceBudgetMillis
     }
   }
 }
