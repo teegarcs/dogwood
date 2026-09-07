@@ -100,6 +100,44 @@ Three of those deserve a sentence:
 `DogwoodShell` instead of a bare experience. It keeps a bounded number of them warm, restores their
 saved state, and evicts the rest.
 
+### Adding it to an Android application
+
+The reference is [`TabsActivity.kt`](../engine/samples/slice-android/src/main/kotlin/dev/dogwood/slice/android/TabsActivity.kt)
+— written to be copied, and every non-obvious line carries its reason in place. What is genuinely
+Android-specific, so you know what you are looking for in it:
+
+- **The Zipline thread is yours to make**: one `newSingleThreadExecutor` with an **8 MB stack** —
+  interpreted composition is deeply recursive and the platform default is not enough.
+- **`onStop` writes the state snapshot**, because it is the last callback guaranteed before Android
+  may reclaim the process; `onTrimMemory` drops warm experiences down to the visible one. Both are
+  activity callbacks, which is why the shell is held by the activity rather than the composition.
+- **Your dev server is `10.0.2.2` from an emulator**, and cleartext to it needs *both* ends opened:
+  the host's allow-list (`allowHosts("10.0.2.2", allowCleartextHosts = setOf("10.0.2.2"))`) and the
+  platform's `networkSecurityConfig`. Production traffic is HTTPS and needs neither.
+- **Register your design system in `Application.onCreate`**, not in an activity — an activity is
+  not the first thing that can render.
+- **Ship minified.** The engine needs no keep rules of yours
+  ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md)); the whole conformance
+  suite runs against the R8 build.
+
+### Adding it to an iOS application
+
+The reference is [`slice-ios/Main.kt`](../engine/samples/slice-ios/src/iosMain/kotlin/dev/dogwood/slice/ios/Main.kt).
+What is genuinely iOS-specific:
+
+- **Use `DogwoodZiplineDispatcher`** rather than rolling a thread: Apple gives background threads
+  512 KiB of stack and interpreted composition needs 8 MB.
+- **`UIApplicationDidEnterBackgroundNotification` is your `onStop`** — the last guaranteed moment
+  to snapshot state — and the memory-warning notification is where you `trimMemory`.
+- **`localhost` reaches your machine from a simulator; a device needs your machine's LAN address**
+  plus the matching App Transport Security exception in `Info.plist`.
+
+**One honest caveat before you commit an iOS team**: the sample *is* the application — Kotlin/Native
+owns `UIApplicationMain`, and no framework or XCFramework target exists to embed into an existing
+Xcode project. That packaging work is yours today; it is finding **B4** in
+[`plans/adoption-audit.md`](../plans/adoption-audit.md), described in ADR-004 and built by nobody
+yet. Android and web embed as a composable and a page respectively; this caveat is iOS-only.
+
 **On the web the shape is the same and the parts have different names**, because a Web Worker
 boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page
 declares what it knows in one value and the guest answers the rest itself.

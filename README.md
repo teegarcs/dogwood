@@ -88,6 +88,7 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`plans/adoption-audit.md`](plans/adoption-audit.md) | **What stops a production application from adopting this**, audited against the code with each finding verified. The successor to the readiness plan. |
 | [`plans/production-readiness.md`](plans/production-readiness.md) | The engineering plan that got the engine here — closed, and superseded by the audit above. |
 | [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
+| [`docs/README.md`](docs/README.md) | **Start here for the manuals** — who should read what, in which order. |
 | [`docs/`](docs/) | **The manuals.** [Getting started](docs/getting-started.md) for adding Dogwood to an application, [authoring](docs/authoring.md) for writing screens, [operating](docs/operating.md) for whoever is on call, and a [component reference](docs/api/) generated from the surface. |
 | [`docs/checks.md`](docs/checks.md) | Every check this repository runs, what each proves, and when it fails. |
 | [`developer-experience.md`](developer-experience.md) | What this is like to use, with worked example code. |
