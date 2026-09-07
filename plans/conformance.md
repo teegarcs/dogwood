@@ -483,6 +483,12 @@ Four things, each recorded where somebody will meet it rather than left to be re
   project decided not to acquire ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
   The grading is wired and asymmetric, so the first such device to run it closes or reopens the
   gate without further work, and a regression on faster hardware still fails today.
+- **What the web's claims are graded against has changed, and for the better.** Until
+  [ADR-048](../adrs/layer-5/ADR-048-the-real-guest-runs-on-the-web.md) the web slice's guest was
+  hand-written JavaScript, so every web row was evidence about shared *host* code or about a guest no
+  product would write. The real Kotlin/Compose guest now runs in a Worker from the same screens as
+  the mobile payload. The claims themselves have not moved — no row is graded against the new guest
+  yet — and doing so is the cheapest remaining upgrade to what the web column means.
 - **`D8` and `D9` are asserted on one Java Virtual Machine, and claimed for four clients.** Both
   halves are shared code — the guest holder and the host mirror alike, since the mirror lives in
   `dogwood-host`'s transport-free core — so the claim is sound in the way every other tier-S row is.

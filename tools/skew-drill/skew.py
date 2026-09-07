@@ -68,7 +68,7 @@ open(codegen_path, "w").write(codegen)
 
 # The guest has to actually render the new things, or the client never meets them. A
 # self-contained block on the Diagnostics screen, with markers the checker can find.
-guest_path = "samples/slice-guest/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
+guest_path = "samples/slice-screens/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
 guest = open(guest_path).read()
 if "SKEW-BEFORE" not in guest:
     anchor = "    Divider(modifier = Modifier.fillMaxWidth())\n"

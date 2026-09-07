@@ -15,22 +15,10 @@ kotlin {
     jsMain {
       dependencies {
         implementation(project(":dogwood-compose"))
+        // The screens, which this module used to contain. `slice-guest` is now only an entry
+        // point: it binds them to a Zipline service and nothing else.
+        implementation(project(":samples:slice-screens"))
       }
-      /*
-       * Acme's generated guest stubs.
-       *
-       * A real product would publish these as a Kotlin/JavaScript library and depend on it, the
-       * same way it depends on `dogwood-compose`. This is a source directory across a module
-       * boundary because both halves live in one repository and publishing a sample to a
-       * repository to consume it back would prove less, not more.
-       *
-       * What it does prove is the part that matters: the guest calls `AcmePrice(...)` and gets
-       * `dev.acme.guest`'s stub, which records a widget in **segment 2** and knows nothing about
-       * Dogwood's own components.
-       */
-      kotlin.srcDir(
-        project(":samples:product-design-system").layout.buildDirectory.dir("generated/acme/guest"),
-      )
     }
   }
 }

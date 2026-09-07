@@ -30,6 +30,9 @@ kotlin {
     val wasmJsMain by getting {
       dependencies {
         implementation(project(":dogwood-web"))
+        // Acme's design system, so a product's own components render here too. Registered in
+        // `main`, exactly as the Android host registers it in `Application.onCreate`.
+        implementation(project(":samples:product-design-system"))
       }
     }
   }
@@ -153,3 +156,28 @@ val preloadWasm by tasks.registering {
 }
 
 tasks.named("wasmJsBrowserDistribution") { finalizedBy(preloadWasm) }
+
+/*
+ * The real guest's Worker bundle, copied into this page's distribution.
+ *
+ * `samples/web-guest` compiles the same screens the mobile payload runs — `samples/slice-screens`,
+ * which names no transport — into a script a `new Worker(...)` can load. It is copied rather than
+ * depended on, because the host is Kotlin/WebAssembly and the guest is Kotlin/JavaScript: they do
+ * not link, and the *only* thing they share is the protocol. Copying a script into a directory is
+ * an honest expression of that; a Gradle dependency would not be.
+ */
+val copyKotlinGuest by tasks.registering(Copy::class) {
+  from(project(":samples:web-guest").layout.buildDirectory.dir("kotlin-webpack/js/productionExecutable")) {
+    include("guest-kotlin.js")
+  }
+  into(layout.buildDirectory.dir("dist/wasmJs/productionExecutable"))
+}
+
+tasks.named("wasmJsBrowserDistribution") {
+  // The guest is built as a *dependency* of the distribution and copied as a finalizer. Both on
+  // the finalizer deadlocked Gradle -- "items queued for execution but none of them can be
+  // started" -- because a finalizer that itself needs another project's webpack task cannot be
+  // scheduled against a graph that is already waiting on this one.
+  dependsOn(":samples:web-guest:jsBrowserProductionWebpack")
+  finalizedBy(copyKotlinGuest)
+}
