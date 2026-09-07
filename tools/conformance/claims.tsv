@@ -65,3 +65,4 @@ I2	android,ios,desktop,web	dev.dogwood.codegen.GuestCheckTest
 I3	android,ios,desktop,web	dev.dogwood.codegen.GuestCheckTest
 D11	android,ios,desktop,web	dev.dogwood.compose.SnackbarHostStateTest	js
 D11	android,ios,desktop,web	dev.dogwood.host.SnackbarMirrorTest
+J5	android,ios,desktop,web	dev.dogwood.host.WorkerPayloadTest

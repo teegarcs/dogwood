@@ -34,6 +34,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import dev.dogwood.protocol.WebStartPayload
 
 /** The report, built up as the page runs and republished on every change. */
 private val log = mutableListOf<String>()
@@ -114,6 +118,19 @@ private fun setReport(json: String) {
 private fun manifestParameter(): String =
   js("new URLSearchParams(location.search).get('manifest') || 'dogwood-manifest.json'")
 
+/**
+ * Which experience to open.
+ *
+ * The *host's* choice now, rather than the guest reading its own Worker URL. That is the shape
+ * every other client has -- `TabsActivity` names the entry and hands it launch parameters -- and it
+ * is what lets one guest script serve four experiences from a page that decides between them.
+ */
+private fun entryParameter(): String =
+  js("new URLSearchParams(location.search).get('entry') || 'about'")
+
+/** This page's origin, which is the address the guest's own data service is served from. */
+private fun origin(): String = js("location.origin")
+
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun main() {
   // Acme's design system, registered before anything renders — the same one call the Android host
@@ -145,7 +162,46 @@ fun main() {
   field("environment", environment.toString())
 
   val transcript = RenderTranscript()
-  val experience = DogwoodWebExperience(environment, { line -> note(line) }, transcript)
+  /*
+   * What this page tells the guest about itself.
+   *
+   * The same four things the Android and iOS hosts pass through `DogwoodServiceHost` and
+   * `DogwoodShell.activate`, and until now the web passed none of them -- which is why the sample's
+   * own Diagnostics screen read `surface revision 0 (unreported)` and `host clock unavailable`
+   * while claiming to run the same screens as the mobile payload. It did run them; it ran them
+   * blind.
+   */
+  val services = WebStartPayload(
+    entryPoint = entryParameter(),
+    // The same parameters `TabsActivity` and the iOS host pass. `apiBaseUrl` is the page's own
+    // origin, because only the host knows which name reaches the machine serving the payload --
+    // `10.0.2.2` on an Android emulator, `localhost` on a simulator, and this on the web.
+    launchParams = buildJsonObject {
+      put("city", JsonPrimitive("Tokyo"))
+      put("country", JsonPrimitive("Japan"))
+      put("apiBaseUrl", JsonPrimitive(origin()))
+    },
+    featureFlags = mapOf("explore.showWasPrice" to "true"),
+    // Deliberately empty, and empty means "this host does not enumerate" rather than "handles
+    // nothing" -- `DogwoodNavigation.routes` says so. The sample's own route button is therefore
+    // expected to be declined and recorded as skew, which is the path worth exercising.
+    routes = emptySet(),
+    // The one line that answers "surface revision 0 (unreported)". A guest branches on this to
+    // decide what it may use, so a client that reports nothing is a client every guest assumes is
+    // empty.
+    segmentVersions = DogwoodDictionary.segmentVersions,
+  )
+  val experience = DogwoodWebExperience(
+    environment,
+    { line -> note(line) },
+    transcript,
+    services = services,
+    onAnalytics = { event -> note("analytics: ${event.name} ${event.properties}") },
+    onNavigate = { request ->
+      note("navigation refused: no route '${request.route}'")
+      false
+    },
+  )
 
   ComposeViewport(document.body!!) {
     experience.Content()

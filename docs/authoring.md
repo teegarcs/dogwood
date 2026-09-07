@@ -111,15 +111,25 @@ picks. A category your templates do not cover is reported rather than guessed at
 
 The host provides services; the payload has no ambient access to anything.
 
-- **Network** — the host's allow-list decides which hosts you may reach, and it **refuses everything
-  by default**. That is deliberate: your payload is replaceable over the air without a store review,
-  so an open network service inside it would be an exfiltration channel that ships in minutes. Ask
-  the host team to add a host; do not look for a way around it.
+- **Network** — on Android and iOS the host's allow-list decides which hosts you may reach, and it
+  **refuses everything by default**. That is deliberate: your payload is replaceable over the air
+  without a store review, so an open network service inside it would be an exfiltration channel that
+  ships in minutes. Ask the host team to add a host; do not look for a way around it.
+
+  **On the web the enforcement is the browser's, not Dogwood's, and it is weaker.** Your code runs
+  in a Worker inside the page's origin and calls `fetch` directly; what constrains it is the page's
+  Content Security Policy. Write as if the allow-list applied — a payload that only reaches hosts
+  the mobile clients allow is a payload that behaves the same everywhere — and tell whoever owns the
+  page which `connect-src` you need.
 - **Log, clock, analytics, feature flags** — injected, so they can be faked in a test and routed to
   whatever the application already uses.
 - **Launch parameters** — the host names which screen it wants and hands it a JSON object. That is
-  where an environment-specific address belongs: `10.0.2.2` on an Android emulator and `localhost`
-  on an iOS simulator are the same machine, and only the host knows which name reaches it.
+  where an environment-specific address belongs: `10.0.2.2` on an Android emulator, `localhost` on an
+  iOS simulator and the page's own origin on the web are all the same machine, and only the host
+  knows which name reaches it.
+- **Dictionary versions** — `LocalSegmentVersions` tells you what the client you are running on
+  implements, which is how a payload uses a new component only where it exists. A client that
+  reports nothing is a client every guest must assume is empty.
 
 ## 7. Writing for clients older than you
 

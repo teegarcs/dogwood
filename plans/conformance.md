@@ -177,6 +177,37 @@ half a capability; **un-shipping** without one is the other half, and until
 | I2 | Guest code calling a resource loader fails the build | S | ✅ |
 | I3 | The check does not fire on comments, strings, or similarly-named code | S | ✅ |
 
+### J. Host services — what a guest may ask its host for
+
+The surface a host wires and a guest calls: a log, a clock, feature flags, analytics, navigation,
+the network, the launch parameters an experience opens with, and the dictionary versions the client
+implements. It has existed since Phase 4 on mobile and was **never graded**, which is why the web
+profile could ship without any of it and nothing said so — for as long as the web guest existed, the
+sample's own Diagnostics screen read `surface revision 0 (unreported)` and `host clock unavailable`,
+and every summary of that client said it ran "the same screens as the mobile payload". It did. It
+ran them blind.
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| J1 | The services a host wired reach the guest, and the guest can read them | C | ✅ web |
+| J2 | Launch parameters reach the experience **the host named** | C | ✅ web |
+| J3 | The dictionary versions this client implements reach the guest | C | ✅ web |
+| J4 | A route the host does not handle is declined, and recorded as skew rather than dropped | C | ✅ web |
+| J5 | Host and guest read **one** declaration of the start payload, not two | S | ✅ `WorkerPayloadTest` |
+
+**The mobile cells are an evidence gap, not a capability gap, and the distinction matters both
+ways.** Android and iOS have had these services since Phase 4 and the samples demonstrably use them
+— the Diagnostics screen shows a real clock on a device. What no drill does is *assert* it, so the
+table says `—` rather than borrowing the web's tick. The inversion is uncomfortable and it is the
+truth: the client that had none of this six hours ago is the only one where a machine checks.
+
+`J5` is the one that is not about a platform. The host half of the web boundary is
+Kotlin/WebAssembly and the guest half is Kotlin/JavaScript; they do not link, so the envelope's
+*kind* constants are mirrored by hand in each. The payloads deliberately are not — they live in
+`dogwood-wire`, the one module both halves compile — and `WorkerPayloadTest` is what makes that
+checkable rather than merely stated, including the tolerance a newer field depends on, with a
+control proving the fixture really carries one.
+
 ### E. Lifecycle and resources
 
 | ID | Claim | Tier | Today |

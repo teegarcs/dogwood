@@ -17,7 +17,11 @@
  */
 package dev.dogwood.web
 
+import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.HostEnvironment
+import dev.dogwood.protocol.WebAnalyticsEvent
+import dev.dogwood.protocol.WebNavigationRequest
+import dev.dogwood.protocol.WebStartPayload
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.serialization.json.Json
 import org.w3c.dom.MessageEvent
@@ -52,6 +56,18 @@ interface WorkerBridgeListener {
 
   /** One composition pass arrived. [batch] is the positional payload, undecoded. */
   fun onChanges(batch: String)
+
+  /**
+   * The guest sent an analytics event.
+   *
+   * On the interface rather than as a lambda for the reason the interface's own comment gives: all
+   * of these arrive on one channel, and a listener that implemented five of six would silently
+   * drop the sixth.
+   */
+  fun onAnalytics(event: WebAnalyticsEvent)
+
+  /** The guest asked the host to navigate. The host may decline; the guest cannot tell. */
+  fun onNavigate(request: WebNavigationRequest)
 
   /**
    * The guest asked for a frame callback and is waiting on [correlation].
@@ -154,6 +170,17 @@ class WorkerBridge(
   // ---------------------------------------------------------------------------------------------
   // Host to guest.
   // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Everything the page knows about this experience, in one message before it composes.
+   *
+   * Sent before [updateConfiguration], because that is what starts the composition and a guest
+   * that composed first would compose without its launch parameters -- which is a screen rendering
+   * the wrong thing rather than failing to render.
+   */
+  fun start(payload: WebStartPayload) {
+    post(WorkerMessages.START, 0, DogwoodJson.encodeToString(WebStartPayload.serializer(), payload))
+  }
 
   /** `DogwoodGuestUi.updateConfiguration`, over the wire. */
   fun updateConfiguration(environment: HostEnvironment) {
@@ -265,6 +292,30 @@ class WorkerBridge(
       WorkerMessages.CHANGES -> listener.onChanges(payload)
 
       WorkerMessages.REQUEST_FRAME -> listener.onFrameRequested(correlation)
+
+      // Decoded here rather than handed on as a string, unlike a change batch: these are small,
+      // and a listener that had to parse them would be a second place the shape is known.
+      WorkerMessages.ANALYTICS -> {
+        val event = runCatching {
+          DogwoodJson.decodeFromString(WebAnalyticsEvent.serializer(), payload)
+        }.getOrNull()
+        if (event == null) {
+          listener.onGuestError(correlation, "undecodable analytics event: $payload")
+        } else {
+          listener.onAnalytics(event)
+        }
+      }
+
+      WorkerMessages.NAVIGATE -> {
+        val request = runCatching {
+          DogwoodJson.decodeFromString(WebNavigationRequest.serializer(), payload)
+        }.getOrNull()
+        if (request == null) {
+          listener.onGuestError(correlation, "undecodable navigation request: $payload")
+        } else {
+          listener.onNavigate(request)
+        }
+      }
 
       WorkerMessages.RESULT -> {
         pendingFailures.remove(correlation)

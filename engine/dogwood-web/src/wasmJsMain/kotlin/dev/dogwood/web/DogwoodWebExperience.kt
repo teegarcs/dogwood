@@ -52,6 +52,9 @@ import dev.dogwood.protocol.DogwoodJson
 import dev.dogwood.protocol.Event
 import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.HostEnvironment
+import dev.dogwood.protocol.WebAnalyticsEvent
+import dev.dogwood.protocol.WebNavigationRequest
+import dev.dogwood.protocol.WebStartPayload
 import dev.dogwood.protocol.ProtocolMismatch
 import dev.dogwood.protocol.StateSnapshot
 import kotlinx.coroutines.channels.Channel
@@ -115,6 +118,29 @@ class DogwoodWebExperience(
    * `BrowserLeakWatcher` is what a page that *is* investigating passes here.
    */
   leakWatcher: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
+  /**
+   * What this page tells the guest about itself: flags, routes, launch parameters, the entry
+   * point, and the dictionary versions this client implements.
+   *
+   * Defaulted to an empty declaration so an existing page keeps working, and an empty declaration
+   * is honest rather than convenient -- it says "no flags, no routes, no parameters, and no
+   * versions reported", which is exactly what this profile did before there was anything to say
+   * it with. `WebStartPayload` documents each field.
+   */
+  private val services: WebStartPayload = WebStartPayload(),
+  /**
+   * Where a guest's analytics events go. Dropped by default, and dropping is a decision the page
+   * takes rather than one this class takes for it.
+   */
+  private val onAnalytics: (WebAnalyticsEvent) -> Unit = {},
+  /**
+   * What to do when the guest asks to navigate.
+   *
+   * Returns whether the host handled it, so an unhandled route is recorded as skew here rather
+   * than disappearing. The guest is never told either way -- navigation is a request on every
+   * platform, and a guest that could observe the answer would start depending on it.
+   */
+  private val onNavigate: (WebNavigationRequest) -> Boolean = { false },
 ) : WorkerBridgeListener {
 
   val tree = HostTree(leakDetector = leakWatcher)
@@ -287,7 +313,24 @@ class DogwoodWebExperience(
     if (configuredBridge === bridge) return
     val bridge = this.bridge ?: return
     configuredBridge = bridge
+    // Before the configuration, always: the configuration is what starts the composition, and a
+    // guest that composed first would compose without its launch parameters.
+    bridge.start(services)
     bridge.updateConfiguration(environment)
+  }
+
+  override fun onAnalytics(event: WebAnalyticsEvent) {
+    onAnalytics.invoke(event)
+  }
+
+  override fun onNavigate(request: WebNavigationRequest) {
+    // Recorded as skew when nothing handled it, for the reason every other unknown name here is:
+    // the visible symptom is a control that does nothing, and a control that does nothing is
+    // indistinguishable from a slow one until somebody reads a report.
+    if (!onNavigate.invoke(request)) {
+      tree.skew.unknownRoutes += request.route
+      report("no host route for '${request.route}'")
+    }
   }
 
   // ---------------------------------------------------------------------------------------------

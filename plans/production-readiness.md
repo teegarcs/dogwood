@@ -117,11 +117,23 @@ first frame's critical path. `dogwood-compose`'s applier behaves identically wit
 loop, because it never depended on one: `Dispatchers.Unconfined` and a `BroadcastFrameClock` are
 transport-free. The service bridge is the one that did **not** resolve — see below.
 
-**What is still thin is the service surface.** `WorkerServices` answers `log` locally and declares
-everything else absent, so a screen renders "host clock unavailable" rather than failing. Network,
-clock, analytics, feature flags and navigation over the Worker bridge are ADR-032's remaining work.
-Launch parameters and segment versions are not carried into `start()` yet either, and a code update
-has never been exercised on web.
+~~**What is still thin is the service surface.**~~ ✅ **Closed on 2026-09-07**
+([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)). `WorkerServices`
+answered `log` and declared everything else absent, so the sample's own Diagnostics screen read
+`this client offers no services at all`, `surface revision 0 (unreported)` and `host clock
+unavailable` — it ran the same screens as the mobile payload and ran them **blind**.
+
+All of it crosses now, split by *who can answer*: the Worker answers `log`, `clock` and `network`
+itself, and a single `start` message carries the entry point, launch parameters, feature flags,
+routes and segment versions before the first composition, with `analytics` and `navigate` going back
+one-way. The same screen now reads `analytics, clock, featureFlags, log, navigation, network`,
+`surface revision 2 (2)` and a real clock — and the Explore screen, which needs a launch parameter
+*and* a network fetch to render anything, renders on the web for the first time.
+
+**The remaining honest asymmetry is `network`**, and it is the browser's rather than Dogwood's: the
+guest calls `fetch` inside the page's origin, constrained by the page's Content Security Policy
+rather than by a host allow-list that refuses everything by default. ADR-032 recorded that for the
+profile; ADR-055 §4 makes it concrete. **A code update has still never been exercised on web.**
 
 ### 2.2 Live-state holders ◐
 
@@ -315,7 +327,7 @@ Sequenced by what unblocks the most, not by size.
 | # | Item | Why here |
 |---|---|---|
 | 1 | ~~Publish the generator~~ ✅ done | `dev.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
-| 2 | ~~The real guest on web~~ ✅ done | Closed. What remains of it is the Worker service surface, launch parameters and segment versions — smaller, and listed in §2.1 |
+| 2 | ~~The real guest on web~~ ✅ done | Closed, and so is the clause it left behind: the Worker service surface, launch parameters and segment versions all cross now ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)) |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |
 | 5 | ~~The authoring checker~~ ✅ done | Rejects per-frame animation APIs and resource loaders, with the replacement named |
