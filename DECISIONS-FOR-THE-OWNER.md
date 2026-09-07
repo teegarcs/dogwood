@@ -141,7 +141,48 @@ take *before* anyone depends on it rather than after.
 
 ---
 
-## 6. The web profile's first-visit trade is a product judgement
+## 6. The signing keys, and where payloads are served from
+
+**Status:** open, and it is the last thing between this and a first ship.
+**Cost of leaving it:** payloads can be signed and served on a developer's machine and nowhere else.
+
+Two halves of one decision, and neither is engineering work — the mechanism is built and verified.
+
+**The keys.** Payloads are signed with Ed25519 and verified before a byte executes, with a second
+**rotation** key so a key can be replaced without stranding installed clients ([`B1`, `B2`](plans/conformance.md)).
+The keys in this repository are **throwaway development keys, committed on purpose** so the samples
+build for anyone who clones it, and labelled as such where they sit. A real one is passed in:
+
+```
+-PdogwoodSigningKey=<hex> -PdogwoodRotationKey=<hex>
+```
+
+**What done looks like:** production keys generated somewhere they can be held, a named owner, a
+written rotation procedure, and a revocation answer. Rotation is roll-forward: publish manifests
+carrying both signatures until every client trusts the new key, *then* delete the old entry — a
+client holding only the old key stops accepting updates at that moment, which makes the second step
+something to finish rather than to start. Nobody has written that procedure down.
+
+**Where payloads are served from.** Today: `./gradlew :samples:slice-guest:serveProductionWebpackZipline`
+on `localhost:8080`. A production deployment needs three things and two of them are silent when
+wrong:
+
+- **Build, sign and upload as one reviewable step**, rather than a developer's Gradle invocation.
+- **Cache headers that match immutability.** Payload files are content-addressed and may be cached
+  forever; **the manifest is not** and must not be. Backwards gives you either stale clients or no
+  caching at all, and neither announces itself.
+- **`Content-Encoding: br` on the web bundle.** Serving gzip instead costs **27% and about five
+  seconds** on a slow connection ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+  Nothing on the device can detect it.
+
+Two capabilities wait on the server rather than on code: **resuming a previous payload** needs a
+manifest that still serves it, and **staged rollout** needs somebody to decide which cohorts get
+which manifest — `InstallCohort` already gives each installation a stable bucket 0–99 to stage
+against. [`docs/operating.md`](docs/operating.md) §5 and §6 are written for whoever picks this up.
+
+---
+
+## 7. The web profile's first-visit trade is a product judgement
 
 **Status:** open, and it is the one item here that changes what gets built.
 

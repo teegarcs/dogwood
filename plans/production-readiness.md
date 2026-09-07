@@ -14,6 +14,16 @@ answers:
 Everything blocked on a person rather than on work is in
 [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) and is not repeated here.
 
+**Where this stands, 2026-09-07.** Every item in Part 5's ordered list is closed or has moved to the
+owner. A product can declare its own components, consume the whole thing from outside this
+repository, run the real guest on all three shipping targets from one set of screens, survive a bad
+publish without a server, report what it could not understand, and read four manuals — one of which
+is generated so it cannot go stale. What is left below is not a queue of gaps: §2.2 to §2.4 are
+**product-scale** work that arrives with a product's own components, and the alignment table's
+remaining rows say what each claim rests on rather than what is missing. The honest summary is that
+the engineering plan is finished and the two things still between this and a first ship —
+[signing keys and payload hosting](../DECISIONS-FOR-THE-OWNER.md) — are decisions rather than code.
+
 ---
 
 ## Part 1 — The gap that blocked everything else ✅
@@ -169,7 +179,7 @@ a shared catalogue and grammar, per-client instruments.
 | Claim | What is actually asserted | Gap |
 |---|---|---|
 | `D8`, `D9`, `D10` (holders) | a composition on **three** targets | ✅ Closed. Running them on iOS and in a browser found a hostile-value clamp that fires on the Java Virtual Machine and not on the web — see `conformance.md` Part 7 |
-| `A2`–`A4` (skew containment) | Android only, via `tools/skew-drill` | The two-build procedure — a skewed payload served to an installed binary — does not exist for iOS or web. The shape is portable |
+| `A2`–`A4` (skew containment) | ✅ three real clients, three instruments, one procedure | Closed 2026-09-06. `run-ios.sh` and `run-web.sh` found one host-integration defect each ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)). Desktop still has none, and the web drill could run in continuous integration and does not |
 | `D1`–`D5`, `D7` (accessibility) | three real clients, three instruments | Sound. What no instrument covers is whether the *speech is good*, reading order as experienced, and typing and selection |
 | `F1`–`F4` (network policy) | mobile enforce; web is the browser's Content Security Policy | Recorded as **weaker on web, not equal** — correct, and a product should know it |
 | `G1`–`G4` (performance) | nothing | No host that exists can grade them; see the decisions file |
@@ -220,12 +230,12 @@ exists; the machinery to operate one does not.**
   manifest that still serves it. There is no staged rollout: `InstallCohort` gives a device a stable
   bucket a server could stage against, and there is no server. And nothing reports a refusal to a
   publisher, so a fleet-wide quarantine is visible only if the host wires it to telemetry.
-- **No key ceremony.** Production signing keys need generating, storing, rotating and revoking by
-  somebody. The mechanism supports it; there is no procedure.
-- **No payload hosting story.** The samples serve from a Gradle task on `localhost:8080`. A real
-  deployment needs a content delivery network, cache headers that match the manifest's immutability,
-  and — per [ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md) —
-  `Content-Encoding: br`, whose absence silently costs 27%.
+- **No key ceremony, and no payload hosting story.** Both are the owner's rather than the
+  engineering plan's, and both now live in
+  [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) so they stop being restated
+  here: production keys need generating, holding, rotating and revoking by somebody, and the samples
+  serve from a Gradle task on `localhost:8080`. [`docs/operating.md`](../docs/operating.md) §5 is
+  what the person picking that up reads.
 - ✅ **The authoring check exists** ([ADR-050](../adrs/layer-5/ADR-050-the-authoring-check.md)).
   `dev.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
   `check`, and names the replacement for each. Best-effort by construction, as Layer 1 always said:
@@ -312,7 +322,7 @@ Sequenced by what unblocks the most, not by size.
 | 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
 | 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
 | 8 | ~~Skew drill on iOS and web~~ ✅ done | `run-ios.sh` and `run-web.sh`, same five steps, read off each platform's accessibility tree. It found one host-integration defect per client ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)) |
-| 9 | **Key ceremony and payload hosting** (§4.2, §4b) | Needed before a first ship, not before a first product build |
+| 9 | ~~Key ceremony and payload hosting~~ → the owner | Not engineering work: the mechanism is built and verified. Moved to [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) |
 | 10 | ~~The four documents~~ ✅ done | Getting started, authoring, operating, and a **generated** component reference. The first three are in `docs/`; the fourth is emitted by the generator, because a hand-written page about the components is a fifth thing that can disagree with the surface |
 
 **Both of the items that changed what the project *is* are closed.** A product can declare its own
