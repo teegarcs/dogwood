@@ -29,6 +29,33 @@ already built.
 | E7 | ~~androidx import migration script~~ ✅ | Authoring | `tools/import-migrator` rewrites what maps one-for-one, keeps the runtime imports that are genuinely identical, and turns each real difference into a `// MIGRATE:` line naming the replacement — never an import pointing at a symbol that does not exist, which the first version produced |
 | E8 | ~~Catalogue build-out~~ ◐ | Flexibility | `Dialog` and `SheetArea` landed, the latter proving the **fifth holder shape** at exactly ADR-043's advertised cost (a table entry, a holder, a mirror — no protocol change), and the former proving the machinery knows when *not* to be used. Menu, pager and pickers remain: they are first-adopter work that lifts the shipping floor, and the catalogue is 16 against a product's fifty to two hundred |
 
+### Where Track E landed, 2026-09-08
+
+All seven items done or honestly partial, each verified by running it. The conformance gate at the
+end of it: **android 54, desktop 39, iOS 56, web 53 — PASS** (from 52/35/53/50 at the baseline).
+
+Three items turned out to be smaller than the plan thought, and the reason is the same each time —
+**the capability existed and was unreachable, undocumented, or ungraded**: the inner loop (E2/B2)
+was already built, the collection knob (E6) needed exposing rather than tuning, and the iOS
+navigation gap (E2) was a sample wiring one line short. Two were larger: the reference server (E3)
+and the iOS framework (E4) were genuinely absent.
+
+What each item found by being run, rather than reasoned about:
+
+- **E1** the web guard needed a release *identity* the sidecar never carried, and its kill switch is
+  weaker than mobile's because the sidecar is unsigned — recorded in the manifest field itself.
+- **E2** iOS recorded skew and **displayed none**, so containment worked and was invisible.
+- **E3** the first end-to-end proof loaded from the development task instead of the reference
+  server and looked exactly like success; the second served only the manifest, because Zipline's
+  cache was warm.
+- **E4** an omitted `export(...)` produces a framework that builds and a header whose factory takes
+  types the consumer cannot name — which is what the check asserts.
+- **E5** a rebuild cannot test the over-the-air gap; only a frozen artifact can be old.
+- **E7** the first rewriter pointed imports at symbols that do not exist, making the compiler blame
+  a package for an API difference.
+- **E8** the dictionary lock refused both new components until the segment version was raised, and
+  `HolderTest`'s example of an *unregistered* holder stopped being unregistered the same day.
+
 ## Track O — owner unlocks, restated from [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) with their score price tags
 
 | Owner item | Unlocks | Worth |
