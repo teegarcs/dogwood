@@ -83,9 +83,12 @@ published artifacts, signs it with throwaway keys, and serves it to Umbra's host
 `DogwoodShell` requires `releaseGuard` and `onRefused` now; `null` is accepted and is a written
 decision. Removing the defaults turned the gap into two compile errors, which is the whole
 argument. Every host in the repository rides the guarded path — the shell-less ones through
-`loadGuarded`, calling `succeeded` on mount — and getting-started's outline opens with it. **The
-web host remains unguarded and is now the only one**; its delivery has no release-version
-bookkeeping, and that slice stays open here honestly. Original finding kept below.
+`loadGuarded`, calling `succeeded` on mount — and getting-started's outline opens with it. ~~**The web host remains unguarded**~~ — closed 2026-09-08 (Track E1): `WebDelivery` takes a
+required `releaseGuard`, the sidecar carries a release identity and a `disabled` switch, the
+verdict is taken and the attempt persisted **before the Worker is created**, and success is
+reported only when a tree has actually been applied. Graded on a real browser as `H4`/`H5`:
+`refused=ReleaseRefused workerCreated=false`. The switch is weaker than mobile's by record — this
+sidecar is not signed, so it is only as trustworthy as its origin. Original finding kept below.
 
 ### A3 (original). Surviving a bad publish is opt-in, and four hosts of five do not opt in
 

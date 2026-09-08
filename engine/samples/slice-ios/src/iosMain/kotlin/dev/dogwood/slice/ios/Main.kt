@@ -49,6 +49,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.zipline.loader.ZiplineCache
 import dev.dogwood.host.CallbackAnalytics
 import dev.dogwood.host.CallbackLog
+import dev.dogwood.host.CallbackNavigation
 import dev.dogwood.host.DogwoodDelivery
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodExperience
@@ -277,6 +278,29 @@ private fun SliceHost(configuration: HostEnvironment) {
           network = UrlSessionNetwork(
             allow = allowUrlHosts("localhost", allowCleartextHosts = setOf("localhost")),
           ),
+          /*
+           * The cross-experience jump, wired here for the first time.
+           *
+           * This host offered no navigation service at all, which is a choice the surface allows
+           * -- every service is optional and its absence is normal -- and it meant `J2` and `J4`
+           * were graded by nothing on this client while passing on two others
+           * (`plans/adoption-audit.md`, Track E2). A guest asks for a destination; this host
+           * decides the destination is a tab. It could as easily have been a native screen, and
+           * no guest would be written differently.
+           */
+          navigation = CallbackNavigation(
+            routes = TABS.map { "experience/${it.first}" }.toSet(),
+            uiScope = uiScope,
+            onNavigate = { route, _ -> current = route.removePrefix("experience/") },
+            onUnknownRoute = { route ->
+              // Recorded, not merely logged: an unknown route is skew, and skew nobody records is
+              // skew nobody learns from. `SkewReport.unknownRoutes` exists for exactly this, and
+              // the host is the only thing that can fill it -- the service is constructed by the
+              // application, before any experience exists (ADR-058's neighbour argument).
+              println("dogwood: navigate: unknown route '$route', staying put")
+              shell?.active?.value?.skew?.unknownRoutes?.add(route)
+            },
+          ),
         ),
         capacity = 3,
         onSwap = { entry, status ->
@@ -461,6 +485,26 @@ private fun SliceHost(configuration: HostEnvironment) {
     failure?.let { Text(it, Modifier.padding(16.dp)) }
     shell?.active?.value?.let { live ->
       DogwoodSurface(live, Modifier.fillMaxWidth().weight(1f))
+    }
+    /*
+     * The skew report, on screen.
+     *
+     * Sampled on a timer, not observed: `SkewReport` is plain sets written during composition, so
+     * nothing invalidates when an entry lands and a composable reading it directly sees whatever
+     * was there when its pass began (`Skew.kt`). The Android sample learned this the expensive way
+     * and this host had no display at all -- so containment worked here and was invisible, which
+     * is the exact failure `SkewReport` exists to prevent, and the reason `J4` had no instrument
+     * on this client.
+     */
+    var skew by remember { mutableStateOf("") }
+    LaunchedEffect(shell) {
+      while (true) {
+        kotlinx.coroutines.delay(500)
+        skew = shell?.active?.value?.skew?.takeIf { !it.isEmpty }?.toString().orEmpty()
+      }
+    }
+    if (skew.isNotEmpty()) {
+      Text(skew, Modifier.padding(horizontal = 16.dp))
     }
     Text("warm: ${shell?.warm?.joinToString(", ") ?: "—"}", Modifier.padding(horizontal = 16.dp))
     Text(note, Modifier.padding(horizontal = 16.dp))

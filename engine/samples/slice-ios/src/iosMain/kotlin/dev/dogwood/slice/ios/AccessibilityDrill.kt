@@ -415,5 +415,46 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
 
   println("CONF RESULT client=ios passed=${checks.passed} failed=${checks.failed} skipped=${checks.skipped}")
   println("A11Y RESULT passed=${checks.passed} failed=${checks.failed}")
+
+  // J4 -- a route the host does not handle is declined, and *recorded* rather than dropped.
+  //
+  // Gradable here for the first time: this host wired no navigation service until Track E2, so the
+  // claim had no instrument on iOS while passing on two other clients. The Diagnostics screen's
+  // button asks for `experience/nowhere`, which is not in this host's route set; the observable
+  // consequence is the skew line the host itself displays.
+  // Scrolled to, not assumed on screen: the button is several sections below the fold, and Compose
+  // publishes accessibility elements only for what it has laid out. The same walk-then-scroll the
+  // `D4` check does above, for the same reason.
+  var toRoute = 0
+  var routeElements = collectAccessibilityElements(root)
+  while (routeElements.none { it.label().startsWith("Ask for a route") } && toRoute < 12) {
+    if (!scrollDownSomewhere(root)) break
+    toRoute++
+    kotlinx.coroutines.delay(400)
+    routeElements = collectAccessibilityElements(root)
+  }
+  val routeButton = routeElements.firstOrNull { it.label().startsWith("Ask for a route") }
+  if (routeButton == null) {
+    checks.skip("J4", "the unknown-route button was not reachable in $toRoute scrolls")
+  } else {
+    routeButton.accessibilityActivate()
+    // By outcome rather than by a fixed delay: the request crosses to the host, the host declines
+    // and records, and the sample polls its report -- several frames, not one settled composition.
+    var recorded: String? = null
+    var waited = 0
+    while (recorded == null && waited < 8_000) {
+      kotlinx.coroutines.delay(250)
+      waited += 250
+      recorded = collectAccessibilityElements(root).labels()
+        .firstOrNull { it.startsWith("SkewReport(") && it.contains("routes=") }
+    }
+    checks.check(
+      "J4",
+      "a route this client does not handle is declined and recorded",
+      recorded != null,
+      recorded ?: "no skew line naming a route appeared",
+    )
+  }
+
   return checks.failed
 }
