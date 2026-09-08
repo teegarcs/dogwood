@@ -180,7 +180,24 @@ gap every real deployment has.
 
 ## Part B — Friction a production team hits in the first month
 
-### B1. The catalogue is a slice, and the missing components are the ones every product uses
+### B1. ◐ Two of the named gaps closed, and the fifth holder shape proven
+
+`Dialog` and `SheetArea` are in the catalogue (dictionary version 12), and the sheet is the one
+that mattered structurally: it is the **fifth holder shape**, and adding it cost exactly what
+[ADR-043](../adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md) promised — a table entry,
+a guest holder, and a host mirror, with no protocol change. That claim had four data points and
+now has five, which is the difference between a pattern and a coincidence.
+
+`Dialog` is worth noting for the opposite reason: it needed **no** holder. A holder exists when the
+host owns a value the guest must mirror; a dialog's openness is the guest's own state and the only
+thing coming back is a dismissal, which is an ordinary event. Knowing when *not* to reach for the
+machinery is part of the machinery being usable.
+
+Still open: menu, pager and the pickers, and the holder shapes those need (`PagerState`, the picker
+states). The remaining count is the honest one — the catalogue is **16 components**, and a product
+design system is fifty to two hundred. Original finding below.
+
+### B1 (original). The catalogue is a slice, and the missing components are the ones every product uses
 
 The committed surface binds **14 components**. There is no dialog, no bottom sheet, no dropdown or
 menu, no pager, no date or time picker — checked against the surface file, not the docs. The

@@ -158,6 +158,8 @@ cell below is a claim about what a user would install, not about a debug build
 | D9 | A guest can drive and observe a scroll position on a declared quantum, and it survives a code update | S | ✅ both halves — guest and host binding |
 | D10 | A guest can drive and observe a list's position; a target for an item that does not exist yet waits rather than clamping | S | ✅ both halves — guest and host binding |
 | D11 | A guest can ask the host for something and **wait for the answer**; a reply carries the request it answers | S + C | ✅ S on three targets; C Android |
+| D12 | A guest can declare where a sheet should be and be told where the **user** left it | S | ✅ both halves — guest holder and host mirror |
+| D13 | A modal interrupts, and closing it removes its content rather than hiding it | S | ✅ `DialogTest` |
 
 ### H. Release control — surviving a bad publish
 

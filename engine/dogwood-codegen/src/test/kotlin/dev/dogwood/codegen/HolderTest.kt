@@ -117,18 +117,22 @@ class HolderTest {
     // The fail-closed half, and the one that matters most. A guessed shape emits properties
     // nothing on the host reads, which is not a failure anybody sees: the widget renders and the
     // holder is inert. The build stops instead, with the type's name in the message.
+    //
+    // The example used to be `SheetState`, which stopped being unregistered the day the fifth
+    // shape landed. `CarouselState` is named in `LIVE_STATE` -- so it is recognisably a holder --
+    // and has no shape, which is exactly the situation this rejection exists for.
     val component = parse(
       """
         package dev.dogwood.surface
         import androidx.compose.runtime.Composable
         annotation class Holder
         @Composable
-        fun Sheet(@Holder state: SheetState? = null) {}
+        fun Carousel(@Holder state: CarouselState? = null) {}
       """.trimIndent(),
     ).single()
     assertFalse(component.isBindable)
     assertEquals(
-      "no holder shape is registered for SheetState?",
+      "no holder shape is registered for CarouselState?",
       component.parameters.single().rejection,
     )
   }

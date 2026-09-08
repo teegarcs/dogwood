@@ -475,3 +475,68 @@ fun SnackbarAreaImpl(
     )
   }
 }
+
+/**
+ * The dialog binding.
+ *
+ * `androidx.compose.ui.window.Dialog` is the multiplatform one -- a real platform window on every
+ * client, not a `Box` drawn on top, which is what makes the back gesture, the scrim and the
+ * elevation behave the way each platform's users expect rather than the way one implementation
+ * guessed.
+ *
+ * **Composing nothing when hidden is the whole of the visibility logic**, and it is correct rather
+ * than lazy: an invisible dialog that stayed composed would keep its content's `remember` alive and
+ * its effects running, so a guest closing a dialog would leave work behind it. Compose's own
+ * dialogs behave this way for the same reason.
+ */
+@Composable
+fun DialogImpl(
+  visible: Boolean,
+  modifier: Modifier,
+  dismissOnBackPress: Boolean,
+  dismissOnClickOutside: Boolean,
+  onDismissRequest: () -> Unit,
+  content: @Composable () -> Unit,
+) {
+  if (!visible) return
+  androidx.compose.ui.window.Dialog(
+    onDismissRequest = onDismissRequest,
+    properties = androidx.compose.ui.window.DialogProperties(
+      dismissOnBackPress = dismissOnBackPress,
+      dismissOnClickOutside = dismissOnClickOutside,
+    ),
+  ) {
+    androidx.compose.material3.Surface(
+      modifier = modifier,
+      shape = androidx.compose.material3.MaterialTheme.shapes.large,
+      color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+      tonalElevation = androidx.compose.ui.unit.Dp(6f),
+    ) {
+      content()
+    }
+  }
+}
+
+/**
+ * The sheet binding: the mirror owns the state and the effects, this owns the window.
+ *
+ * Composing nothing while the sheet is off screen is the same rule `DialogImpl` follows and for the
+ * same reason -- a sheet that stayed composed while hidden would keep its content's `remember`
+ * alive and its effects running behind a screen the user moved on from.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun SheetAreaImpl(
+  modifier: Modifier,
+  sheet: SheetMirror,
+  content: @Composable () -> Unit,
+) {
+  if (!sheet.onScreen) return
+  androidx.compose.material3.ModalBottomSheet(
+    onDismissRequest = sheet.dismissed,
+    sheetState = sheet.sheetState,
+    modifier = modifier,
+  ) {
+    content()
+  }
+}
