@@ -217,7 +217,17 @@ pools, separate release guards — and the surface lock's append-only discipline
 multi-team workflow (two branches appending to one surface produce a lock conflict whose safe
 resolution is nowhere written down). Fine for one team; unexamined for an organization.
 
-### B4. Embedding into an existing iOS application is described and not built
+### B4. ✅ Closed — `samples/ios-embed` produces the XCFramework
+
+A library module (not an application) assembling `DogwoodEmbed.xcframework` with device and both
+simulator slices, exposing one Swift function that returns a `UIViewController`, with the release
+guard on by default inside it. `tools/ios-embed-check/run.sh` assembles it and asserts on what an
+Xcode project receives — both slices, and a header carrying the factory **under its documented
+Swift signature** with `dogwood-host`'s types exported alongside, which is the failure an omitted
+`export(...)` actually produces. Header inspection, not a compiled Swift app; the limit is stated
+in the check. Original finding below.
+
+### B4 (original). Embedding into an existing iOS application is described and not built
 
 The iOS sample **is** the application: `UIApplicationMain` in Kotlin, no Xcode project, and no
 framework or XCFramework target anywhere in the build. ADR-004 says a product "builds a framework

@@ -81,6 +81,26 @@ it could not do instead of reporting green.
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
+## The iOS embed check — can an existing Xcode project link this?
+
+```
+tools/ios-embed-check/run.sh
+```
+
+Assembles `DogwoodEmbed.xcframework` and asserts both slices exist and the header carries the
+factory under its documented Swift signature with host types exported. Not in continuous
+integration: three Kotlin/Native links, minutes each, on hardware a Linux runner does not have.
+
+## The cross-version drill — does today's host run an older payload?
+
+```
+tools/conformance/cross-version.sh
+```
+
+Serves a **committed, signed payload fixture** built by an earlier toolchain to a host built from
+current sources, and requires that it loads, verifies, and renders (`K1`, `K2`). Part of
+`run-all.sh`. The pairing every deployment has and a rebuild cannot test.
+
 ## The reference-server check — does the operational back half behave?
 
 ```

@@ -132,11 +132,31 @@ What is genuinely iOS-specific:
 - **`localhost` reaches your machine from a simulator; a device needs your machine's LAN address**
   plus the matching App Transport Security exception in `Info.plist`.
 
-**One honest caveat before you commit an iOS team**: the sample *is* the application — Kotlin/Native
-owns `UIApplicationMain`, and no framework or XCFramework target exists to embed into an existing
-Xcode project. That packaging work is yours today; it is finding **B4** in
-[`plans/adoption-audit.md`](../plans/adoption-audit.md), described in ADR-004 and built by nobody
-yet. Android and web embed as a composable and a page respectively; this caveat is iOS-only.
+**Embedding into an existing Xcode project**: copy
+[`samples/ios-embed`](../engine/samples/ios-embed/) — a library module, not an application, that
+produces `DogwoodEmbed.xcframework` (device and both simulator architectures) with one function
+visible to Swift:
+
+```swift
+import DogwoodEmbed
+
+let screen = DogwoodEmbedKt.dogwoodViewController(
+    manifestUrl: "https://payloads.example.com/manifest.zipline.json",
+    entryPoint: "checkout",
+    trustedKeys: ["release-1": "…hex…"],
+    onFailure: { print($0) }
+)
+navigationController.pushViewController(screen, animated: true)
+```
+
+A Dogwood screen is a `UIViewController` from Swift's side; nothing about the sandbox or the
+protocol reaches your application's architecture. Build it with
+`./gradlew :samples:ios-embed:assembleDogwoodEmbedXCFramework`. **Three lines of that module's
+build file are worth keeping verbatim** and each was learned from a link failure: `isStatic = true`
+(a dynamic framework carrying Skiko must be embedded *and* signed by your target, and pays dynamic
+linking at every launch), `linkerOpts += "-lsqlite3"` (Zipline's cache is SQLDelight over SQLiter),
+and `export(project(...))` for anything whose types appear in your API — without it the framework
+compiles and the header declares a factory taking types the consumer cannot name.
 
 **On the web the shape is the same and the parts have different names**, because a Web Worker
 boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page

@@ -242,6 +242,24 @@ Kotlin/WebAssembly and the guest half is Kotlin/JavaScript; they do not link, so
 checkable rather than merely stated, including the tolerance a newer field depends on, with a
 control proving the fixture really carries one.
 
+### K. Compatibility across the over-the-air gap
+
+Three toolchains are coupled — the application's, the engine's and the payload's — and the pairing
+every real deployment has is a payload built **earlier** than the host running it, because users
+update applications slowly. `docs/getting-started.md` states the policy (hosts first, payloads after
+the fleet); a policy is not a test, so `tools/conformance/cross-version.sh` serves a **committed,
+signed payload fixture** to a host built from current sources.
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop |
+| K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop |
+
+The fixture is an artifact rather than a rebuild, and `tools/conformance/fixtures/README.md` says
+why: a rebuild is today's toolchain, which is the pairing already covered by every other drill here.
+Only something that stops changing can be old. Adding a newer fixture beside the current one widens
+the window covered; retiring one is either a compatibility fix or a documented support decision.
+
 ### E. Lifecycle and resources
 
 | ID | Claim | Tier | Today |
