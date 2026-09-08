@@ -24,6 +24,10 @@ compose.desktop {
     // QuickJS composition is deeply recursive and interpreted frames are heavy; Zipline expects
     // callers to use an eight-megabyte stack.
     jvmArgs += listOf("-Xss8m")
+    // Passed through so `-Ddogwood.manifest=…` on the Gradle command line reaches the application.
+    // Without this the property is set on Gradle's own JVM and the sample never sees it -- which
+    // is how a run against the reference server silently loaded from the development task instead.
+    System.getProperty("dogwood.manifest")?.let { jvmArgs += "-Ddogwood.manifest=$it" }
     nativeDistributions { targetFormats(TargetFormat.Dmg) }
   }
 }

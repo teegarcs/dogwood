@@ -63,7 +63,17 @@ import okio.FileSystem
 private val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
 
 private const val DEV_SERVER = "http://localhost:8080"
-private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+/**
+ * Where the payload comes from, overridable with `-Ddogwood.manifest=…`.
+ *
+ * A constant until the reference server existed, and the constant made a claim untestable: pointing
+ * this host at a real deployment meant editing it. `tools/reference-server/check.sh` uses the
+ * override to prove a client loads through the server rather than through the Gradle task -- and
+ * the first attempt to prove it, before this existed, silently loaded from `:8080` instead and
+ * looked exactly like success.
+ */
+private val MANIFEST_URL: String =
+  System.getProperty("dogwood.manifest") ?: "$DEV_SERVER/manifest.zipline.json"
 
 fun main() = application {
   // Acme's design system, registered before anything renders. One call, with an object the

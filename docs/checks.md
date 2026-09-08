@@ -81,6 +81,20 @@ it could not do instead of reporting green.
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
+## The reference-server check — does the operational back half behave?
+
+```
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+tools/reference-server/check.sh
+```
+
+Observes, in real responses: a publish lands staged rather than live; the manifest is `no-store`
+and modules are `immutable`; brotli is used when offered; a cohort inside a rollout gets the staged
+release **and one outside it does not**; `resume` puts the earlier release back. The last leg runs
+the desktop host against it with a cold cache and asserts the client loaded and *verified* a signed
+manifest and fetched a module — because everything before it is the server agreeing with itself.
+Not in continuous integration: it starts servers and a windowed client.
+
 ## The standalone check — can anyone outside this repository use it?
 
 ```
