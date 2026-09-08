@@ -76,6 +76,22 @@ class GuestLimitsTest {
   }
 
   @Test
+  fun theCollectionThresholdIsTheRuntimesUntilAHostSaysOtherwise() = withZipline(GuestLimits()) {
+    // The default must not silently retune the collector: Phase 0's worst sample is a collection
+    // tail, and no host this project can run reproduces it, so a number chosen here would be
+    // tuning against noise. This pins "we left it alone" as a decision rather than an oversight.
+    val untouched = it.quickJs.gcThreshold
+    applyGuestLimits(it, GuestLimits())
+    assertEquals(untouched, it.quickJs.gcThreshold)
+  }
+
+  @Test
+  fun aHostThatAsksForACollectionThresholdGetsIt() = withZipline(GuestLimits()) {
+    applyGuestLimits(it, GuestLimits(gcThresholdBytes = 4L * 1024 * 1024))
+    assertEquals(4L * 1024 * 1024, it.quickJs.gcThreshold)
+  }
+
+  @Test
   fun aHealthyScriptRunsUntouchedUnderTheDefaultLimits() = withZipline(GuestLimits()) { zipline ->
     // The control: bounds that fire on ordinary work teach a team to remove them.
     val result = zipline.quickJs.evaluate(

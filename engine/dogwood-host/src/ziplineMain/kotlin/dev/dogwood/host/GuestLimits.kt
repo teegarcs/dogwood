@@ -37,6 +37,27 @@ import app.cash.zipline.Zipline
 class GuestLimits(
   val memoryLimitBytes: Long = 256L * 1024 * 1024,
   val sliceBudgetMillis: Long = 5_000,
+  /**
+   * When the interpreter collects, in bytes allocated since the last collection.
+   *
+   * **Null leaves QuickJS's own default alone, and that is deliberate rather than lazy.** This is
+   * the one public knob that shapes collection *pause length* -- a smaller threshold means more
+   * frequent, smaller collections and a shorter tail -- and it is exposed because Phase 0's worst
+   * recorded sample is a collection tail: **22.1 ms at a 16 MiB threshold on a Pixel 10 Pro**,
+   * outside a 60 Hz frame (`roadmap.md` 0.4).
+   *
+   * What is *not* done here is pick a different number, because nothing this project can run would
+   * justify one. `PauseWatcher` (Layer 4 ADR-013) attributes pauses through the same public API,
+   * and on both hosts available -- a development machine and an emulator -- **the worst pause was
+   * not a collection at all** (3.69 ms against 7.45 ms; 5.80 ms against 7.48 ms), and neither
+   * reproduced the 22.1 ms sample. Changing a default on hardware that cannot reproduce the
+   * problem would be tuning against noise.
+   *
+   * So: the knob is here, its purpose is written down, and the number stays the runtime's until
+   * somebody runs `--es experiment pauses` on a device that shows the tail. That run is one
+   * command; the device is the owner's (`DECISIONS-FOR-THE-OWNER.md` §4).
+   */
+  val gcThresholdBytes: Long? = null,
 ) {
   companion object {
     /** No bounds, as a written decision rather than an omission. */
@@ -56,6 +77,7 @@ class GuestLimits(
 internal fun applyGuestLimits(zipline: Zipline, limits: GuestLimits) {
   val quickJs = zipline.quickJs
   quickJs.memoryLimit = limits.memoryLimitBytes
+  limits.gcThresholdBytes?.let { quickJs.gcThreshold = it }
   quickJs.interruptHandler = object : InterruptHandler {
     // `TimeSource.Monotonic` rather than a platform clock, because this file compiles for
     // Kotlin/Native too -- the first draft used `System.nanoTime()` and the iOS target said no.
