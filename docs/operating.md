@@ -40,6 +40,13 @@ starts a version is quarantined and the host names the last version known to hav
 most**: without it, a payload that crashes on launch crashes on every relaunch, forever, on every
 device that fetched it.
 
+**A payload that will not stop is stopped.** Every guest runs under bounds
+([ADR-060](../adrs/layer-5/ADR-060-bounds-on-a-runaway-payload.md)): allocation past 256 MiB is
+refused, and any single uninterrupted run of guest execution past five seconds is interrupted —
+with the stack source-mapped to the payload file that was stuck. The host process survives both.
+These are tourniquets, not budgets: ordinary guest work yields many times a second, and nothing
+that behaves is ever touched by them.
+
 **A payload built against a newer dictionary degrades rather than breaking.** Unknown widgets become
 placeholders, unknown icons become the fallback glyph, unknown colour tokens become unspecified, and
 values Compose would throw on are clamped. The one exception is deliberate: a control that owns an
@@ -112,20 +119,67 @@ button that does nothing, and no record anywhere that it happened.
 
 ---
 
+## 4b. Reading a guest crash
+
+A payload crash reaches your host through one channel — the `onGuestException` callback on the
+experience — and what arrives is worth routing to your crash reporter: Zipline applies source maps
+at build time, so the frames name **real Kotlin files from the payload**, with nothing to deploy
+alongside it.
+
+```
+app.cash.zipline.ZiplineException: IllegalStateException: ...
+    at os (dev/dogwood/slice/ExploreScreen.kt)
+    at Ye (dev/dogwood/slice/ExploreScreen.kt)
+```
+
+Three things to know, each learned by crashing a guest on purpose
+([ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md)):
+
+- **Attribution is file-level.** Function names stay minified and line numbers do not survive the
+  size-optimized build. One screen per file — the shape the authoring guide encourages — makes a
+  file name enough to start.
+- **Do not throw from the handler.** It runs inside a Zipline service dispatch, and a throw there is
+  returned to the *guest* as the call's failure — your process never sees it, and the crash
+  vanishes. The default prints; replace it with your pipeline, not with a rethrow.
+- **The web is different.** Its Worker path carries an error *message*, not a stack; crash
+  readability there is an open item on the audit's page.
+
 ## 5. Publishing
 
-There is no publish pipeline in this repository, and that is a real gap rather than an omission from
-this document. What exists is a Gradle task that serves a payload on `localhost:8080` for
-development. A production deployment needs:
+[`tools/reference-server/`](../tools/reference-server/) is a working implementation of this section:
+one file, storing releases on disk, holding no opinion about your infrastructure. It is a
+**reference to copy and diff against**, not a product to deploy — but it is executable, and
+[`check.sh`](../tools/reference-server/check.sh) observes each behaviour below in a real response
+rather than asserting it, ending with a real client loading and verifying a signed manifest
+through it.
 
-- **Build, sign and upload as one reviewable step.** The signing key must not be the one in this
-  repository — those are throwaway development keys, committed on purpose and labelled as such.
-- **Cache headers that match immutability.** Payload files are content-addressed and may be cached
-  forever; **the manifest is not** and must not be. Getting that backwards gives you either stale
-  clients or no caching at all.
-- **`Content-Encoding: br` on the web bundle.** Serving gzip instead costs **27% and about five
-  seconds** on a slow connection ([ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
-  Nothing on the device can detect this; it is silent and it is large.
+```
+tools/reference-server/server.py publish --root /srv/dogwood --from build/zipline/ProductionWebpack --version 1.4.0
+tools/reference-server/server.py rollout --root /srv/dogwood --version 1.4.0 --percent 10
+tools/reference-server/server.py resume  --root /srv/dogwood --version 1.3.0
+```
+
+The four behaviours it exists to demonstrate, each easy to get wrong and expensive to get wrong
+late:
+
+- **Build, sign and upload as one reviewable step.** Signing stays in the build, where the key is;
+  the server never holds one. The key must not be the one in this repository — those are throwaway
+  development keys, committed on purpose and labelled as such.
+- **Cache headers that match immutability.** Payload modules are content-addressed and served
+  `immutable` for a year; **the manifest is `no-store`**. Backwards gives you either stale clients
+  or no caching, and — worse — a cached manifest is a fleet you can neither update nor roll back,
+  which is the failure that outlasts the outage.
+- **`Content-Encoding: br` when the client offers it.** Serving gzip instead costs **27% and about
+  five seconds** on a slow connection ([ADR-045](../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+  Nothing on the device can detect it, so the reference server warns loudly at startup when the
+  brotli module is missing rather than quietly serving gzip.
+- **A publish does not go live.** It lands staged at 0%; `rollout` widens it by cohort against the
+  stable bucket `InstallCohort` already gives every installation. Widening only ever *adds*
+  devices, so nobody is moved back off a release they already have.
+
+**Rolling back is `resume`, and it needs nothing from the client.** A device that quarantined a bad
+release is refusing a *version*; a different version is not refused. That is why recovery is one
+line of server state rather than a protocol.
 
 ---
 
@@ -134,11 +188,11 @@ development. A production deployment needs:
 Written down so nobody discovers it during an incident.
 
 - **Nothing resumes a previous payload automatically.** The host *names* the last good version and
-  refuses the bad one; running the old payload again means serving its manifest again, which is your
-  server's job.
-- **There is no staged rollout.** `InstallCohort` gives each installation a stable bucket 0–99 that
-  your server could stage against. Deciding which cohorts get which manifest is a server's decision
-  and no server here makes it.
+  refuses the bad one; running the old payload again means serving its manifest again — which is
+  your server's job, and which `tools/reference-server`'s `resume` shows in full.
+- **Staged rollout is a server decision, and the reference server makes it** against
+  `InstallCohort`'s buckets. Your deployment still has to decide the policy; nothing here decides
+  it for you.
 - **Nothing reports refusals to you.** A fleet-wide quarantine is visible only if your host wires
   the refusal callback to telemetry, exactly as with `SkewReport`.
 - **Performance budgets are ungraded.** `G1`–`G4` read `·` on every client because the gate device

@@ -33,6 +33,9 @@ import dev.dogwood.host.CallbackAnalytics
 import dev.dogwood.host.CallbackLog
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodExperience
+import dev.dogwood.host.ReleaseGuard
+import dev.dogwood.host.GuardedLoad
+import dev.dogwood.host.FileReleaseStore
 import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.MapFeatureFlags
 import dev.dogwood.host.OkHttpNetwork
@@ -60,7 +63,17 @@ import okio.FileSystem
 private val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
 
 private const val DEV_SERVER = "http://localhost:8080"
-private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+/**
+ * Where the payload comes from, overridable with `-Ddogwood.manifest=…`.
+ *
+ * A constant until the reference server existed, and the constant made a claim untestable: pointing
+ * this host at a real deployment meant editing it. `tools/reference-server/check.sh` uses the
+ * override to prove a client loads through the server rather than through the Gradle task -- and
+ * the first attempt to prove it, before this existed, silently loaded from `:8080` instead and
+ * looked exactly like success.
+ */
+private val MANIFEST_URL: String =
+  System.getProperty("dogwood.manifest") ?: "$DEV_SERVER/manifest.zipline.json"
 
 fun main() = application {
   // Acme's design system, registered before anything renders. One call, with an object the
@@ -108,12 +121,21 @@ private fun SliceHost(configuration: HostEnvironment) {
     }.asCoroutineDispatcher()
   }
 
+  val guard = remember {
+    ReleaseGuard(
+      store = FileReleaseStore(
+        file = cachePath(File(System.getProperty("java.io.tmpdir"), "dogwood-release-desktop.json").absolutePath),
+      ),
+      onReport = { println("release guard: $it") },
+    )
+  }
+
   LaunchedEffect(Unit) {
     try {
       // Layer 3: fetch, verify the Ed25519 signature, cache, load. The desktop host runs the
       // same delivery path as Android; only the cache factory differs, because the Android one
       // needs a Context for its SQLite driver.
-      val delivered = withContext(dispatcher) {
+      val guarded = withContext(dispatcher) {
         DogwoodDelivery(
           dispatcher = dispatcher,
           trustedPublicKeys = TRUSTED_KEYS,
@@ -122,7 +144,23 @@ private fun SliceHost(configuration: HostEnvironment) {
             directory = cachePath(File(System.getProperty("java.io.tmpdir"), "dogwood-cache").absolutePath),
             maxSizeInBytes = 32L * 1024 * 1024,
           ),
-        ).load(applicationName = "dogwood-slice", manifestUrl = MANIFEST_URL)
+        ).loadGuarded(
+          applicationName = "dogwood-slice",
+          manifestUrl = MANIFEST_URL,
+          // A shell carries its own guard; a bare host carries one explicitly. Same record, same
+          // reason: written before the release runs, so a crash-on-launch loop terminates
+          // (ADR-049). This host ran unguarded until the audit's A3.
+          guard = guard,
+        )
+      }
+      val delivered = when (guarded) {
+        is GuardedLoad.Refused -> {
+          failure = "release ${guarded.version} refused: ${guarded.reason}" +
+            (guarded.fallbackVersion?.let { " (last good: $it)" } ?: "")
+          println(failure)
+          return@LaunchedEffect
+        }
+        is GuardedLoad.Running -> guarded.guest
       }
       println("loaded version ${delivered.manifest.version}, verified by ${delivered.verifiedByKey}")
       // Constructed here, on the user-interface thread, because that is the thread it binds.
@@ -153,6 +191,9 @@ private fun SliceHost(configuration: HostEnvironment) {
         )
       }
       experience = created
+      // What "worked" means, and it is not "loaded": a guest started and the host mounted it. A
+      // payload that throws on its first composition has loaded (ADR-049).
+      guard.succeeded(delivered.releaseVersion)
     } catch (e: Throwable) {
       failure = "could not load the guest: ${e.message}\n\n" +
         "Is the development server running?\n" +

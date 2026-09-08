@@ -40,7 +40,22 @@ class DogwoodExperience(
   private val zipline: Zipline,
   private val ziplineDispatcher: CoroutineDispatcher,
   private val uiScope: CoroutineScope,
-  private val onGuestException: (Throwable) -> Unit = { throw it },
+  /*
+   * The default PRINTS, at full stack, and does not throw -- because throwing here is a trap that
+   * was watched to spring. This callback runs inside a Zipline service dispatch, and an exception
+   * thrown in one is returned to the *guest* as the call's failure; the host process never sees
+   * it. So `{ throw it }`, the previous default, made a guest crash boomerang back into the
+   * sandbox and vanish -- the host looked exactly as healthy as before, which is the least
+   * triageable outcome there is (`plans/adoption-audit.md` A4).
+   *
+   * What arrives is worth routing to a crash reporter: Zipline applies source maps at build time,
+   * so the frames name real Kotlin files from the payload. A product replaces this default with
+   * its own pipeline; a host that replaces it with a rethrow has read this comment and disagreed.
+   */
+  private val onGuestException: (Throwable) -> Unit = {
+    println("dogwood: uncaught exception in the guest:")
+    println(it.stackTraceToString())
+  },
   /** Off by default. See `Leaks.kt` for what is worth watching in a host, and why. */
   leakDetector: DogwoodLeakWatcher = DogwoodLeakWatcher.None,
 ) {

@@ -103,7 +103,32 @@ class DogwoodComposition(
   // Unconfined so that `frame()` completes its recomposition before returning, which keeps the
   // host's frame callback and the guest's work in a single, reasoned-about sequence. The
   // threading contract is a Phase 1 deliverable in its own right; this is the simple end of it.
-  private val scope = CoroutineScope(frameClock + Dispatchers.Unconfined + Job())
+  /*
+   * The composition's scope, WITH an exception handler, and the handler is load-bearing.
+   *
+   * Without one, a failure in any guest effect -- a `LaunchedEffect` that threw, which is where a
+   * screen's real logic lives -- fell to the platform default handler and surfaced as one line in
+   * Zipline's internal log: minified type name, no stack, and the host's
+   * `handleUncaughtException` never called. Measured, not assumed: the A4 probe crashed a guest
+   * effect on the production pipeline and the whole of what any host could see was
+   * `SEVERE: Zt: A4-PROBE...` (`plans/adoption-audit.md` A4). A crash a host cannot even observe
+   * is not triageable by any amount of tooling downstream.
+   */
+  private val scope = CoroutineScope(
+    frameClock + Dispatchers.Unconfined + Job() +
+      kotlinx.coroutines.CoroutineExceptionHandler { _, failure ->
+        // The try is not decoration: if the HOST's handler throws, Zipline returns that throw to
+        // this call as a `ZiplineException` -- it does not crash the host -- and an exception
+        // handler that throws is swallowed by kotlinx.coroutines with a one-line note. The
+        // fallback keeps the original failure printable somewhere whatever the host does.
+        try {
+          host.handleUncaughtException(failure)
+        } catch (secondary: Throwable) {
+          println("dogwood: the host's exception handler failed ($secondary); the original:")
+          println(failure.stackTraceToString())
+        }
+      },
+  )
   private val recomposer = Recomposer(scope.coroutineContext)
   private val composition = Composition(applier, recomposer)
 

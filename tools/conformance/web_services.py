@@ -216,6 +216,37 @@ def run(url, chrome, port):
                 f'the guest was replaced ({updated}) and came back on the tab the user left it on '
                 f'({back}): {names_after[:6]}')
 
+        # ---------------------------------------------------------------------------------
+        # H4/H5 -- a publisher can stop a release, and the guest never runs.
+        #
+        # The web was the last unguarded client (`plans/adoption-audit.md` A3's remainder). The
+        # assertion is about ABSENCE done properly: not "the screen is empty", which a broken page
+        # also satisfies, but that the page reports a refusal by name AND never created a Worker --
+        # `workerCreated=false` is the page's own record of the thing not happening.
+        # ---------------------------------------------------------------------------------
+        devtools.call('Page.navigate', {
+            'url': f'{url}?manifest=dogwood-manifest-disabled.json'}, session)
+        refused = {}
+        for _ in range(120):
+            raw = devtools.call('Runtime.evaluate', {
+                'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
+            }, session).get('result', {}).get('value') or ''
+            if raw:
+                refused = json.loads(raw)
+                if refused.get('refused'):
+                    break
+            time.sleep(0.25)
+        conform(
+            'H4',
+            refused.get('refused') == 'ReleaseRefused' and refused.get('workerCreated') != 'true',
+            f"refused={refused.get('refused')} workerCreated={refused.get('workerCreated')}",
+        )
+        conform(
+            'H5',
+            any('refused' in line for line in refused.get('log', [])),
+            f"the page said why: {[l for l in refused.get('log', []) if 'refus' in l][:2]}",
+        )
+
         return 1 if failed else 0
     finally:
         browser.terminate()

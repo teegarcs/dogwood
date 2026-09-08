@@ -1,0 +1,9 @@
+{
+  "_comment": "The publisher's stop switch, as a sidecar the harness can point the page at. `disabled` is honoured before the Worker is created, so no guest code runs at all -- which is the property the drill asserts. Weaker than the mobile switch by design and by record: this sidecar is not signed (ADR-032), so on the web the switch is only as trustworthy as the origin serving it.",
+  "envelopeRevision": 1,
+  "guestScript": "guest-kotlin.js",
+  "releaseVersion": "1.0.0-disabled",
+  "disabled": true,
+  "segmentVersions": { "androidx.layout": 1, "dogwood.designsystem": 9 },
+  "guestScriptSha256": null
+}

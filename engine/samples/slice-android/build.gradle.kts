@@ -23,9 +23,45 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  /*
+   * The instrumented conformance drills run against the RELEASE build -- the minified one.
+   *
+   * This is the runtime half of audit finding A1. Building under R8 catches a missing class;
+   * only running under it catches a stripped serializer or an unbound service, whose symptom is a
+   * host that renders nothing. Pointing the drills at the release build means every Android cell
+   * in the conformance matrix is graded against what a user would actually install, on every
+   * local run, forever -- which is a stronger statement than any one-off smoke check.
+   */
+  testBuildType = "release"
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+  }
+
+  /*
+   * The release build shrinks, and that is the point of it existing.
+   *
+   * The adoption audit (`plans/adoption-audit.md` A1) found that no build in this repository had
+   * ever run under R8 -- and this stack is exactly the shape a shrinker breaks: Zipline binds
+   * services at the boundary by generated adapters, and kotlinx-serialization relies on generated
+   * serializers that vanish when nothing keeps them. The plausible first symptom is not a crash;
+   * it is a host that starts, verifies, and renders nothing.
+   *
+   * Signed with the debug key so it installs on an emulator without a keystore ceremony. That is
+   * fine for what this build is for -- proving the engine survives R8 -- and would not be fine for
+   * a shipping build, which is the owner's keystore.
+   */
+  buildTypes {
+    release {
+      isMinifyEnabled = true
+      isShrinkResources = true
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      // The instrumented-test APK is minified alongside this build type; its harness needs one
+      // -dontwarn for compile-only annotations. Test-only -- nothing here ships.
+      testProguardFiles("proguard-test.pro")
+      signingConfig = signingConfigs.getByName("debug")
+    }
   }
 }
 
@@ -47,6 +83,10 @@ dependencies {
   implementation(libs.coroutines.android)
 
   androidTestImplementation(libs.androidx.test.runner)
+  // See proguard-rules.pro: `androidx.tracing` is kept in the app instead, because the Android
+  // Gradle Plugin excludes from the test APK anything the app's dependency graph provides -- so
+  // adding it here is silently dropped, which was watched to happen rather than assumed.
+
   androidTestImplementation(libs.androidx.test.ext.junit)
   androidTestImplementation(libs.androidx.test.uiautomator)
   add(PLUGIN_CLASSPATH_CONFIGURATION_NAME, "app.cash.zipline:zipline-kotlin-plugin:${libs.versions.zipline.get()}")

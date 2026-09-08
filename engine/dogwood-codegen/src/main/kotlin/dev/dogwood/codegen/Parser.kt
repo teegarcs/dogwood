@@ -188,11 +188,21 @@ class SurfaceParser(
         name, type, ParameterKind.UNSUPPORTED, default != null, default,
         "host-invoked lambda returning $returns; the host cannot block on the guest mid-frame",
       )
-      // "Give me the content for index n" is the lazy-layout subsystem, not an event.
-      type.contains("(Int)") || type.contains("Int)") && type.contains("Scope") -> ParsedParameter(
-        name, type, ParameterKind.UNSUPPORTED, default != null, default,
-        "indexed content lambda; this is the lazy-layout subsystem, not a slot",
-      )
+      /*
+       * Everything else returning Unit is an event, ARGUMENTS INCLUDED.
+       *
+       * A branch here used to reject any lambda containing `(Int)` as "indexed content" -- and an
+       * operator-precedence slip aside, the idea itself was stale: an indexed *content* lambda is
+       * `@Composable` and became a slot two branches before this function was ever called, so the
+       * only thing the rejection could match was a plain callback that happens to carry an `Int`.
+       * `onChange: (Int) -> Unit` is the most ordinary shape a stepper, slider or pager can have,
+       * and the event machinery has carried positional serializable arguments since the first
+       * holder report (`(Int, Int, Boolean)`).
+       *
+       * Found by the first surface written outside this repository: Umbra's `UmbraStepper` was
+       * silently unbindable for as long as it existed, and nothing noticed until a payload tried
+       * to call it -- which is `plans/adoption-audit.md` A2's argument, made by the build.
+       */
       else -> ParsedParameter(name, type, ParameterKind.EVENT, default != null, default)
     }
   }
@@ -316,11 +326,49 @@ class SurfaceParser(
           ),
         ),
       ),
+
+      /*
+       * Sheets: a request that answers, and *keeps* answering.
+       *
+       * The fifth shape, and the first whose report is neither an observation of a continuous
+       * quantity nor a one-shot reply. A bottom sheet has a **position the user can change** --
+       * dragged half open, flung shut, settled expanded -- so the guest declares where it should be
+       * and the host reports where it *is*, repeatedly, whenever the user moves it. That makes it
+       * scroll's shape (declared target, continuous report) with snackbar's meaning (the user's
+       * action decides what happens next).
+       *
+       * `targetState` and the reported state are the same vocabulary -- `hidden`, `partial`,
+       * `expanded` -- crossing as a string rather than an integer, because a client one dictionary
+       * version behind must be able to ignore a state it has never heard of instead of resolving
+       * it to the wrong one. An unknown state reads as `hidden`, which is the safe direction: a
+       * sheet nobody asked for staying shut.
+       */
+      HolderShape(
+        type = "SheetState",
+        mirror = "rememberSheetMirror",
+        properties = listOf(
+          HolderProperty(suffix = "Target", type = "String", field = "targetState", absent = "\"hidden\""),
+          // A counter, as every request in this table carries: asking twice to expand a sheet the
+          // user just dragged shut is two requests, and a flag would collapse them into none.
+          HolderProperty(suffix = "Sequence", type = "Int", field = "targetSequence", absent = "0"),
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+          HolderProperty(suffix = "SkipPartial", type = "Boolean", field = "skipPartiallyExpanded", absent = "false"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("state", "String", "\"hidden\""),
+            // Whether the *user* moved it, as opposed to the guest's own request landing. A guest
+            // that cannot tell them apart cannot implement "remember that they closed it".
+            HolderArgument("byUser", "Boolean", "false"),
+          ),
+        ),
+      ),
     )
 
     val LIVE_STATE = listOf(
       "InteractionSource", "ScrollState", "LazyListState", "CarouselState", "PagerState",
-      "FocusRequester", "TextFieldState", "MutableState",
+      "FocusRequester", "TextFieldState", "MutableState", "SheetState",
     )
     val ASSET_TYPES = listOf("Painter", "ImageBitmap", "ImageVector", "Brush", "TextStyle")
     val SERIALIZABLE = listOf("String", "Int", "Long", "Float", "Double", "Boolean")

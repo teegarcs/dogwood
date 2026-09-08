@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 10,
+    "version": 12,
     "components": [
         {
             "name": "PrimaryButton",
@@ -275,6 +275,54 @@
             },
             "eventTypes": {
                 "snackbarsReport": "(Int, Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "Dialog",
+            "localTag": 17,
+            "properties": {
+                "visible": 1,
+                "dismissOnBackPress": 2,
+                "dismissOnClickOutside": 3
+            },
+            "propertyTypes": {
+                "visible": "Boolean",
+                "dismissOnBackPress": "Boolean",
+                "dismissOnClickOutside": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "SheetArea",
+            "localTag": 18,
+            "properties": {
+                "sheetTarget": 1,
+                "sheetSequence": 2,
+                "sheetWatching": 3,
+                "sheetSkipPartial": 4
+            },
+            "propertyTypes": {
+                "sheetTarget": "String",
+                "sheetSequence": "Int",
+                "sheetWatching": "Boolean",
+                "sheetSkipPartial": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "sheetReport": 1
+            },
+            "eventTypes": {
+                "sheetReport": "(String, Boolean) -> Unit"
             }
         }
     ],

@@ -42,7 +42,9 @@ sleep 1
 
 adb logcat -c
 set +e
-./gradlew :samples:slice-android:connectedDebugAndroidTest --console=plain > "$HERE/build/gradle.log" 2>&1
+# `Release`, not `Debug`: the application under test is the minified build, so every claim below
+# is graded against what a user would install. See A1 in `plans/adoption-audit.md`.
+./gradlew :samples:slice-android:connectedReleaseAndroidTest --console=plain > "$HERE/build/gradle.log" 2>&1
 gradle_status=$?
 set -e
 

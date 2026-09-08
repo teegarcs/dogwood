@@ -72,6 +72,11 @@ echo "==> web accessibility"
 echo "==> ios accessibility and network policy"
 CONF_OUT="$HERE/build/ios-a11y.conf" "$HERE/../a11y-drill/run.sh" >/dev/null 2>&1 || status=1
 
+echo "==> compatibility across the over-the-air gap"
+# A committed payload fixture from an earlier toolchain, against a host built from current
+# sources -- the pairing every deployment has and nothing else here exercises.
+"$HERE/cross-version.sh" "$HERE/build/desktop-crossversion.conf" >/dev/null 2>&1 || status=1
+
 echo "==> performance budgets"
 python3 "$HERE/from_phase0.py" > "$HERE/build/phase0.raw" || status=1
 split_by_client "$HERE/build/phase0.raw" "-perf"

@@ -34,6 +34,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.browser.window
 import org.w3c.dom.Worker
 import org.w3c.fetch.Response
+import dev.dogwood.host.ReleaseVerdict
+import dev.dogwood.host.ReleaseGuard
 
 /**
  * The sidecar document, fetched from the guest script's origin.
@@ -60,6 +62,26 @@ data class DogwoodWebManifest(
    * `"dogwood.designsystem"`, the host-service segment -- and compared the same way.
    */
   val segmentVersions: Map<String, Int> = emptyMap(),
+  /**
+   * What to call this release in the guard's memory.
+   *
+   * Optional, and it falls back to [guestScriptSha256] and then to [guestScript] -- a deployment
+   * that fingerprints its bundle already has a perfectly good identity and should not be made to
+   * repeat it. What the guard needs is only that the string **changes when the payload changes**
+   * and is stable otherwise; a deployment serving one filename forever gets no crash-loop
+   * protection, which is a property of that deployment rather than of this field.
+   */
+  val releaseVersion: String = "",
+  /**
+   * The publisher's stop switch, honoured before the Worker is created.
+   *
+   * **Weaker than the mobile kill switch, and the difference is not incidental.** On mobile the
+   * switch rides Zipline's *signed* manifest metadata, so an attacker who cannot sign cannot set
+   * it. This sidecar is fetched over HTTPS and is not signed (ADR-032), so on this profile the
+   * switch is only as trustworthy as the origin serving it. Recorded rather than quietly evened
+   * up: a host that needs the mobile guarantee on the web needs a signed sidecar first.
+   */
+  val disabled: Boolean = false,
   /**
    * The guest script's SHA-256 digest, hexadecimal, if the deployment publishes one.
    *
@@ -111,6 +133,23 @@ sealed interface DeliveryRefusal {
   }
 
   /** The guest speaks an envelope revision this host does not. */
+  /**
+   * The release guard said no: quarantined after repeated failures, or stopped by the publisher.
+   *
+   * A refusal, not a failure. The page shows its own screen -- there is no previous guest to fall
+   * back to on a fresh load, and falling back on a *reload* would run the payload the guard just
+   * quarantined.
+   */
+  data class ReleaseRefused(
+    val version: String,
+    val reason: String,
+    val fallbackVersion: String?,
+  ) : DeliveryRefusal {
+    override val message: String
+      get() = "release $version refused: $reason" +
+        (fallbackVersion?.let { " (last good: $it)" } ?: "")
+  }
+
   data class EnvelopeSkew(val guestRevision: Int) : DeliveryRefusal {
     override val message: String get() =
       "the payload's manifest declares envelope revision $guestRevision; this host speaks " +
@@ -119,8 +158,25 @@ sealed interface DeliveryRefusal {
 }
 
 /** Either a live bridge to a running guest, or the reason there is not one. */
+/**
+ * The identity the guard remembers a release by.
+ *
+ * Named, rather than inlined, because the fallback order is a decision: an explicit version if the
+ * deployment states one, then the content digest if it publishes one, then the script's own name.
+ */
+internal fun DogwoodWebManifest.releaseIdentity(): String = when {
+  releaseVersion.isNotEmpty() -> releaseVersion
+  !guestScriptSha256.isNullOrEmpty() -> guestScriptSha256!!
+  else -> guestScript
+}
+
 sealed interface DeliveryOutcome {
-  data class Started(val bridge: WorkerBridge, val manifest: DogwoodWebManifest) : DeliveryOutcome
+  data class Started(
+    val bridge: WorkerBridge,
+    val manifest: DogwoodWebManifest,
+    /** What the guard knows this release as; hand it back on [ReleaseGuard.succeeded]. */
+    val version: String = "",
+  ) : DeliveryOutcome
   data class Refused(val refusal: DeliveryRefusal, val manifest: DogwoodWebManifest?) :
     DeliveryOutcome
 }
@@ -145,6 +201,15 @@ class WebDelivery(
    * that anything happened.
    */
   private val report: (DeliveryRefusal) -> Unit,
+  /**
+   * Surviving a bad publish, on the fourth client.
+   *
+   * No default -- the argument ADR-058 made when it removed `DogwoodShell`'s: a payload is
+   * replaceable over the air without review, so protection that must be asked for is protection
+   * most hosts do not have. `null` is accepted and is a decision somebody wrote. This was the last
+   * unguarded client (`plans/adoption-audit.md` A3's recorded remainder).
+   */
+  private val releaseGuard: ReleaseGuard?,
 ) {
   /**
    * Fetches the sidecar, checks it, and only then constructs the Worker.
@@ -191,9 +256,31 @@ class WebDelivery(
     val skew = checkDictionary(manifest.segmentVersions)
     if (skew != null) return refuse(skew, manifest)
 
+    /*
+     * The release verdict, and it sits here for the same reason it sits before `start` on mobile:
+     * fetching a payload is not the dangerous part, running it is, and everything above this line
+     * has fetched without executing a byte of guest code.
+     */
+    val version = manifest.releaseIdentity()
+    val guard = releaseGuard
+    if (guard != null) {
+      when (val verdict = guard.verdict(version, manifest.disabled)) {
+        is ReleaseVerdict.Refused ->
+          return refuse(
+            DeliveryRefusal.ReleaseRefused(version, verdict.reason, verdict.fallbackVersion),
+            manifest,
+          )
+        ReleaseVerdict.Allowed -> Unit
+      }
+      // Persisted BEFORE the Worker is created. An attempt counted in memory is erased by the
+      // crash counting it -- and on this platform "crash" includes the tab being closed on a page
+      // that hangs, which is exactly the loop a user reloads their way into.
+      guard.starting(version)
+    }
+
     // Everything above ran before this line, which is the requirement.
     val worker = Worker(resolveRelative(manifestUrl, manifest.guestScript))
-    return DeliveryOutcome.Started(WorkerBridge(worker, listener), manifest)
+    return DeliveryOutcome.Started(WorkerBridge(worker, listener), manifest, version)
   }
 
   /**

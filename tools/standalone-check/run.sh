@@ -24,10 +24,10 @@ echo "==> building a product that has never heard of this repository"
 # The engine's wrapper runs it, because a sample should not carry a second copy of Gradle. `-p`
 # points at a different *build*, not a different project: `samples-standalone/umbra` has its own
 # settings file and resolves everything from a repository.
-"$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" build --console=plain
+"$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" build -x check --console=plain
 
-generated="$ROOT/samples-standalone/umbra/build/generated/dogwood/umbraDesignSystem"
-compiled="$ROOT/samples-standalone/umbra/build/classes/kotlin/main/dev/umbra/design"
+generated="$ROOT/samples-standalone/umbra/design/build/generated/dogwood/umbraDesignSystem"
+compiled="$ROOT/samples-standalone/umbra/design/build/classes/kotlin/main/dev/umbra/design"
 
 # A green build proves less than it looks: the plugin could have registered nothing and the module
 # would still compile, because a product's own implementations do not need the bindings to exist.
@@ -37,7 +37,7 @@ compiled="$ROOT/samples-standalone/umbra/build/classes/kotlin/main/dev/umbra/des
   echo "FAIL -- no guest stubs were generated" >&2; exit 1; }
 [ -f "$compiled/UmbraDesignSystemBinding.class" ] || {
   echo "FAIL -- the generated binding did not compile" >&2; exit 1; }
-[ -f "$ROOT/samples-standalone/umbra/surface/umbra.designsystem.lock.json" ] || {
+[ -f "$ROOT/samples-standalone/umbra/design/surface/umbra.designsystem.lock.json" ] || {
   echo "FAIL -- no dictionary lock was written beside the surface" >&2; exit 1; }
 # The component reference, which a product asks for with one line in the `dogwood` block. Asserted
 # on its *content* rather than its existence: an empty file would satisfy `-f`, and the number a
@@ -45,5 +45,31 @@ compiled="$ROOT/samples-standalone/umbra/build/classes/kotlin/main/dev/umbra/des
 grep -q "33554435\|50331649" "$ROOT/samples-standalone/umbra/REFERENCE.md" 2>/dev/null || {
   echo "FAIL -- no component reference was generated, or it carries no widget tags" >&2; exit 1; }
 
+generated="$ROOT/samples-standalone/umbra/design/build/generated/dogwood/umbraDesignSystem"
+compiled="$ROOT/samples-standalone/umbra/design/build/classes/kotlin/main/dev/umbra/design"
+
 echo
-echo "PASS -- a build outside this repository generated, compiled and locked its own segment"
+echo "==> building, signing and serving the payload, and rendering it"
+# The half no build outside the repository had ever produced (`plans/adoption-audit.md` A2): the
+# guest toolchain assembled from published artifacts, end to end. The verdict is a RENDER, not a
+# build -- the app runs with `--check` and exits by what its render transcript recorded: the
+# payload's marker string detailed by a drawn Text, the product's OWN generated bindings as
+# transcript lines, and a non-zero measured box. Its first run failed on the marker, which is how
+# the check earned belief.
+"$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :guest:jsBrowserProductionWebpackZipline --console=plain -q
+
+payload="$ROOT/samples-standalone/umbra/guest/build/zipline/ProductionWebpack"
+[ -f "$payload/manifest.zipline.json" ] || { echo "FAIL -- no signed manifest was produced" >&2; exit 1; }
+
+(cd "$payload" && python3 -m http.server 8090 --bind 127.0.0.1 >/dev/null 2>&1) &
+server=$!
+trap 'kill $server 2>/dev/null || true' EXIT
+sleep 1
+
+"$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :app:run --args="--check" --console=plain -q | tee /tmp/umbra-check.log
+grep -q "^UMBRA CHECK PASS" /tmp/umbra-check.log || {
+  echo "FAIL -- the payload did not render in the standalone host" >&2; exit 1; }
+
+echo
+echo "PASS -- a product outside this repository generated its segment, built and signed a payload,"
+echo "        and rendered it in its own host application, all against published artifacts"

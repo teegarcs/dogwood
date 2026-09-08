@@ -143,6 +143,15 @@ class DogwoodWebExperience(
    * platform, and a guest that could observe the answer would start depending on it.
    */
   private val onNavigate: (WebNavigationRequest) -> Boolean = { false },
+  /**
+   * Told when a release has actually **worked**, which is not the same as loaded.
+   *
+   * `WebDelivery` records the attempt before the Worker exists; only this class can see the other
+   * end — a guest that started, composed, and had its tree applied. A payload that throws on its
+   * first composition has loaded, so reporting success at load time would forgive exactly the
+   * release the guard exists to catch (ADR-049).
+   */
+  private val onReleaseSucceeded: () -> Unit = {},
 ) : WorkerBridgeListener {
 
   val tree = HostTree(leakDetector = leakWatcher)
@@ -272,6 +281,11 @@ class DogwoodWebExperience(
     configuredBridge = null
     tree.clear()
     services = services.copy(restoredState = carried)
+    // The next guest is a new release, so its success is a fresh claim. `appliedBatches` is reset
+    // by the tree's own clear() above only in the sense that the tree is empty; the counter is
+    // this class's, so it is reset here -- otherwise the replacement's first batch would not be
+    // its first, and a code update could never report success.
+    appliedBatches = 0
     report("code update: carrying ${carried?.values?.size ?: 0} saved keys into the next guest")
     attach(next)
   }
@@ -355,6 +369,9 @@ class DogwoodWebExperience(
       return
     }
     appliedBatches++
+    // The first applied batch is the release working: a guest started, produced a tree, and the
+    // host mounted it. Once per attachment, not once per batch.
+    if (appliedBatches == 1) onReleaseSucceeded()
     if (tree.skew.unknownWidgetTags.isNotEmpty()) {
       report("unknown widget tags: ${tree.skew.unknownWidgetTags.sorted()}")
     }

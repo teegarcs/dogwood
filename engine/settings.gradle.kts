@@ -43,4 +43,5 @@ include(":dogwood-web", ":samples:web-slice")
 include(":samples:web-guest")
 
 // The iOS host (roadmap Phase 6).
-include(":samples:slice-ios")
+include(":samples:ios-embed",
+  ":samples:slice-ios")

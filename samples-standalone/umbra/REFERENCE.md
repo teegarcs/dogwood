@@ -55,7 +55,20 @@ Takes a modifier chain.
 
 Local tag 2, widget tag `50331650`.
 
-**Not bound.** The generator rejected this component, so no client renders it:
+**Properties**
 
-- `onChange: (Int) -> Unit` — indexed content lambda; this is the lazy-layout subsystem, not a slot
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `value` | `Int` | 1 | required | range 0..99, clamped |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onChange` | `(Int) -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
 

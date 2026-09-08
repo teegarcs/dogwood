@@ -75,6 +75,8 @@ import dev.dogwood.host.SkewDrain
 import dev.dogwood.host.DogwoodEnvironment
 import dev.dogwood.host.DogwoodServiceHost
 import dev.dogwood.host.DogwoodShell
+import dev.dogwood.host.FileReleaseStore
+import dev.dogwood.host.ReleaseGuard
 import dev.dogwood.host.DogwoodSurface
 import dev.dogwood.host.MapFeatureFlags
 import dev.dogwood.host.OkHttpNetwork
@@ -344,6 +346,21 @@ private fun Tabs(
         uiScope = uiScope,
         environment = environment,
         services = services,
+        // Written before a release runs, which is what makes a crash-on-launch loop terminate:
+        // an attempt counted only in memory is erased by the crash counting it (ADR-049). This
+        // host went without one until the parameter stopped having a default -- which is the
+        // adoption audit's A3 argument in one line.
+        releaseGuard = ReleaseGuard(
+          store = FileReleaseStore(
+            file = cachePath(context.filesDir.resolve("dogwood-release-tabs.json").absolutePath),
+          ),
+          onReport = { Log.w(TAG, "release guard: $it") },
+        ),
+        onRefused = { entry, refusal ->
+          note = "[$entry] refused: ${refusal.reason}" +
+            (refusal.fallbackVersion?.let { " (last good: $it)" } ?: "")
+          Log.w(TAG, note)
+        },
         // Three of four tabs stay warm. The fourth is a cold start that restores its snapshot, so
         // the cap costs latency rather than the user's place.
         capacity = 3,

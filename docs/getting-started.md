@@ -35,7 +35,10 @@ Consequences worth knowing before you write anything:
 
 Take the runtime and the generator. There is no `includeBuild` and no path into this repository —
 everything resolves from a repository, which
-[`samples-standalone/umbra`](../samples-standalone/umbra/) exists to prove.
+[`samples-standalone/umbra`](../samples-standalone/umbra/) exists to prove: **a complete worked
+example** of everything on this page — a product's own surface (`:design`), a signed payload
+(`:guest`) and a host application that renders it (`:app`), all against published artifacts. When a
+step below is unclear, Umbra is the same step with real files around it.
 
 ```kotlin
 plugins {
@@ -56,15 +59,26 @@ Then render a surface. The shortest complete host is
 in outline it is four things:
 
 ```kotlin
-DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->     // 1. tell the guest its viewport
-  val delivered = DogwoodDelivery(                                 // 2. fetch, verify, cache, load
+val guard = ReleaseGuard(                                          // 1. survive a bad publish
+  store = FileReleaseStore(file = cachePath(".../dogwood-release.json")),
+  onReport = { yourLog.warn(it) },
+)
+
+DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->     // 2. tell the guest its viewport
+  val guarded = DogwoodDelivery(                                   // 3. fetch, verify, cache, load
     dispatcher = ziplineDispatcher,                                //    ONE thread, 8 MB of stack
     trustedPublicKeys = yourPublicKeys,
     cache = ZiplineCache(...),
-  ).load(applicationName = "your-app", manifestUrl = MANIFEST_URL)
+  ).loadGuarded(applicationName = "your-app", manifestUrl = MANIFEST_URL, guard = guard)
 
-  val experience = DogwoodExperience(delivered.zipline, ziplineDispatcher, uiScope)
-  DogwoodSurface(experience, Modifier.fillMaxSize())               // 3. draw it
+  when (guarded) {
+    is GuardedLoad.Refused -> showYourOwnScreen(guarded.reason)    //    quarantined or kill-switched
+    is GuardedLoad.Running -> {
+      val experience = DogwoodExperience(guarded.guest.zipline, ziplineDispatcher, uiScope)
+      DogwoodSurface(experience, Modifier.fillMaxSize())           // 4. draw it
+      guard.succeeded(guarded.version)                             // 5. "loaded" is not success; this is
+    }
+  }
 }
 ```
 
@@ -76,10 +90,73 @@ Three of those deserve a sentence:
   needs eight megabytes of stack, because interpreted composition is deeply recursive; Apple gives a
   background thread 512 kilobytes by default, which is why `DogwoodZiplineDispatcher` exists on iOS.
 - **`trustedPublicKeys`** is what makes a payload yours. See §4.
+- **The guard is not optional to think about.** A payload ships without a store review, so a bad one
+  ships fast too; the guard persists an attempt *before* the release runs, which is what makes a
+  crash-on-launch loop terminate, and it honours the kill switch in the manifest's signed metadata
+  ([operating](operating.md) §2–3). `DogwoodShell` requires the parameter — passing `null` is
+  accepted and is a decision you write, not an omission nobody notices.
 
 **If you have several entry points** — tabs, a deep-link target, a settings section — use
 `DogwoodShell` instead of a bare experience. It keeps a bounded number of them warm, restores their
 saved state, and evicts the rest.
+
+### Adding it to an Android application
+
+The reference is [`TabsActivity.kt`](../engine/samples/slice-android/src/main/kotlin/dev/dogwood/slice/android/TabsActivity.kt)
+— written to be copied, and every non-obvious line carries its reason in place. What is genuinely
+Android-specific, so you know what you are looking for in it:
+
+- **The Zipline thread is yours to make**: one `newSingleThreadExecutor` with an **8 MB stack** —
+  interpreted composition is deeply recursive and the platform default is not enough.
+- **`onStop` writes the state snapshot**, because it is the last callback guaranteed before Android
+  may reclaim the process; `onTrimMemory` drops warm experiences down to the visible one. Both are
+  activity callbacks, which is why the shell is held by the activity rather than the composition.
+- **Your dev server is `10.0.2.2` from an emulator**, and cleartext to it needs *both* ends opened:
+  the host's allow-list (`allowHosts("10.0.2.2", allowCleartextHosts = setOf("10.0.2.2"))`) and the
+  platform's `networkSecurityConfig`. Production traffic is HTTPS and needs neither.
+- **Register your design system in `Application.onCreate`**, not in an activity — an activity is
+  not the first thing that can render.
+- **Ship minified.** The engine needs no keep rules of yours
+  ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md)); the whole conformance
+  suite runs against the R8 build.
+
+### Adding it to an iOS application
+
+The reference is [`slice-ios/Main.kt`](../engine/samples/slice-ios/src/iosMain/kotlin/dev/dogwood/slice/ios/Main.kt).
+What is genuinely iOS-specific:
+
+- **Use `DogwoodZiplineDispatcher`** rather than rolling a thread: Apple gives background threads
+  512 KiB of stack and interpreted composition needs 8 MB.
+- **`UIApplicationDidEnterBackgroundNotification` is your `onStop`** — the last guaranteed moment
+  to snapshot state — and the memory-warning notification is where you `trimMemory`.
+- **`localhost` reaches your machine from a simulator; a device needs your machine's LAN address**
+  plus the matching App Transport Security exception in `Info.plist`.
+
+**Embedding into an existing Xcode project**: copy
+[`samples/ios-embed`](../engine/samples/ios-embed/) — a library module, not an application, that
+produces `DogwoodEmbed.xcframework` (device and both simulator architectures) with one function
+visible to Swift:
+
+```swift
+import DogwoodEmbed
+
+let screen = DogwoodEmbedKt.dogwoodViewController(
+    manifestUrl: "https://payloads.example.com/manifest.zipline.json",
+    entryPoint: "checkout",
+    trustedKeys: ["release-1": "…hex…"],
+    onFailure: { print($0) }
+)
+navigationController.pushViewController(screen, animated: true)
+```
+
+A Dogwood screen is a `UIViewController` from Swift's side; nothing about the sandbox or the
+protocol reaches your application's architecture. Build it with
+`./gradlew :samples:ios-embed:assembleDogwoodEmbedXCFramework`. **Three lines of that module's
+build file are worth keeping verbatim** and each was learned from a link failure: `isStatic = true`
+(a dynamic framework carrying Skiko must be embedded *and* signed by your target, and pays dynamic
+linking at every launch), `linkerOpts += "-lsqlite3"` (Zipline's cache is SQLDelight over SQLiter),
+and `export(project(...))` for anything whose types appear in your API — without it the framework
+compiles and the header declares a factory taking types the consumer cannot name.
 
 **On the web the shape is the same and the parts have different names**, because a Web Worker
 boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page
@@ -118,6 +195,13 @@ check. And **`network` is the browser's guarantee, not Dogwood's**: your guest c
 the page's origin, so set a `connect-src` Content Security Policy if you want the mobile allow-list's
 behaviour. To publish an update to a live page, call `experience.update(newBridge)`; it carries the
 running guest's saved state into its successor.
+
+**Enable code shrinking; you need no Dogwood-specific rules.** That is a verified finding, not an
+assurance: the conformance drills run against the R8-minified build and pass with zero keep rules
+for the engine — its reflective surfaces belong to Zipline and kotlinx-serialization, which ship
+their own consumer rules ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-code-shrinking.md)).
+The keep rules you will find in the sample serve its *test harness*, not the engine; do not copy
+them into a product.
 
 ## 2. Your own components
 
@@ -225,6 +309,39 @@ you, including the two things that are silent when wrong: cache headers that mat
 `Content-Encoding: br` on the web.
 
 ---
+
+## Supported versions, and the one rule about upgrading
+
+The engine is built and verified with exactly one set of toolchains, and a product's safest
+position is to match it. Nothing off this table is known to work, because nothing off this table
+has ever been run — which is a statement about evidence, not about compatibility.
+
+| Toolchain | Version | Who must match it |
+|---|---|---|
+| Kotlin | 2.3.20 | the host application **and** the payload build |
+| Compose Multiplatform | 1.10.3 | the host application |
+| Zipline | 1.27.0 | the host application **and** the payload build |
+| Java toolchain | 21 | builds |
+
+`samples-standalone/umbra`'s root build file is this table as code — the one place an adopter
+declares all of it.
+
+**The rule: hosts first, payloads after the fleet.** A payload meets *installed* hosts, including
+every user who has not updated the app in months. So the three version streams move in a fixed
+order:
+
+1. **Upgrade the engine and your host application together**, ship through the stores, and wait for
+   fleet coverage.
+2. **Only then move the payload's toolchain**, because a payload built with a newer Kotlin or
+   Zipline will be served to hosts still running the old one — and that pairing is exercised by
+   nothing. The dictionary has versioning discipline for *component* skew; toolchain skew across
+   the over-the-air gap has no equivalent check and no test anywhere.
+3. **`0.1.0` makes no stability promise.** Nothing is API-frozen; a Dogwood upgrade is an
+   engine-and-host upgrade, and belongs in step 1.
+
+This is the honest whole of the policy today. What a cross-version guarantee would take — a
+conformance row that loads a payload built at engine N with a host at N−1 — is recorded in
+[`plans/adoption-audit.md`](../plans/adoption-audit.md) A6 rather than promised here.
 
 ## Where to go next
 

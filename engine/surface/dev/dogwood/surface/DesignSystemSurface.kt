@@ -285,3 +285,48 @@ fun SnackbarArea(
   @Holder snackbars: SnackbarHostState? = null,
   content: @Composable () -> Unit,
 ) {}
+
+/**
+ * A modal dialog, and the first component whose *presence* is a host concern.
+ *
+ * The catalogue had no way to interrupt: a screen could show, hide and animate its own content but
+ * could not put something in front of everything, because "in front of everything" is a window the
+ * host owns and a guest cannot reach. The adoption audit's B1 named it first among the components
+ * a real product cannot launch without.
+ *
+ * **Visibility is a plain property, deliberately, and this is the case that decides whether a
+ * holder is needed at all.** A holder exists when the *host* owns a value the guest must mirror --
+ * a scroll offset it measures, a focus the platform grants, a snackbar's fate the user decides. A
+ * dialog's openness is none of those: the guest decides it, and the only thing coming back is the
+ * user asking to dismiss, which is an ordinary event. Adding a holder here would be ceremony
+ * around a boolean.
+ *
+ * `onDismissRequest` is a **request** in the same sense navigation is: the platform's back gesture
+ * and its scrim tap both arrive here, and a guest that ignores one has written a dialog that
+ * cannot be closed -- which is its business, not the host's.
+ */
+@Composable
+fun Dialog(
+  visible: Boolean,
+  modifier: Modifier = Modifier,
+  dismissOnBackPress: Boolean = true,
+  dismissOnClickOutside: Boolean = true,
+  onDismissRequest: () -> Unit = {},
+  content: @Composable () -> Unit,
+) {}
+
+/**
+ * A modal bottom sheet, and the component the fifth holder shape exists for.
+ *
+ * Where `Dialog` needed no holder -- the guest owns whether it is open and nothing comes back but a
+ * dismissal -- a sheet has a position the **user** can change by dragging, so the guest declares
+ * where it should be and the host reports where it is, repeatedly. That is the test of whether the
+ * holder machinery generalises past the four shapes it was built on, and the answer is that this
+ * component cost a table entry and a mirror (ADR-043's claim, exercised).
+ */
+@Composable
+fun SheetArea(
+  modifier: Modifier = Modifier,
+  @Holder sheet: SheetState? = null,
+  content: @Composable () -> Unit,
+) {}

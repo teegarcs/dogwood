@@ -171,6 +171,13 @@ development machine; 5.80 ms against 7.48 ms on an emulator), which is the state
 make. Neither host reproduced the 22.1 ms sample, so the original question is now *answerable*
 rather than answered: one run of `--es experiment pauses` on that Pixel decides it.
 
+**And the lever it would inform is now reachable from a product.** `GuestLimits.gcThresholdBytes`
+exposes the collection threshold — the one public knob that shapes pause *length*, and the
+dimension along which the 22.1 ms sample was taken (16 MiB). Its default deliberately leaves
+QuickJS's own number alone: a different one chosen on hardware that cannot reproduce the tail
+would be tuning against noise, which is the error this whole measurement discipline exists to
+avoid. The knob is there for the team that runs the experiment on the device that shows it.
+
 ### Phase 0 Harness Appendix — the decisions the experiments depend on
 
 Fixed here so two teams running Phase 0 produce comparable numbers, and so no instrumentation choice is invented after seeing results.

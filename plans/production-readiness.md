@@ -14,6 +14,14 @@ answers:
 Everything blocked on a person rather than on work is in
 [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) and is not repeated here.
 
+> **Superseded in part, 2026-09-07.** This plan closed, and then an adoption audit —
+> [`plans/adoption-audit.md`](adoption-audit.md) — asked a harder question than the plan did: not
+> "does the engine work" but "can a production application pick this up". It found six verified
+> blockers this plan never had a row for, of which the pattern is one this project knows well:
+> **capabilities that exist and have never been exercised once** (no build has ever run under R8,
+> no payload has ever been built outside this repository, four hosts of five ship without the
+> bad-publish guard). The audit is the successor to this plan's Part 5.
+
 **Where this stands, 2026-09-07.** Every item in Part 5's ordered list is closed or has moved to the
 owner. A product can declare its own components, consume the whole thing from outside this
 repository, run the real guest on all three shipping targets from one set of screens, survive a bad

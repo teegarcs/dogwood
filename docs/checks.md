@@ -12,6 +12,8 @@ grades them.
 | **S** | claims about code every client compiles, plus page weight | **every pull request**, `.github/workflows/conformance.yml` | a Java Development Kit and a browser |
 | **C** | accessibility, network policy, skew containment, timing budgets | **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device, Chrome, and the guest served on `:8080` |
 
+**The Android drills run against the minified release build** (`testBuildType = "release"`), so every Android cell is graded against what a user would install — R8 on, shrinking and optimization included. See ADR-056 for why the sample's keep rules exist and why an adopter needs none of them.
+
 Tier C is not in continuous integration because a hosted runner has none of what it needs. Wiring
 it in anyway would produce a green tick that means less than it appears to, which is the failure the
 conformance plan exists to avoid.
@@ -79,6 +81,40 @@ it could not do instead of reporting green.
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
+## The iOS embed check — can an existing Xcode project link this?
+
+```
+tools/ios-embed-check/run.sh
+```
+
+Assembles `DogwoodEmbed.xcframework` and asserts both slices exist and the header carries the
+factory under its documented Swift signature with host types exported. Not in continuous
+integration: three Kotlin/Native links, minutes each, on hardware a Linux runner does not have.
+
+## The cross-version drill — does today's host run an older payload?
+
+```
+tools/conformance/cross-version.sh
+```
+
+Serves a **committed, signed payload fixture** built by an earlier toolchain to a host built from
+current sources, and requires that it loads, verifies, and renders (`K1`, `K2`). Part of
+`run-all.sh`. The pairing every deployment has and a rebuild cannot test.
+
+## The reference-server check — does the operational back half behave?
+
+```
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+tools/reference-server/check.sh
+```
+
+Observes, in real responses: a publish lands staged rather than live; the manifest is `no-store`
+and modules are `immutable`; brotli is used when offered; a cohort inside a rollout gets the staged
+release **and one outside it does not**; `resume` puts the earlier release back. The last leg runs
+the desktop host against it with a cold cache and asserts the client loaded and *verified* a signed
+manifest and fetched a module — because everything before it is the server agreeing with itself.
+Not in continuous integration: it starts servers and a windowed client.
+
 ## The standalone check — can anyone outside this repository use it?
 
 ```
@@ -86,13 +122,19 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21
 tools/standalone-check/run.sh
 ```
 
-Publishes Dogwood to the local repository and builds `samples-standalone/umbra`, which is a
-**separate Gradle build**: no `includeBuild`, no project dependency, no path into `engine/`. It
-resolves the plugin by identifier, the generator as a dependency and the runtime as artifacts.
+Publishes Dogwood to the local repository and runs `samples-standalone/umbra` — a **whole product**
+in a separate Gradle build: no `includeBuild`, no project dependency, no path into `engine/`. Since
+the adoption audit's A2 ([ADR-057](../adrs/layer-5/ADR-057-a-whole-product-outside-the-repository.md))
+its verdict is a **render, not a build**: Umbra's `:design` generates its segment, `:guest` compiles
+one screen against the published `dogwood-compose` and signs it, and `:app` fetches, verifies and
+renders it over the guarded delivery path — the check reads the render transcript for the payload's
+marker string, the product's own generated bindings, and a non-zero measured box. Its first run
+failed on the marker, which is how it earned belief.
 
-Not in continuous integration, because it publishes into the developer's own local repository, and a
-check that mutates a shared location on a build agent is a check that fails somebody else's build.
-Run it before a release, and after anything that touches publishing.
+Not in continuous integration, for two reasons now: it publishes into the developer's own local
+repository (a check that mutates a shared location on a build agent fails somebody else's build),
+and the render half opens a real window. Run it before a release, and after anything that touches
+publishing, the generator, or the delivery path.
 
 **It asserts four things a green build does not imply**, because a product's own implementations
 compile whether or not the generated bindings exist:

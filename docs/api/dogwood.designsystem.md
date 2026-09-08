@@ -4,7 +4,7 @@
 # `dogwood.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **10**, segment **1**.
+actually emitted. Version **12**, segment **1**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -49,6 +49,8 @@ appear in no table below and are not free.
 | [`Presence`](#presence) | 14 | 16777230 |  |
 | [`ScrollArea`](#scrollarea) | 15 | 16777231 |  |
 | [`SnackbarArea`](#snackbararea) | 16 | 16777232 |  |
+| [`Dialog`](#dialog) | 17 | 16777233 |  |
+| [`SheetArea`](#sheetarea) | 18 | 16777234 |  |
 
 ---
 
@@ -331,6 +333,63 @@ Local tag 16, widget tag `16777232`.
 | Name | Signature | Tag | Notes |
 | --- | --- | ---: | --- |
 | `snackbarsReport` | `(Int, Boolean) -> Unit` | 1 | the host's report back into the `snackbars` holder |
+
+Takes a modifier chain.
+
+---
+
+### Dialog
+
+Local tag 17, widget tag `16777233`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `visible` | `Boolean` | 1 | required |  |
+| `dismissOnBackPress` | `Boolean` | 2 | `true` |  |
+| `dismissOnClickOutside` | `Boolean` | 3 | `true` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onDismissRequest` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+---
+
+### SheetArea
+
+Local tag 18, widget tag `16777234`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `sheetTarget` | `String` | 1 | `"hidden"` when absent | from the `sheet` holder (`targetState`) |
+| `sheetSequence` | `Int` | 2 | `0` when absent | from the `sheet` holder (`targetSequence`) |
+| `sheetWatching` | `Boolean` | 3 | `false` when absent | from the `sheet` holder (`watching`) |
+| `sheetSkipPartial` | `Boolean` | 4 | `false` when absent | from the `sheet` holder (`skipPartiallyExpanded`) |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `sheetReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `sheet` holder |
 
 Takes a modifier chain.
 

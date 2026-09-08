@@ -38,6 +38,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import dev.dogwood.protocol.WebStartPayload
+import okio.Path.Companion.toPath
+import dev.dogwood.host.ReleaseGuard
+import dev.dogwood.host.FileReleaseStore
 
 /** The report, built up as the page runs and republished on every change. */
 private val log = mutableListOf<String>()
@@ -113,6 +116,21 @@ private fun setReport(json: String) {
     }
   element.textContent = json
 }
+
+/**
+ * The guard's success callback, set once the guard exists.
+ *
+ * A page-level indirection rather than a constructor argument, because the experience is built
+ * before the delivery coroutine runs and the guard is built inside it -- and the alternative,
+ * hoisting the guard above the composition, would put a `localStorage` read on the path to the
+ * first frame for no benefit.
+ */
+private var releaseSucceededHandler: () -> Unit = {}
+
+/** Which release the guard should be told about when a tree lands. */
+private var currentRelease: String = ""
+
+private fun releaseSucceeded() = releaseSucceededHandler()
 
 /** Which sidecar to load, so the harness can point the same page at a manifest it must refuse. */
 private fun manifestParameter(): String =
@@ -201,6 +219,9 @@ fun main() {
       note("navigation refused: no route '${request.route}'")
       false
     },
+    // Deferred, because the guard is constructed below inside the delivery coroutine: the page
+    // owns both and this is the one wire between them.
+    onReleaseSucceeded = { releaseSucceeded() },
   )
 
   ComposeViewport(document.body!!) {
@@ -210,10 +231,27 @@ fun main() {
 
   val scope = CoroutineScope(Dispatchers.Main)
   scope.launch {
-    val delivery = WebDelivery(DogwoodDictionary.segmentVersions) { refusal ->
-      field("refused", refusal::class.simpleName ?: "refusal")
-      note("delivery refused: ${refusal.message}")
-    }
+    // The guard's memory, in `localStorage` through `BrowserFileSystem` -- the same
+    // `FileReleaseStore` the mobile hosts use, over the file system this platform has. A tab is
+    // closed more casually than an application is killed, so a page that hangs and is reloaded is
+    // exactly the crash loop this terminates.
+    val guard = ReleaseGuard(
+      // No file system argument: `FileReleaseStore` defaults to the platform's, which on this one
+      // is `localStorage` through `BrowserFileSystem` -- and an in-memory one when the browser
+      // refuses storage, as a private-browsing window does. A page that cannot persist gets no
+      // crash-loop protection and is not broken by asking for it.
+      store = FileReleaseStore(file = "/dogwood/release.json".toPath()),
+      onReport = { note("release guard: $it") },
+    )
+    releaseSucceededHandler = { guard.succeeded(currentRelease) }
+    val delivery = WebDelivery(
+      clientSegmentVersions = DogwoodDictionary.segmentVersions,
+      report = { refusal ->
+        field("refused", refusal::class.simpleName ?: "refusal")
+        note("delivery refused: ${refusal.message}")
+      },
+      releaseGuard = guard,
+    )
     val manifest = manifestParameter()
     field("manifest", manifest)
     when (val outcome = delivery.start(manifest, experience)) {
@@ -224,6 +262,8 @@ fun main() {
 
       is DeliveryOutcome.Started -> {
         field("workerCreated", "true")
+        field("release", outcome.version)
+        currentRelease = outcome.version
         experience.attach(outcome.bridge)
         // A code update, on demand, because on this architecture it is the *normal* case and the
         // web profile had never once been made to do it. The harness asks by setting a global; the
