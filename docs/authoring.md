@@ -202,7 +202,32 @@ What this asserts is what the engine's own guest tests assert: *what crossed the
 real encoder and the real decoder — not what a screen looks like, which is the host's business and
 graded by the host's own conformance suite.
 
-## 9. What is not there
+## 9. Bringing an existing screen across
+
+Your screens are Compose, and so are Dogwood's — but the *types* are Dogwood's, so moving a native
+screen in is a port rather than a re-import. [`tools/import-migrator/migrate.py`](../tools/import-migrator/migrate.py)
+does the mechanical half and, more usefully, names the other half instead of leaving you to find it
+by compiling:
+
+```
+tools/import-migrator/migrate.py src/main/kotlin/checkout/ --write
+```
+
+- **Rewritten**: layout, material and unit imports that map one-for-one — same name, different
+  package, unchanged signature. That criterion *is* the table.
+- **Kept**: everything from `androidx.compose.runtime`. The guest runs the real Compose runtime, so
+  `remember`, `LaunchedEffect` and `rememberSaveable` are the same symbols from the same package —
+  reported as kept, so silence never has to be interpreted.
+- **Left for you, with the reason**: widgets whose shape differs (`Button` takes a content slot;
+  `PrimaryButton` takes a label — a slot per button is a slot per button on the wire), and APIs the
+  sandbox does not have (`stringResource`, `animateFloatAsState`). These become `// MIGRATE:`
+  comments rather than rewritten imports, because an import pointing at a symbol that does not
+  exist makes the compiler blame a package when the real problem is a different API.
+
+It exits non-zero while any decision is outstanding, so it can gate a migration script. Run it on a
+screen already written for Dogwood and it does nothing at all — which is the control.
+
+## 10. What is not there
 
 Named so you look for the alternative rather than for the bug.
 
