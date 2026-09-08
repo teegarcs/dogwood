@@ -299,7 +299,11 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-06, with the performance budgets graded:
+Last generated 2026-09-08 at commit `fb057d5`, by `tools/conformance/run-all.sh`; the raw runs
+are committed beside the tools as `result-<client>-2026-09-08.conf`. The second framework
+grading flagged that this matrix had gone stale against prose totals -- the repo's own rule,
+broken at its own finish line -- so regeneration now belongs to the same commit as the claims
+it grades.
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -317,17 +321,17 @@ Last generated 2026-09-06, with the performance budgets graded:
 | C3 | ✅ | ✅ | ✅ | ✅ |
 | C4 | ✅ | ✅ | ✅ | ✅ |
 | C5 | ✅ | ✅ | ✅ | ✅ |
-| D6 | ✅ | ✅ | ✅ | ✅ |
-| D8 | ✅ | ✅ | ✅ | ✅ |
-| D9 | ✅ | ✅ | ✅ | ✅ |
-| D10 | ✅ | ✅ | ✅ | ✅ |
+| D6 | ✅ | n/a | ✅ | ✅ |
+| D8 | ✅ | n/a | ✅ | ✅ |
+| D9 | ✅ | n/a | ✅ | ✅ |
+| D10 | ✅ | n/a | ✅ | ✅ |
 | E1 | ✅ | ✅ | ✅ | ✅ |
 | E2 | ✅ | ✅ | ✅ | ✅ |
 | E3 | ✅ | ✅ | ✅ | ✅ |
-| F1 | ✅ | ✅ | ✅ | ✅ |
-| F2 | ✅ | ✅ | ✅ | ✅ |
-| F3 | ✅ | ✅ | ✅ | ✅ |
-| F4 | ✅ | ✅ | ✅ | ✅ |
+| F1 | ✅ | ✅ | ✅ | n/a |
+| F2 | ✅ | ✅ | ✅ | n/a |
+| F3 | ✅ | ✅ | ✅ | n/a |
+| F4 | ✅ | ✅ | ✅ | n/a |
 | H1 | ✅ | ✅ | ✅ | ✅ |
 | H2 | ✅ | ✅ | ✅ | ✅ |
 | H3 | ✅ | ✅ | ✅ | ✅ |
@@ -336,19 +340,30 @@ Last generated 2026-09-06, with the performance budgets graded:
 | I1 | ✅ | ✅ | ✅ | ✅ |
 | I2 | ✅ | ✅ | ✅ | ✅ |
 | I3 | ✅ | ✅ | ✅ | ✅ |
-| D11 | ✅ | ✅ | ✅ | ✅ |
+| D11 | ✅ | n/a | ✅ | ✅ |
+| J5 | ✅ | ✅ | ✅ | ✅ |
+| D12 | ✅ | n/a | ✅ | ✅ |
+| D13 | ✅ | n/a | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
+| J1 | ✅ | n/a | ✅ | ✅ |
+| J3 | ✅ | n/a | ✅ | ✅ |
 | D2 | ✅ | n/a | ✅ | ✅ |
 | D3 | ✅ | n/a | ✅ | ✅ |
 | D5 | ✅ | n/a | ✅ | ✅ |
 | D4 | ✅ | n/a | ✅ | ✅ |
-| D7 | ✅ | n/a | ✅ | · |
+| D7 | ✅ | n/a | ✅ | n/a |
+| J4 | ✅ | n/a | ✅ | ✅ |
+| J2 | ✅ | n/a | — | ✅ |
 | G1 | · | n/a | · | — |
 | G2 | · | n/a | · | — |
 | G3 | · | n/a | · | — |
 | G4 | · | n/a | · | — |
+| K1 | — | ✅ | — | — |
+| K2 | — | ✅ | — | — |
 | E4 | n/a | n/a | ✅ | n/a |
+| H5 | — | — | — | ✅ |
 | G5 | — | n/a | — | ✅ |
+| B3 | — | — | — | ✅ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
 
@@ -358,37 +373,16 @@ Last generated 2026-09-06, with the performance budgets graded:
 - `android` is not graded on E4: one collector, so no cross-language cycles are possible
 - `web` is not graded on E4: one heap, so no cross-language cycles are possible
 - `web` is not graded on F: the web profile's network policy is the browser's Content Security Policy, enforced by the browser rather than by Dogwood; ADR-032 records that this is weaker than the mobile guarantee rather than equal to it
+- `web` is not graded on D7: Compose Multiplatform publishes role and name only for a web accessibility element -- a disabled control reaches the tree as <div role="button"> with no properties at all, so nothing distinguishes it from the enabled button beside it. The composition marks it disabled and the platform drops that; drafted as upstream report 3
+- `desktop` is not graded on J1: desktop is a development loop, not a shipping target
+- `desktop` is not graded on J2: desktop is a development loop, not a shipping target
+- `desktop` is not graded on J3: desktop is a development loop, not a shipping target
+- `desktop` is not graded on J4: desktop is a development loop, not a shipping target
 
-- **android**: pass 47, skip 4
-- **desktop**: pass 34
-- **ios**: pass 48, skip 4
-- **web**: pass 41, skip 1
-
-**Which clients a test covers is stated per claim, never inferred.** A first version of the mapping
-had a `shared` scope meaning "code every client compiles", and it was wrong within minutes:
-`dogwood-web` depends on `dogwood-wire` alone and **not** on `dogwood-host`, so twenty-one
-`dev.dogwood.host.*` tests filled green cells for a client that does not compile the code under
-test. The web host has its own tree, its own bindings and its own decoder. That is the one way this
-table can lie, the plan predicted it in Part 1, and it happened on the first attempt — which is the
-argument for `claims.tsv` naming clients explicitly rather than a scope keyword doing it silently.
-
-**The three worst gaps, and they remain the plan's priorities:**
-
-1. ~~Web is graded on 8 claims of 28.~~ ✅ **Closed by
-   [ADR-041](../adrs/layer-5/ADR-041-one-host-core-split-at-the-zipline-seam.md): web is graded on
-   30 of 31.** The three kinds of gap resolved as the analysis predicted — the earnable claims were
-   inherited rather than earned one at a time, because `dogwood-web` now renders through
-   `dogwood-host`'s core instead of a copy of it; the exempt ones are in `exempt.tsv` with ADR-032
-   as the reason; and the ones called "blocked on parity" were exactly the ones the split
-   unblocked. `WebTree` and `WebBindings` are deleted — 627 lines of second implementation.
-2. ~~Accessibility exists on one client of three that need it.~~ ✅ Closed: all three shipping
-   clients now assert `D1`–`D5`, and `D7` on the two that have a disabled control on screen.
-3. **Nothing outside a unit test has ever checked network policy on a real client.** `F1`, `F2` and
-   `F4` are tier S only everywhere. The one policy defect this project shipped — `file://` served
-   from the app container — was found by reading code, not by a test.
-4. **Skew containment ran once, on Android, in a way that is documented as deliberately
-   uncommitted.** The version-8 surface it needs is re-created by hand each time, which means in
-   practice it runs approximately never.
+- **android**: pass 54, skip 4
+- **desktop**: pass 39
+- **ios**: pass 56, skip 4
+- **web**: pass 53, skip 1
 
 ## Part 4 — How it runs, and what stops it rotting
 

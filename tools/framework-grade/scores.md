@@ -7,6 +7,26 @@ breaks comparability and must be flagged in the row.
 | Date | Commit | Rubric | 1 Adopt | 2 Author | 3 Flex | 4 Prod | 5 Perf | 6 Platf | 7 Mature | 8 Maint | **Overall** | Report |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-07 | `39fb9c2` | v1 | D+ | A− | A− | C+ | C+ | B | F | A− | **2.20 / 4.3 (C+)** | [baseline](results/2026-09-07-baseline.md) |
+| 2026-09-08 | `fb057d5` | v1 | D+ | A− | B+ | C+ | C+ | B+ | F | A− | **2.15 / 4.3 (C+)** | [run 2](results/2026-09-08-run2.md) |
+
+## Reading run 2 (2.20 → 2.15)
+
+The number fell 0.05 while the repository improved, and both halves of that sentence are correct:
+run 2 verified every Track E closure against code and found **no gaming** — its words: "a repo that
+improves while its score corrects downward is the opposite of a gamed instrument." The drop is one
+re-anchor: flexibility A− → B+, because the baseline graded the model's *ceiling* and the rubric
+orders grading the shipping *floor*, whose B anchor is verbatim "a full-logic model with a thin
+catalogue" — and 16 components is thin. Coverage rose B → B+ on the same evidence standard.
+
+Run 2 also found one discipline slip and it was fixed the same day, its way: the committed
+conformance matrix had gone stale against prose totals, with the fresh evidence uncommitted — the
+repo's own rule broken at its own finish line. The matrix in `plans/conformance.md` Part 3 is
+regenerated at `fb057d5` and the raw runs are committed beside the tools.
+
+The unchanged grades confirm the plan's arithmetic: production readiness and performance sit **at
+their rubric caps**, movable only by the owner unlocks (real hosting/keys; representative
+hardware), and maturity's F — 20% of the total — moves only with a public home, adopters, a second
+maintainer, and time.
 
 ## Reading the baseline
 
