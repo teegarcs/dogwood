@@ -418,11 +418,6 @@ raise now carries a price: **every raise of `G5` must arrive with an attribution
 makes it.** That is the difference between this and the failure the comment describes.
 
 
-- **android**: pass 65, skip 4
-- **desktop**: pass 44
-- **ios**: pass 64, skip 4
-- **web**: fail 1, pass 58, skip 1
-
 ## Part 4 — How it runs, and what stops it rotting
 
 **Gating.** Tier S runs in `./gradlew build` and blocks the merge today. Tier C blocks the merge on

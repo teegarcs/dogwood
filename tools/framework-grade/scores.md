@@ -8,6 +8,7 @@ breaks comparability and must be flagged in the row.
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-07 | `39fb9c2` | v1 | D+ | A− | A− | C+ | C+ | B | F | A− | **2.20 / 4.3 (C+)** | [baseline](results/2026-09-07-baseline.md) |
 | 2026-09-08 | `fb057d5` | v1 | D+ | A− | B+ | C+ | C+ | B+ | F | A− | **2.15 / 4.3 (C+)** | [run 2](results/2026-09-08-run2.md) |
+| 2026-09-09 | `002d9a8` | v1 | D+ | B+ | B+ | C+ | C+ | B+ | F | A− | **2.11 / 4.3 (C+)** | [run 3](results/2026-09-09-run3.md) |
 
 ## Reading run 2 (2.20 → 2.15)
 
@@ -45,29 +46,44 @@ low-end hardware; flexibility — a launchable catalogue.
 
 ---
 
-## A re-run is due, 2026-09-09
+## Run 3, 2026-09-09: the score fell while the repository improved
 
-The plan's cadence called for re-grading after C3 and after S1. Both landed, and so did S2, S3, S4,
-V1–V4 and P1 — every item in [`plans/engineering-backlog.md`](../../plans/engineering-backlog.md).
-The grader has **not** been re-run, and this note exists so that absence is a recorded fact rather
-than a gap somebody discovers.
+**2.15 → 2.11, and the movement is one downward re-anchor rather than a regression.** Authoring went
+A− → B+ because the A anchor requires previews *and* near-mechanical migration, and Dogwood has
+neither — `dogwood-compose` declares `js(IR)` and nothing else, so a guest screen cannot compile for
+the Java Virtual Machine and `@Preview` cannot render one. `developer-experience.md` claimed it
+worked. **A documentation sweep run the same day did not catch that; a grader reading the build file
+did.** The claim is corrected.
 
-What has changed since run 2, in the rubric's terms:
+Everything else held. Eight items landed since run 2 (C1–C3, S1–S4, V1–V4, P1) and none could move a
+capped or anchored dimension — which [`plans/score-improvement.md`](../../plans/score-improvement.md)
+predicted *in writing, before the work was done*. That is the instrument behaving.
 
-* **Flexibility** — twenty components with eight holder shapes, up from sixteen with four graded as
-  "the fifth through eighth are promises". The promises arrived.
-* **Production readiness** — the mobile pre-flight refusal (ADR-061), a signed web sidecar
-  (ADR-062), readable web crashes (ADR-063), and `H2`'s quarantine finally observed on a device
-  rather than simulated.
-* **Coverage** — `B1`/`B2` on the web now come from a browser drill rather than from a Java Virtual
-  Machine test of a verifier the web does not compile; `B3` is graded on all four clients; `K1`/`K2`
-  on the two clients a product ships; `A2`–`A4` on the desktop.
-* **Performance** — unchanged in grade and *worse* in what is known. ADR-064 measured that `G1` is
-  met at four emulator cores and missed at one. The rubric's C+ cap for fast-hardware-only numbers
-  was already the ceiling; this removes the reading under which those numbers looked comfortable.
+### Two findings worth more than the score
 
-**The last point is why a re-grade is worth doing rather than assuming.** Four of the five bullets
-push up; one pushes down on the honesty of a number that was never gate evidence. A grader that has
-not run cannot be quoted, and this ledger's whole purpose is that the score comes from an instrument
-rather than from whoever last did the work.
+**`dogwood-host` publishes no Android variant.** Three modules declare `androidTarget` and none calls
+`publishLibraryVariants`, so `publishToMavenLocal` produces `common`, `jvm`, `native`, `wasm` and no
+`androidJvm` — verified by reading the published module metadata, and there is no artifact with
+`android` in its name anywhere in the local repository. An Android consumer would fall through
+Kotlin Multiplatform's compatibility rule onto `dogwood-host-jvm`, whose class files are **major
+version 65 (Java 21)** while the module's own Android configuration asks for `JVM_11`. It may work —
+there is no `androidMain` source set, so the fallback is code-identical — but **nobody has ever
+tried**: the only consumer outside this repository is Umbra, and Umbra is a desktop application. The
+flagship platform's artifact path is the one path the standalone proof does not cover.
+
+**The merge gate is red on `main` and nobody noticed.** Two of the last three pushes failed, both of
+them merges made this week, while `DECISIONS-FOR-THE-OWNER.md` §1 says the gate "has been green on
+every merge". The cause is environmental — `SKEW REFUSED Chrome never opened its debugging port`,
+which is the drill's own refusal path declining to report on a broken environment rather than a
+product defect, and the same job passed on the pull-request branch minutes earlier. But a refusal and
+a failure exit the same way, so flake and breakage are indistinguishable at the gate, and the pull
+request being green is not evidence that `main` is.
+
+### On gaming
+
+The grader looked and found none. The rubric is unedited (one commit). `plans/score-improvement.md`
+openly optimises against this instrument, which is a real conflict of interest and is named as one —
+but both document-versus-code spot-checks the grader ran independently went *against* the documents.
+A project whose score corrects downward while it improves, and whose own plan says which dimensions
+its work cannot move, is the opposite of a gamed instrument.
 
