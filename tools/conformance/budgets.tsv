@@ -8,14 +8,33 @@
 # G5 is bytes, not milliseconds; its unit is named in the description because it is the one
 # exception and hiding that in a column header would be worse than saying it here.
 #
-# 3.70 MB against a measured 3.57 MB: a ceiling with headroom rather than today's figure. Pinning
-# it exactly fails on the next legitimate component and teaches everyone to raise the number, which
-# is how a budget stops meaning anything. The headroom is deliberately tight -- about 130 kilobytes
-# -- because on Fast 3G every 100 kilobytes is roughly half a second of waiting (ADR-038).
+# 3.90 MB against a measured 3.77 MB: a ceiling with headroom rather than today's figure. Pinning it
+# exactly fails on the next legitimate component and teaches everyone to raise the number, which is
+# how a budget stops meaning anything. The headroom is deliberately tight -- about 130 kilobytes --
+# because on Fast 3G every 100 kilobytes is roughly half a second of waiting (ADR-038).
+#
+# G5 WAS 3.70 MB, AND RAISING IT WAS AN OWNER DECISION, NOT A CONVENIENCE (2026-09-09, ADR-066).
+#
+# The catalogue grew from fourteen components to twenty and crossed the old ceiling. The decision
+# taken was that a design system's components cost every web client their bytes, globally, the same
+# way they cost every mobile client space in the installed binary -- so the two profiles stay
+# aligned and the ceiling moves when the catalogue deliberately does.
+#
+# The obvious objection to that -- "then the number just keeps going up" -- is real, and this is
+# what stops it being true silently:
+#
+#   **A raise to G5 must arrive with an attribution, in the commit that makes it.** Three builds:
+#   before the change, after it, and the split between whatever components were added. That is what
+#   turned "the bundle grew" into "the two Material 3 pickers cost 96,924 bytes and the other five
+#   components cost 25,979 between them", which is a fact somebody can act on and a sentence
+#   somebody can object to. A raise without one is a number nobody has to defend.
+#
+# The same rule, in one line, is in `docs/checks.md` beside the fixture-freezing rule, for the same
+# reason: a rule that lives only in the file it governs is a rule found after it is broken.
 #
 # claim<TAB>budget<TAB>what it bounds
 G1	8.0	guest recomposition of the reference screen, 95th percentile
 G2	4.0	batch crossing, per-frame reading: a steady-state recomposition batch
 G3	16.7	maximum garbage-collection pause under load, 99th percentile
 G4	500.0	cold start: module load plus first composition
-G5	3700000	the shipped web slice, brotli-compressed, in bytes
+G5	3900000	the shipped web slice, brotli-compressed, in bytes

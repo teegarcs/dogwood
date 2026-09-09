@@ -90,23 +90,8 @@ upstream reports stay drafted and unfiled, as standing instructed.
 
 ---
 
-## Left open, deliberately: `G5`
+## Deferred, with a decision behind it
 
-Everything above is closed. One thing that closing it *produced* is not, and it is recorded here
-rather than in a commit message so it does not get lost.
-
-The catalogue work (C1–C3) pushed the shipped web slice past its page-weight budget: **3,766,502
-bytes brotli against a 3,700,000 ceiling.** The growth is attributed — three builds, Skiko
-byte-identical across all of them, every byte in the application's own WebAssembly module — and it
-splits sharply: C1 and C2's five components cost 25,979 bytes between them, and **C3's two Material3
-pickers cost 96,924**, about half a second of Fast 3G waiting for two components most screens never
-show.
-
-`budgets.tsv` has anticipated this since it was written: *"Pinning it exactly fails on the next
-legitimate component and teaches everyone to raise the number, which is how a budget stops meaning
-anything."* So the number has **not** been raised.
-[ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md) lays out the three options with
-their prices — raise the ceiling, let a client bind a subset of a segment, or accept a red cell —
-and leaves the choice where it belongs. It is a product trade between first-load latency for every
-web user and catalogue completeness on that client, not an engineering one.
-
+| # | Item | Why it is deferred rather than dropped |
+|---|---|---|
+| D1 | **Per-component binding: let a host register part of a segment** | A host registers a whole dictionary segment or none of it, so every client links every component's implementation whether or not it ever composes one. On the web that is bytes every visitor downloads; the two Material 3 pickers alone are 96,924 of them. Per-component binding would let a profile drop what it does not use.<br><br>**Deferred 2026-09-09 by owner decision** ([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)): a design system's components cost every client globally, which is what mobile already does, and keeping the two profiles aligned is worth more than the bytes. The `G5` ceiling moves with the catalogue instead, under the attribution rule in `budgets.tsv`.<br><br>**What it would cost if taken up**, so the next reader does not have to rediscover it: it introduces a *third* outcome when a client meets a widget tag — today there is "known, render it" and "never heard of it, placehold and report skew", and this adds "known, deliberately not linked", which is neither. That breaks the pre-flight dictionary check ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) as written, because it compares one version number per segment: the numbers would match, the payload would run, and it would draw placeholders — the exact failure that check exists to prevent, arriving through a different door. So it needs finer declarations on both sides, a per-component comparison, a named third skew category, and it makes a new misconfiguration possible one component at a time. Its own plan and its own ADR.<br><br>**And one premise is unverified:** that dead-code elimination actually drops an unreferenced component. Plausible, and this repository has been bitten once by a WebAssembly optimizer pass doing something other than the obvious. Ten minutes of stubbing the two picker implementations and rebuilding would settle it, and that measurement is the first step if this is ever picked up |

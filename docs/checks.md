@@ -106,6 +106,21 @@ version moves" is one the same commit already has to think about, because the lo
 Add, never replace: each fixture widens the window, and replacing one narrows it back to a point.
 The drills serve the newest by default, so this costs nothing per run.
 
+## Raising the page-weight budget — a rule, not a run
+
+**Every raise of `G5` arrives with an attribution, in the commit that makes it.** Three builds:
+before the change, after it, and the split across whatever components were added.
+
+The web bundle grows when the catalogue does, and that is the accepted policy
+([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)) — components cost every
+client globally, the way they already do on mobile, and the ceiling moves with them. The obvious
+objection is that the number then only ever goes up. This is what stops that happening silently.
+
+An attribution is what turned "the bundle grew by 123 kilobytes" into "the two Material 3 pickers
+cost 96,924 bytes and the other five components cost 25,979 between them". The first is a number
+nobody can argue with; the second is a fact somebody can act on, and a sentence somebody can object
+to. A raise without one is a raise nobody has to defend.
+
 ## The iOS embed check — can an existing Xcode project link this?
 
 ```

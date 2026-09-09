@@ -380,19 +380,9 @@ it grades.
 | B3 | ✅ | — | ✅ | ✅ |
 | E4 | n/a | n/a | ✅ | n/a |
 | H5 | — | — | — | ✅ |
-| G5 | — | n/a | — | ❌ |
+| G5 | — | n/a | — | ✅ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
-
-**`G5` is red, attributed, and deliberately not fixed by moving the number.** The shipped web slice
-is 3,766,502 bytes brotli against a 3,700,000 ceiling. Three builds place every byte of the growth
-in the application's own WebAssembly module — Skiko is byte-identical — and split it: the five
-components of C1 and C2 cost 25,979 bytes between them, and **C3's two Material3 pickers cost
-96,924**. Roughly half a second of Fast 3G waiting for two components most screens never show.
-Raising the ceiling is the move `budgets.tsv`'s own comment warns about, so it has not been made;
-the options and their prices are in
-[ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md), and the choice is a product
-one.
 
 - `desktop` is not graded on D: desktop is a development loop, not a shipping target
 - `desktop` is not graded on G: desktop is a development loop, not a shipping target
@@ -405,6 +395,28 @@ one.
 - `desktop` is not graded on J2: desktop is a development loop, not a shipping target
 - `desktop` is not graded on J3: desktop is a development loop, not a shipping target
 - `desktop` is not graded on J4: desktop is a development loop, not a shipping target
+
+- **android**: pass 65, skip 4
+- **desktop**: pass 44
+- **ios**: pass 64, skip 4
+- **web**: pass 59, skip 1
+
+**`G5` moved, and the attribution is why it was allowed to.** The catalogue work took the shipped
+web slice from 3,643,599 to 3,766,502 bytes brotli, past the old 3,700,000 ceiling. Three builds
+place every byte of the growth in the application's own WebAssembly module — Skiko is byte-identical
+across all three — and split it: the five components of C1 and C2 cost 25,979 bytes between them,
+and **C3's two Material 3 pickers cost 96,924**, roughly half a second of Fast 3G waiting for two
+components most screens never show.
+
+The ceiling is now 3,900,000, by owner decision
+([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)): a design system's components
+cost every client globally, which is what mobile already does, and one answer to "what does adding a
+component cost?" is worth more than the bytes. Per-component binding is deferred as `D1`.
+
+Raising a budget because you crossed it is the move `budgets.tsv`'s own comment warns about, so the
+raise now carries a price: **every raise of `G5` must arrive with an attribution in the commit that
+makes it.** That is the difference between this and the failure the comment describes.
+
 
 - **android**: pass 65, skip 4
 - **desktop**: pass 44
