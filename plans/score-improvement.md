@@ -56,6 +56,11 @@ What each item found by being run, rather than reasoned about:
 - **E8** the dictionary lock refused both new components until the segment version was raised, and
   `HolderTest`'s example of an *unregistered* holder stopped being unregistered the same day.
 
+**The successor:** the engineering that remains after Track E — the catalogue, the safety
+asymmetries between clients, and the matrix cells still reading `—` — is planned in
+[`plans/engineering-backlog.md`](engineering-backlog.md), with the honest note that almost none of
+it moves the score: run 2 confirmed the caps.
+
 ## Track O — owner unlocks, restated from [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) with their score price tags
 
 | Owner item | Unlocks | Worth |

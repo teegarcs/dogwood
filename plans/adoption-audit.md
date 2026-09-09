@@ -193,9 +193,10 @@ host owns a value the guest must mirror; a dialog's openness is the guest's own 
 thing coming back is a dismissal, which is an ordinary event. Knowing when *not* to reach for the
 machinery is part of the machinery being usable.
 
-Still open: menu, pager and the pickers, and the holder shapes those need (`PagerState`, the picker
-states). The remaining count is the honest one — the catalogue is **16 components**, and a product
-design system is fifty to two hundred. Original finding below.
+Still open: menu, pager and the pickers, and the holder shapes those need — now planned as C1–C3
+in [`plans/engineering-backlog.md`](engineering-backlog.md). The remaining count is the honest one —
+the catalogue is **16 components**, and a product design system is fifty to two hundred. Original
+finding below.
 
 ### B1 (original). The catalogue is a slice, and the missing components are the ones every product uses
 
@@ -226,7 +227,7 @@ no documented harness for a product author to *test* a screen (the engine's own 
 but nothing in `docs/authoring.md` tells an author how to write one against their screens). The
 inner loop is the thing a product team lives in; today its length is a production bundle.
 
-### B3. One payload per shell
+### B3. One payload per shell *(planned as S4 in [`plans/engineering-backlog.md`](engineering-backlog.md))*
 
 `DogwoodShell` takes a single `manifestUrl`; its "several experiences" are entry points **within
 one payload**. Two teams shipping independently means two shells — separate caches, separate warm
