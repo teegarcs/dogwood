@@ -27,6 +27,10 @@ the Phase 0 harness appendix exists to refuse, and why [Layer 4 ADR-008](../adrs
 defined the gate on named hardware in the first place. The rubric's performance cap says
 *representative*; a fast core pretending to be slow is neither representative nor stable.
 
+**Approved by the owner, 2026-09-08**: the sensitivity-experiment framing below is the accepted
+answer — an emulator run stands in for nothing, and the curve it measures informs the §4 device
+decision rather than substituting for it.
+
 | # | Item | Done means |
 |---|---|---|
 | P1 | **The scaling-sensitivity experiment** — what an emulator *can* say honestly | The Phase 0 harness run on the same emulator at 4 cores and at 1 core, same pinned toolchain, results committed beside the existing ones with the core count named. The deliverable is the **shape of the degradation curve** — whether the budgets carry 5× headroom or 1.2× — explicitly labelled as sensitivity, never as gate evidence. It sharpens the owner's §4 decision; it does not replace it |
