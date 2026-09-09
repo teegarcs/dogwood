@@ -54,10 +54,74 @@ val developmentSigningKey = "0ca845610dac5a568230ae0b4468004a787b5a541603554a0d3
  */
 val rotationSigningKey = "de597b577357a748f319fcd06ddb4994f58f487be0d2118a4dc08e44e4b61862"
 
+/**
+ * The dictionary this payload was built against, as the `name:version` pairs a client compares
+ * before it agrees to run any of this.
+ *
+ * **Read out of the generator's own output, never restated here.** `DogwoodSegments.kt` and each
+ * product's dictionary JavaScript Object Notation (JSON) file are written by `dogwood-codegen` from
+ * the same surfaces this payload compiled against, so a surface change that raises a version cannot
+ * leave the manifest describing a payload that no longer exists. A hand-typed number in this file
+ * would be a second copy of the truth, and the failure it would cause -- a manifest claiming a
+ * version the payload does not have -- is precisely the failure the declaration exists to prevent,
+ * arriving through the declaration itself. The project has already been bitten once by a hand-typed
+ * `6` disagreeing with a lock that said `7`.
+ *
+ * Every segment the payload can name is listed, including Acme's: `slice-screens` composes
+ * `AcmePanel`, `AcmePrice` and `AcmeAction`, so a client with no Acme binding registered genuinely
+ * cannot render this payload, and saying so is the whole point.
+ *
+ * **A `Provider`, and it must stay one.** The generated files this reads are written by tasks in
+ * this same build, so resolving the value while Gradle is configuring reads whatever the *previous*
+ * build left behind. That is not hypothetical: the first version of this called `.get()` inside
+ * `metadata.set(...)`, a skew drill moved the design system to version 15, and the manifest went
+ * out declaring 14 -- describing a payload that no longer existed, which is the exact failure the
+ * declaration exists to prevent. Left as a provider, the whole map resolves when the manifest task
+ * runs, after generation.
+ */
+val declaredSegments: Provider<String> = providers.provider {
+  fun read(file: File, what: String): String =
+    if (file.exists()) file.readText() else error("$what has not been generated yet: $file")
+
+  val builtIns = read(
+    rootProject.file("build/generated/dogwood/wire/dev/dogwood/protocol/DogwoodSegments.kt"),
+    "the built-in segment vector",
+  )
+  fun builtIn(prefix: String): String {
+    val name = Regex("""const val $prefix: String = "([^"]+)"""").find(builtIns)?.groupValues?.get(1)
+    val version = Regex("""const val ${prefix}_VERSION: Int = (\d+)""").find(builtIns)?.groupValues?.get(1)
+    return (name ?: error("no " + prefix + " in the generated vector")) + ":" +
+      (version ?: error("no " + prefix + "_VERSION in the generated vector"))
+  }
+
+  val acme = read(
+    rootProject.file(
+      "samples/product-design-system/build/generated/acme/dictionary/acme.designsystem.json",
+    ),
+    "Acme's dictionary",
+  )
+  val acmeName = Regex(""""wireName"\s*:\s*"([^"]+)"""").find(acme)?.groupValues?.get(1)
+  val acmeVersion = Regex(""""version"\s*:\s*(\d+)""").find(acme)?.groupValues?.get(1)
+
+  listOf(
+    builtIn("LAYOUT"),
+    builtIn("DESIGN_SYSTEM"),
+    (acmeName ?: error("no wireName in Acme's dictionary")) + ":" +
+      (acmeVersion ?: error("no version in Acme's dictionary")),
+  ).joinToString(",")
+}
+
 zipline {
   mainFunction.set("dev.dogwood.slice.main")
   optimizeForSmallArtifactSize()
-  version.set("1.0.0")
+  // Overridable with `-PdogwoodVersion=…`, because a release identity has to be a build input.
+  //
+  // The quarantine drill needs two releases with different versions, and its first attempt got them
+  // by copying one build and rewriting `version` in the manifest -- which invalidates the Ed25519
+  // signature over it, and every launch failed with "manifest signature for key dogwood-development
+  // did not verify". That is the signature doing exactly its job, and it is the reason a version
+  // cannot be something a publishing step edits afterwards.
+  version.set(providers.gradleProperty("dogwoodVersion").getOrElse("1.0.0"))
   // The kill switch, and it is a publisher's control rather than a developer's. Setting it to
   // "true" and republishing stops devices running this release without waiting for them to
   // discover it is broken. It rides in the manifest's **signed** metadata: an attacker who could
@@ -66,6 +130,29 @@ zipline {
   metadata.set(
     providers.gradleProperty("dogwoodDisabled").map { mapOf("dogwood.disabled" to it) }
       .getOrElse(emptyMap()),
+  )
+  // What dictionary this payload was built against, so a client can refuse it **before** running it
+  // rather than degrading through it (audit A3's mobile counterpart; the web profile has had this
+  // since ADR-032). Signed, like the kill switch above it: a field an attacker could set unsigned
+  // would be a denial of service through the update channel.
+  //
+  // `putAll(provider)` rather than a second `set`, because `set` replaces and the kill switch is
+  // already in there.
+  //
+  // `-PdogwoodDeclareSegments=false` publishes a payload that declares nothing, and the skew drill
+  // uses it. Not a debug switch: a payload that declares nothing is the ordinary case for
+  // everything built before this field existed, and render-time containment -- placeholders,
+  // withheld affordances, reported skew -- is what protects those. The containment drill has to be
+  // able to produce one, or the rules it grades would become untestable the moment the declaration
+  // was added. See `tools/skew-drill/README.md`.
+  metadata.putAll(
+    declaredSegments.map { segments ->
+      if (providers.gradleProperty("dogwoodDeclareSegments").getOrElse("true") == "false") {
+        emptyMap()
+      } else {
+        mapOf("dogwood.segments" to segments)
+      }
+    },
   )
   signingKeys {
     create("dogwood-development") {

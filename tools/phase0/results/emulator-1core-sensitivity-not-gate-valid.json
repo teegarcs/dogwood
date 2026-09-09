@@ -1,0 +1,842 @@
+{
+    "label": "emulator-1core-sensitivity-not-gate-valid",
+    "platform": "Android 15 (API 35), arm64-v8a, ranchu, 1 cores",
+    "toolchain": {
+        "zipline": "1.27.0",
+        "kotlin": "2.3.20",
+        "composeRuntimeJs": "1.12.0",
+        "coroutines": "1.10.2",
+        "serialization": "1.10.0",
+        "quickJsVersion": "2021-03-27"
+    },
+    "referenceRows": 23,
+    "experiment01": {
+        "sizes": {
+            "minifiedJsBytes": -1,
+            "gzippedJsBytes": -1,
+            "ziplineBytecodeBytes": 1154642,
+            "ziplineFileBytes": 1154662,
+            "perModule": {
+                "./guest.js": 1154642
+            }
+        },
+        "moduleLoad": {
+            "label": "module-load",
+            "count": 10,
+            "p50Ms": 126.456292,
+            "p95Ms": 152.807333,
+            "p99Ms": 152.807333,
+            "minMs": 102.949625,
+            "maxMs": 227.780917,
+            "meanMs": 136.54457
+        },
+        "mainFunction": {
+            "label": "main-function",
+            "count": 10,
+            "p50Ms": 0.099667,
+            "p95Ms": 0.153166,
+            "p99Ms": 0.153166,
+            "minMs": 0.080166,
+            "maxMs": 0.232666,
+            "meanMs": 0.117854
+        },
+        "coldStartToFirstComposition": {
+            "label": "cold-start-to-first-composition",
+            "count": 10,
+            "p50Ms": 970.491959,
+            "p95Ms": 1227.061667,
+            "p99Ms": 1227.061667,
+            "minMs": 886.280501,
+            "maxMs": 1396.014709,
+            "meanMs": 1045.141108
+        },
+        "coldStartToFirstBatchDelivered": {
+            "label": "cold-start-to-first-batch-delivered",
+            "count": 10,
+            "p50Ms": 1273.035084,
+            "p95Ms": 1735.388876,
+            "p99Ms": 1735.388876,
+            "minMs": 1195.556876,
+            "maxMs": 1808.509459,
+            "meanMs": 1405.365267
+        },
+        "memoryAfterLoad": {
+            "memoryUsedSize": 4506346,
+            "memoryAllocatedSize": 5417434,
+            "objectsCount": 12908,
+            "objectsSize": 929376,
+            "stringsCount": 32,
+            "stringsSize": 1422,
+            "jsFunctionsCount": 8450,
+            "jsFunctionsCodeSize": 484349,
+            "propertiesSize": 758352,
+            "arraysCount": 574
+        },
+        "memoryAfterFirstComposition": {
+            "memoryUsedSize": 5782481,
+            "memoryAllocatedSize": 6894795,
+            "objectsCount": 20969,
+            "objectsSize": 1509768,
+            "stringsCount": 392,
+            "stringsSize": 8806,
+            "jsFunctionsCount": 8434,
+            "jsFunctionsCodeSize": 484066,
+            "propertiesSize": 1301024,
+            "arraysCount": 1967
+        }
+    },
+    "experiment02": [
+        {
+            "rows": 23,
+            "widgetNodes": 160,
+            "childrenNodes": 77,
+            "initialChanges": 572,
+            "initialBatchBytes": 20939,
+            "stateHolders": 24,
+            "clockOverhead": {
+                "label": "clock-overhead",
+                "count": 1000,
+                "p50Ms": 0.127875,
+                "p95Ms": 4.668292,
+                "p99Ms": 13.073666,
+                "minMs": 0.081875,
+                "maxMs": 83.551,
+                "meanMs": 0.87723
+            },
+            "initialComposition": {
+                "label": "initial-composition-rows-23",
+                "count": 50,
+                "p50Ms": 81.193541,
+                "p95Ms": 252.898667,
+                "p99Ms": 324.609834,
+                "minMs": 63.4365,
+                "maxMs": 326.332751,
+                "meanMs": 126.148172
+            },
+            "recomposeOneNodeDiff": {
+                "label": "recompose-row",
+                "count": 200,
+                "p50Ms": 1.387375,
+                "p95Ms": 6.07475,
+                "p99Ms": 9.370417,
+                "minMs": 1.300209,
+                "maxMs": 12.406666,
+                "meanMs": 3.009073
+            },
+            "recomposeTwoNodeDiff": {
+                "label": "recompose-total",
+                "count": 200,
+                "p50Ms": 1.672416,
+                "p95Ms": 8.241459,
+                "p99Ms": 15.280291,
+                "minMs": 1.468834,
+                "maxMs": 19.856875,
+                "meanMs": 3.644076
+            }
+        },
+        {
+            "rows": 50,
+            "widgetNodes": 322,
+            "childrenNodes": 158,
+            "initialChanges": 1139,
+            "initialBatchBytes": 42026,
+            "stateHolders": 24,
+            "clockOverhead": {
+                "label": "clock-overhead",
+                "count": 1000,
+                "p50Ms": 0.043917,
+                "p95Ms": 0.057,
+                "p99Ms": 3.981583,
+                "minMs": 0.040333,
+                "maxMs": 6.993292,
+                "meanMs": 0.113619
+            },
+            "initialComposition": {
+                "label": "initial-composition-rows-50",
+                "count": 50,
+                "p50Ms": 145.520333,
+                "p95Ms": 205.334666,
+                "p99Ms": 242.849458,
+                "minMs": 135.613375,
+                "maxMs": 287.389916,
+                "meanMs": 158.976905
+            },
+            "recomposeOneNodeDiff": {
+                "label": "recompose-row",
+                "count": 200,
+                "p50Ms": 6.480625,
+                "p95Ms": 9.304083,
+                "p99Ms": 10.549375,
+                "minMs": 2.429667,
+                "maxMs": 10.800083,
+                "meanMs": 5.386628
+            },
+            "recomposeTwoNodeDiff": {
+                "label": "recompose-total",
+                "count": 200,
+                "p50Ms": 4.329958,
+                "p95Ms": 15.13425,
+                "p99Ms": 19.726749,
+                "minMs": 2.008583,
+                "maxMs": 26.805416,
+                "meanMs": 5.27213
+            }
+        }
+    ],
+    "experiment03": {
+        "points": [
+            {
+                "changes": 1,
+                "bytes": 35,
+                "arrayPolymorphicBytes": 33,
+                "nativeStringifyBytes": 33,
+                "gzippedBytes": -1,
+                "build": {
+                    "label": "build-1",
+                    "count": 200,
+                    "p50Ms": 0.050709,
+                    "p95Ms": 0.062792,
+                    "p99Ms": 4.084416,
+                    "minMs": 0.047208,
+                    "maxMs": 7.313125,
+                    "meanMs": 0.129057
+                },
+                "stringify": {
+                    "label": "stringify-discriminator-1",
+                    "count": 200,
+                    "p50Ms": 0.114083,
+                    "p95Ms": 1.117375,
+                    "p99Ms": 4.186875,
+                    "minMs": 0.105583,
+                    "maxMs": 4.272042,
+                    "meanMs": 0.324595
+                },
+                "stringifyArrayPolymorphic": {
+                    "label": "stringify-arraypolymorphic-1",
+                    "count": 200,
+                    "p50Ms": 0.114,
+                    "p95Ms": 0.135875,
+                    "p99Ms": 0.287458,
+                    "minMs": 0.108125,
+                    "maxMs": 12.75,
+                    "meanMs": 0.200019
+                },
+                "stringifyNative": {
+                    "label": "stringify-native-1",
+                    "count": 200,
+                    "p50Ms": 0.080833,
+                    "p95Ms": 0.097625,
+                    "p99Ms": 2.902416,
+                    "minMs": 0.076958,
+                    "maxMs": 4.780917,
+                    "meanMs": 0.14826
+                },
+                "crossPreEncoded": {
+                    "label": "cross-1-preencoded",
+                    "count": 200,
+                    "p50Ms": 0.119209,
+                    "p95Ms": 0.14875,
+                    "p99Ms": 3.39175,
+                    "minMs": 0.114208,
+                    "maxMs": 4.346917,
+                    "meanMs": 0.205317
+                },
+                "crossZiplineSerialized": {
+                    "label": "cross-1-zipline",
+                    "count": 200,
+                    "p50Ms": 0.148333,
+                    "p95Ms": 0.181166,
+                    "p99Ms": 4.193709,
+                    "minMs": 0.138125,
+                    "maxMs": 12.898791,
+                    "meanMs": 0.328325
+                }
+            },
+            {
+                "changes": 10,
+                "bytes": 442,
+                "arrayPolymorphicBytes": 422,
+                "nativeStringifyBytes": 422,
+                "gzippedBytes": -1,
+                "build": {
+                    "label": "build-10",
+                    "count": 200,
+                    "p50Ms": 0.056,
+                    "p95Ms": 0.079917,
+                    "p99Ms": 3.852459,
+                    "minMs": 0.051292,
+                    "maxMs": 4.338291,
+                    "meanMs": 0.133151
+                },
+                "stringify": {
+                    "label": "stringify-discriminator-10",
+                    "count": 200,
+                    "p50Ms": 0.900375,
+                    "p95Ms": 5.033833,
+                    "p99Ms": 7.426084,
+                    "minMs": 0.8545,
+                    "maxMs": 13.839958,
+                    "meanMs": 1.896467
+                },
+                "stringifyArrayPolymorphic": {
+                    "label": "stringify-arraypolymorphic-10",
+                    "count": 200,
+                    "p50Ms": 0.885125,
+                    "p95Ms": 5.361625,
+                    "p99Ms": 7.235625,
+                    "minMs": 0.834333,
+                    "maxMs": 12.242459,
+                    "meanMs": 2.009615
+                },
+                "stringifyNative": {
+                    "label": "stringify-native-10",
+                    "count": 200,
+                    "p50Ms": 0.596042,
+                    "p95Ms": 4.635291,
+                    "p99Ms": 5.159125,
+                    "minMs": 0.568375,
+                    "maxMs": 7.7595,
+                    "meanMs": 1.134588
+                },
+                "crossPreEncoded": {
+                    "label": "cross-10-preencoded",
+                    "count": 200,
+                    "p50Ms": 0.124666,
+                    "p95Ms": 0.162458,
+                    "p99Ms": 4.80125,
+                    "minMs": 0.116792,
+                    "maxMs": 11.611958,
+                    "meanMs": 0.33114
+                },
+                "crossZiplineSerialized": {
+                    "label": "cross-10-zipline",
+                    "count": 200,
+                    "p50Ms": 0.703875,
+                    "p95Ms": 4.868583,
+                    "p99Ms": 8.934375,
+                    "minMs": 0.669417,
+                    "maxMs": 15.332791,
+                    "meanMs": 1.597794
+                }
+            },
+            {
+                "changes": 100,
+                "bytes": 3657,
+                "arrayPolymorphicBytes": 3457,
+                "nativeStringifyBytes": 3457,
+                "gzippedBytes": -1,
+                "build": {
+                    "label": "build-100",
+                    "count": 200,
+                    "p50Ms": 0.086,
+                    "p95Ms": 0.124958,
+                    "p99Ms": 4.109292,
+                    "minMs": 0.076791,
+                    "maxMs": 5.172833,
+                    "meanMs": 0.187161
+                },
+                "stringify": {
+                    "label": "stringify-discriminator-100",
+                    "count": 200,
+                    "p50Ms": 14.567958,
+                    "p95Ms": 18.898625,
+                    "p99Ms": 27.576625,
+                    "minMs": 6.970125,
+                    "maxMs": 44.800417,
+                    "meanMs": 14.641578
+                },
+                "stringifyArrayPolymorphic": {
+                    "label": "stringify-arraypolymorphic-100",
+                    "count": 200,
+                    "p50Ms": 14.476791,
+                    "p95Ms": 20.440125,
+                    "p99Ms": 29.719709,
+                    "minMs": 6.818542,
+                    "maxMs": 38.368709,
+                    "meanMs": 14.616775
+                },
+                "stringifyNative": {
+                    "label": "stringify-native-100",
+                    "count": 200,
+                    "p50Ms": 8.146917,
+                    "p95Ms": 14.094833,
+                    "p99Ms": 19.381167,
+                    "minMs": 3.897792,
+                    "maxMs": 30.572041,
+                    "meanMs": 8.747536
+                },
+                "crossPreEncoded": {
+                    "label": "cross-100-preencoded",
+                    "count": 200,
+                    "p50Ms": 0.272542,
+                    "p95Ms": 4.304958,
+                    "p99Ms": 4.578917,
+                    "minMs": 0.261583,
+                    "maxMs": 5.444291,
+                    "meanMs": 0.608355
+                },
+                "crossZiplineSerialized": {
+                    "label": "cross-100-zipline",
+                    "count": 200,
+                    "p50Ms": 8.510292,
+                    "p95Ms": 14.339375,
+                    "p99Ms": 21.25825,
+                    "minMs": 4.274416,
+                    "maxMs": 27.535333,
+                    "meanMs": 9.497206
+                }
+            },
+            {
+                "changes": 1000,
+                "bytes": 36510,
+                "arrayPolymorphicBytes": 34510,
+                "nativeStringifyBytes": 34510,
+                "gzippedBytes": -1,
+                "build": {
+                    "label": "build-1000",
+                    "count": 200,
+                    "p50Ms": 0.344709,
+                    "p95Ms": 3.665208,
+                    "p99Ms": 4.504666,
+                    "minMs": 0.30525,
+                    "maxMs": 5.333666,
+                    "meanMs": 0.61526
+                },
+                "stringify": {
+                    "label": "stringify-discriminator-1000",
+                    "count": 200,
+                    "p50Ms": 159.532958,
+                    "p95Ms": 176.051916,
+                    "p99Ms": 303.446459,
+                    "minMs": 146.596959,
+                    "maxMs": 403.574626,
+                    "meanMs": 164.16867
+                },
+                "stringifyArrayPolymorphic": {
+                    "label": "stringify-arraypolymorphic-1000",
+                    "count": 200,
+                    "p50Ms": 151.109791,
+                    "p95Ms": 166.070167,
+                    "p99Ms": 191.127333,
+                    "minMs": 142.773208,
+                    "maxMs": 289.614041,
+                    "meanMs": 153.461135
+                },
+                "stringifyNative": {
+                    "label": "stringify-native-1000",
+                    "count": 200,
+                    "p50Ms": 75.696625,
+                    "p95Ms": 83.125167,
+                    "p99Ms": 124.251125,
+                    "minMs": 69.396042,
+                    "maxMs": 197.538417,
+                    "meanMs": 77.351078
+                },
+                "crossPreEncoded": {
+                    "label": "cross-1000-preencoded",
+                    "count": 200,
+                    "p50Ms": 2.948791,
+                    "p95Ms": 7.154458,
+                    "p99Ms": 9.7945,
+                    "minMs": 1.671458,
+                    "maxMs": 10.776125,
+                    "meanMs": 3.731534
+                },
+                "crossZiplineSerialized": {
+                    "label": "cross-1000-zipline",
+                    "count": 200,
+                    "p50Ms": 84.163167,
+                    "p95Ms": 97.453417,
+                    "p99Ms": 115.731292,
+                    "minMs": 74.929958,
+                    "maxMs": 140.964041,
+                    "meanMs": 86.126821
+                }
+            }
+        ],
+        "initialBatch": {
+            "changes": 572,
+            "bytes": 20939,
+            "arrayPolymorphicBytes": 19795,
+            "nativeStringifyBytes": 19795,
+            "gzippedBytes": 2647,
+            "build": {
+                "label": "build-572",
+                "count": 200,
+                "p50Ms": 0.212666,
+                "p95Ms": 4.235333,
+                "p99Ms": 4.277708,
+                "minMs": 0.198875,
+                "maxMs": 4.307667,
+                "meanMs": 0.541224
+            },
+            "stringify": {
+                "label": "stringify-discriminator-572",
+                "count": 200,
+                "p50Ms": 81.9705,
+                "p95Ms": 92.226792,
+                "p99Ms": 125.233666,
+                "minMs": 74.743875,
+                "maxMs": 197.474583,
+                "meanMs": 83.9318
+            },
+            "stringifyArrayPolymorphic": {
+                "label": "stringify-arraypolymorphic-572",
+                "count": 200,
+                "p50Ms": 80.899417,
+                "p95Ms": 92.107167,
+                "p99Ms": 95.024917,
+                "minMs": 73.155541,
+                "maxMs": 148.174708,
+                "meanMs": 82.592594
+            },
+            "stringifyNative": {
+                "label": "stringify-native-572",
+                "count": 200,
+                "p50Ms": 43.744958,
+                "p95Ms": 55.18875,
+                "p99Ms": 86.709083,
+                "minMs": 36.908709,
+                "maxMs": 93.308042,
+                "meanMs": 45.600474
+            },
+            "crossPreEncoded": {
+                "label": "cross-572-preencoded",
+                "count": 200,
+                "p50Ms": 1.048125,
+                "p95Ms": 5.649125,
+                "p99Ms": 9.068708,
+                "minMs": 1.004625,
+                "maxMs": 9.5935,
+                "meanMs": 2.286708
+            },
+            "crossZiplineSerialized": {
+                "label": "cross-572-zipline",
+                "count": 200,
+                "p50Ms": 47.190583,
+                "p95Ms": 58.182166,
+                "p99Ms": 62.730541,
+                "minMs": 39.1435,
+                "maxMs": 90.162292,
+                "meanMs": 48.914077
+            }
+        },
+        "method": "End-to-end plus total bytes. The five-pass internal breakdown (guest encode, JSON.stringify, Java Native Interface transcode, host parse) needs timing inside Zipline's internal CallChannel, which needs a locally patched Zipline build; roadmap.md permits reporting end-to-end plus bytes when that slips. Guest encode and stringify ARE separated here, because the guest can time those itself.",
+        "encodings": [
+            {
+                "name": "json-v0-kotlinx",
+                "payloadBytes": 20939,
+                "wireBytes": 20939,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 82.224959,
+                    "p95Ms": 93.557541,
+                    "p99Ms": 104.552542,
+                    "minMs": 74.021459,
+                    "maxMs": 187.844292,
+                    "meanMs": 83.708258
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 84.812292,
+                    "p95Ms": 98.0695,
+                    "p99Ms": 122.711959,
+                    "minMs": 75.609875,
+                    "maxMs": 157.768458,
+                    "meanMs": 86.945188
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-v0-kotlinx",
+                    "count": 200,
+                    "p50Ms": 3.991584,
+                    "p95Ms": 8.944791,
+                    "p99Ms": 10.029375,
+                    "minMs": 1.884333,
+                    "maxMs": 10.236792,
+                    "meanMs": 4.273068
+                },
+                "note": "ADR-004 section 2.2 as documented, through kotlinx.serialization's pure-Kotlin encoder. Not what ships; included as the baseline the schema was written against."
+            },
+            {
+                "name": "json-v0-native",
+                "payloadBytes": 19795,
+                "wireBytes": 19795,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 42.943625,
+                    "p95Ms": 53.84925,
+                    "p99Ms": 59.102,
+                    "minMs": 36.603458,
+                    "maxMs": 94.621083,
+                    "meanMs": 44.485161
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 44.907584,
+                    "p95Ms": 56.043083,
+                    "p99Ms": 58.164208,
+                    "minMs": 38.171542,
+                    "maxMs": 81.307834,
+                    "meanMs": 46.488192
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-v0-native",
+                    "count": 200,
+                    "p50Ms": 1.43225,
+                    "p95Ms": 6.324625,
+                    "p99Ms": 7.563791,
+                    "minMs": 1.336041,
+                    "maxMs": 8.06675,
+                    "meanMs": 2.977943
+                },
+                "note": "What ships today: array polymorphism through encodeToDynamic plus QuickJS's native JSON.stringify, which is the path Zipline's CallChannel takes."
+            },
+            {
+                "name": "json-positional",
+                "payloadBytes": 9091,
+                "wireBytes": 9091,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 1.145041,
+                    "p95Ms": 5.304333,
+                    "p99Ms": 9.207709,
+                    "minMs": 1.05925,
+                    "maxMs": 16.590917,
+                    "meanMs": 2.388696
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 1.368417,
+                    "p95Ms": 5.887167,
+                    "p99Ms": 9.354375,
+                    "minMs": 1.2945,
+                    "maxMs": 13.630291,
+                    "meanMs": 2.891137
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-positional",
+                    "count": 200,
+                    "p50Ms": 1.033417,
+                    "p95Ms": 8.246916,
+                    "p99Ms": 11.576041,
+                    "minMs": 0.920791,
+                    "maxMs": 16.816791,
+                    "meanMs": 2.600602
+                },
+                "note": "Every change becomes a positional array, so no field names cross. Built as native JavaScript values and handed straight to JSON.stringify."
+            },
+            {
+                "name": "json-positional-interned",
+                "payloadBytes": 7636,
+                "wireBytes": 7636,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 1.474625,
+                    "p95Ms": 6.022167,
+                    "p99Ms": 8.926417,
+                    "minMs": 1.3895,
+                    "maxMs": 10.123333,
+                    "meanMs": 3.061209
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 1.712125,
+                    "p95Ms": 9.16125,
+                    "p99Ms": 12.499875,
+                    "minMs": 1.599625,
+                    "maxMs": 15.951333,
+                    "meanMs": 3.685994
+                },
+                "hostDecode": {
+                    "label": "host-decode-json-positional-interned",
+                    "count": 200,
+                    "p50Ms": 0.862875,
+                    "p95Ms": 6.118208,
+                    "p99Ms": 8.891875,
+                    "minMs": 0.821958,
+                    "maxMs": 9.339417,
+                    "meanMs": 1.925281
+                },
+                "note": "Positional, plus a modifier-chain table: each distinct chain crosses once and is referenced by index thereafter."
+            },
+            {
+                "name": "protobuf-base64",
+                "payloadBytes": 9561,
+                "wireBytes": 12748,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 60.184,
+                    "p95Ms": 65.738917,
+                    "p99Ms": 77.335666,
+                    "minMs": 54.387041,
+                    "maxMs": 105.669417,
+                    "meanMs": 60.935065
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 61.000958,
+                    "p95Ms": 66.853542,
+                    "p99Ms": 83.250667,
+                    "minMs": 54.886166,
+                    "maxMs": 136.8965,
+                    "meanMs": 62.231007
+                },
+                "note": "Protocol buffers over a schema mirror, because ADR-004's JsonElement values have no protocol-buffer representation. Base64 because CallChannel carries a string."
+            },
+            {
+                "name": "cbor-base64",
+                "payloadBytes": 13905,
+                "wireBytes": 18540,
+                "encode": {
+                    "label": "encode-$name-$changeCount",
+                    "count": 200,
+                    "p50Ms": 404.118792,
+                    "p95Ms": 530.238917,
+                    "p99Ms": 711.526,
+                    "minMs": 388.705708,
+                    "maxMs": 1105.293459,
+                    "meanMs": 426.900288
+                },
+                "cross": {
+                    "label": "cross-$variant-$changeCount",
+                    "count": 200,
+                    "p50Ms": 402.048416,
+                    "p95Ms": 460.601917,
+                    "p99Ms": 534.788041,
+                    "minMs": 389.102625,
+                    "maxMs": 700.018375,
+                    "meanMs": 411.926877
+                },
+                "note": "Concise Binary Object Representation over the same schema mirror, same Base64 surcharge. Included so the answer covers binary formats generally, not just one."
+            }
+        ]
+    },
+    "experiment04": {
+        "method": "Host-forced QuickJs.gc() pauses (upper bound) plus the recomposition tail at each gcThreshold. NOT the patched-QuickJS JS_RunGC hook the appendix prefers; that needs a local native Zipline build and is recorded as outstanding work.",
+        "points": [
+            {
+                "gcThresholdBytes": 262144,
+                "recomposeUnderLoad": {
+                    "label": "recompose-row",
+                    "count": 200,
+                    "p50Ms": 1.725916,
+                    "p95Ms": 10.046375,
+                    "p99Ms": 17.670124,
+                    "minMs": 1.411333,
+                    "maxMs": 29.528041,
+                    "meanMs": 3.905674
+                },
+                "forcedCollections": 10,
+                "forcedPause": {
+                    "label": "forced-gc-pause",
+                    "count": 10,
+                    "p50Ms": 7.553167,
+                    "p95Ms": 11.478042,
+                    "p99Ms": 11.478042,
+                    "minMs": 2.98725,
+                    "maxMs": 14.694042,
+                    "meanMs": 8.426708
+                },
+                "memoryAfterChurn": {
+                    "memoryUsedSize": 5266406,
+                    "memoryAllocatedSize": 6327479,
+                    "objectsCount": 18194,
+                    "objectsSize": 1309968,
+                    "stringsCount": 561,
+                    "stringsSize": 11835,
+                    "jsFunctionsCount": 8434,
+                    "jsFunctionsCodeSize": 484066,
+                    "propertiesSize": 1007504,
+                    "arraysCount": 1348
+                }
+            },
+            {
+                "gcThresholdBytes": 8388608,
+                "recomposeUnderLoad": {
+                    "label": "recompose-row",
+                    "count": 200,
+                    "p50Ms": 1.476167,
+                    "p95Ms": 5.638125,
+                    "p99Ms": 9.549875,
+                    "minMs": 1.392458,
+                    "maxMs": 14.037625,
+                    "meanMs": 3.106784
+                },
+                "forcedCollections": 10,
+                "forcedPause": {
+                    "label": "forced-gc-pause",
+                    "count": 10,
+                    "p50Ms": 5.704666,
+                    "p95Ms": 9.298041,
+                    "p99Ms": 9.298041,
+                    "minMs": 2.269792,
+                    "maxMs": 9.402875,
+                    "meanMs": 5.361441
+                },
+                "memoryAfterChurn": {
+                    "memoryUsedSize": 5266310,
+                    "memoryAllocatedSize": 6327383,
+                    "objectsCount": 18194,
+                    "objectsSize": 1309968,
+                    "stringsCount": 561,
+                    "stringsSize": 11835,
+                    "jsFunctionsCount": 8434,
+                    "jsFunctionsCodeSize": 484066,
+                    "propertiesSize": 1007488,
+                    "arraysCount": 1348
+                }
+            },
+            {
+                "gcThresholdBytes": 16777216,
+                "recomposeUnderLoad": {
+                    "label": "recompose-row",
+                    "count": 200,
+                    "p50Ms": 1.487042,
+                    "p95Ms": 5.661417,
+                    "p99Ms": 9.352917,
+                    "minMs": 1.389125,
+                    "maxMs": 9.504792,
+                    "meanMs": 3.016934
+                },
+                "forcedCollections": 10,
+                "forcedPause": {
+                    "label": "forced-gc-pause",
+                    "count": 10,
+                    "p50Ms": 6.284208,
+                    "p95Ms": 6.686958,
+                    "p99Ms": 6.686958,
+                    "minMs": 2.338458,
+                    "maxMs": 24.807,
+                    "meanMs": 6.851849
+                },
+                "memoryAfterChurn": {
+                    "memoryUsedSize": 5266510,
+                    "memoryAllocatedSize": 6327599,
+                    "objectsCount": 18195,
+                    "objectsSize": 1310040,
+                    "stringsCount": 561,
+                    "stringsSize": 11835,
+                    "jsFunctionsCount": 8434,
+                    "jsFunctionsCodeSize": 484066,
+                    "propertiesSize": 1007536,
+                    "arraysCount": 1348
+                }
+            }
+        ]
+    },
+    "notes": [
+        "Run on a physical or virtual Android device. Only a physical low-end device of the tier the Phase 0 harness appendix names produces gate-valid numbers; an emulator runs on the development machine's processor and is not that.",
+        "Experiment 0.4 used the host-forced gc() fallback, not the patched-QuickJS hook.",
+        "Experiment 0.1 reports no minified-JavaScript size on device; only the bytecode is shipped to a device, and the JavaScript size is recorded by the development host run."
+    ]
+}

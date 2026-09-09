@@ -385,6 +385,14 @@ class DogwoodWebExperience(
     report(if (correlation == 0) "guest error: $message" else "guest error ($correlation): $message")
   }
 
+  override fun onGuestFailure(correlation: Int, message: String, stack: String?) {
+    onGuestError(correlation, message)
+    // Reported as its own line rather than appended to the message, because a host that shows one
+    // line of a failure should show the sentence, and a host collecting them should be able to send
+    // the frames somewhere else. Joining them would make both harder.
+    if (stack != null) report("guest stack: $stack")
+  }
+
   private fun sendConfiguration() {
     if (configuredBridge === bridge) return
     val bridge = this.bridge ?: return

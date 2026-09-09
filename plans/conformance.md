@@ -128,10 +128,24 @@ cell below is a claim about what a user would install, not about a debug build
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| B1 | A payload signed by an untrusted key is refused before it runs | S + C | S ✅; C — |
-| B2 | Key rotation: a manifest carrying both signatures is accepted by clients holding either | S | ✅ |
-| B3 | A payload naming a dictionary version this client lacks is refused **before any guest code runs** | S + C | S ✅; C web only |
+| B1 | A payload signed by an untrusted key is refused before it runs | S + C | S ✅; C web ✅ (ADR-062) |
+| B2 | Key rotation: a manifest carrying both signatures is accepted by clients holding either | S + C | S ✅; C web ✅ (ADR-062) |
+| B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
+
+`B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
+a correction rather than a weakening. On the **web** nothing of the payload executes: the host
+fetches and verifies the sidecar itself, so it refuses without ever creating the Worker, and the
+drill asserts `workerCreated=false`. On **mobile** Zipline exposes no manifest-only fetch —
+`loadOnce` fetches, verifies and evaluates the modules in one call, and `fetchManifestFromNetwork`
+and `LoadedManifest` are `internal` in zipline-loader 1.27.0 — so the check runs after module
+evaluation and before `start`: no entry point is called, no service is bound, nothing composes, and
+the interpreter is closed. See
+[ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md).
+
+`B1` and `B2` earn their web cells from `tools/conformance/web_services.py` rather than from
+`dev.dogwood.host.SignatureTest`, which exercises a verifier the web host does not compile. See
+[ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md).
 
 ### C. Host resolution
 
@@ -254,8 +268,8 @@ signed payload fixture** to a host built from current sources.
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop |
-| K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop |
+| K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop, android, ios |
+| K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop, android, ios |
 
 The fixture is an artifact rather than a rebuild, and `tools/conformance/fixtures/README.md` says
 why: a rebuild is today's toolchain, which is the pairing already covered by every other drill here.
@@ -299,8 +313,8 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-08 at commit `fb057d5`, by `tools/conformance/run-all.sh`; the raw runs
-are committed beside the tools as `result-<client>-2026-09-08.conf`. The second framework
+Last generated 2026-09-09 at commit `ce8e8cb`, by `tools/conformance/run-all.sh`; the raw runs
+are committed beside the tools as `result-<client>-2026-09-09.conf`. The second framework
 grading flagged that this matrix had gone stale against prose totals -- the repo's own rule,
 broken at its own finish line -- so regeneration now belongs to the same commit as the claims
 it grades.
@@ -344,6 +358,9 @@ it grades.
 | J5 | ✅ | ✅ | ✅ | ✅ |
 | D12 | ✅ | n/a | ✅ | ✅ |
 | D13 | ✅ | n/a | ✅ | ✅ |
+| D14 | ✅ | n/a | ✅ | ✅ |
+| D15 | ✅ | n/a | ✅ | ✅ |
+| D16 | ✅ | n/a | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
 | J1 | ✅ | n/a | ✅ | ✅ |
 | J3 | ✅ | n/a | ✅ | ✅ |
@@ -354,16 +371,16 @@ it grades.
 | D7 | ✅ | n/a | ✅ | n/a |
 | J4 | ✅ | n/a | ✅ | ✅ |
 | J2 | ✅ | n/a | — | ✅ |
+| K1 | ✅ | ✅ | ✅ | — |
+| K2 | ✅ | ✅ | ✅ | — |
 | G1 | · | n/a | · | — |
 | G2 | · | n/a | · | — |
 | G3 | · | n/a | · | — |
 | G4 | · | n/a | · | — |
-| K1 | — | ✅ | — | — |
-| K2 | — | ✅ | — | — |
+| B3 | ✅ | — | ✅ | ✅ |
 | E4 | n/a | n/a | ✅ | n/a |
 | H5 | — | — | — | ✅ |
 | G5 | — | n/a | — | ✅ |
-| B3 | — | — | — | ✅ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
 
@@ -379,10 +396,32 @@ it grades.
 - `desktop` is not graded on J3: desktop is a development loop, not a shipping target
 - `desktop` is not graded on J4: desktop is a development loop, not a shipping target
 
-- **android**: pass 54, skip 4
-- **desktop**: pass 39
-- **ios**: pass 56, skip 4
-- **web**: pass 53, skip 1
+- **android**: pass 65, skip 4
+- **desktop**: pass 44
+- **ios**: pass 64, skip 4
+- **web**: pass 59, skip 1
+
+**`G5` moved, and the attribution is why it was allowed to.** The catalogue work took the shipped
+web slice from 3,643,599 to 3,766,502 bytes brotli, past the old 3,700,000 ceiling. Three builds
+place every byte of the growth in the application's own WebAssembly module — Skiko is byte-identical
+across all three — and split it: the five components of C1 and C2 cost 25,979 bytes between them,
+and **C3's two Material 3 pickers cost 96,924**, roughly half a second of Fast 3G waiting for two
+components most screens never show.
+
+The ceiling is now 3,900,000, by owner decision
+([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)): a design system's components
+cost every client globally, which is what mobile already does, and one answer to "what does adding a
+component cost?" is worth more than the bytes. Per-component binding is deferred as `D1`.
+
+Raising a budget because you crossed it is the move `budgets.tsv`'s own comment warns about, so the
+raise now carries a price: **every raise of `G5` must arrive with an attribution in the commit that
+makes it.** That is the difference between this and the failure the comment describes.
+
+
+- **android**: pass 65, skip 4
+- **desktop**: pass 44
+- **ios**: pass 64, skip 4
+- **web**: fail 1, pass 58, skip 1
 
 ## Part 4 — How it runs, and what stops it rotting
 

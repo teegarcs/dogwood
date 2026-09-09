@@ -83,8 +83,12 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       "--segment-id", "1",
       // VerticalList and HorizontalList are hand-written in this same segment, because the
       // generator does not model lazy layouts yet. Their tags are not the generator's to give.
-      "--reserved", "10,11",
-      "--version", "12",
+      // 21 is `Pager`, hand-written for the same reason 10 and 11 are: a lazy layout needs
+      // per-page access to its children, which the generator refuses to bind (and refuses
+      // correctly). Reserving it is what stops the generator handing tag 21 to the next
+      // component somebody appends -- a collision renders the wrong widget rather than failing.
+      "--reserved", "10,11,21",
+      "--version", "14",
       "--guest-package", "dev.dogwood.compose",
       "--host-package", "dev.dogwood.host",
       "--impl-package", "dev.dogwood.host",

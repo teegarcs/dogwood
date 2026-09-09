@@ -573,7 +573,9 @@ flowchart TD
 
     Start --> Delivery["Shared DogwoodDelivery / ZiplineCache"]
     Start --> Session["DogwoodSession (ownsDelivery = false)"]
-    Session --> Experience["DogwoodExperience"]
+    Session --> Gate{"Pre-flight: declared dictionary, then release verdict"}
+    Gate -- "refused" --> Refused["onRefused(GuardedRelease): close, report, keep the old screen"]
+    Gate -- "allowed" --> Experience["DogwoodExperience"]
     Republish --> Experience
     Experience --> Active["active: State&lt;DogwoodExperience?&gt;"]
     Active --> Surface["DogwoodSurface composes the active one only"]
@@ -595,6 +597,22 @@ flowchart TD
   capacity, defaulting to three. Two invariants it enforces rather than documents: the active entry
   point is never evicted, and the capacity floor is one, because a cap of zero would evict the
   screen the user is looking at.
+* **Pre-flight: declared dictionary, then release verdict:** Two gates a payload passes before it
+  becomes an experience, and the shell applies them on *every* emission of `DogwoodDelivery.updates`
+  rather than only on the first load. That is not a detail: a code update is exactly when a too-new
+  payload arrives, because publishing is what makes one arrive, so a check that ran only at start
+  would be missing from the path a product uses most. The dictionary check comes first because it is
+  the more specific answer — see
+  [ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md) and the gate's
+  full definition in [Layer 3](layer-3-delivery.md). The versions it compares against are read
+  through a function at check time rather than captured when the session was built, because a
+  product's own segments join `DogwoodDictionary.segmentVersions` when they register, and a map
+  captured too early would refuse every payload naming them.
+* **`onRefused(GuardedRelease)`:** How a refusal reaches the host: the version, why, and the last
+  known-good version when there is one. The refused guest's Zipline instance is closed — a live
+  QuickJS runtime and an entire heap kept because it *might* be wanted is a leak this project has
+  already fixed from the other direction — and the currently displayed experience is left alone. A
+  bad publish that reaches a running application should cost the user nothing until they navigate.
 * **Publish existing experience:** The warm path. `activate` sets the published experience before
   it returns, so a warm switch costs the shell nothing measurable — zero milliseconds, taken
   synchronously, in every repetition of the ADR-027 measurements. What the user then waits for is

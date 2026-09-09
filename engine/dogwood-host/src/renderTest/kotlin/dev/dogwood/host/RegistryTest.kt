@@ -177,6 +177,29 @@ class RegistryTest {
   }
 
   @Test
+  fun aClientVectorReadLateSeesASegmentRegisteredAfterIt() {
+    // The regression test for a real defect, not a hypothetical one.
+    //
+    // The pre-flight dictionary check compares what a payload declares against what this client
+    // implements, and the first version of it took that client vector as a plain `Map` default
+    // parameter -- resolved when the delivery was constructed. A host that builds its delivery
+    // before registering its own bindings would then have compared against a map with no product
+    // segment in it, and *refused every payload naming one*. `segmentVersions` is a property with a
+    // getter precisely to prevent this class of mistake, and a captured copy defeats the getter.
+    //
+    // So the parameter is `() -> Map<String, Int>`, and this asserts the property that makes the
+    // lambda worth having: a vector obtained before a registration reflects it afterwards, while a
+    // copy taken at the same moment does not.
+    val readLate: () -> Map<String, Int> = { DogwoodDictionary.segmentVersions }
+    val capturedEarly = DogwoodDictionary.segmentVersions
+
+    DogwoodRegistry.register(FakeBinding("acme.late", WIDGET_A, "acme", segmentVersion = 7))
+
+    assertEquals(7, readLate()["acme.late"], "the late read missed a registration after it")
+    assertEquals(null, capturedEarly["acme.late"], "the early capture must not see it, or this test proves nothing")
+  }
+
+  @Test
   fun aProductComponentNamesItselfInDiagnostics() {
     // Skew telemetry reports names. A product's withheld control reported as `Widget#117440513`
     // is the one row a team must act on and the one row nobody can read.

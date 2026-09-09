@@ -72,7 +72,15 @@ echo "==> installing the client at the committed version"
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
-./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline --console=plain -q || exit 1
+# The skewed payload declares nothing, deliberately, and that is the claim boundary.
+#
+# Since the pre-flight dictionary check landed (S1), a payload built at N+1 *declares* N+1 in its
+# signed metadata and a version N client refuses it before composing anything -- which is the point
+# of that check and would make every containment claim below fail for a reason that is not a
+# containment defect. `-PdogwoodDeclareSegments=false` publishes the payload the containment rules
+# are actually for: one built before the field existed, or by a team that has not adopted it. The
+# refusal itself is graded separately, as `B3`, by `run-preflight.sh` on the same skewed surface.
+./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline -PdogwoodDeclareSegments=false --console=plain -q || exit 1
 
 echo "==> waiting for the skewed payload to be served"
 # No pipe anywhere in this check, deliberately. `grep -q` exits on its first match, which SIGPIPEs

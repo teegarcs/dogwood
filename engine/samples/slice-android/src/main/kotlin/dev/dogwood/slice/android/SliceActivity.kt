@@ -429,7 +429,7 @@ class SliceActivity : ComponentActivity() {
           },
           delivery = delivery,
           applicationName = "dogwood-slice",
-          manifestUrl = MANIFEST_URL,
+          manifestUrl = manifestUrl(),
           ziplineDispatcher = dispatcher,
           uiScope = uiScope,
           environment = latestConfiguration,
@@ -453,7 +453,7 @@ class SliceActivity : ComponentActivity() {
           onFailure = { entry, failure ->
             Log.e(TAG, "[$entry] load failed", failure)
             onFailure(
-              "could not load '$entry' from $MANIFEST_URL\n\n" +
+              "could not load '$entry' from ${manifestUrl()}\n\n" +
                 "Is the development server running?\n" +
                 "  ./gradlew :samples:slice-guest:serveProductionWebpackZipline\n\n" +
                 failure.stackTraceToString(),

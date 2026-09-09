@@ -122,7 +122,31 @@ private val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
  * reaches the machine serving the payload.
  */
 private const val DEV_SERVER = "http://localhost:8080"
-private const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+private const val DEFAULT_MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+
+/**
+ * Where this launch should fetch its payload from, overridable by launch argument.
+ *
+ * ```
+ * xcrun simctl launch booted dev.dogwood.slice.ios --dogwood-manifest  *   http://localhost:8474/manifest.zipline.json
+ * ```
+ *
+ * The desktop sample has had `-Ddogwood.manifest` since the reference-server check needed it, and
+ * Android has an intent extra for the same reason: a drill has to be able to point an **installed**
+ * build at a payload the drill controls. Without it the cross-version claims — `K1` and `K2`, a
+ * payload from an earlier toolchain meeting a host built from current sources — can only be graded
+ * on whichever client happened to have the switch, and "hosts first, payloads after the fleet"
+ * stays a policy rather than a test.
+ *
+ * The argument still buys nothing an attacker wants: whatever it points at must carry a signature
+ * from a key compiled into this binary. It is a development affordance, which is why it sits beside
+ * the development server's address.
+ */
+private fun manifestUrl(): String {
+  val arguments = NSProcessInfo.processInfo.arguments.map { it.toString() }
+  val at = arguments.indexOf("--dogwood-manifest")
+  return arguments.getOrNull(at + 1)?.takeIf { at >= 0 && it.isNotBlank() } ?: DEFAULT_MANIFEST_URL
+}
 
 class DogwoodAppDelegate : UIResponder, UIApplicationDelegateProtocol {
   companion object : UIResponderMeta(), UIApplicationDelegateProtocolMeta
@@ -252,7 +276,7 @@ private fun SliceHost(configuration: HostEnvironment) {
       val built = DogwoodShell(
         delivery = delivery,
         applicationName = "dogwood-slice",
-        manifestUrl = MANIFEST_URL,
+        manifestUrl = manifestUrl(),
         ziplineDispatcher = dispatcher,
         uiScope = uiScope,
         environment = latestConfiguration,
@@ -304,7 +328,12 @@ private fun SliceHost(configuration: HostEnvironment) {
         ),
         capacity = 3,
         onSwap = { entry, status ->
-          note = "[$entry] loaded, restored ${status.restoredKeys} state keys"
+          // Version and verifying key included, because "it loaded" and "it loaded a payload
+          // whose signature this binary accepted" are different facts and only the second one
+          // grades `K1`. The desktop sample has printed both since it was written; the mobile ones
+          // reported neither, which is why the cross-version claims could only be graded there.
+          note = "[$entry] loaded version ${status.version}, verified by ${status.verifiedByKey}" +
+            ", restored ${status.restoredKeys} state keys"
           println("dogwood: $note")
         },
         onEvict = { entry, keys ->
@@ -391,6 +420,30 @@ private fun SliceHost(configuration: HostEnvironment) {
       // composable reading it sees whatever was there when its pass began.
       val failures = runSkewDrill(root, live.active.value?.skew)
       println("SKEW DONE failures=$failures")
+    }
+  }
+
+  /*
+   * The pre-flight dictionary drill, `--dogwood-skew`'s sibling and the reason there are two flags
+   * rather than one with a mode.
+   *
+   * `tools/skew-drill/run-preflight-ios.sh` arranges the same two builds as the containment drill
+   * and changes exactly one thing: the payload declares the dictionary it was built against. The
+   * two assert opposite outcomes on the same screen -- markers present and contained, or no markers
+   * at all and a refusal -- and a single drill whose meaning inverts on an argument is one whose
+   * failures get read wrong.
+   */
+  LaunchedEffect(shell) {
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-preflight")) return@LaunchedEffect
+    shell ?: return@LaunchedEffect
+    // The same screen the containment drill reads, so the absence of its markers means something.
+    current = "about"
+    kotlinx.coroutines.delay(8_000)
+    val root = (UIApplication.sharedApplication.delegate as? DogwoodAppDelegate)?.window()
+    if (root == null) {
+      println("PREFLIGHT REFUSED there is no key window to walk")
+    } else {
+      println("PREFLIGHT DONE failures=${runPreflightDrill(root)}")
     }
   }
 

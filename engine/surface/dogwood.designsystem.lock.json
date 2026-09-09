@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 12,
+    "version": 14,
     "components": [
         {
             "name": "PrimaryButton",
@@ -324,10 +324,101 @@
             "eventTypes": {
                 "sheetReport": "(String, Boolean) -> Unit"
             }
+        },
+        {
+            "name": "Menu",
+            "localTag": 19,
+            "properties": {
+                "expanded": 1
+            },
+            "propertyTypes": {
+                "expanded": "Boolean"
+            },
+            "slots": {
+                "anchor": 1,
+                "content": 2
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "MenuItem",
+            "localTag": 20,
+            "properties": {
+                "label": 1,
+                "enabled": 2,
+                "icon": 3
+            },
+            "propertyTypes": {
+                "label": "TextValue",
+                "enabled": "Boolean",
+                "icon": "String?"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "DatePickerArea",
+            "localTag": 22,
+            "properties": {
+                "pickerVisible": 1,
+                "pickerSequence": 2,
+                "pickerInitial": 3,
+                "pickerWatching": 4
+            },
+            "propertyTypes": {
+                "pickerVisible": "Boolean",
+                "pickerSequence": "Int",
+                "pickerInitial": "String",
+                "pickerWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "pickerReport": 1
+            },
+            "eventTypes": {
+                "pickerReport": "(Int, String) -> Unit"
+            }
+        },
+        {
+            "name": "TimePickerArea",
+            "localTag": 23,
+            "properties": {
+                "pickerVisible": 1,
+                "pickerSequence": 2,
+                "pickerInitial": 3,
+                "pickerWatching": 4
+            },
+            "propertyTypes": {
+                "pickerVisible": "Boolean",
+                "pickerSequence": "Int",
+                "pickerInitial": "String",
+                "pickerWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "pickerReport": 1
+            },
+            "eventTypes": {
+                "pickerReport": "(Int, String) -> Unit"
+            }
         }
     ],
     "reservedLocalTags": [
         10,
-        11
+        11,
+        21
     ]
 }

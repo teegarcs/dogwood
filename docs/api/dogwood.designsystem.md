@@ -4,7 +4,7 @@
 # `dogwood.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **12**, segment **1**.
+actually emitted. Version **14**, segment **1**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -27,7 +27,7 @@ Two rules govern every number here, and both are enforced by the lock beside the
   rather than drawing a control that lies about what it will do. Every other kind of
   skew degrades cosmetically. The components that own one are marked below.
 
-**Reserved local tags: 10, 11.** Those
+**Reserved local tags: 10, 11, 21.** Those
 belong to hand-written bindings in this same segment, not to the generator. They
 appear in no table below and are not free.
 
@@ -51,6 +51,10 @@ appear in no table below and are not free.
 | [`SnackbarArea`](#snackbararea) | 16 | 16777232 |  |
 | [`Dialog`](#dialog) | 17 | 16777233 |  |
 | [`SheetArea`](#sheetarea) | 18 | 16777234 |  |
+| [`Menu`](#menu) | 19 | 16777235 |  |
+| [`MenuItem`](#menuitem) | 20 | 16777236 | yes |
+| [`DatePickerArea`](#datepickerarea) | 22 | 16777238 |  |
+| [`TimePickerArea`](#timepickerarea) | 23 | 16777239 |  |
 
 ---
 
@@ -390,6 +394,103 @@ Local tag 18, widget tag `16777234`.
 | Name | Signature | Tag | Notes |
 | --- | --- | ---: | --- |
 | `sheetReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `sheet` holder |
+
+Takes a modifier chain.
+
+---
+
+### Menu
+
+Local tag 19, widget tag `16777235`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `expanded` | `Boolean` | 1 | required |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `anchor` | 1 |
+| `content` | 2 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onDismissRequest` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+---
+
+### MenuItem
+
+Local tag 20, widget tag `16777236`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `label` | `TextValue` | 1 | required | resolved by the host at draw time |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `icon` | `String?` | 3 | `null` |  |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### DatePickerArea
+
+Local tag 22, widget tag `16777238`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `pickerVisible` | `Boolean` | 1 | `false` when absent | from the `picker` holder (`requested`) |
+| `pickerSequence` | `Int` | 2 | `0` when absent | from the `picker` holder (`requestSequence`) |
+| `pickerInitial` | `String` | 3 | `""` when absent | from the `picker` holder (`initialDate`) |
+| `pickerWatching` | `Boolean` | 4 | `false` when absent | from the `picker` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `pickerReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `picker` holder |
+
+Takes a modifier chain.
+
+---
+
+### TimePickerArea
+
+Local tag 23, widget tag `16777239`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `pickerVisible` | `Boolean` | 1 | `false` when absent | from the `picker` holder (`requested`) |
+| `pickerSequence` | `Int` | 2 | `0` when absent | from the `picker` holder (`requestSequence`) |
+| `pickerInitial` | `String` | 3 | `""` when absent | from the `picker` holder (`initialTime`) |
+| `pickerWatching` | `Boolean` | 4 | `false` when absent | from the `picker` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `pickerReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `picker` holder |
 
 Takes a modifier chain.
 

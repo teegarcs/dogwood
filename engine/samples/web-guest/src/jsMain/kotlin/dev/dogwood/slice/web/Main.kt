@@ -46,6 +46,8 @@ import dev.dogwood.slice.AboutScreen
 import dev.dogwood.slice.AppShell
 import dev.dogwood.slice.ExploreScreen
 import dev.dogwood.slice.FeedScreen
+import dev.dogwood.slice.CrashOnLaunchScreen
+import dev.dogwood.slice.CrashScreen
 import dev.dogwood.slice.exploreParams
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -126,7 +128,13 @@ private object WorkerHost : DogwoodHost {
   override fun handleUncaughtException(exception: Throwable) {
     // Reported, never swallowed. A guest that throws into the void is a blank screen with no
     // explanation, which is the failure the whole skew story exists to avoid.
-    post(ERROR, 0, "uncaught in guest: ${exception.message ?: exception.toString()}")
+    //
+    // **With its stack, not only its message.** The mobile profile carries a source-mapped stack
+    // through Zipline; this path carried one sentence, which ADR-059 recorded as the remainder. A
+    // Kotlin/JavaScript `Throwable` is backed by a JavaScript `Error`, so `.stack` exists -- what a
+    // *production webpack* build leaves in it is a measured fact rather than an assumption, and
+    // `tools/upstream-reports/README.md` and ADR-063 record what the measurement found.
+    post(ERROR, 0, encodeGuestFailure(exception))
   }
 
   override fun close() = Unit
@@ -306,6 +314,12 @@ private val guest = DogwoodGuest(
   "about" to { _ -> AboutScreen() },
   "feed" to { _ -> FeedScreen() },
   "app" to { params -> AppShell(exploreParams(params)) },
+  // A payload that fails on purpose, so that the two mechanisms built for a bad publish
+  // -- a readable crash (ADR-059) and the crash-loop quarantine (ADR-049) -- can be graded
+  // against a real failure instead of a simulated one. See `CrashScreen.kt`.
+  "crash" to { _ -> CrashScreen() },
+  // ...and one that never gets far enough to be mounted, which is what a crash-loop is.
+  "crash-launch" to { _ -> CrashOnLaunchScreen() },
 )
 
 private var started = false
@@ -368,9 +382,32 @@ private fun onMessage(message: dynamic) {
   } catch (failure: Throwable) {
     // The Worker survives a bad message. A guest that died on one would take the screen with it,
     // and the host would see silence rather than a reason.
-    post(ERROR, correlation, "guest failed on '$kind': ${failure.message ?: failure.toString()}")
+    post(ERROR, correlation, encodeGuestFailure(failure, "guest failed on '$kind'"))
   }
 }
+
+/**
+ * A failure as the host receives it: a message, and the stack if the build kept one.
+ *
+ * **Two lines of a plain string rather than a structured message, deliberately.** The `ERROR`
+ * envelope's payload is a string on every path, and widening it to carry a typed failure would mean
+ * an envelope revision -- which every guest and host in the fleet then has to agree on -- for a
+ * diagnostic. The host splits on the first blank line; anything after it is a stack, and a guest
+ * that sends no stack is indistinguishable from one built before this existed, which is the point.
+ *
+ * A Kotlin/JavaScript `Throwable` is backed by a JavaScript `Error`, so `.stack` is present at run
+ * time. Whether it is *legible* after a production webpack build is a separate question and a
+ * measured one; see ADR-063.
+ */
+private fun encodeGuestFailure(failure: Throwable, prefix: String = "uncaught in guest"): String {
+  val message = failure.message ?: failure.toString()
+  val stack = stackOf(failure)
+  return if (stack.isNullOrBlank()) "$prefix: $message" else "$prefix: $message\n\n$stack"
+}
+
+/** Reads `.stack` off the underlying JavaScript `Error`, or null when there is not one. */
+private fun stackOf(failure: Throwable): String? =
+  js("(failure && failure.stack) ? String(failure.stack) : null") as? String
 
 /** Which screen to compose. Read from the Worker's own URL, so one script serves all four. */
 private fun entryPoint(): String {

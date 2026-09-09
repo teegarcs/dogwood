@@ -147,6 +147,15 @@ class ReleaseGuard(
   fun attempts(version: String): Int = record.attempts[version] ?: 0
 
   /**
+   * The last release known to have worked, if any.
+   *
+   * Public because a refusal that is *not* the guard's own — a payload naming a dictionary this
+   * client lacks — still wants to name it: the host's screen says "we could not run this" and the
+   * one useful thing to add is which release did.
+   */
+  fun lastGoodVersion(): String? = record.lastKnownGood
+
+  /**
    * Whether [version] may run.
    *
    * [disabledByPublisher] is the kill switch, read from the manifest. It is passed in rather than

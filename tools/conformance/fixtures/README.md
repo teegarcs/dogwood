@@ -15,12 +15,37 @@ A rebuild cannot test it. Rebuilding produces a payload from *today's* toolchain
 pairing that already works and is already tested by every drill in this repository. Only an
 artifact that stops changing can be old.
 
-## What the drill asserts
+## What the drills assert
 
-`tools/conformance/cross-version.sh` serves this directory to a host built from current sources and
-requires that the payload **loads, verifies against the committed development keys, and renders**.
-It fails when a change to the engine breaks compatibility with payloads already in the field — the
-failure whose cost is measured in un-updatable installations rather than in a red build.
+`tools/conformance/cross-version.sh` (desktop) and `tools/conformance/cross-version-mobile.sh`
+(`android` | `ios`) serve this directory to a host built from current sources and require that the
+payload **loads, verifies against the committed development keys, and renders** — claims `K1` and
+`K2`. They fail when a change to the engine breaks compatibility with payloads already in the field:
+the failure whose cost is measured in un-updatable installations rather than in a red build.
+
+## When to freeze a new one
+
+**Every time the dictionary version is bumped, freeze that day's signed payload here.**
+
+The rule is deliberately mechanical, because the judgement version of it does not work. "Freeze one
+when something significant changes" means nobody freezes one, and the window this directory covers
+stops widening the day somebody stops thinking about it — while the toolchain keeps moving. A
+dictionary bump is the right trigger because it is the moment the surface changed, which is exactly
+the change most likely to break an older payload, and because it is already a deliberate, reviewed
+act with a lock file behind it.
+
+Freezing one is:
+
+```
+./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline
+cp -R engine/samples/slice-guest/build/zipline/ProductionWebpack \
+      tools/conformance/fixtures/payload-$(date +%F)
+```
+
+**Add, never replace.** Each fixture widens the window; replacing one narrows it back to a single
+point and throws away the only evidence that the older pairing still works. The drills serve the
+**newest** fixture by default, so adding one does not slow the ordinary run — running the older ones
+is a matter of pointing `FIXTURE` at them.
 
 ## Retiring one
 

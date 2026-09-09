@@ -88,7 +88,26 @@ required `releaseGuard`, the sidecar carries a release identity and a `disabled`
 verdict is taken and the attempt persisted **before the Worker is created**, and success is
 reported only when a tree has actually been applied. Graded on a real browser as `H4`/`H5`:
 `refused=ReleaseRefused workerCreated=false`. The switch is weaker than mobile's by record — this
-sidecar is not signed, so it is only as trustworthy as its origin. Original finding kept below.
+sidecar is not signed, so it is only as trustworthy as its origin.
+
+The **mobile** remainder of this finding is also closed, 2026-09-08 (S1,
+[ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)). The asymmetry ran
+the other way: the web refused a payload naming a dictionary it could not render, and the mobile
+clients had only render-time containment, which degrades so gracefully that a user cannot tell it
+from a bug. A payload now declares its dictionary in the manifest's **signed** metadata, derived
+from the generator's own output rather than restated, and both mobile clients compare it before
+`start`. Graded on a real emulator and a real simulator against a genuinely newer payload:
+
+```
+CONF B3 PASS -- [about] refused: the payload needs a dictionary this client does not have;
+                dogwood.designsystem wants 15, this client implements 14 (last good: 1.0.0)
+CONF B3-absent PASS -- no widget from the refused payload is on screen
+```
+
+Weaker than the web's by one step, and said so rather than blurred: Zipline exposes no
+manifest-only fetch, so the mobile check runs after module evaluation and before `start` rather
+than before anything executes at all. Containment stays for the payload that declares nothing.
+Original finding kept below.
 
 ### A3 (original). Surviving a bad publish is opt-in, and four hosts of five do not opt in
 
@@ -193,10 +212,10 @@ host owns a value the guest must mirror; a dialog's openness is the guest's own 
 thing coming back is a dismissal, which is an ordinary event. Knowing when *not* to reach for the
 machinery is part of the machinery being usable.
 
-Still open: menu, pager and the pickers, and the holder shapes those need — now planned as C1–C3
-in [`plans/engineering-backlog.md`](engineering-backlog.md). The remaining count is the honest one —
-the catalogue is **16 components**, and a product design system is fifty to two hundred. Original
-finding below.
+✅ Menu, pager and both pickers landed 2026-09-08 (C1–C3), with holder shapes six, seven and
+eight — **eight of the roughly thirty** the coverage measurement predicts. The catalogue is
+**20 components**, and a product design system is fifty to two hundred, so this finding stays
+open with a smaller number rather than closing. Original finding below.
 
 ### B1 (original). The catalogue is a slice, and the missing components are the ones every product uses
 
@@ -227,7 +246,33 @@ no documented harness for a product author to *test* a screen (the engine's own 
 but nothing in `docs/authoring.md` tells an author how to write one against their screens). The
 inner loop is the thing a product team lives in; today its length is a production bundle.
 
-### B3. One payload per shell *(planned as S4 in [`plans/engineering-backlog.md`](engineering-backlog.md))*
+### B3. ✅ Closed — two shells is the shape, and the costs are written down ([ADR-065](../adrs/layer-5/ADR-065-two-teams-need-two-shells-and-nothing-else.md))
+
+No engine machinery, which was the plan's own rule: not until a need is demonstrated, and the
+measurements did not demonstrate one. `samples/two-payloads` hosts two independently built, signed
+and versioned payloads with everything that must be separate separate; `docs/multi-team.md` carries
+the numbers and a diagram.
+
+**The cost is disk, and it does not amortise:** 1.15 MB of cache for a payload that draws three
+nodes, almost all of it Compose runtime and Kotlin standard library, because the two payloads are
+separate Zipline containers sharing nothing. Time to first tree tracks payload size rather than
+shell count (351 ms against 871 ms, started together, neither queued), and two live interpreters and
+compositions cost about 14.8 MB of heap. A product that finds a runtime copy per payload
+unacceptable should ship fewer payloads with more entry points — which is what a single
+`manifestUrl` already gives.
+
+**The merge workflow was run, not described.** Two branches each appending a component, both
+claiming tag 24; the real conflict; the safe resolution (reset the lock to the *merge base*, never
+hand-merge generated JavaScript Object Notation, then regenerate); and what the generator says when
+you get it wrong — `dictionary lock violated; tags are permanent: FilterChip moved from tag 24 to
+25`. It also surfaced a hazard the lock does **not** catch: the version number merges cleanly, so a
+payload published from an unmerged surface branch declares a version that will mean something else
+once it lands. Hence the rule, written rather than built because its enforcement point is a
+deployment pipeline: **publish from the integration branch, never from a surface branch.**
+
+Original finding below.
+
+### B3 (original). One payload per shell
 
 `DogwoodShell` takes a single `manifestUrl`; its "several experiences" are entry points **within
 one payload**. Two teams shipping independently means two shells — separate caches, separate warm
@@ -257,9 +302,19 @@ existing app. (Android and web embed trivially — a composable and a page — t
 
 Carried here so this audit is complete on its own page: `J2`/`J4` ungraded on iOS (that sample
 wires no navigation service — a choice the surface allows, but it means launch parameters are
-asserted by nothing on that client); desktop has no skew drill; `H2`'s device half cannot be
-provoked; and the mobile hosts have no pre-flight dictionary check — render-time containment is
-their only line, where the web refuses before a byte of guest code runs.
+asserted by nothing on that client); ~~desktop has no skew drill~~; ~~`H2`'s device half cannot be
+provoked~~; and ~~the mobile hosts have no pre-flight dictionary check~~.
+
+Three of the four closed 2026-09-08/09. The desktop skew drill is `tools/skew-drill/run-desktop.sh`,
+reading the render transcript because that client has no accessibility tree to walk from outside the
+process — and it found that a withheld widget's binding *runs*, so the transcript had to learn to
+say `withheld` before the claim could be graded honestly. `H2`'s device half is
+`tools/reference-server/quarantine-drill.sh`: a payload that throws before the host can mount
+anything, quarantined after two launches on a real emulator, recovered through `resume`. The mobile
+pre-flight check is [ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md),
+graded as `B3` on Android and iOS.
+
+`J2`/`J4` on iOS remains open, and is a property of that sample rather than of the engine.
 
 ---
 

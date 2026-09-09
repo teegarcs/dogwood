@@ -82,23 +82,41 @@ rule that passes everywhere in unit tests can coexist with behaviour that works 
 sibling scripts put the other two clients in the same condition, with the same five steps, the same
 claim identifiers, and the same refusal to read the outcome off the host's own log:
 
-| | Script | How the outcome is read |
-| --- | --- | --- |
-| Android | `run.sh` | `uiautomator dump`, from outside the process |
-| iOS | `run-ios.sh` | the accessibility tree, walked in-process by `SkewDrill.kt` — `xcrun simctl` cannot dump a hierarchy |
-| Web | `run-web.sh` | `Accessibility.getFullAXTree` plus each node's box model, over the DevTools protocol |
+| | Containment (`A2`, `A3`, `A4`) | Pre-flight refusal (`B3`) | How the outcome is read |
+| --- | --- | --- | --- |
+| Android | `run.sh` | `run-preflight.sh` | `uiautomator dump`, from outside the process |
+| iOS | `run-ios.sh` | `run-preflight-ios.sh` | the accessibility tree, walked in-process by `SkewDrill.kt` and `PreflightDrill.kt` — `xcrun simctl` cannot dump a hierarchy |
+| Web | `run-web.sh` | `run-web.sh` (both halves in one script) | `Accessibility.getFullAXTree` plus each node's box model, over the DevTools protocol |
 
 The web one is the most literal expression of the two-build shape: `app.js` and `guest-kotlin.js`
 sit in one directory, so it rebuilds one file and leaves the other alone. It hashes `app.js` before
 and after and **fails if it changed** — a host rebuilt alongside the guest is a drill that quietly
 tests nothing.
 
-It also runs a fourth claim the mobile clients cannot make. The web client checks the payload's
-declared dictionary versions *before* it creates the Worker, so the drill runs both halves:
-undeclared skew must be contained at render time, and declared skew must be refused outright
-(**B3**, against a genuinely newer payload rather than a hand-written manifest). The mobile hosts
-have no such pre-flight check — their Zipline manifests carry no segment versions — so on those
-clients the render-time rules are the only line of containment there is.
+### Two halves, and why they are two scripts
+
+Every client now runs both halves, which was not true before ADR-061: the mobile clients had
+containment and nothing else, and the web had both.
+
+The halves serve the **same** skewed payload and differ in one thing — whether the payload
+*declares* the dictionary it was built against, in its manifest's signed metadata. A real published
+payload does. `-PdogwoodDeclareSegments=false` publishes one that does not, and the containment
+drills use it, because a payload that declares nothing is the ordinary case for everything built
+before the field existed and containment is what protects those. Without that flag the containment
+claims would all fail the moment the declaration landed — for a reason that is not a containment
+defect.
+
+On mobile they are two scripts rather than one with a mode, deliberately: they assert **opposite**
+outcomes on the same screen — markers present and contained, or no markers at all and a refusal —
+and a script whose meaning inverts on an argument is one whose failures get read wrong.
+
+**`B3` means something slightly different on mobile than on the web, and the drills say so.** The
+web host fetches and verifies the manifest itself, so it refuses without ever creating a Worker and
+asserts `workerCreated=false` — nothing of the payload executes. Zipline exposes no manifest-only
+fetch to a mobile client (`fetchManifestFromNetwork` and `LoadedManifest` are `internal` in
+zipline-loader 1.27.0), so the mobile check runs after module evaluation and before `start`: no
+entry point is called, no service is bound, nothing composes, and the QuickJS instance is closed.
+Weaker, and written down rather than blurred.
 
 ### What the ports found
 
