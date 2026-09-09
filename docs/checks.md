@@ -31,7 +31,7 @@ Chrome rather than reporting a drill that could not run as one that passed.
 |---|---|---|
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
-| `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.70 MB brotli against 3.57 MB today) | the page grows past the ceiling, or cannot be measured at all |
+| `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.90 MB brotli against 3.77 MB today) | the page grows past the ceiling, or cannot be measured at all |
 | `render-shape/check.py` | every shared render test **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
 | `link-check/check.py` | every relative link in the repository's markdown resolves | a document sends a reader to a file that has moved or never existed. It checks links rather than prose, because that is the part of a document a machine can see is wrong |
 
@@ -196,6 +196,11 @@ server is actually sending it, so no recorded number was ever taken against unco
 
 A **deployment** has no such check, and the failure is silent: the page works, and is 27% heavier
 than every number in these records.
+
+Measured 2026-09-05, when the page was 3,576,606 bytes brotli. The page has grown since — the
+catalogue did ([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)) — and the
+figures below are left at what was actually measured rather than restated, because what they
+establish is the **ratio** between two encodings and that does not move with the page.
 
 | Encoding | Total | Fast 3G first frame |
 |---|---:|---:|

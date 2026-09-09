@@ -148,7 +148,7 @@ module with a new composition and nothing survives implicitly. Claim `A7` on the
 default tab, publishes, and asserts the screen comes back where the user left it, with a control
 proving the tab had moved and the whole check watched to fail with the restore removed.
 
-### 2.2 Live-state holders ◐
+### 2.2 Live-state holders ✅
 
 Three shapes are proven end to end — a list, a focus request, a scroll position — and the mechanical
 half of adding one now costs a table entry plus a host mirror
@@ -166,15 +166,23 @@ It needs no new protocol: the request is properties, the reply is an event carry
 it answers**, which is what stops two requests in flight being confused. Verified on three targets
 and on a device, where the user tapping *Undo* resumed the guest into the branch that undoes.
 
-The ones a product will hit early are now all one of four known shapes, and none is more than a
-mirror: `PagerState`, `SheetState` / `DrawerState`, and the picker states (`DatePickerState`,
-`TimePickerState`).
+✅ **And all four of those arrived, 2026-09-08** (C1–C3): `SheetState`, `PagerState`,
+`DatePickerState` and `TimePickerState` are shapes five through eight, each landing with its widget
+exactly as this section predicted rather than as a queue of machinery. Eight shapes proven, of
+roughly thirty the coverage measurement anticipates. The prediction that each would cost a table
+entry plus a host mirror held; the one surprise was that a **pager needs per-page indexed child
+access**, which the generator refuses, so `Pager` is a hand-written binding on a reserved tag.
+
+This section can close as `◐ → ✅` for the shapes a product hits early. What stays open is the
+catalogue itself, in §2.3.
 
 ### 2.3 The design system is a slice, not a system
 
-Thirteen components. A product design system is fifty to two hundred. This is not a defect — it is
-what §1 exists to fix — but it changes the shape of what a product does first: the first week is
-writing surfaces and mirrors, not writing screens.
+**Twenty components** as of 2026-09-08, up from thirteen when this was written — dialogs, a sheet,
+menus, a pager and both pickers landed with C1–C3. A product design system is fifty to two hundred,
+so this stays open with a smaller number rather than closing. It is not a defect — it is what §1
+exists to fix — but it changes the shape of what a product does first: the first week is writing
+surfaces and mirrors, not writing screens.
 
 ### 2.4 Coverage the measurement already predicts
 
@@ -251,10 +259,17 @@ exists; the machinery to operate one does not.**
   device: the kill switch refuses while the running guest keeps rendering, a cold launch under it
   shows the host's own screen and the reason, and removing it restores the payload. Capability group
   **H** in `conformance.md`.
-- **What is still missing is the server half.** Nothing *resumes* a previous payload — that needs a
-  manifest that still serves it. There is no staged rollout: `InstallCohort` gives a device a stable
-  bucket a server could stage against, and there is no server. And nothing reports a refusal to a
-  publisher, so a fleet-wide quarantine is visible only if the host wires it to telemetry.
+- ✅ **The server half exists as a reference.** [`tools/reference-server/`](../tools/reference-server)
+  publishes a release without making it live, stages a rollout against `InstallCohort`'s buckets,
+  serves with the cache split a payload needs (`no-store` on the manifest, immutable on the modules),
+  and **resumes** a previous version — which is what a quarantined fleet is waiting for, since those
+  clients are not listening for a signal, they are refusing a *version*. One file, holding no opinion
+  about anyone's infrastructure, with its behaviours checked by observing responses rather than by
+  reading it. Quarantine and recovery are now observed end to end on a device
+  (`tools/reference-server/quarantine-drill.sh`).
+  **What remains is per-product:** nothing reports a refusal to a publisher, so a fleet-wide
+  quarantine is still visible only if the host wires `onRefused` to telemetry — the same seam as
+  `SkewReport`.
 - **No key ceremony, and no payload hosting story.** Both are the owner's rather than the
   engineering plan's, and both now live in
   [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) so they stop being restated

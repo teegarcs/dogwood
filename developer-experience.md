@@ -360,15 +360,30 @@ The trade-off is real and worth stating: **the host application has to be a Comp
 
 1. ~~Compose composition inside QuickJS has never been measured.~~ **Measured.** Phase 0's harness ran it; the results are in `tools/phase0/results/` and the gate's remaining shortfall is one device nobody bought ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)).
 2. ~~Boundary cost per frame is unmeasured.~~ **Measured**, on device and in the browser. On web the transport is 0.02% of a frame and *decoding* is the larger half ([ADR-032](adrs/layer-5/ADR-032-the-web-profile.md)).
-3. ~~Payload size with the Compose runtime linked is unmeasured.~~ **Measured**, repeatedly, and it is the web profile's governing constraint: 3.58 MB brotli, three quarters of it Skiko, with every lever now measured rather than estimated ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
+3. ~~Payload size with the Compose runtime linked is unmeasured.~~ **Measured**, repeatedly, and it is the web profile's governing constraint: 3.77 MB brotli, roughly seven tenths of it Skiko, with every lever measured rather than estimated ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)). It grows with the catalogue, by decision rather than by drift — components cost every client globally, the way they already do on mobile, and each raise of the ceiling must arrive with an attribution ([ADR-066](adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)).
 4. **The closest prior art, Cash App's Redwood, is no longer under active development.** Unchanged, and still true: its maintainer has publicly said the decision "wasn't technical" ([Layer 4 ADR-003](adrs/layer-4/ADR-003-treehouse-precedent-and-evidence-refresh.md)). The organisational-adoption lesson applies here in full.
-5. **The bespoke subsystems were the larger half of the work, and that was right.** Eight of the nine are delivered; live-state holders are ◐ with three shapes proven and the mechanical cost of a fourth now paid once ([ADR-043](adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)).
+5. **The bespoke subsystems were the larger half of the work, and that was right.** All nine are delivered; live-state holders now have **eight** proven shapes — a target-and-report list, a target-only focus requester, a continuous scroll offset, a request that answers, a sheet, a pager, and both pickers — each arriving with its widget as ADR-043 said they would ([ADR-043](adrs/layer-5/ADR-043-holders-are-declared-on-the-surface.md)).
 
 **What is genuinely not ready is a different list**, and it is kept in one place rather than here: [`plans/production-readiness.md`](plans/production-readiness.md). The short version, because it changes what you should plan:
 
-- **A product cannot register its own components yet.** The generator runs over one surface file. Until that changes, a guest can emit only what this repository's design system defines — which is the gap that blocks everything else.
-- **The real guest has never run on the web.** The web sample's guest is hand-written JavaScript, deliberately, so no Kotlin/Compose guest has run in a Worker.
-- **There is no server.** Payloads are served by a Gradle task on `localhost:8080`. No publish pipeline, no rollout, no rollback.
+- ~~**A product cannot register its own components yet.**~~ **Closed.** The generator runs over any
+  surface, a product claims its own dictionary segment, and a host binds it with one line —
+  `DogwoodRegistry.register(AcmeDesignSystemBinding)`. [`samples/product-design-system`](engine/samples/product-design-system)
+  is a worked example that lives outside the engine's own surface, because a mechanism with one
+  caller is not a mechanism.
+- ~~**The real guest has never run on the web.**~~ **Closed.** [`samples/web-guest`](engine/samples/web-guest)
+  compiles the same Kotlin/Compose screens the mobile payload runs and executes them in a Web
+  Worker; the web conformance drill grades against that guest, not the hand-written one. The
+  hand-written JavaScript guest stays, because it is what proves the protocol is an interface rather
+  than an artefact of having Kotlin on both ends.
+- ~~**There is no server.**~~ **Closed.** [`tools/reference-server/`](tools/reference-server) publishes,
+  stages a rollout by cohort, serves with the cache split a payload needs, and rolls back with
+  `resume`. It is a reference rather than infrastructure — one file, holding no opinion about yours —
+  and its behaviours are checked by observing responses rather than by reading the code.
+
+What *is* still open is smaller and is kept in [`plans/production-readiness.md`](plans/production-readiness.md)
+and [`plans/adoption-audit.md`](plans/adoption-audit.md), which is the unflattering list and the one
+worth reading before adopting.
 
 Everything blocked on a person rather than on work — the Apple ruling among them — is in [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
 

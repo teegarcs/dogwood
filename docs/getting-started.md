@@ -72,7 +72,8 @@ DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->     // 2. tell the
   ).loadGuarded(applicationName = "your-app", manifestUrl = MANIFEST_URL, guard = guard)
 
   when (guarded) {
-    is GuardedLoad.Refused -> showYourOwnScreen(guarded.reason)    //    quarantined or kill-switched
+    is GuardedLoad.Refused -> showYourOwnScreen(guarded.reason)    //    quarantined, kill-switched,
+                                                                   //    or needs a newer client
     is GuardedLoad.Running -> {
       val experience = DogwoodExperience(guarded.guest.zipline, ziplineDispatcher, uiScope)
       DogwoodSurface(experience, Modifier.fillMaxSize())           // 4. draw it
@@ -178,9 +179,19 @@ val experience = DogwoodWebExperience(
 )
 // `start` is suspending — it fetches the manifest and checks it before any guest code runs.
 scope.launch {
-  val delivery = WebDelivery(DogwoodDictionary.segmentVersions) { refusal ->
-    console.log("delivery refused: ${refusal.message}")
-  }
+  val delivery = WebDelivery(
+    clientSegmentVersions = DogwoodDictionary.segmentVersions,
+    report = { refusal -> console.log("delivery refused: ${refusal.message}") },
+    // No defaults on either of these, deliberately. A protection you have to ask for is one most
+    // pages do not have, so the compiler asks instead.
+    releaseGuard = ReleaseGuard(
+      store = FileReleaseStore(file = "/dogwood/release.json".toPath()),
+      onReport = { console.log("release guard: $it") },
+    ),
+    // The keys this page will accept a sidecar from. `emptyMap()` is the written way to say
+    // "believe the origin" — see below.
+    trustedPublicKeys = yourTrustedKeys,
+  )
   when (val outcome = delivery.start("dogwood-manifest.json", experience)) {
     is DeliveryOutcome.Started -> experience.attach(outcome.bridge)
     is DeliveryOutcome.Refused -> Unit   // nothing was created; the page shows its own screen
@@ -188,11 +199,19 @@ scope.launch {
 }
 ```
 
-Two things differ from mobile and both are worth knowing before you rely on them. **The client checks
-the payload's declared dictionary versions before creating the Worker**, so a payload that honestly
-declares itself newer is refused rather than degraded — the mobile hosts have no such pre-flight
-check. And **`network` is the browser's guarantee, not Dogwood's**: your guest calls `fetch` inside
-the page's origin, so set a `connect-src` Content Security Policy if you want the mobile allow-list's
+**The sidecar is signed, and you choose whether to check it.** A detached Ed25519 signature sits
+beside the manifest as `<manifest>.json.sig`, and `WebDelivery` verifies it against
+`trustedPublicKeys` over the bytes it already fetched, **before the document is parsed** — so no
+field of an unverified document is ever read, including the address of the script the page will
+execute. A *missing* signature is a refusal when you pass keys, because an attacker who can replace
+a manifest can delete the file beside it. Passing `emptyMap()` means "believe the origin", which is
+what every web page did before [ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md) and is a
+decision somebody wrote rather than a default they inherited. Signing needs `crypto.subtle`, so the
+page must be on HTTPS or `localhost`. The guest *script* is still fetched without an integrity
+check; that half is recorded as open.
+
+**`network` is the browser's guarantee, not Dogwood's.** Your guest calls `fetch` inside the page's
+origin, so set a `connect-src` Content Security Policy if you want the mobile allow-list's
 behaviour. To publish an update to a live page, call `experience.update(newBridge)`; it carries the
 running guest's saved state into its successor.
 

@@ -587,10 +587,17 @@ format is cheap; discovering it was wrong across four implementations is not.
    **Closed on 2026-09-06: `A2`–`A4` end to end on iOS and web too.** `run-ios.sh` and
    `run-web.sh` are the same five steps against the other two clients, reading the outcome off each
    platform's accessibility tree — `uiautomator` has no equivalent on either. The web one also runs
-   `B3` against a genuinely newer payload rather than a hand-written manifest, which is a claim the
-   mobile clients cannot make at all: they have no pre-flight dictionary check, so their
-   render-time rules are the only containment they have. See
+   `B3` against a genuinely newer payload rather than a hand-written manifest, which at the time was
+   a claim the mobile clients could not make at all: they had no pre-flight dictionary check, so
+   their render-time rules were the only containment they had. See
    [ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md).
+
+   **That asymmetry closed on 2026-09-08.** A payload declares its dictionary in Zipline's signed
+   metadata and both mobile clients compare it before `start`, so `B3` is graded on Android and iOS
+   by `tools/skew-drill/run-preflight.sh` and `run-preflight-ios.sh` — a second drill rather than a
+   mode on the first, because the two assert opposite outcomes on the same screen. Containment stays
+   for the payload that declares nothing, which is every payload built before the field existed. See
+   [ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md).
 
    **Each port found a defect on its first run, in host integration code no shared test covers.**
    The web host provided none of the composition locals its bindings read, so `A4` passed while

@@ -186,10 +186,19 @@ against. [`docs/operating.md`](docs/operating.md) §5 and §6 are written for wh
 
 **Status:** open, and it is the one item here that changes what gets built.
 
-The web page is **3,576,606 bytes brotli**, and three quarters of it is Skiko — a prebuilt binary
-this project cannot shrink, configure or defer. Every engineering lever has now been measured
+The web page is **3,766,502 bytes brotli**, and roughly seven tenths of it is Skiko — a prebuilt
+binary this project cannot shrink, configure or defer. Every engineering lever has now been measured
 ([Layer 5 ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)), and the profile
 this produces is clear:
+
+**It grows with the catalogue, and that is now a decision rather than a drift.** It was 3,576,606
+bytes when ADR-045 measured it; the design system has gained six components since, of which two
+Material 3 pickers cost 96,924 bytes between them. The decision taken
+([ADR-066](adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)) is that components cost every
+client globally — which is what mobile already does, where they occupy install size whether an
+application composes them or not — so the ceiling moves with the catalogue and every raise must
+arrive with an attribution. The timings below are ADR-045's and are left as measured; the trade they
+describe is unchanged in shape and slightly worse in degree.
 
 | Connection | First frame |
 |---|---|
