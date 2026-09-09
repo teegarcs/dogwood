@@ -137,11 +137,24 @@ class Phase0Activity : Activity() {
         report("  gcThreshold ${point.gcThresholdBytes / 1024} KiB recompose p99 ${point.recomposeUnderLoad.p99Ms} ms")
       }
 
-      val label = "${Build.MANUFACTURER} ${Build.MODEL}"
+      /*
+       * The label names the run, and the results file is named after it -- so two runs of the same
+       * hardware in different configurations would otherwise overwrite each other, silently, and
+       * the second would look like the first.
+       *
+       * `--es label` is how the scaling-sensitivity experiment tells them apart: the same emulator
+       * at four cores and at one core is the same `Build.MODEL` and two very different runs. The
+       * default is unchanged, so an ordinary launch still names itself after the device.
+       */
+      val label = intent?.getStringExtra("label")?.takeIf { it.isNotBlank() }
+        ?: "${Build.MANUFACTURER} ${Build.MODEL}"
       val results = Phase0Results(
         label = label,
+        // The core count is part of what a number means here, so it is recorded rather than left
+        // to the label to imply. `availableProcessors` is what the runtime itself will use.
         platform = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), " +
-          "${Build.SUPPORTED_ABIS.firstOrNull()}, ${Build.HARDWARE}",
+          "${Build.SUPPORTED_ABIS.firstOrNull()}, ${Build.HARDWARE}, " +
+          "${Runtime.getRuntime().availableProcessors()} cores",
         toolchain = Toolchain(
           zipline = "1.27.0",
           kotlin = "2.3.20",

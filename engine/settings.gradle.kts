@@ -29,6 +29,10 @@ include(":dogwood-codegen")
 // The sample screens, shared by every guest entry point. See `samples/slice-screens`.
 include(":samples:slice-screens")
 include(":samples:slice-guest")
+// A second, independently built and signed payload; see `docs/multi-team.md`.
+include(":samples:second-guest")
+// One application hosting both, so the cost of a second shell can be measured.
+include(":samples:two-payloads")
 include(":samples:slice-desktop")
 include(":samples:slice-android")
 
