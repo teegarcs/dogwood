@@ -1,3 +1,12 @@
+import java.math.BigInteger
+import java.security.KeyFactory
+import java.security.PublicKey
+import java.security.Signature
+import java.security.spec.EdECPoint
+import java.security.spec.EdECPrivateKeySpec
+import java.security.spec.EdECPublicKeySpec
+import java.security.spec.NamedParameterSpec
+
 /*
  * Project Dogwood -- the web slice: a page, a guest in a Worker, and a rendered tree.
  *
@@ -201,3 +210,135 @@ tasks.named("wasmJsBrowserDistribution") {
   dependsOn(":samples:web-guest:jsBrowserProductionWebpack")
   finalizedBy(copyKotlinGuest)
 }
+
+/*
+ * Signing the sidecar, which is the web profile's answer to a signed Zipline manifest.
+ *
+ * ADR-062. The mobile clients verify an Ed25519 signature over the manifest before the loader will
+ * run a payload; the web profile had HyperText Transfer Protocol Secure (HTTPS) and nothing else,
+ * which authenticates the *server* rather than the *payload*. A detached signature closes it: the
+ * manifest keeps its exact bytes and `<name>.json.sig` beside it carries `keyName hexSignature`,
+ * one line per key.
+ *
+ * **Detached rather than embedded, and the reason is canonicalisation.** A signature *inside* the
+ * document has to exclude itself from what it covers, which means signer and verifier must agree
+ * byte-for-byte on which subset of a JavaScript Object Notation (JSON) document was signed. That
+ * kind of disagreement fails silently and late. A detached signature covers the file, whatever is
+ * in it, and there is nothing to agree about.
+ *
+ * Two keys, both throwaway development keys, because the samples sit mid-rotation deliberately --
+ * the same posture `slice-guest` takes for the mobile manifest and for the same reason: a rotation
+ * that is only ever described is a rotation nobody has performed.
+ */
+val signWebSidecars by tasks.registering {
+  description = "Signs each sidecar manifest with a detached Ed25519 signature."
+  val distribution = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
+  val trustFile = rootProject.file("dogwood-wire/src/commonMain/kotlin/dev/dogwood/protocol/Trust.kt")
+  inputs.file(trustFile)
+  outputs.dir(distribution)
+  doLast {
+    /*
+     * The SEEDS below are THROWAWAY DEVELOPMENT KEYS, committed on purpose so the sample builds for
+     * anyone who clones this. They sign nothing anyone should trust. They are the same two seeds
+     * `samples/slice-guest/build.gradle.kts` uses for the mobile manifest, which is what makes the
+     * web and mobile samples mid-rotation in the same way rather than in two different ways.
+     *
+     * A real signing key never lives in a repository. Pass `-PdogwoodSigningKey=<hex>` and
+     * `-PdogwoodRotationKey=<hex>`, or set them in `~/.gradle/gradle.properties`.
+     */
+    val seeds = linkedMapOf(
+      "dogwood-development" to
+        (providers.gradleProperty("dogwoodSigningKey").orNull
+          ?: "0ca845610dac5a568230ae0b4468004a787b5a541603554a0d3903535dd1f742"),
+      "dogwood-development-2" to
+        (providers.gradleProperty("dogwoodRotationKey").orNull
+          ?: "de597b577357a748f319fcd06ddb4994f58f487be0d2118a4dc08e44e4b61862"),
+    )
+
+    /*
+     * The public keys are READ from the trust anchor the hosts compile in, never restated here.
+     *
+     * This is the check that makes the seeds above safe to commit as a pair with those keys: sign
+     * with the private seed, verify with the public key the clients actually trust, and fail the
+     * build if they do not match. A signer and a verifier that disagree produce a page that refuses
+     * every payload, and the symptom -- "the signature does not verify" -- looks like an attack.
+     */
+    val trust = trustFile.readText()
+    val publicKeys = Regex("""DEVELOPMENT(?:_2)? to "([0-9a-f]{64})"""")
+      .findAll(trust).map { it.groupValues[1] }.toList()
+    require(publicKeys.size == seeds.size) {
+      "expected ${seeds.size} development public keys in Trust.kt, found ${publicKeys.size}"
+    }
+
+    fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
+    fun unhex(text: String) = ByteArray(text.length / 2) {
+      text.substring(it * 2, it * 2 + 2).toInt(16).toByte()
+    }
+
+    val factory = KeyFactory.getInstance("Ed25519")
+
+    /*
+     * A raw 32-byte Ed25519 public key is little-endian `y` with the top bit of the last byte
+     * carrying the sign of `x` (RFC 8032 §5.1.2). The Java Development Kit wants that decomposed
+     * into an `EdECPoint`, so this does the decomposition rather than assuming a codec exists.
+     */
+    fun publicKeyFromRaw(raw: ByteArray): PublicKey {
+      val bytes = raw.copyOf()
+      val xOdd = (bytes[31].toInt() and 0x80) != 0
+      bytes[31] = (bytes[31].toInt() and 0x7F).toByte()
+      val y = BigInteger(1, bytes.reversedArray())
+      return factory.generatePublic(
+        EdECPublicKeySpec(
+          NamedParameterSpec.ED25519,
+          EdECPoint(xOdd, y),
+        ),
+      )
+    }
+
+    val signers = seeds.entries.mapIndexed { index, (name, seed) ->
+      val private = factory.generatePrivate(
+        EdECPrivateKeySpec(
+          NamedParameterSpec.ED25519,
+          unhex(seed),
+        ),
+      )
+      Triple(name, private, publicKeyFromRaw(unhex(publicKeys[index])))
+    }
+
+    val directory = distribution.get().asFile
+    val manifests = directory.listFiles { file -> file.name.matches(Regex("""dogwood-manifest.*\.json""")) }
+      ?.sortedBy { it.name }
+      .orEmpty()
+    require(manifests.isNotEmpty()) { "no sidecar manifests in $directory to sign" }
+
+    for (manifest in manifests) {
+      val bytes = manifest.readBytes()
+      val lines = signers.map { (name, private, public) ->
+        val signer = Signature.getInstance("Ed25519")
+        signer.initSign(private)
+        signer.update(bytes)
+        val signature = signer.sign()
+
+        // Verified here, against the key the CLIENTS hold, before it is written. A signature this
+        // build produces and no client can check is worse than no signature: it looks like
+        // protection and refuses every load.
+        val verifier = Signature.getInstance("Ed25519")
+        verifier.initVerify(public)
+        verifier.update(bytes)
+        check(verifier.verify(signature)) {
+          "the seed for `$name` does not match the public key in Trust.kt; the sample's committed " +
+            "development key pair has drifted"
+        }
+        "$name ${hex(signature)}"
+      }
+      File(directory, "${manifest.name}.sig").writeText(
+        "# Detached Ed25519 signatures over ${manifest.name}, produced by :samples:web-slice:signWebSidecars.\n" +
+          "# THROWAWAY DEVELOPMENT KEYS. See the task in build.gradle.kts.\n" +
+          lines.joinToString("\n") + "\n",
+      )
+    }
+    logger.lifecycle("signed ${manifests.size} sidecar manifests with ${signers.size} development keys")
+  }
+}
+
+tasks.named("wasmJsBrowserDistribution") { finalizedBy(signWebSidecars) }

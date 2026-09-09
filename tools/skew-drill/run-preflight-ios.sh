@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# Project Dogwood -- skew containment on iOS, end to end, without hand-editing anything.
+# Project Dogwood -- the pre-flight dictionary check on iOS, end to end.
 #
 #   export JAVA_HOME=/opt/homebrew/opt/openjdk@21
 #   ./gradlew :samples:slice-guest:serveProductionWebpackZipline   # in another shell
-#   tools/skew-drill/run-ios.sh
+#   tools/skew-drill/run-preflight-ios.sh
 #
-# The Android drill's twin, and deliberately the same five steps -- because the claim being made is
-# that containment is a property of the shared host code rather than of one platform's bindings,
-# and the only way to say that honestly is to put each client in the same condition and read the
-# same three outcomes off its own screen.
+# `run-ios.sh` with one flag removed, and `run-preflight.sh`'s twin on the other mobile client. Both
+# serve this binary a payload built against a dictionary it does not have; this one lets the payload
+# *declare* that in its manifest's signed metadata, which is what a real published payload does since
+# S1. `run-ios.sh` grades what the client does when nothing is declared -- claims A2, A3 and A4.
+# This grades what it does when something is: it refuses, and conformance claim `B3` is graded on
+# this client rather than on the web alone.
 #
 #   1. Build and install the iOS application at the committed dictionary version N.
-#   2. Patch the surface with three additions, one per claim, and bump to N+1.
-#   3. Rebuild **only the guest payload** and serve it to the still-installed version N binary.
-#   4. Run the client and read the accessibility tree.
+#   2. Patch the surface to N+1, exactly as the containment drill does.
+#   3. Rebuild **only the guest payload**, declaring N+1, and serve it to the version N binary.
+#   4. Run the client and read the accessibility tree: a refusal naming both versions, and none of
+#      the payload's own widgets.
 #   5. Restore the surface, always.
 #
 # Two things differ from Android, and both are platform facts rather than choices:
@@ -27,8 +30,8 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$HERE/build"
-OUT="$HERE/build/skew-ios.conf"
-LOG="$HERE/build/ios-run.log"
+OUT="$HERE/build/preflight-ios.conf"
+LOG="$HERE/build/ios-preflight.log"
 cd "$HERE/../../engine"
 
 SURFACE="surface/dev/dogwood/surface/DesignSystemSurface.kt"
@@ -79,21 +82,16 @@ xcrun simctl install booted samples/slice-ios/build/DogwoodSlice.app || exit 1
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
-# The skewed payload declares nothing, deliberately, and that is the claim boundary.
-#
-# Since the pre-flight dictionary check landed (S1), a payload built at N+1 *declares* N+1 in its
-# signed metadata and a version N client refuses it before composing anything -- which is the point
-# of that check and would make every containment claim below fail for a reason that is not a
-# containment defect. `-PdogwoodDeclareSegments=false` publishes the payload the containment rules
-# are actually for: one built before the field existed, or by a team that has not adopted it. The
-# refusal itself is graded separately, as `B3`, by `run-preflight.sh` on the same skewed surface.
-./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline -PdogwoodDeclareSegments=false --console=plain -q || exit 1
+# No `-PdogwoodDeclareSegments=false` here, and that single omission is the entire difference from
+# `run-ios.sh`. The payload declares the dictionary it was built against -- read out of the
+# generator's own output, never restated -- and the client is expected to refuse it on that basis.
+./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline --console=plain -q || exit 1
 
 echo "==> waiting for the skewed payload to be served"
 # No pipe in this check: `grep -q` exits on its first match, SIGPIPEs whatever feeds it, and
 # `pipefail` then reports the success as a failure. The Android drill lost an hour to that.
-served="$HERE/build/served-ios.zipline"
-markers="$HERE/build/served-ios.strings"
+served="$HERE/build/served-ios-preflight.zipline"
+markers="$HERE/build/served-ios-preflight.strings"
 has_marker() {
   [ -s "$served" ] || return 1
   strings "$served" > "$markers"
@@ -109,23 +107,34 @@ if ! has_marker; then
   exit 1
 fi
 
+# And the *manifest* carries the declaration. Without this, a build that silently stopped emitting
+# the field would produce a run in which the client contains the payload instead of refusing it,
+# `B3` fails, and the reported cause -- "the client did not refuse" -- points at the client rather
+# than at the publisher.
+declared="$(curl -fs -m 5 http://localhost:8080/manifest.zipline.json | python3 -c \
+  'import json,sys; print(json.load(sys.stdin).get("metadata", {}).get("dogwood.segments", ""))')"
+case "$declared" in
+  *dogwood.designsystem:*) echo "==> the served manifest declares [$declared]" ;;
+  *) echo "the served manifest declares no dictionary; nothing to refuse" >&2; exit 1 ;;
+esac
+
 echo "==> running the client, which was NOT reinstalled"
 # The payload is cached on disk by `ZiplineCache`, keyed by content, so a fresh fetch is what makes
 # the client meet the *new* one rather than the one it already had.
-xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-skew > "$LOG" 2>&1 &
+xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-preflight > "$LOG" 2>&1 &
 launcher=$!
 # Bounded by the clock rather than by the launcher's exit: `--console-pty` stays attached to a
 # running application, so waiting for it would wait forever.
 for _ in $(seq 1 45); do
-  tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^SKEW DONE\|^SKEW REFUSED" && break
+  tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^PREFLIGHT DONE\|^PREFLIGHT REFUSED" && break
   sleep 2
 done
 kill "$launcher" 2>/dev/null || true
 pkill -f "simctl launch --console-pty booted dev.dogwood.slice.ios" 2>/dev/null || true
 
-tr -d '\r' < "$LOG" | grep -E "^SKEW |^CONF " || true
+tr -d '\r' < "$LOG" | grep -E "^PREFLIGHT |^CONF " || true
 
-if tr -d '\r' < "$LOG" | grep -q "^SKEW REFUSED"; then
+if tr -d '\r' < "$LOG" | grep -q "^PREFLIGHT REFUSED"; then
   echo
   echo "REFUSED -- the drill could not run; see $LOG" >&2
   exit 2

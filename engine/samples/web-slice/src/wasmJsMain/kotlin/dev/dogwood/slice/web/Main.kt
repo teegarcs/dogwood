@@ -13,6 +13,7 @@
  */
 package dev.dogwood.slice.web
 
+import dev.dogwood.protocol.DogwoodTrust
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
@@ -137,6 +138,17 @@ private fun manifestParameter(): String =
   js("new URLSearchParams(location.search).get('manifest') || 'dogwood-manifest.json'")
 
 /**
+ * `?trust=none` runs the page with no trusted keys, which is the unsigned posture every web host
+ * had before ADR-062.
+ *
+ * A query parameter rather than a build flag because the drill needs both postures from one
+ * distribution: signed-and-verified, and the control that shows the page works when nothing is
+ * being checked. Two builds would leave open which of the two differences caused the result.
+ */
+private fun trustParameter(): String =
+  js("new URLSearchParams(location.search).get('trust') || ''")
+
+/**
  * Which experience to open.
  *
  * The *host's* choice now, rather than the guest reading its own Worker URL. That is the shape
@@ -251,6 +263,21 @@ fun main() {
         note("delivery refused: ${refusal.message}")
       },
       releaseGuard = guard,
+      /*
+       * The same trust anchor the mobile samples compile in, and the same one the build's signing
+       * task verifies against (`signWebSidecars` in this module's build file). One anchor, three
+       * profiles: a sample that trusted a different key on the web would be demonstrating a
+       * procedure nobody would run.
+       *
+       * `?trust=none` drops it, and the conformance drill uses that to grade the *control* — the
+       * page still starting when no keys are configured — so that a refusal graded elsewhere is
+       * known to come from the signature and not from a page that was broken anyway.
+       */
+      trustedPublicKeys = if (trustParameter() == "none") {
+        emptyMap()
+      } else {
+        DogwoodTrust.DEVELOPMENT_KEYS
+      },
     )
     val manifest = manifestParameter()
     field("manifest", manifest)

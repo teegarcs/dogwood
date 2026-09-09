@@ -51,7 +51,11 @@ flowchart TD
     Degraded --> Read
 
     Read --> Out["Validated bytecode"]
-    Out --> L4["To Layer 4: guest runtime"]
+    Out --> Preflight{"Declared dictionary this client implements?"}
+    Preflight -- "No" --> Refuse["Refuse: close the Zipline instance, report the skew"]
+    Preflight -- "Yes, or nothing declared" --> Guard{"Release guard verdict"}
+    Guard -- "Quarantined or disabled" --> Refuse
+    Guard -- "Allowed" --> L4["To Layer 4: guest runtime"]
 ```
 
 ### Diagram Node Definitions
@@ -68,6 +72,12 @@ flowchart TD
 * **Write to SQLDelight + Okio cache:** Persistence for offline start.
 * **Cache unavailable: `NullSqlDriver` pass-through:** A degraded state that must be handled explicitly. If the database cannot be opened, Zipline falls back to a null driver and the cache degrades to a straight pass-through download rather than failing. The experience still works; it simply loses offline start and re-downloads each launch. This state must be observable in telemetry.
 * **Validated bytecode:** The output — QuickJS bytecode whose provenance and integrity are proven.
+* **Declared dictionary this client implements?:** The pre-flight check ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)). The manifest's **signed** metadata carries `dogwood.segments`, a comma-separated list of `wireName:version` pairs naming the dictionary the payload was built against, and `checkDeclaredDictionary` compares it against what this client implements. Two things are refusals: a segment the client has never heard of, and a segment the client is behind on. A payload naming **fewer** segments than the client implements is not — a guest that uses no design-system component says nothing about that segment, and absence is not a claim. A payload declaring **nothing** is not either: that is the ordinary case for everything built before the field existed, and Layer 5's render-time containment is what protects those.
+* **Refuse: close the Zipline instance, report the skew:** A refused guest is a live QuickJS runtime and an entire heap, so it is closed rather than left for the garbage collector. The host is told through `GuardedLoad.Refused` or `onRefused`, carrying the last known-good version when there is one. Naming a fallback is not running it: resuming a previous payload means fetching a manifest that still serves it, which is a server's job.
+* **Release guard verdict:** The crash-loop quarantine and publisher kill switch, described in [Layer 5](layer-5-host.md) and [ADR-049](../adrs/layer-5/ADR-049-surviving-a-bad-publish.md). It runs **after** the dictionary check, because the dictionary check is the more specific answer: telling a host "quarantined" when the truth is "your client is a release behind" sends somebody to look at the wrong thing.
+* **To Layer 4: guest runtime:** Reached only by a payload that passed both gates.
+
+**Where this gate sits, precisely.** Zipline exposes no manifest-only fetch to a mobile client — `ZiplineLoader.loadOnce` fetches, verifies and evaluates the modules in one call, and `fetchManifestFromNetwork` and `LoadedManifest` are `internal` in `zipline-loader` 1.27.0 — so the check runs **after module evaluation and before `start`**: no entry point is called, no service is bound, nothing composes. The Web profile's equivalent check is one step stronger, because that host fetches its own manifest and can refuse before creating the Worker at all. The difference is real and is stated rather than blurred; both are graded as conformance claim `B3`, on Android and iOS by `tools/skew-drill/run-preflight.sh` and `run-preflight-ios.sh`, and on the Web by `tools/conformance/run-web.sh`.
 
 ### Security Properties
 
@@ -100,12 +110,41 @@ not implement. Without it, a payload built against a dictionary the client lacks
 mostly-empty screen — the failure this check exists to prevent, and the reason it cannot be deferred
 to render time.
 
-**Integrity is weaker, and this is the honest statement of it.** HTTPS gives transport integrity and
-authenticates the server. It does **not** give what manifest signing gives on mobile: that a
-compromised or substituted server cannot make a client run code the signing key never approved. A
-product wanting parity must fetch the script, verify a hash carried in the sidecar, and construct the
-Worker from a blob — `new Worker(url)` accepts no Subresource Integrity attribute, so the check has to
-be explicit. That is unbuilt, and it is the gap.
+**The sidecar is signed, and the guest script is not. That split is the honest statement of where
+this profile stands.**
+
+HTTPS gives transport integrity and authenticates the server. On its own it does **not** give what
+manifest signing gives on mobile: that a compromised or substituted server cannot make a client run
+code the signing key never approved.
+
+Half of that is closed by [ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md). A **detached**
+Ed25519 signature sits beside the sidecar as `<manifest>.json.sig`, holding `keyName hexSignature`
+one line per key, and `WebDelivery` verifies it against keys the host passes in — over the bytes it
+already fetched, **before the document is parsed**, so that no field of an unverified document is
+ever read. Detached rather than embedded because a signature inside a document must exclude itself
+from what it covers, which makes signer and verifier agree byte-for-byte on a subset of a JSON
+document; that class of disagreement fails silently and late. The rotation rule is Zipline's,
+mirrored: skip unrecognised key names, and let the first recognised name decide whether or not it
+verifies — falling through would let an attacker who can add a signature simply add a good one for a
+key they hold. A **missing** signature is a refusal, because an attacker who can replace the
+manifest can delete the file beside it. `trustedPublicKeys` has no default, and `emptyMap()` is the
+written way to keep the older, weaker posture.
+
+Everything the sidecar *decides* is therefore as trustworthy as the signing key: the guest script's
+address, the dictionary vector, the release identity, and the publisher's kill switch — which until
+ADR-062 was only as trustworthy as its origin, and said so in its own comment.
+
+The other half is not closed. **The guest script itself is still fetched without an integrity
+check.** A signed sidecar naming a script does not stop a server from serving different bytes at
+that address. Parity needs the host to fetch the script, verify a hash carried in the sidecar, and
+construct the Worker from a blob — `new Worker(url)` accepts no Subresource Integrity attribute, so
+the check has to be explicit. `DogwoodWebManifest.guestScriptSha256` exists so a deployment can
+carry the hash today; it is read only to report that it was ignored. That is the remaining gap, and
+signing the sidecar is what makes closing it worth doing: the hash will arrive on a document an
+attacker cannot rewrite.
+
+Graded on a real browser as conformance claims `B1` and `B2`, by `tools/conformance/web_services.py`
+against fixtures the build itself signed.
 
 ## 5. Implementation Roadmap
 

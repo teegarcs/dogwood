@@ -16,18 +16,31 @@
  * guarantee that in code rather than in a comment is for the Worker constructor to be unreachable
  * except through [WebDelivery.start].
  *
- * **What this does not give, stated rather than glossed.** HyperText Transfer Protocol Secure
- * (HTTPS) plus same-origin gives transport integrity and authenticity of the *server*. It does not
- * give the property Ed25519 manifest signing gives on mobile: that a compromised or substituted
- * server cannot make a client run code the signing key never approved. ADR-032 names the parity
- * path -- fetch the script, verify a hash carried in the sidecar, construct the Worker from a blob,
- * because `new Worker(url)` supports no Subresource Integrity attribute -- and leaves it unbuilt.
- * It is still unbuilt. [DogwoodWebManifest.guestScriptSha256] exists so that a deployment can
- * *carry* the hash today and a later change can start enforcing it without a manifest migration;
- * [WebDelivery] currently reads it only to report that it was ignored.
+ * **What this gives and what it still does not, stated rather than glossed.** HyperText Transfer
+ * Protocol Secure (HTTPS) plus same-origin gives transport integrity and authenticity of the
+ * *server*. On its own it does not give the property Ed25519 manifest signing gives on mobile: that
+ * a compromised or substituted server cannot make a client run code the signing key never approved.
+ *
+ * Half of that is now closed. **The sidecar itself is signed** -- a detached Ed25519 signature over
+ * the manifest's exact bytes, verified against keys the host passes in, before the document is
+ * parsed (ADR-062, `SidecarSignature.kt`). Everything the sidecar *decides* is therefore as
+ * trustworthy as the signing key: the dictionary vector, the release identity, and the kill switch,
+ * which until now was only as trustworthy as its origin and said so in its own comment.
+ *
+ * The other half is not. **The guest script is still fetched by the browser without an integrity
+ * check.** A signed sidecar naming a script does not stop a server from serving different bytes at
+ * that address. ADR-032 names the parity path -- fetch the script, verify a hash carried in the
+ * sidecar, construct the Worker from a blob, because `new Worker(url)` supports no Subresource
+ * Integrity attribute -- and it is still unbuilt.
+ * [DogwoodWebManifest.guestScriptSha256] exists so that a deployment can *carry* the hash today and
+ * a later change can start enforcing it without a manifest migration; [WebDelivery] currently reads
+ * it only to report that it was ignored. What signing the sidecar buys is that the hash, once
+ * enforced, will arrive on a document an attacker cannot rewrite -- which is the order these two
+ * steps have to be taken in.
  */
 package dev.dogwood.web
 
+import dev.dogwood.host.checkDeclaredDictionary
 import kotlinx.coroutines.await
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -75,11 +88,13 @@ data class DogwoodWebManifest(
   /**
    * The publisher's stop switch, honoured before the Worker is created.
    *
-   * **Weaker than the mobile kill switch, and the difference is not incidental.** On mobile the
-   * switch rides Zipline's *signed* manifest metadata, so an attacker who cannot sign cannot set
-   * it. This sidecar is fetched over HTTPS and is not signed (ADR-032), so on this profile the
-   * switch is only as trustworthy as the origin serving it. Recorded rather than quietly evened
-   * up: a host that needs the mobile guarantee on the web needs a signed sidecar first.
+   * **As strong as the mobile kill switch when the host passes trusted keys, and no stronger than
+   * its origin when it does not.** On mobile the switch rides Zipline's *signed* manifest metadata,
+   * so an attacker who cannot sign cannot set it. This sidecar used to be unsigned, and this
+   * comment used to say the web switch was only as trustworthy as the origin serving it. Since
+   * ADR-062 the sidecar carries a detached Ed25519 signature and `WebDelivery` refuses a document
+   * that does not verify — so a host that passes `trustedPublicKeys` has the mobile guarantee here
+   * too. A host that passes `emptyMap()` has made the older, weaker choice explicitly.
    */
   val disabled: Boolean = false,
   /**
@@ -106,6 +121,16 @@ sealed interface DeliveryRefusal {
 
   /** The sidecar was fetched but could not be read as a manifest. */
   data class ManifestMalformed(override val message: String) : DeliveryRefusal
+
+  /**
+   * The sidecar's detached Ed25519 signature was missing, unrecognised, or did not verify.
+   *
+   * Separate from [ManifestMalformed] because it means something entirely different
+   * operationally. A malformed manifest is a build mistake somebody made; an unverifiable one is
+   * either a deployment that forgot to publish its signature or a server serving bytes the signing
+   * key never approved, and only one of those is a bad afternoon.
+   */
+  data class SignatureRefused(override val message: String) : DeliveryRefusal
 
   /**
    * The payload names a dictionary this client does not implement.
@@ -210,6 +235,29 @@ class WebDelivery(
    * unguarded client (`plans/adoption-audit.md` A3's recorded remainder).
    */
   private val releaseGuard: ReleaseGuard?,
+  /**
+   * Key name to Ed25519 public key, hexadecimal — what this client will accept a sidecar from.
+   *
+   * **No default, and `emptyMap()` is the written way to say "unsigned".** The ADR-058 pattern: a
+   * protection that must be asked for is a protection most hosts do not have, and this one was
+   * missing on the web for the whole life of the profile. Passing an empty map is a decision
+   * somebody made, visible at the call site, and it means exactly what it says — the sidecar is
+   * believed on the strength of its origin alone, which is what every web host did before
+   * ADR-062. Passing keys means a sidecar that does not verify does not run.
+   *
+   * More than one entry is how rotation works; see `SidecarSignature.kt` for the rule, which is
+   * Zipline's.
+   */
+  private val trustedPublicKeys: Map<String, String>,
+  /**
+   * Where the detached signature lives, given the manifest's address.
+   *
+   * A function rather than a fixed suffix because a deployment that fingerprints its manifest
+   * (`manifest.a1b2c3.json`) has to be able to say where the matching signature went, and because a
+   * host serving from a content-delivery network may want the two on different paths. The default
+   * is the obvious one and covers every deployment that has not thought about it.
+   */
+  private val signatureUrl: (String) -> String = { "$it.sig" },
 ) {
   /**
    * Fetches the sidecar, checks it, and only then constructs the Worker.
@@ -235,6 +283,24 @@ class WebDelivery(
         DeliveryRefusal.ManifestUnavailable("$manifestUrl could not be fetched: ${failure.message}"),
         null,
       )
+    }
+
+    /*
+     * The signature, before the manifest is believed -- which means before it is parsed, not merely
+     * before the Worker is created.
+     *
+     * Parsing first and verifying after would run this client's JSON parser over bytes of unproven
+     * origin, and every field read out of them -- the guest script's address above all -- would be
+     * a value an unverified document chose. The whole point of a signature is that nothing
+     * downstream of it has to be careful.
+     *
+     * Verified over `text`, the same string that is parsed below. A verifier that fetched the
+     * document a second time would verify one copy and use another, and a server that answered
+     * differently the second time would defeat it completely.
+     */
+    if (trustedPublicKeys.isNotEmpty()) {
+      val refusal = verifySidecar(manifestUrl, text)
+      if (refusal != null) return refuse(refusal, null)
     }
 
     val manifest = try {
@@ -284,27 +350,70 @@ class WebDelivery(
   }
 
   /**
-   * The comparison itself, extracted so it can be exercised without a network.
+   * The comparison itself, exposed so it can be exercised without a network.
    *
-   * A payload may legitimately name *fewer* segments than the client implements -- a guest that
-   * uses no design-system component says nothing about that segment -- so absence from the payload
-   * is never a refusal. The refusals are the other direction: a segment the client has never heard
-   * of, and a segment the client is behind on.
+   * **The rule lives in `dev.dogwood.host.checkDeclaredDictionary` and this only adapts it.** It
+   * used to be nine lines here and nine identical lines on the mobile path, which is the shape a
+   * divergence hides in: a payload accepted on one client and refused on another, found by a user
+   * rather than a test. What remains here is the mapping into this profile's refusal type, because
+   * the Web host reports refusals through `DeliveryRefusal` and a mobile host through
+   * `GuardedRelease` — different surfaces for the same finding.
+   *
+   * The rule, restated once so a reader here need not go and look: a payload may legitimately name
+   * *fewer* segments than the client implements — a guest that uses no design-system component says
+   * nothing about that segment — so absence from the payload is never a refusal. The refusals are
+   * the other direction: a segment the client has never heard of, and a segment the client is
+   * behind on.
    */
   fun checkDictionary(payloadSegments: Map<String, Int>): DeliveryRefusal.DictionarySkew? {
-    val unknown = mutableListOf<String>()
-    val tooNew = mutableMapOf<String, Pair<Int, Int>>()
-    for ((segment, wanted) in payloadSegments) {
-      val have = clientSegmentVersions[segment]
-      when {
-        have == null -> unknown += segment
-        wanted > have -> tooNew[segment] = wanted to have
+    val skew = checkDeclaredDictionary(payloadSegments, clientSegmentVersions) ?: return null
+    return DeliveryRefusal.DictionarySkew(skew.unknownSegments, skew.outdatedSegments)
+  }
+
+  /**
+   * Fetches the detached signature and checks it, returning null when the sidecar may be believed.
+   *
+   * A missing signature document is a refusal rather than a pass. That is the only reading that
+   * makes the check worth having: if absence meant "unsigned, carry on", an attacker who can
+   * replace the manifest can also delete the signature beside it, and the protection evaporates at
+   * exactly the moment it is needed. A host that genuinely wants unsigned sidecars says so by
+   * passing no keys.
+   */
+  private suspend fun verifySidecar(manifestUrl: String, text: String): DeliveryRefusal? {
+    val url = signatureUrl(manifestUrl)
+    val document = try {
+      val response: Response = window.fetch(url).await<Response>()
+      if (!response.ok) {
+        return DeliveryRefusal.SignatureRefused(
+          "$url answered ${response.status} ${response.statusText}; this client requires a signed " +
+            "sidecar because it was given trusted keys",
+        )
       }
+      response.text().await<JsString>().toString()
+    } catch (failure: Throwable) {
+      return DeliveryRefusal.SignatureRefused("$url could not be fetched: ${failure.message}")
     }
-    return if (unknown.isEmpty() && tooNew.isEmpty()) {
-      null
-    } else {
-      DeliveryRefusal.DictionarySkew(unknown, tooNew)
+
+    val signatures = parseDetachedSignatures(document)
+    if (signatures.isEmpty()) {
+      return DeliveryRefusal.SignatureRefused("$url carries no `keyName hexSignature` line")
+    }
+
+    // `encodeToByteArray` is UTF-8, which is what the signer signed: the manifest is a JSON
+    // document served as UTF-8, and `Response.text()` has already decoded it. Re-encoding gives back
+    // the same bytes for any document that was valid UTF-8 to begin with, and one that was not
+    // could not have been parsed as a manifest either.
+    return when (val verdict = verifyDetachedSignature(trustedPublicKeys, signatures, text.encodeToByteArray())) {
+      is SignatureVerdict.Verified -> null
+      is SignatureVerdict.Invalid -> DeliveryRefusal.SignatureRefused(
+        "the sidecar's signature from `${verdict.keyName}` does not verify over these bytes",
+      )
+      is SignatureVerdict.NoRecognisedKey -> DeliveryRefusal.SignatureRefused(
+        "the sidecar is signed by ${verdict.offered} and this client trusts ${verdict.trusted}",
+      )
+      is SignatureVerdict.Unavailable -> DeliveryRefusal.SignatureRefused(
+        "the signature could not be checked: ${verdict.reason}",
+      )
     }
   }
 

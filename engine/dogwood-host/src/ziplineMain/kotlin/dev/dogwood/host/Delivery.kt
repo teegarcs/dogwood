@@ -94,7 +94,39 @@ class DeliveredGuest(
   val disabledByPublisher: Boolean
     get() = manifest.metadata[DISABLED_KEY]?.lowercase() == "true"
 
+  /**
+   * What dictionary the payload declares it was built against, or empty if it declares nothing.
+   *
+   * Parsed leniently on purpose: a malformed entry is dropped rather than failing the load, because
+   * this check exists to refuse payloads that are *too new*, and a parse error is not evidence of
+   * that. Refusing on unparseable metadata would turn a publishing typo into a fleet-wide outage.
+   */
+  val declaredSegments: Map<String, Int>
+    get() = manifest.metadata[SEGMENTS_KEY].orEmpty()
+      .split(",")
+      .mapNotNull { entry ->
+        val name = entry.substringBeforeLast(':', "").trim()
+        val version = entry.substringAfterLast(':', "").trim().toIntOrNull()
+        if (name.isEmpty() || version == null) null else name to version
+      }
+      .toMap()
+
   companion object {
+    /**
+     * The dictionary versions the payload was built against, as `name:version` pairs.
+     *
+     * Rides the **signed** metadata beside the kill switch, for the same reason: a client refuses
+     * to run on this, and a field an attacker could set unsigned would be a denial of service
+     * delivered through the channel that exists to secure updates.
+     *
+     * Its absence is not a refusal. A payload that declares nothing is the ordinary case for every
+     * payload built before this field existed, and render-time containment — placeholders,
+     * withheld affordances, reported skew — remains what protects those. This is a *second* line,
+     * added because the web profile has had one since ADR-032 and the mobile clients had none: the
+     * asymmetry was recorded in `plans/adoption-audit.md` and is closed here.
+     */
+    const val SEGMENTS_KEY = "dogwood.segments"
+
     /** Set this to `"true"` in a manifest's metadata to stop devices running that release. */
     const val DISABLED_KEY: String = "dogwood.disabled"
   }
@@ -166,6 +198,23 @@ class DogwoodDelivery(
    * interpreter is a standing invitation. `GuestLimits.none` is the written way out.
    */
   private val guestLimits: GuestLimits? = GuestLimits(),
+  /**
+   * What dictionary this client implements, for the pre-flight check.
+   *
+   * Defaulted to the generated vector, because a host that passed its own would be restating a
+   * number the generator already emits — and a restated number is one that can disagree. A host
+   * with extra registered segments gets them automatically: `DogwoodDictionary.segmentVersions`
+   * includes whatever `DogwoodRegistry` holds.
+   *
+   * **A function, read at check time, not a map captured at construction.** `segmentVersions` is a
+   * property with a getter for exactly this reason, and its own documentation says why: a product's
+   * segments join it when they register, and a value computed too early "would have told every
+   * guest that the product's own components did not exist". Captured here, the same mistake is
+   * worse than a wrong capability report — a client that constructed its delivery before
+   * registering its own bindings would *refuse* every payload naming them, turning an ordering
+   * detail into a blank screen.
+   */
+  private val clientSegmentVersions: () -> Map<String, Int> = { DogwoodDictionary.segmentVersions },
 ) {
   init {
     require(trustedPublicKeys.isNotEmpty()) {
@@ -218,6 +267,20 @@ class DogwoodDelivery(
   ): GuardedLoad {
     val guest = load(applicationName, manifestUrl)
     val version = guest.releaseVersion
+
+    /*
+     * The dictionary first, before the release verdict, because they answer different questions and
+     * this one is the more specific: a payload this client cannot render is refused whether or not
+     * its version was ever going to be allowed to run, and telling a host "quarantined" when the
+     * truth is "your client is a release behind" sends somebody to look at the wrong thing.
+     */
+    val skew = checkDeclaredDictionary(guest.declaredSegments, clientSegmentVersions())
+    if (skew != null) {
+      // Closed rather than left open: a refused guest is a live QuickJS instance and a whole heap.
+      guest.zipline.close()
+      return GuardedLoad.Refused(version, skew.message, guard.lastGoodVersion())
+    }
+
     return when (val verdict = guard.verdict(version, guest.disabledByPublisher)) {
       is ReleaseVerdict.Refused -> {
         // Closed rather than left open. A refused guest is a live QuickJS instance and an entire

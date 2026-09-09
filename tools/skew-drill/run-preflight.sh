@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
-# Project Dogwood -- skew containment, end to end, without hand-editing anything.
+# Project Dogwood -- the pre-flight dictionary check, end to end, on Android.
 #
 #   export JAVA_HOME=/opt/homebrew/opt/openjdk@21
-#   tools/skew-drill/run.sh
+#   tools/skew-drill/run-preflight.sh
+#
+# The sibling of `run.sh`, and the two differ in exactly one flag. Both build a payload against a
+# dictionary the installed client does not have; this one lets the payload *declare* that in its
+# manifest's signed metadata, which is what a real published payload does since S1. `run.sh` grades
+# what the client does when nothing is declared -- placeholders, withheld affordances, reported
+# skew, claims A2/A3/A4. This grades what it does when something is: it refuses, and conformance
+# claim `B3` -- which the web has had since ADR-032 -- is finally graded on a mobile client too.
+#
+# Keeping them as two scripts rather than one with a mode is deliberate. They assert opposite
+# outcomes on the same screen, and a single script whose meaning inverts on an argument is one whose
+# failures are read wrong.
 #
 # Section 6 of the technical specification makes three claims about a client meeting a payload built
 # against a **newer** dictionary than its own. They are conformance claims A2, A3 and A4, and the
@@ -14,9 +25,10 @@
 # observed about this one. Everything it asked for is mechanical, so this does it:
 #
 #   1. Build and install the Android client at the committed version N.
-#   2. Patch the surface with three additions, one per claim, and bump to N+1.
-#   3. Rebuild **only the guest payload** and serve it to the still-installed version N client.
-#   4. Read the rendered tree and check the three containment rules.
+#   2. Patch the surface to N+1, exactly as the containment drill does.
+#   3. Rebuild **only the guest payload**, declaring N+1, and serve it to the version N client.
+#   4. Read the rendered tree: the client says which dictionary it is missing, and shows none of
+#      the payload's widgets.
 #   5. Restore the surface, always -- a permanently skewed surface is a permanently failing lock.
 #
 # The restore runs on any exit path, including a failure or an interrupt. That is the reason this is
@@ -31,7 +43,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$HERE/build"
-OUT="$HERE/build/skew.conf"
+OUT="$HERE/build/preflight.conf"
 cd "$HERE/../../engine"
 
 SURFACE="surface/dev/dogwood/surface/DesignSystemSurface.kt"
@@ -72,15 +84,10 @@ echo "==> installing the client at the committed version"
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
-# The skewed payload declares nothing, deliberately, and that is the claim boundary.
-#
-# Since the pre-flight dictionary check landed (S1), a payload built at N+1 *declares* N+1 in its
-# signed metadata and a version N client refuses it before composing anything -- which is the point
-# of that check and would make every containment claim below fail for a reason that is not a
-# containment defect. `-PdogwoodDeclareSegments=false` publishes the payload the containment rules
-# are actually for: one built before the field existed, or by a team that has not adopted it. The
-# refusal itself is graded separately, as `B3`, by `run-preflight.sh` on the same skewed surface.
-./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline -PdogwoodDeclareSegments=false --console=plain -q || exit 1
+# No `-PdogwoodDeclareSegments=false` here, and that single omission is the entire difference from
+# `run.sh`. The payload declares the dictionary it was built against -- read out of the generator's
+# own output, never restated -- and the client is expected to refuse it on that basis.
+./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline --console=plain -q || exit 1
 
 echo "==> waiting for the skewed payload to be served"
 # No pipe anywhere in this check, deliberately. `grep -q` exits on its first match, which SIGPIPEs
@@ -104,13 +111,24 @@ if ! has_marker; then
   exit 1
 fi
 
+# And the *manifest* carries the declaration. Without this check a build that silently stopped
+# emitting the field would produce a run in which the client renders the payload with containment,
+# `B3` fails, and the reported cause -- "the client did not refuse" -- points at the client rather
+# than at the publisher. Two minutes of confusion for one `curl`.
+declared="$(curl -fs -m 5 http://localhost:8080/manifest.zipline.json | python3 -c \
+  'import json,sys; print(json.load(sys.stdin).get("metadata", {}).get("dogwood.segments", ""))')"
+case "$declared" in
+  *dogwood.designsystem:*) echo "==> the served manifest declares [$declared]" ;;
+  *) echo "the served manifest declares no dictionary; nothing to refuse" >&2; exit 1 ;;
+esac
+
 echo "==> running the client, which was NOT reinstalled"
 adb logcat -c
 adb shell am force-stop dev.dogwood.slice.android
 adb shell am start -n dev.dogwood.slice.android/.TabsActivity --es entry about >/dev/null
 sleep 18
 
-python3 "$HERE/check.py" "$OUT"
+python3 "$HERE/check_preflight.py" "$OUT"
 status=$?
 cat "$OUT"
 exit "$status"

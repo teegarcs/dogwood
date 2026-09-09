@@ -94,6 +94,8 @@ class DogwoodSession(
    * existed.
    */
   private val releaseGuard: ReleaseGuard? = null,
+  /** What dictionary this client implements; see `DogwoodDelivery`'s parameter of the same name. */
+  private val clientSegmentVersions: () -> Map<String, Int> = { DogwoodDictionary.segmentVersions },
   /**
    * Called when a release is refused, on the user-interface thread.
    *
@@ -147,6 +149,24 @@ class DogwoodSession(
       // Before anything is mounted, and before any guest code composes. Loading a payload is not
       // the dangerous part; running it is.
       val version = delivered.releaseVersion
+
+      /*
+       * The pre-flight dictionary check, on the shell's path as well as the bare one.
+       *
+       * A shell reaches a payload through `updates(...)` rather than `loadGuarded`, so the check in
+       * `DogwoodDelivery.loadGuarded` never runs here -- and a code update is exactly when a
+       * too-new payload arrives, because that is what publishing means. Missing this would have
+       * left the protection on the path a product uses least.
+       */
+      val skew = checkDeclaredDictionary(delivered.declaredSegments, clientSegmentVersions())
+      if (skew != null) {
+        withContext(ziplineDispatcher) { delivered.zipline.close() }
+        withContext(uiScope.coroutineContext) {
+          onRefused(GuardedRelease(version, skew.message, releaseGuard?.lastGoodVersion()))
+        }
+        return@collect
+      }
+
       val verdict = releaseGuard?.verdict(version, delivered.disabledByPublisher)
       if (verdict is ReleaseVerdict.Refused) {
         // Closed rather than left open: a refused guest is a live QuickJS instance and a whole

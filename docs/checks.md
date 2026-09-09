@@ -76,8 +76,9 @@ it could not do instead of reporting green.
 |---|---|---|
 | [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |
 | [`a11y-drill/run.sh`](../tools/a11y-drill/README.md) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | in-application walk of `UIAccessibility` with VoiceOver enabled, plus the iOS network drill |
-| [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5` | headless Chrome, `Accessibility.getFullAXTree` |
-| [`skew-drill/run.sh`](../tools/skew-drill/README.md) | `A2`–`A4` | two builds: a client at version N meeting a payload at N+1 |
+| [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5`, `D7`, `J1`–`J4`, `A7`, `H4`, `H5`, `B1`, `B2` | headless Chrome: `Accessibility.getFullAXTree`, plus the host services, a real code update, the kill switch, and the sidecar's detached Ed25519 signature checked against fixtures the build itself signed ([ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)) |
+| [`skew-drill/run.sh`](../tools/skew-drill/README.md), `run-ios.sh` | `A2`–`A4` | two builds: a client at version N meeting a payload at N+1 that **declares nothing** — the render-time containment rules |
+| [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 

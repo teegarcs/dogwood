@@ -88,7 +88,26 @@ required `releaseGuard`, the sidecar carries a release identity and a `disabled`
 verdict is taken and the attempt persisted **before the Worker is created**, and success is
 reported only when a tree has actually been applied. Graded on a real browser as `H4`/`H5`:
 `refused=ReleaseRefused workerCreated=false`. The switch is weaker than mobile's by record — this
-sidecar is not signed, so it is only as trustworthy as its origin. Original finding kept below.
+sidecar is not signed, so it is only as trustworthy as its origin.
+
+The **mobile** remainder of this finding is also closed, 2026-09-08 (S1,
+[ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)). The asymmetry ran
+the other way: the web refused a payload naming a dictionary it could not render, and the mobile
+clients had only render-time containment, which degrades so gracefully that a user cannot tell it
+from a bug. A payload now declares its dictionary in the manifest's **signed** metadata, derived
+from the generator's own output rather than restated, and both mobile clients compare it before
+`start`. Graded on a real emulator and a real simulator against a genuinely newer payload:
+
+```
+CONF B3 PASS -- [about] refused: the payload needs a dictionary this client does not have;
+                dogwood.designsystem wants 15, this client implements 14 (last good: 1.0.0)
+CONF B3-absent PASS -- no widget from the refused payload is on screen
+```
+
+Weaker than the web's by one step, and said so rather than blurred: Zipline exposes no
+manifest-only fetch, so the mobile check runs after module evaluation and before `start` rather
+than before anything executes at all. Containment stays for the payload that declares nothing.
+Original finding kept below.
 
 ### A3 (original). Surviving a bad publish is opt-in, and four hosts of five do not opt in
 

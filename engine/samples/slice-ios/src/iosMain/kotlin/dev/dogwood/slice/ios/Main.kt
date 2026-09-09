@@ -394,6 +394,30 @@ private fun SliceHost(configuration: HostEnvironment) {
     }
   }
 
+  /*
+   * The pre-flight dictionary drill, `--dogwood-skew`'s sibling and the reason there are two flags
+   * rather than one with a mode.
+   *
+   * `tools/skew-drill/run-preflight-ios.sh` arranges the same two builds as the containment drill
+   * and changes exactly one thing: the payload declares the dictionary it was built against. The
+   * two assert opposite outcomes on the same screen -- markers present and contained, or no markers
+   * at all and a refusal -- and a single drill whose meaning inverts on an argument is one whose
+   * failures get read wrong.
+   */
+  LaunchedEffect(shell) {
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-preflight")) return@LaunchedEffect
+    shell ?: return@LaunchedEffect
+    // The same screen the containment drill reads, so the absence of its markers means something.
+    current = "about"
+    kotlinx.coroutines.delay(8_000)
+    val root = (UIApplication.sharedApplication.delegate as? DogwoodAppDelegate)?.window()
+    if (root == null) {
+      println("PREFLIGHT REFUSED there is no key window to walk")
+    } else {
+      println("PREFLIGHT DONE failures=${runPreflightDrill(root)}")
+    }
+  }
+
   LaunchedEffect(shell) {
     val live = shell ?: return@LaunchedEffect
     if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-drill")) return@LaunchedEffect

@@ -32,8 +32,17 @@ A5	android,ios,desktop,web	dev.dogwood.host.HostileValueTest
 A6	android,ios,desktop,web	dev.dogwood.host.PositionalDecoderTest
 A6	web	dev.dogwood.web.DecoderParityTest
 A7	android,ios,desktop,web	dev.dogwood.host.NodeIdentityHostTest,dev.dogwood.host.StaleCaptureTest
-B1	android,ios,desktop,web	dev.dogwood.host.SignatureTest
-B2	android,ios,desktop,web	dev.dogwood.host.KeyRotationTest
+# B1 and B2 lost their `web` cell here on 2026-09-08 and gained a better one.
+#
+# `SignatureTest` and `KeyRotationTest` exercise `DogwoodDelivery`, which the web host does not
+# compile and does not run: the web verifies a *detached* signature over a sidecar through
+# `crypto.subtle`, in code these tests never touch. A green cell filled by a test of a different
+# code path is the exact failure the comment at the top of this file describes. Since ADR-062 the
+# web has its own verifier and `tools/conformance/web_services.py` grades it on a real browser
+# against the build's own signed artifacts -- so the cell comes from the drill now, and it means
+# what it says.
+B1	android,ios,desktop	dev.dogwood.host.SignatureTest
+B2	android,ios,desktop	dev.dogwood.host.KeyRotationTest
 C1	android,ios,desktop,web	dev.dogwood.host.ThemeSwapTest,dev.dogwood.host.ThemeParseTest
 C2	android,ios,desktop,web	dev.dogwood.host.NamedResourceTest
 C3	android,ios,desktop,web	dev.dogwood.host.GuestSuppliedPatternTest,dev.dogwood.host.FormattingTest
