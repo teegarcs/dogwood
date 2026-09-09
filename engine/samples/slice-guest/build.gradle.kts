@@ -114,7 +114,14 @@ val declaredSegments: Provider<String> = providers.provider {
 zipline {
   mainFunction.set("dev.dogwood.slice.main")
   optimizeForSmallArtifactSize()
-  version.set("1.0.0")
+  // Overridable with `-PdogwoodVersion=…`, because a release identity has to be a build input.
+  //
+  // The quarantine drill needs two releases with different versions, and its first attempt got them
+  // by copying one build and rewriting `version` in the manifest -- which invalidates the Ed25519
+  // signature over it, and every launch failed with "manifest signature for key dogwood-development
+  // did not verify". That is the signature doing exactly its job, and it is the reason a version
+  // cannot be something a publishing step edits afterwards.
+  version.set(providers.gradleProperty("dogwoodVersion").getOrElse("1.0.0"))
   // The kill switch, and it is a publisher's control rather than a developer's. Setting it to
   // "true" and republishing stops devices running this release without waiting for them to
   // discover it is broken. It rides in the manifest's **signed** metadata: an attacker who could

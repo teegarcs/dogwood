@@ -68,3 +68,28 @@ fun CrashScreen(afterMillis: Long = 1_500) {
     error("dogwood deliberate guest crash: $CRASH_MARKER")
   }
 }
+
+
+/**
+ * Throws from the composable body, before anything is drawn.
+ *
+ * The sibling of [CrashScreen], and the two are not interchangeable — they fail at different moments
+ * and only one of them is a *bad publish*.
+ *
+ * `ReleaseGuard` persists an attempt before a release runs and marks it successful only once a guest
+ * has started, produced a tree, and the host has mounted it (ADR-049). [CrashScreen] clears that bar
+ * — it renders, a frame is applied, and only then does an effect throw — so the guard correctly
+ * counts it a success. That is the right answer for that failure and the wrong fixture for this
+ * claim: a crash-loop is the payload that never gets that far, and quarantining a payload that
+ * worked and then broke would strand a fleet on an older release for a bug a user might never hit.
+ *
+ * So this one throws during composition, on the first pass, before the host has anything to mount.
+ * Two launches of it burn the guard's attempts and the third is refused — which is `H2`, and which
+ * until now had only ever been *simulated*, by calling `starting` without `succeeded` in a test.
+ */
+@Composable
+fun CrashOnLaunchScreen() {
+  // No marker and nothing composed above it, deliberately: anything drawn before the throw is
+  // something the host could mount, and mounting is exactly what must not happen here.
+  error("dogwood deliberate launch crash")
+}

@@ -58,7 +58,7 @@ markers = [t for t in texts if t.startswith("SKEW-")]
 # satisfied by an application that failed to start, crashed, or showed a blank activity -- so first
 # prove the shell is alive and talking. `note` is always rendered, and reads "starting…" before
 # anything happens, so a live shell that has decided nothing is distinguishable from a dead one.
-alive = any("refused:" in t or "loaded, restored" in t or "failed:" in t for t in texts)
+alive = any("refused:" in t or "loaded version" in t or "failed:" in t for t in texts)
 conform("B3-control", alive, f"the shell reported a decision: {refusal or texts[:8]!r}")
 
 # B3 -- the client refuses, and says which dictionary it is missing rather than "something is wrong".

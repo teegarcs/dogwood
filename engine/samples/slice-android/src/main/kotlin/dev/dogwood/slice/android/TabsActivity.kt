@@ -163,6 +163,9 @@ class TabsActivity : ComponentActivity() {
           Tabs(
             carried = carriedState,
             startEntryPoint = intent?.getStringExtra("entry"),
+            // Read from the activity, where the intent is, and passed down -- a composable that
+            // reached for the intent itself would be reading launch state from inside composition.
+            manifestUrl = manifestUrl(),
             onShell = { shell = it },
           )
         }
@@ -212,6 +215,8 @@ class TabsActivity : ComponentActivity() {
 private fun Tabs(
   carried: Map<String, dev.dogwood.protocol.StateSnapshot>,
   startEntryPoint: String?,
+  /** Where to fetch the payload; see `Slice.kt`'s `manifestUrl()` for why it is overridable. */
+  manifestUrl: String,
   onShell: (DogwoodShell?) -> Unit,
 ) {
   val context = androidx.compose.ui.platform.LocalContext.current
@@ -341,7 +346,7 @@ private fun Tabs(
       val built = DogwoodShell(
         delivery = delivery,
         applicationName = "dogwood-slice",
-        manifestUrl = MANIFEST_URL,
+        manifestUrl = manifestUrl,
         ziplineDispatcher = dispatcher,
         uiScope = uiScope,
         environment = environment,
@@ -365,7 +370,12 @@ private fun Tabs(
         // the cap costs latency rather than the user's place.
         capacity = 3,
         onSwap = { entry, status ->
-          note = "[$entry] loaded, restored ${status.restoredKeys} state keys"
+          // Version and verifying key included, because "it loaded" and "it loaded a payload
+          // whose signature this binary accepted" are different facts and only the second one
+          // grades `K1`. The desktop sample has printed both since it was written; the mobile ones
+          // reported neither, which is why the cross-version claims could only be graded there.
+          note = "[$entry] loaded version ${status.version}, verified by ${status.verifiedByKey}" +
+            ", restored ${status.restoredKeys} state keys"
           Log.i(TAG, note)
         },
         onEvict = { entry, keys ->

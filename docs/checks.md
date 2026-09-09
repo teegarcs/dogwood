@@ -79,9 +79,28 @@ it could not do instead of reporting green.
 | [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5`, `D7`, `J1`–`J4`, `A7`, `H4`, `H5`, `B1`, `B2`, `A4` | headless Chrome: `Accessibility.getFullAXTree`, plus the host services, a real code update, the kill switch, and the sidecar's detached Ed25519 signature checked against fixtures the build itself signed ([ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)), and a guest that crashes on purpose so the frames can be read ([ADR-063](../adrs/layer-5/ADR-063-a-web-crash-carries-its-frames.md)) |
 | [`skew-drill/run.sh`](../tools/skew-drill/README.md), `run-ios.sh` | `A2`–`A4` | two builds: a client at version N meeting a payload at N+1 that **declares nothing** — the render-time containment rules |
 | [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
+| [`cross-version.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | a **frozen, signed** payload from an earlier toolchain served to a desktop host built from current sources |
+| [`cross-version-mobile.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | the same fixture served to an installed Android or iOS build, pointed at it by `--es manifest` / `--dogwood-manifest` |
 | [`symbolicate/resolve.py`](../tools/symbolicate/resolve.py) | — | resolves a minified guest stack against the build's source map; run by hand on a crash report, not part of a gate |
 | [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
+
+## Freezing a payload — a rule, not a run
+
+**Every dictionary-version bump freezes that day's signed payload into
+[`tools/conformance/fixtures/`](../tools/conformance/fixtures/README.md).**
+
+The cross-version claims (`K1`, `K2`) are the only ones that test the pairing every real deployment
+actually has — a payload built earlier than the host running it — and they can only test as far back
+as the oldest fixture. A rebuild cannot stand in: rebuilding produces today's toolchain, which is
+the pairing already covered by everything else here.
+
+So the window has to be widened deliberately, and the trigger is mechanical on purpose. "Freeze one
+when something significant changes" is a rule nobody executes; "freeze one whenever the surface
+version moves" is one the same commit already has to think about, because the lock file is in it.
+
+Add, never replace: each fixture widens the window, and replacing one narrows it back to a point.
+The drills serve the newest by default, so this costs nothing per run.
 
 ## The iOS embed check — can an existing Xcode project link this?
 

@@ -63,7 +63,7 @@ fun runPreflightDrill(root: UIView): Int {
   // The control, and it is what makes the two assertions below mean anything: every one of them is
   // satisfied by an application that failed to launch or showed a blank screen, so first prove the
   // shell is alive and has decided something. The note reads "starting…" until it has.
-  val alive = labels.any { "refused:" in it || "loaded, restored" in it || "failed:" in it }
+  val alive = labels.any { "refused:" in it || "loaded version" in it || "failed:" in it }
   conform("B3-control", alive, "the shell reported a decision: ${refusal.ifEmpty { labels.take(6).toString() }}")
 
   // B3 -- the client refuses, and names both versions. "This client is behind" sends nobody

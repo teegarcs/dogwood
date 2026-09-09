@@ -46,6 +46,7 @@ import dev.dogwood.slice.AboutScreen
 import dev.dogwood.slice.AppShell
 import dev.dogwood.slice.ExploreScreen
 import dev.dogwood.slice.FeedScreen
+import dev.dogwood.slice.CrashOnLaunchScreen
 import dev.dogwood.slice.CrashScreen
 import dev.dogwood.slice.exploreParams
 import kotlinx.serialization.json.Json
@@ -317,6 +318,8 @@ private val guest = DogwoodGuest(
   // -- a readable crash (ADR-059) and the crash-loop quarantine (ADR-049) -- can be graded
   // against a real failure instead of a simulated one. See `CrashScreen.kt`.
   "crash" to { _ -> CrashScreen() },
+  // ...and one that never gets far enough to be mounted, which is what a crash-loop is.
+  "crash-launch" to { _ -> CrashOnLaunchScreen() },
 )
 
 private var started = false

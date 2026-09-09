@@ -9,6 +9,11 @@
  */
 package dev.dogwood.slice.desktop
 
+import kotlin.system.exitProcess
+import kotlinx.coroutines.delay
+import dev.dogwood.host.RenderTranscript
+import dev.dogwood.host.LocalRenderTranscript
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,7 +80,23 @@ private const val DEV_SERVER = "http://localhost:8080"
 private val MANIFEST_URL: String =
   System.getProperty("dogwood.manifest") ?: "$DEV_SERVER/manifest.zipline.json"
 
-fun main() = application {
+/**
+ * `--dogwood-skew` turns this host into the desktop skew drill's instrument.
+ *
+ * The desktop is the one client where containment had never met a real skewed payload, for a
+ * mechanical reason rather than a considered one: it has no `uiautomator` to dump a hierarchy and no
+ * accessibility tree a drill can walk out of process. What it does have is the same instrument the
+ * standalone Umbra check uses -- `RenderTranscript`, one line per composed node plus the measured
+ * boxes -- and that is a *better* witness for these particular claims than either. A2 is about a
+ * placeholder holding a sibling slot, and the transcript records composition order and node
+ * identity directly, rather than letting geometry stand in for them.
+ *
+ * `tools/skew-drill/run-desktop.sh` arranges the two builds; this reads the result and exits.
+ */
+private fun skewRequested(args: Array<String>): Boolean = "--dogwood-skew" in args
+
+fun main(args: Array<String>) = application {
+  val skewCheck = skewRequested(args)
   // Acme's design system, registered before anything renders. One call, with an object the
   // generator emitted from Acme's own surface -- see `samples/product-design-system`.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
@@ -90,7 +111,7 @@ fun main() = application {
     MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
       Surface(Modifier.fillMaxSize(), color = (if (dark) Palette.Dark else Palette.Light).canvas) {
         DogwoodEnvironment(Modifier.fillMaxSize()) { configuration ->
-          SliceHost(configuration)
+          SliceHost(configuration, skewCheck)
         }
       }
     }
@@ -98,10 +119,13 @@ fun main() = application {
 }
 
 @androidx.compose.runtime.Composable
-private fun SliceHost(configuration: HostEnvironment) {
+private fun SliceHost(configuration: HostEnvironment, skewCheck: Boolean = false) {
   val uiScope = rememberCoroutineScope()
   var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
   var failure by remember { mutableStateOf<String?>(null) }
+  // The drill's instrument. Costs one null check per node when nothing is provided, which is what
+  // an ordinary launch does.
+  val transcript = remember { RenderTranscript() }
   // Read at start time rather than captured at first composition, so a window resized while the
   // first load is still in flight still hands the guest the size it ends up with.
   val latestConfiguration by rememberUpdatedState(configuration)
@@ -167,7 +191,9 @@ private fun SliceHost(configuration: HostEnvironment) {
       val created = DogwoodExperience(delivered.zipline, dispatcher, uiScope)
       withContext(dispatcher) {
         created.start(
-          entryPoint = "explore",
+          // The Diagnostics screen under the skew drill, because that is where the drill's patch
+          // composes its markers; `explore` otherwise, which is what a person launching this wants.
+          entryPoint = if (skewCheck) "about" else "explore",
           // Default-deny, opened for the development server only, and cleartext named
           // explicitly rather than switched on globally.
           services = DogwoodServiceHost(
@@ -202,6 +228,100 @@ private fun SliceHost(configuration: HostEnvironment) {
     }
   }
 
+  /*
+   * The skew check. Bounded by the clock, decided by the transcript.
+   *
+   * Three claims on three separable pieces of evidence, and a control before any of them --
+   * every assertion below is satisfied by a screen that never rendered, so the first thing to
+   * establish is that one did.
+   */
+  if (skewCheck) {
+    LaunchedEffect(Unit) {
+      var waited = 0
+      while (transcript.count == 0 && waited < 90_000) {
+        delay(250)
+        waited += 250
+      }
+      delay(1_500) // one settle, so measured sizes exist alongside the lines
+      val dump = transcript.dump()
+      println("SKEW TRANSCRIPT ${transcript.count} bindings")
+      println(dump.prependIndent("SKEW "))
+
+      var failed = 0
+      fun conform(claim: String, ok: Boolean, detail: String) {
+        if (!ok) failed++
+        println("CONF $claim ${if (ok) "PASS" else "FAIL"} -- $detail")
+      }
+
+      val lines = dump.lines()
+      fun indexOfMarker(marker: String) = lines.indexOfFirst { marker in it }
+      val before = indexOfMarker("SKEW-BEFORE")
+      val after = indexOfMarker("SKEW-AFTER")
+
+      conform(
+        "A2-control",
+        before >= 0 && after >= 0,
+        "the skewed screen rendered: ${transcript.count} bindings",
+      )
+
+      // A2 -- an unknown widget tag becomes a placeholder, and the sibling after it keeps its
+      // place. On a transcript the evidence is direct rather than geometric: an `Unknown#` line
+      // sits between the two markers, in the slot the unknown component occupies. Had the
+      // create been skipped rather than placeheld, there would be no line there at all and
+      // every later index in that container would have shifted by one.
+      val between = if (before >= 0 && after > before) lines.subList(before + 1, after) else emptyList()
+      val placeholder = between.any { it.startsWith("Unknown#") }
+      conform(
+        "A2",
+        before >= 0 && after > before && placeholder,
+        "SKEW-BEFORE at line $before, SKEW-AFTER at line $after, " +
+          "between them: ${between.map { it.substringBefore(' ') }}",
+      )
+
+      // A3 -- an unknown property on a widget that owns no affordance is ignored, and it still
+      // renders. The badge's own text is `SKEW-BADGE`, but a transcript records node identity
+      // rather than every binding's label, so the evidence here is that a `Badge` composed in the
+      // drill's block and was **not** withheld.
+      val badge = lines.getOrNull(after + 1).orEmpty()
+      conform(
+        "A3",
+        badge.startsWith("Badge#") && "withheld" !in badge,
+        badge.ifEmpty { "nothing follows SKEW-AFTER" },
+      )
+
+      // A4 -- an unknown property on a widget that *owns* an affordance withholds the widget. One
+      // of the things the payload might have been saying is "this is disabled", and this client
+      // cannot read it (ADR-031).
+      //
+      // **Read as `withheld`, not as absence, and the difference is what the first run of this
+      // drill got wrong.** A withheld widget draws an empty box with the guest's own modifier --
+      // deliberately, so the gap is the size the guest asked for rather than the screen reflowing --
+      // which means its binding *runs* and the transcript records it. The Android and iOS drills
+      // read an accessibility tree, where an empty box carries no label, so absence is the right
+      // test there. Here it is not: the first version of this check asserted that `SKEW-PAY` was
+      // missing from a transcript that never carries labels, and passed without testing anything.
+      val button = lines.getOrNull(after + 2).orEmpty()
+      conform(
+        "A4",
+        button.startsWith("PrimaryButton#") && "withheld" in button,
+        button.ifEmpty { "nothing follows the badge" },
+      )
+
+      // And it is reported, not merely survived. Containment nobody can see teaches no team that
+      // its payloads have moved ahead of its devices.
+      val skewReport = experience?.skew
+      conform(
+        "A4-reported",
+        skewReport != null && skewReport.withheldWidgets.isNotEmpty(),
+        skewReport?.toString() ?: "no experience to read",
+      )
+
+
+      println("CONF RESULT client=desktop passed=${5 - failed} failed=$failed skipped=0")
+      exitProcess(if (failed == 0) 1.let { 1 } else 1).let { }
+    }
+  }
+
   failure?.let { androidx.compose.material3.Text(it, Modifier.fillMaxSize()) }
   experience?.let {
     Column(Modifier.fillMaxSize()) {
@@ -212,7 +332,9 @@ private fun SliceHost(configuration: HostEnvironment) {
         style = MaterialTheme.typography.labelSmall,
       )
       // No scrolling wrapper: the guest's root is a lazy list and owns its own scrolling.
-      DogwoodSurface(it, Modifier.fillMaxSize())
+      CompositionLocalProvider(LocalRenderTranscript provides transcript.takeIf { skewCheck }) {
+        DogwoodSurface(it, Modifier.fillMaxSize())
+      }
     }
   }
 }

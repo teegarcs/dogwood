@@ -12,6 +12,8 @@
  */
 package dev.dogwood.slice.android
 
+import android.app.Activity
+
 /**
  * The public halves of the keys that sign the guest, compiled into the host.
  *
@@ -38,3 +40,25 @@ internal val TRUSTED_KEYS = dev.dogwood.protocol.DogwoodTrust.DEVELOPMENT_KEYS
  */
 internal const val DEV_SERVER = "http://10.0.2.2:8080"
 internal const val MANIFEST_URL = "$DEV_SERVER/manifest.zipline.json"
+
+/**
+ * Where this launch should fetch its payload from, overridable by intent extra.
+ *
+ * ```
+ * adb shell am start -n dev.dogwood.slice.android/.SliceActivity  *   --es manifest http://10.0.2.2:8474/manifest.zipline.json
+ * ```
+ *
+ * The desktop sample has had `-Ddogwood.manifest` since the reference-server check needed it, for a
+ * reason that applies just as much here: a drill has to be able to point an **installed release
+ * build** at a payload the drill controls. Without that, the cross-version claims (`K1`, `K2` — a
+ * payload from an earlier toolchain meeting a host built from current sources) can only ever be
+ * graded on the one client that had the switch, and "hosts first, payloads after the fleet" stays a
+ * policy rather than a test.
+ *
+ * It is not a security hole worth worrying about: an attacker who can send this application an
+ * intent is already running code on the device, and the payload they point it at still has to carry
+ * a signature from a key compiled into this binary. What it *is* is a development affordance, which
+ * is why it lives beside the development server's address and not in a configuration system.
+ */
+internal fun Activity.manifestUrl(): String =
+  intent?.getStringExtra("manifest")?.takeIf { it.isNotBlank() } ?: MANIFEST_URL
