@@ -78,12 +78,23 @@ page by 463 KB, and reported that steadiness as evidence the change was free. Th
 Measured on the shipped slice at Compose Multiplatform 1.10.3 / Skiko 0.9.37.4
 ([ADR-045](../../adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)):
 
+Measured 2026-09-05. Left as measured rather than restated, because what this table establishes is
+the **share** — that Skiko dominates and the application's own code is a minority of the page — and
+that conclusion is what the investigation was for.
+
 | Chunk | Raw | brotli | Share |
 |---|---:|---:|---:|
 | `skiko.wasm` | 8,642,989 | 2,596,146 | **73%** |
 | application WebAssembly | 3,881,843 | 893,710 | 25% |
 | `app.js` glue | 595,741 | 86,203 | 2% |
 | **total** | **13,121,993** | **3,576,606** | |
+
+**What has moved since, and what has not.** The page is 3,766,502 bytes brotli today. Every added
+byte is in the application's own WebAssembly — `skiko.wasm` is byte-identical, still 2,596,146 —
+so the application's share has risen from 25% to about 29% as the catalogue grew from fourteen
+components to twenty. Two Material 3 pickers account for 96,924 of the growth and the other five
+components for 25,979 between them
+([ADR-066](../../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)).
 
 Two numbers from that investigation are worth having here, because both were measured with this
 harness's method and neither is obvious:

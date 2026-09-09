@@ -27,7 +27,7 @@ knows renders as an inert placeholder and is **reported**, which is the mechanis
 
 ## 2. A bad payload: what happens without you
 
-Three protections run on the device with no operator involved. Knowing them tells you which pages to
+Four protections run on the device with no operator involved. Knowing them tells you which pages to
 skip when something is wrong.
 
 **A payload that fails to download changes nothing.** The previous guest keeps running and the next
@@ -46,6 +46,16 @@ refused, and any single uninterrupted run of guest execution past five seconds i
 with the stack source-mapped to the payload file that was stuck. The host process survives both.
 These are tourniquets, not budgets: ordinary guest work yields many times a second, and nothing
 that behaves is ever touched by them.
+
+**A payload that declares a dictionary this client cannot render is refused before it starts.** The
+manifest's **signed** metadata carries which dictionary segments the payload was built against, and
+the client compares it before any entry point is called, any service is bound, or anything composes
+([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)). The refusal
+reaches `onRefused` and says both numbers — *"dogwood.designsystem wants 15, this client implements
+14"* — because "your client is behind" and "this release is quarantined" send somebody to look in
+two different places, and only one of them is a publishing mistake. This is a *second* line, not a
+new requirement: a payload that declares nothing still runs, which is every payload built before the
+field existed, and the containment below is what protects those.
 
 **A payload built against a newer dictionary degrades rather than breaking.** Unknown widgets become
 placeholders, unknown icons become the fallback glyph, unknown colour tokens become unspecified, and
@@ -121,10 +131,29 @@ button that does nothing, and no record anywhere that it happened.
 
 ## 4b. Reading a guest crash
 
-A payload crash reaches your host through one channel — the `onGuestException` callback on the
-experience — and what arrives is worth routing to your crash reporter: Zipline applies source maps
-at build time, so the frames name **real Kotlin files from the payload**, with nothing to deploy
-alongside it.
+A payload crash reaches your host through **one channel**, and it is a constructor parameter rather
+than a global so the compiler can tell you it exists:
+
+```kotlin
+DogwoodExperience(
+  zipline, ziplineDispatcher, uiScope,
+  onGuestException = { throwable -> yourCrashReporter.record(throwable) },
+)
+```
+
+On the web the same channel is `WorkerBridgeListener.onGuestFailure(correlation, message, stack)`,
+which defaults to dropping the stack and calling `onGuestError` so a host written before stacks
+existed keeps working.
+
+**Dogwood hands you the crash; your host sends it.** There is no built-in transport, which is the
+same seam as everything else here.
+
+### Saying where it came from
+
+Three coordinates, and a crash report is hard to act on without all three.
+
+**Which line.** On mobile and desktop, Zipline applies source maps at build time, so frames name
+real Kotlin files from the payload with nothing to deploy alongside it:
 
 ```
 app.cash.zipline.ZiplineException: IllegalStateException: ...
@@ -132,17 +161,49 @@ app.cash.zipline.ZiplineException: IllegalStateException: ...
     at Ye (dev/dogwood/slice/ExploreScreen.kt)
 ```
 
-Three things to know, each learned by crashing a guest on purpose
-([ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md)):
+Attribution is **file-level**: function names stay minified and line numbers do not survive the
+size-optimized build. One screen per file — the shape the authoring guide encourages — makes a file
+name enough to start.
 
-- **Attribution is file-level.** Function names stay minified and line numbers do not survive the
-  size-optimized build. One screen per file — the shape the authoring guide encourages — makes a
-  file name enough to start.
+**On the web you get more, but later.** The Worker path used to carry a message and nothing else;
+since [ADR-063](../adrs/layer-5/ADR-063-a-web-crash-carries-its-frames.md) it carries the stack as
+well, and a real crash in a real browser delivers ten frames. They are minified — `bn.p8`, not a
+function name — but their **line and column offsets are exact**, which is what a source map
+resolves:
+
+```
+tools/symbolicate/resolve.py <build>/guest-kotlin.js.map < crash-stack.txt
+```
+
+Every frame resolves, the top one to the throwing call, with a file *and* a line. Symbolication is
+an offline step against a build artefact on purpose: **the source map is deliberately not served**,
+because a served map hands every reader your payload's Kotlin source, and nothing in the browser
+needs it. Keep the map for each build you publish; a pipeline that discards build artefacts gets
+frames it cannot resolve, which is still more than the one sentence it had before.
+
+One caveat the tool will tell you about rather than hide: Kotlin/JavaScript sometimes emits a
+mapping that is **not a position in the file it names** — a line past the end of it — for code it
+synthesised. The resolver prints the specification's answer, marks it, and names the nearest real
+mapping beside it, rather than inventing the plausible one. Drafted as upstream report 4.
+
+**Which payload.** `SessionStatus` carries the release version and the key that verified it, and
+both mobile samples log them on every swap. Without the version a stack is unattributable: payloads
+ship faster than clients, so "which release" is the first question anyone will ask you.
+
+**Which experience.** The entry point, from your shell's `onSwap` and `onFailure` callbacks.
+
+### Two rules, both learned by crashing a guest on purpose
+
 - **Do not throw from the handler.** It runs inside a Zipline service dispatch, and a throw there is
   returned to the *guest* as the call's failure — your process never sees it, and the crash
   vanishes. The default prints; replace it with your pipeline, not with a rethrow.
-- **The web is different.** Its Worker path carries an error *message*, not a stack; crash
-  readability there is an open item on the audit's page.
+- **A crash after the screen mounts does not quarantine the release, and that is deliberate.** The
+  release guard marks a version successful once a guest has started, produced a tree, and the host
+  has mounted it. A payload that worked and then broke keeps running, because quarantining it would
+  strand a fleet for a bug a user might never hit. Only failure *to start* burns an attempt — which
+  is why the two crash fixtures in `samples/slice-screens` are different screens
+  ([ADR-049](../adrs/layer-5/ADR-049-surviving-a-bad-publish.md),
+  [ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md)).
 
 ## 5. Publishing
 
@@ -197,7 +258,12 @@ Written down so nobody discovers it during an incident.
   the refusal callback to telemetry, exactly as with `SkewReport`.
 - **Performance budgets are ungraded.** `G1`–`G4` read `·` on every client because the gate device
   was never acquired ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)).
-  Regressions on faster hardware still fail.
+  Regressions on faster hardware still fail. **And the margin is thinner than the numbers look:**
+  the same emulator at one core instead of four leaves steady-state recomposition unchanged and
+  degrades every `p95` and `p99` two- to sixfold — enough that `G1` is met at four cores and missed
+  at one, with nothing about the payload changed
+  ([ADR-064](../adrs/layer-4/ADR-064-the-tail-budgets-headroom-was-parallelism.md)). Do not read the
+  current headroom as slack on a slow device.
 - **The web's network policy is the browser's.** A Content Security Policy set by the page, not the
   allow-list the mobile hosts enforce. Weaker, deliberately, and recorded as such in
   [ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md).
@@ -212,7 +278,12 @@ Written down so nobody discovers it during an incident.
    debugging live.
 3. **Read the skew** (§4). `WITHHELD_WIDGET` and `REJECTED_BATCH` explain a class of symptom nothing
    else will.
-4. **Check whether devices quarantined it themselves.** If they did, the release crashed on launch,
-   and the last known good version is named in the host's report.
+4. **Read the refusal, and read which kind it is.** `onRefused` reports three different situations
+   and they need three different people. *"Quarantined after 2 failed starts"* means the release
+   crashed on launch and devices stopped it themselves — the last known good version is named in the
+   same report. *"The publisher disabled this release"* means somebody used the kill switch.
+   *"…wants 15, this client implements 14"* means the payload needs a client that is not out there
+   yet, which is a publishing-order mistake rather than a bad build, and is fixed by republishing
+   the previous payload rather than by fixing this one.
 5. **Republish a fixed payload.** There is no store review in this path — that is the whole point of
    the architecture, and it is as true during an incident as during a feature launch.

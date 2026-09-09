@@ -1,7 +1,7 @@
 # The front door
 
 Everything in this repository is documented, which creates its own problem: four manuals, five
-layer specifications, eighty architecture decision records and a conformance catalogue, with no
+layer specifications, eighty-one architecture decision records and a conformance catalogue, with no
 statement of where *you* should start. This page is that statement. Find your row.
 
 | You are… | Read, in order | You can stop when |
