@@ -87,3 +87,26 @@ Everything owner-gated, priced in [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FO
 publishing, keys and hosting, representative hardware (P1 sharpens that decision; only §4 makes
 it), the Apple ruling, the merge gate, a public home and a second maintainer. And the three
 upstream reports stay drafted and unfiled, as standing instructed.
+
+---
+
+## Left open, deliberately: `G5`
+
+Everything above is closed. One thing that closing it *produced* is not, and it is recorded here
+rather than in a commit message so it does not get lost.
+
+The catalogue work (C1–C3) pushed the shipped web slice past its page-weight budget: **3,766,502
+bytes brotli against a 3,700,000 ceiling.** The growth is attributed — three builds, Skiko
+byte-identical across all of them, every byte in the application's own WebAssembly module — and it
+splits sharply: C1 and C2's five components cost 25,979 bytes between them, and **C3's two Material3
+pickers cost 96,924**, about half a second of Fast 3G waiting for two components most screens never
+show.
+
+`budgets.tsv` has anticipated this since it was written: *"Pinning it exactly fails on the next
+legitimate component and teaches everyone to raise the number, which is how a budget stops meaning
+anything."* So the number has **not** been raised.
+[ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md) lays out the three options with
+their prices — raise the ceiling, let a client bind a subset of a segment, or accept a red cell —
+and leaves the choice where it belongs. It is a product trade between first-load latency for every
+web user and catalogue completeness on that client, not an engineering one.
+

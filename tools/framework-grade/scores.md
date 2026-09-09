@@ -42,3 +42,32 @@ Cheapest one-step raises, per the baseline grader: adoption — resolvable artif
 embedding artifact; production — the operational back half (hosting, keys, a rollout server) or
 failing that a reference implementation of it; performance — any budget graded on representative
 low-end hardware; flexibility — a launchable catalogue.
+
+---
+
+## A re-run is due, 2026-09-09
+
+The plan's cadence called for re-grading after C3 and after S1. Both landed, and so did S2, S3, S4,
+V1–V4 and P1 — every item in [`plans/engineering-backlog.md`](../../plans/engineering-backlog.md).
+The grader has **not** been re-run, and this note exists so that absence is a recorded fact rather
+than a gap somebody discovers.
+
+What has changed since run 2, in the rubric's terms:
+
+* **Flexibility** — twenty components with eight holder shapes, up from sixteen with four graded as
+  "the fifth through eighth are promises". The promises arrived.
+* **Production readiness** — the mobile pre-flight refusal (ADR-061), a signed web sidecar
+  (ADR-062), readable web crashes (ADR-063), and `H2`'s quarantine finally observed on a device
+  rather than simulated.
+* **Coverage** — `B1`/`B2` on the web now come from a browser drill rather than from a Java Virtual
+  Machine test of a verifier the web does not compile; `B3` is graded on all four clients; `K1`/`K2`
+  on the two clients a product ships; `A2`–`A4` on the desktop.
+* **Performance** — unchanged in grade and *worse* in what is known. ADR-064 measured that `G1` is
+  met at four emulator cores and missed at one. The rubric's C+ cap for fast-hardware-only numbers
+  was already the ceiling; this removes the reading under which those numbers looked comfortable.
+
+**The last point is why a re-grade is worth doing rather than assuming.** Four of the five bullets
+push up; one pushes down on the honesty of a number that was never gate evidence. A grader that has
+not run cannot be quoted, and this ledger's whole purpose is that the score comes from an instrument
+rather than from whoever last did the work.
+

@@ -95,15 +95,21 @@ esac
 
 # K1 -- it loads and VERIFIES. The signature is the half that would break first on a protocol
 # change, and it is checked against keys committed with the fixture rather than regenerated.
+# No `grep -m1` piped into anything. `-m1` exits on its first match, SIGPIPEs its feeder, and
+# `pipefail` reports the success as a failure -- so the `||` fallback fires *beside* a matched line
+# and the detail contradicts itself. The quarantine drill shipped one run with exactly that before
+# it was caught; `tools/skew-drill/run.sh` records two earlier spellings of the same trap.
 verified=$(grep -c "loaded version .*verified by dogwood-development" "$LOG" || true)
+detail_load="$(grep "loaded version" "$LOG" | head -1)"
 conform "K1" "$([ "$verified" -ge 1 ] && echo 1 || echo 0)" \
-  "$(grep -m1 'loaded version' "$LOG" | tail -c 160 || echo 'the host never reported a load')"
+  "${detail_load:-the host never reported a load}"
 
 # K2 -- it RENDERS. Loading proves the delivery path only; the guest's own log line is what shows a
 # composition happened.
 composed=$(grep -c "explore: loaded .* destinations" "$LOG" || true)
+detail_composed="$(grep "explore: loaded" "$LOG" | head -1)"
 conform "K2" "$([ "$composed" -ge 1 ] && echo 1 || echo 0)" \
-  "$(grep -m1 'explore: loaded' "$LOG" | tail -c 160 || echo 'the guest never composed its screen')"
+  "${detail_composed:-the guest never composed its screen}"
 
 # The control. A run where the application never started satisfies nothing above but also produces
 # no evidence of having tried, and the two look identical in a summary.

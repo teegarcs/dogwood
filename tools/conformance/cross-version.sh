@@ -49,13 +49,13 @@ conform() { # id, condition, detail
 # change, and it is checked against keys committed with the fixture rather than regenerated.
 verified=$(grep -c "loaded version .*verified by dogwood-development" "$log" || true)
 conform "K1" "$([ "$verified" -ge 1 ] && echo 1 || echo 0)" \
-  "$(grep -m1 'loaded version' "$log" || echo 'the host never reported a load')"
+  "$(grep 'loaded version' "$log" | head -1 || echo 'the host never reported a load')"
 
 # K2 -- it RENDERS. Loading proves the delivery path; a guest that loads and then fails to compose
 # is the failure this pairing actually produces, and only the guest's own log line shows it.
 composed=$(grep -c "explore: loaded .* destinations" "$log" || true)
 conform "K2" "$([ "$composed" -ge 1 ] && echo 1 || echo 0)" \
-  "$(grep -m1 'explore: loaded' "$log" || echo 'the guest never composed its screen')"
+  "$(grep 'explore: loaded' "$log" | head -1 || echo 'the guest never composed its screen')"
 
 # The control: a run where the host never started at all would satisfy nothing above, but would
 # also produce no evidence of having tried. This distinguishes the two.

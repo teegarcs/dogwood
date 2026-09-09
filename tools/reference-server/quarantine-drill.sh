@@ -120,8 +120,14 @@ third="$(launch crash-launch)"
 # H2 -- the third launch is REFUSED. Two failed starts is the guard's threshold: `maxFailures` is
 # two rather than one because a single failure is as likely to be a bad network as a bad payload.
 refused=$(printf '%s' "$third" | grep -c "refused: quarantined after 2 failed starts" || true)
+# No pipe into `grep -m1`, and no pipe out of it. `-m1` exits on its first match, which SIGPIPEs
+# whatever feeds it, and `set -o pipefail` then reports the success as a failure -- so the `||`
+# fallback fired *alongside* a matched line and the detail said both "here is the refusal" and "the
+# third launch was not refused". The skew drill's header records the same trap in two other
+# spellings; this is the third.
+detail_refused="$(printf '%s' "$third" | grep 'refused: quarantined' | head -1)"
 conform "H2" "$([ "$refused" -ge 1 ] && echo 1 || echo 0)" \
-  "$(printf '%s' "$third" | grep -m1 'refused: quarantined' | tail -c 140 || echo 'the third launch was not refused')"
+  "${detail_refused:-the third launch was not refused}"
 
 # And the payload did not run. A quarantine that still runs the release is bookkeeping, not
 # protection -- the guest's own log line is what shows whether it composed.
@@ -131,8 +137,9 @@ conform "H2-absent" "$([ "$ran" = "0" ] && echo 1 || echo 0)" \
 
 # H3 -- and it names the last release known to have worked, so an operator knows what to go back to.
 names=$(printf '%s' "$third" | grep -c "last good: 1.0.0-good" || true)
+detail_good="$(printf '%s' "$third" | grep 'last good' | head -1)"
 conform "H3" "$([ "$names" -ge 1 ] && echo 1 || echo 0)" \
-  "$(printf '%s' "$third" | grep -m1 'last good' | tail -c 140 || echo 'no last-known-good version was named')"
+  "${detail_good:-no last-known-good version was named}"
 
 echo "==> resuming 1.0.0-good, which is what an operator actually does"
 "$HERE/server.py" resume --root "$ROOT" --version 1.0.0-good >/dev/null

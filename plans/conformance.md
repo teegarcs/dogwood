@@ -268,8 +268,8 @@ signed payload fixture** to a host built from current sources.
 
 | ID | Claim | Tier | Today |
 |---|---|---|---|
-| K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop |
-| K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop |
+| K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop, android, ios |
+| K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop, android, ios |
 
 The fixture is an artifact rather than a rebuild, and `tools/conformance/fixtures/README.md` says
 why: a rebuild is today's toolchain, which is the pairing already covered by every other drill here.
@@ -313,8 +313,8 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-08 at commit `fb057d5`, by `tools/conformance/run-all.sh`; the raw runs
-are committed beside the tools as `result-<client>-2026-09-08.conf`. The second framework
+Last generated 2026-09-09 at commit `ce8e8cb`, by `tools/conformance/run-all.sh`; the raw runs
+are committed beside the tools as `result-<client>-2026-09-09.conf`. The second framework
 grading flagged that this matrix had gone stale against prose totals -- the repo's own rule,
 broken at its own finish line -- so regeneration now belongs to the same commit as the claims
 it grades.
@@ -358,6 +358,9 @@ it grades.
 | J5 | ✅ | ✅ | ✅ | ✅ |
 | D12 | ✅ | n/a | ✅ | ✅ |
 | D13 | ✅ | n/a | ✅ | ✅ |
+| D14 | ✅ | n/a | ✅ | ✅ |
+| D15 | ✅ | n/a | ✅ | ✅ |
+| D16 | ✅ | n/a | ✅ | ✅ |
 | D1 | ✅ | n/a | ✅ | ✅ |
 | J1 | ✅ | n/a | ✅ | ✅ |
 | J3 | ✅ | n/a | ✅ | ✅ |
@@ -368,20 +371,28 @@ it grades.
 | D7 | ✅ | n/a | ✅ | n/a |
 | J4 | ✅ | n/a | ✅ | ✅ |
 | J2 | ✅ | n/a | — | ✅ |
+| K1 | ✅ | ✅ | ✅ | — |
+| K2 | ✅ | ✅ | ✅ | — |
 | G1 | · | n/a | · | — |
 | G2 | · | n/a | · | — |
 | G3 | · | n/a | · | — |
 | G4 | · | n/a | · | — |
-| K1 | — | ✅ | — | — |
-| K2 | — | ✅ | — | — |
+| B3 | ✅ | — | ✅ | ✅ |
 | E4 | n/a | n/a | ✅ | n/a |
 | H5 | — | — | — | ✅ |
-| G5 | — | n/a | — | ✅ |
-| B3 | ✅ | ✅ | — | ✅ |
-| B1 | · | · | · | ✅ |
-| B2 | · | · | · | ✅ |
+| G5 | — | n/a | — | ❌ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
+
+**`G5` is red, attributed, and deliberately not fixed by moving the number.** The shipped web slice
+is 3,766,502 bytes brotli against a 3,700,000 ceiling. Three builds place every byte of the growth
+in the application's own WebAssembly module — Skiko is byte-identical — and split it: the five
+components of C1 and C2 cost 25,979 bytes between them, and **C3's two Material3 pickers cost
+96,924**. Roughly half a second of Fast 3G waiting for two components most screens never show.
+Raising the ceiling is the move `budgets.tsv`'s own comment warns about, so it has not been made;
+the options and their prices are in
+[ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md), and the choice is a product
+one.
 
 - `desktop` is not graded on D: desktop is a development loop, not a shipping target
 - `desktop` is not graded on G: desktop is a development loop, not a shipping target
@@ -395,10 +406,10 @@ it grades.
 - `desktop` is not graded on J3: desktop is a development loop, not a shipping target
 - `desktop` is not graded on J4: desktop is a development loop, not a shipping target
 
-- **android**: pass 54, skip 4
-- **desktop**: pass 39
-- **ios**: pass 56, skip 4
-- **web**: pass 53, skip 1
+- **android**: pass 65, skip 4
+- **desktop**: pass 44
+- **ios**: pass 64, skip 4
+- **web**: fail 1, pass 58, skip 1
 
 ## Part 4 — How it runs, and what stops it rotting
 
