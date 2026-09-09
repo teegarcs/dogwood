@@ -69,3 +69,6 @@ J5	android,ios,desktop,web	dev.dogwood.host.WorkerPayloadTest
 D12	android,ios,desktop,web	dev.dogwood.compose.SheetStateTest	js
 D12	android,ios,desktop,web	dev.dogwood.host.SheetMirrorTest
 D13	android,ios,desktop,web	dev.dogwood.host.DialogTest
+D14	android,ios,desktop,web	dev.dogwood.host.MenuTest
+D15	android,ios,desktop,web	dev.dogwood.compose.PagerStateTest	js
+D15	android,ios,desktop,web	dev.dogwood.host.PagerMirrorTest

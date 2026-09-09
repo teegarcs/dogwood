@@ -330,3 +330,44 @@ fun SheetArea(
   @Holder sheet: SheetState? = null,
   content: @Composable () -> Unit,
 ) {}
+
+/**
+ * A dropdown menu, anchored to the control that opened it.
+ *
+ * The second component whose *presence* is a host concern, and it takes the same shape `Dialog`
+ * settled: **openness is a plain property**, because the guest decides it and the only thing
+ * coming back is the user asking to dismiss. A holder exists when the host owns a value the guest
+ * must mirror; nothing here qualifies, and reaching for the machinery anyway would be ceremony
+ * around a boolean.
+ *
+ * Where it differs from a dialog is the anchor, and that difference is why it is a separate
+ * component rather than a flag: a menu is positioned relative to **the control that opened it**,
+ * which only the host knows, because only the host laid that control out. The guest supplies the
+ * anchor as its own content -- the button, the row, whatever it was -- and the menu positions
+ * itself against whatever that turns out to be.
+ */
+@Composable
+fun Menu(
+  expanded: Boolean,
+  modifier: Modifier = Modifier,
+  onDismissRequest: () -> Unit = {},
+  anchor: @Composable () -> Unit,
+  content: @Composable () -> Unit,
+) {}
+
+/**
+ * One row of a [Menu].
+ *
+ * Its own component rather than a slot convention, for the reason the whole catalogue exists: a
+ * host renders a menu item the way *its* platform renders one -- the ripple, the minimum height,
+ * the leading-icon inset -- and a guest composing a `Row` and calling it an item would get a
+ * platform-shaped menu full of things that are not platform-shaped items.
+ */
+@Composable
+fun MenuItem(
+  label: TextValue,
+  modifier: Modifier = Modifier,
+  @Affordance enabled: Boolean = true,
+  icon: String? = null,
+  onClick: () -> Unit = {},
+) {}

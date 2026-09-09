@@ -115,8 +115,24 @@ object DogwoodDictionary {
   val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
   val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
+  /**
+   * A pager, hand-written for the same reason the two lists are: it is a lazy layout.
+   *
+   * Compose's pager composes **one page at a time, by index**, so the binding needs per-child
+   * access — which is exactly the "indexed content lambda" `Parser.classifyLambda` refuses to bind,
+   * and refuses correctly. A generated `Pager` taking a content slot would have composed every page
+   * at once, which is not a pager; it is a row that happens to snap.
+   *
+   * Its *holder* is a generated shape all the same (`PagerState`, the sixth), so a guest writes it
+   * exactly like the other five and cannot tell which side of this line its component falls on.
+   * That is the arrangement worth preserving: the hand-written escape hatch is a host concern, not
+   * an authoring one.
+   */
+  val Pager = widgetTag(Segments.DESIGN_SYSTEM, 21)
+
   private val layoutTags = setOf(Text.value, Column.value, Row.value, Box.value, Spacer.value)
-  private val handWrittenDesignSystemTags = setOf(VerticalList.value, HorizontalList.value)
+  private val handWrittenDesignSystemTags =
+    setOf(VerticalList.value, HorizontalList.value, Pager.value)
 
   /**
    * Everything this client can render.
@@ -281,6 +297,28 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         contentPadding = PaddingValues(node.int(P2, 0).dp),
       ) {
         lazyItems(node, events)
+      }
+    }
+
+    DogwoodDictionary.Pager.value -> {
+      val children = node.children(CONTENT)
+      // The host counts the pages, because the guest cannot: a page behind an `if` changes the
+      // count, and a guest asserting its own would be wrong exactly when it mattered.
+      val state = androidx.compose.foundation.pager.rememberPagerState(
+        // The restored position applied at construction rather than as a scroll -- a pager that
+        // animated to its restored page on every code update would show the user a swipe they did
+        // not make. `ScrollMirror` draws the same line between restoring and navigating.
+        initialPage = node.int(P1, 0).coerceIn(0, maxOf(0, children.size - 1)),
+        pageCount = { children.size },
+      )
+      PagerMirror(node, state, children.size, events)
+      androidx.compose.foundation.pager.HorizontalPager(
+        state = state,
+        modifier = modifier,
+      ) { page ->
+        // One child per page, by index. This is the line a generated binding could not have
+        // written, and the whole reason this component is here rather than on the surface.
+        children.getOrNull(page)?.let { RenderNode(it, LayoutScope(), events) }
       }
     }
 

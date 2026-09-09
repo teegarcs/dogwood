@@ -540,3 +540,59 @@ fun SheetAreaImpl(
     content()
   }
 }
+
+/**
+ * The menu binding: the anchor composes in place, the menu hangs off it.
+ *
+ * `DropdownMenu` must be composed **inside** the layout node it anchors to -- that is how Compose's
+ * popup positioning finds it -- so this is a `Box` wrapping the guest's anchor content with the
+ * menu as its sibling, not a `Popup` positioned by coordinates the guest supplied. A guest cannot
+ * know where its control landed; the host does, and this arrangement means nobody has to say.
+ *
+ * Composing nothing while closed is the same rule `DialogImpl` follows: a closed menu that stayed
+ * composed would keep its items' `remember` alive and their effects running.
+ */
+@Composable
+fun MenuImpl(
+  expanded: Boolean,
+  modifier: Modifier,
+  onDismissRequest: () -> Unit,
+  anchor: @Composable () -> Unit,
+  content: @Composable () -> Unit,
+) {
+  androidx.compose.foundation.layout.Box(modifier) {
+    anchor()
+    if (expanded) {
+      androidx.compose.material3.DropdownMenu(
+        expanded = true,
+        onDismissRequest = onDismissRequest,
+      ) {
+        content()
+      }
+    }
+  }
+}
+
+/** One menu row, drawn the way this platform draws one. */
+@Composable
+fun MenuItemImpl(
+  label: String,
+  modifier: Modifier,
+  enabled: Boolean,
+  icon: String?,
+  onClick: () -> Unit,
+) {
+  androidx.compose.material3.DropdownMenuItem(
+    text = { androidx.compose.material3.Text(label) },
+    onClick = onClick,
+    modifier = modifier,
+    enabled = enabled,
+    leadingIcon = icon?.let { name ->
+      {
+        // Through the same resolver every other icon crosses, so an unknown name degrades to the
+        // fallback glyph and is reported rather than throwing (`DesignSystemImpl` icon lookup).
+        IconImpl(name = name, contentDescription = null, sizeDp = 24, tint = null, modifier = Modifier)
+      }
+    },
+  )
+}

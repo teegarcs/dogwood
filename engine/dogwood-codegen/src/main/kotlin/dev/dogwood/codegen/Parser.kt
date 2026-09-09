@@ -364,6 +364,38 @@ class SurfaceParser(
           ),
         ),
       ),
+
+      /*
+       * Pagers: a position mirror over a discrete quantity.
+       *
+       * The sixth shape, and it is scroll's with one substitution that matters. A scrolling
+       * container reports a continuous offset and declares a quantum to throttle it; a pager's
+       * position is a **page index**, which is already discrete, so there is nothing to throttle
+       * and no quantum to declare -- the report fires when the page changes, which is exactly as
+       * often as anyone cares.
+       *
+       * It carries the sheet's `byUser`, and for the sheet's reason: a guest implementing "they
+       * skipped the tour" must distinguish the user swiping from its own request landing, and
+       * cannot derive that from the page number.
+       */
+      HolderShape(
+        type = "PagerState",
+        mirror = "rememberPagerMirror",
+        properties = listOf(
+          HolderProperty(suffix = "TargetPage", type = "Int", field = "targetPage", absent = "0"),
+          HolderProperty(suffix = "Sequence", type = "Int", field = "targetSequence", absent = "0"),
+          HolderProperty(suffix = "Animated", type = "Boolean", field = "targetAnimated", absent = "true"),
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("page", "Int", "0"),
+            HolderArgument("pageCount", "Int", "0"),
+            HolderArgument("byUser", "Boolean", "false"),
+          ),
+        ),
+      ),
     )
 
     val LIVE_STATE = listOf(

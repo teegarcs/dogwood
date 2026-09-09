@@ -76,6 +76,9 @@ object Tags {
   val VerticalList = widgetTag(Segments.DESIGN_SYSTEM, 10)
   val HorizontalList = widgetTag(Segments.DESIGN_SYSTEM, 11)
 
+  /** A pager. Hand-written on both sides for the reason `DogwoodDictionary.Pager` gives. */
+  val Pager = widgetTag(Segments.DESIGN_SYSTEM, 21)
+
   /** Generated, and named here so tests can find the node they mean. */
   val TextInput = widgetTag(Segments.DESIGN_SYSTEM, 13)
   val PrimaryButton = widgetTag(Segments.DESIGN_SYSTEM, 1)
@@ -430,6 +433,71 @@ fun VerticalList(
   ListContainer(Tags.VerticalList, modifier, spacingDp, contentPaddingDp, state) {
     ColumnScopeInstance.content()
   }
+}
+
+/**
+ * One page on screen, the others a swipe away.
+ *
+ * Hand-written like the two lists above, and for the same reason: a pager is a lazy layout, so the
+ * host composes **one child per page by index** — which is the shape the generator refuses to bind
+ * and refuses correctly. From a screen's side that is invisible: `rememberPagerState()` is written
+ * exactly like the other five holders, and the page count is whatever content this call emits.
+ *
+ * ```
+ * val pager = rememberPagerState()
+ * Pager(pager = pager) {
+ *   Text("first")
+ *   Text("second")
+ * }
+ * Text("on page ${pager.page} of ${pager.pageCount}")
+ * ```
+ */
+@Composable
+fun Pager(
+  modifier: Modifier = Modifier,
+  /** Pass one to read the page or to declare a target. Null costs nothing. */
+  pager: PagerState? = null,
+  content: @Composable () -> Unit,
+) {
+  // Read in the composable body, not inside `update`: that is what subscribes this call site to
+  // the holder's snapshot state. A read inside `update` happens after the composition has already
+  // decided not to recompose, and a declared target would never cross -- the defect `ListContainer`
+  // carries the same comment about.
+  val targetPage = pager?.targetPage ?: 0
+  val targetSequence = pager?.targetSequence ?: 0
+  val targetAnimated = pager?.targetAnimated ?: true
+  val observed = pager != null
+
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Pager) },
+    update = {
+      // Property tags in the holder shape's declaration order, so this hand-written emitter and a
+      // generated one put the same bytes on the wire -- which is what lets `PagerMirror` read them
+      // with the same constants on the host side.
+      set(targetPage) { recording.recorder.property(id, Tags.P1, JsonPrimitive(it)) }
+      set(targetSequence) { recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
+      set(targetAnimated) { recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(observed) { recording.recorder.property(id, Tags.P4, JsonPrimitive(it)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      // The host's report, delivered back into the holder — registered exactly as a generated
+      // stub registers one, because a report IS an event (ADR-043). Set inside `update` because
+      // that is where the node's identity is in scope, and re-set when the holder changes so a
+      // replacement guest's holder receives the reports rather than its predecessor's.
+      set(pager) { holder ->
+        if (holder != null) {
+          recording.lambdas.set(id, EventTag(1)) { args ->
+            holder.report(
+              page = args.getOrNull(0)?.jsonPrimitive?.intOrNull ?: 0,
+              pageCount = args.getOrNull(1)?.jsonPrimitive?.intOrNull ?: 0,
+              byUser = args.getOrNull(2)?.jsonPrimitive?.booleanOrNull ?: false,
+            )
+          }
+        }
+      }
+      reconcile { applyModifier(id, modifier) }
+    },
+    content = content,
+  )
 }
 
 /** A horizontally scrolling list. Same laziness caveat as [VerticalList]. */

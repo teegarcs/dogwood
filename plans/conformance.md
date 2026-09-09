@@ -160,6 +160,8 @@ cell below is a claim about what a user would install, not about a debug build
 | D11 | A guest can ask the host for something and **wait for the answer**; a reply carries the request it answers | S + C | ✅ S on three targets; C Android |
 | D12 | A guest can declare where a sheet should be and be told where the **user** left it | S | ✅ both halves — guest holder and host mirror |
 | D13 | A modal interrupts, and closing it removes its content rather than hiding it | S | ✅ `DialogTest` |
+| D14 | A menu opens beside the control that opened it, and closing it removes its items | S | ✅ `MenuTest` |
+| D15 | A guest can declare a page and be told where the **user** swiped to; only the current page composes | S | ✅ both halves — guest holder and hand-written binding |
 
 ### H. Release control — surviving a bad publish
 

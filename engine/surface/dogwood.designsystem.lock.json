@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 12,
+    "version": 13,
     "components": [
         {
             "name": "PrimaryButton",
@@ -324,10 +324,55 @@
             "eventTypes": {
                 "sheetReport": "(String, Boolean) -> Unit"
             }
+        },
+        {
+            "name": "Menu",
+            "localTag": 19,
+            "properties": {
+                "expanded": 1
+            },
+            "propertyTypes": {
+                "expanded": "Boolean"
+            },
+            "slots": {
+                "anchor": 1,
+                "content": 2
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "MenuItem",
+            "localTag": 20,
+            "properties": {
+                "label": 1,
+                "enabled": 2,
+                "icon": 3
+            },
+            "propertyTypes": {
+                "label": "TextValue",
+                "enabled": "Boolean",
+                "icon": "String?"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
         }
     ],
     "reservedLocalTags": [
         10,
-        11
+        11,
+        21
     ]
 }
