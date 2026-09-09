@@ -371,3 +371,34 @@ fun MenuItem(
   icon: String? = null,
   onClick: () -> Unit = {},
 ) {}
+
+/**
+ * A date picker, shown on request and answering with what the user chose.
+ *
+ * Holder shape seven, and the first whose reply carries a **value** rather than a fact — a snackbar
+ * answers "did they tap Undo", this answers "which day". The date crosses as `yyyy-MM-dd`, never as
+ * a millisecond count, because a calendar date is not an instant: the same day is different
+ * milliseconds in different zones, and a guest handed an epoch would have to guess a zone to name
+ * the day back, guessing wrong near midnight for the users least likely to be testing it.
+ *
+ * The component itself draws nothing. It is a mount point — the dialog is the host's own, and this
+ * is where the guest says the host may put one.
+ */
+@Composable
+fun DatePickerArea(
+  modifier: Modifier = Modifier,
+  @Holder picker: DatePickerState? = null,
+) {}
+
+/**
+ * A time picker. Shape eight, shape seven's twin, answering `HH:mm` on a 24-hour clock.
+ *
+ * Its own component rather than a mode on [DatePickerArea], because the host draws two genuinely
+ * different controls — a calendar grid and a clock face — and a mode flag would put a conditional
+ * inside a mirror that has no business branching on what the guest meant.
+ */
+@Composable
+fun TimePickerArea(
+  modifier: Modifier = Modifier,
+  @Holder picker: TimePickerState? = null,
+) {}

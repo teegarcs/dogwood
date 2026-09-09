@@ -4,7 +4,7 @@
 # `dogwood.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **13**, segment **1**.
+actually emitted. Version **14**, segment **1**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -53,6 +53,8 @@ appear in no table below and are not free.
 | [`SheetArea`](#sheetarea) | 18 | 16777234 |  |
 | [`Menu`](#menu) | 19 | 16777235 |  |
 | [`MenuItem`](#menuitem) | 20 | 16777236 | yes |
+| [`DatePickerArea`](#datepickerarea) | 22 | 16777238 |  |
+| [`TimePickerArea`](#timepickerarea) | 23 | 16777239 |  |
 
 ---
 
@@ -445,4 +447,50 @@ Local tag 20, widget tag `16777236`.
 Takes a modifier chain.
 
 **Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### DatePickerArea
+
+Local tag 22, widget tag `16777238`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `pickerVisible` | `Boolean` | 1 | `false` when absent | from the `picker` holder (`requested`) |
+| `pickerSequence` | `Int` | 2 | `0` when absent | from the `picker` holder (`requestSequence`) |
+| `pickerInitial` | `String` | 3 | `""` when absent | from the `picker` holder (`initialDate`) |
+| `pickerWatching` | `Boolean` | 4 | `false` when absent | from the `picker` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `pickerReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `picker` holder |
+
+Takes a modifier chain.
+
+---
+
+### TimePickerArea
+
+Local tag 23, widget tag `16777239`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `pickerVisible` | `Boolean` | 1 | `false` when absent | from the `picker` holder (`requested`) |
+| `pickerSequence` | `Int` | 2 | `0` when absent | from the `picker` holder (`requestSequence`) |
+| `pickerInitial` | `String` | 3 | `""` when absent | from the `picker` holder (`initialTime`) |
+| `pickerWatching` | `Boolean` | 4 | `false` when absent | from the `picker` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `pickerReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `picker` holder |
+
+Takes a modifier chain.
 

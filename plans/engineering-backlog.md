@@ -44,12 +44,18 @@ at ADR-043's now-five-times-verified cost.
 
 | # | Item | Done means |
 |---|---|---|
-| C1 | **Menu / dropdown** | A `Menu` anchored to its invoking control; openness is guest state (the `Dialog` finding — no holder for a value the guest owns); dismissal is an event; items are a slot. Render tests: open shows items, close *removes* them, an item tap crosses as its event |
-| C2 | **Pager + `PagerState`** (holder shape six) | Scroll's pattern on pages: declared target page + sequence, continuous report of the settled page and whether the **user** swiped it (the sheet's `byUser` field, for the same reason). Tests include the ask-twice-after-user-swipe case that makes the sequence necessary |
-| C3 | **Date and time pickers + their states** (shapes seven and eight) | Snackbar's pattern: a request that answers with what the user chose, carrying the sequence it answers. The value crosses as ISO-8601 text, because a client's locale must not be baked into the wire |
+| C1 | ~~Menu / dropdown~~ ✅ | A `Menu` anchored to its invoking control; openness is guest state (the `Dialog` finding — no holder for a value the guest owns); dismissal is an event; items are a slot. Render tests: open shows items, close *removes* them, an item tap crosses as its event |
+| C2 | ~~Pager + `PagerState`~~ ✅ (shape six) | Scroll's pattern on pages: declared target page + sequence, continuous report of the settled page and whether the **user** swiped it (the sheet's `byUser` field, for the same reason). Tests include the ask-twice-after-user-swipe case that makes the sequence necessary |
+| C3 | ~~Date and time pickers~~ ✅ (shapes seven and eight) | Snackbar's pattern: a request that answers with what the user chose, carrying the sequence it answers. The value crosses as ISO-8601 text, because a client's locale must not be baked into the wire |
 
-After C3 the honest count is 19–21 components against a product's fifty to two hundred; the audit's
-B1 stays open past this plan and says so.
+**Landed 2026-09-08: the count is 20**, against a product's fifty to two hundred — the audit's B1
+stays open past this plan and says so. Two findings came out of building them. `Pager` **cannot be a
+generated component**: Compose's pager composes one page at a time by index, which is exactly the
+indexed-content lambda the parser refuses to bind, so it joins the two lazy lists as a hand-written
+binding on a reserved tag — while its *holder* stays a generated shape, so a guest cannot tell which
+side of that line its component falls on. And the pickers needed **two** shapes rather than one with
+a mode, because the host draws a calendar grid and a clock face, and a mode flag would put a
+conditional inside a mirror with no business branching on what the guest meant.
 
 ## S — the safety asymmetries between clients
 

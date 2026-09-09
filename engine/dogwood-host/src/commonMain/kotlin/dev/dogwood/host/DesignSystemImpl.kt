@@ -596,3 +596,21 @@ fun MenuItemImpl(
     },
   )
 }
+
+/**
+ * The date picker's mount point.
+ *
+ * The mirror does everything, so this draws nothing at all — not even a `Box`. A zero-size node is
+ * the honest rendering of "the host may put a dialog here": a `Box` with the guest's modifier would
+ * occupy layout space for a control that lives in its own window, and a guest that gave it a height
+ * would find a hole in its column.
+ */
+@Composable
+fun DatePickerAreaImpl(modifier: Modifier, picker: PickerMirror) {
+  // Intentionally empty: `rememberDatePickerMirror` has already composed the dialog if one is open.
+}
+
+/** The time picker's mount point. Same reasoning as [DatePickerAreaImpl]. */
+@Composable
+fun TimePickerAreaImpl(modifier: Modifier, picker: PickerMirror) {
+}

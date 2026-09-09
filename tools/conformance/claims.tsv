@@ -72,3 +72,5 @@ D13	android,ios,desktop,web	dev.dogwood.host.DialogTest
 D14	android,ios,desktop,web	dev.dogwood.host.MenuTest
 D15	android,ios,desktop,web	dev.dogwood.compose.PagerStateTest	js
 D15	android,ios,desktop,web	dev.dogwood.host.PagerMirrorTest
+D16	android,ios,desktop,web	dev.dogwood.compose.PickerStateTest	js
+D16	android,ios,desktop,web	dev.dogwood.host.IsoDateTest

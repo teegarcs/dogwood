@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 13,
+    "version": 14,
     "components": [
         {
             "name": "PrimaryButton",
@@ -367,6 +367,52 @@
             },
             "eventTypes": {
                 "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "DatePickerArea",
+            "localTag": 22,
+            "properties": {
+                "pickerVisible": 1,
+                "pickerSequence": 2,
+                "pickerInitial": 3,
+                "pickerWatching": 4
+            },
+            "propertyTypes": {
+                "pickerVisible": "Boolean",
+                "pickerSequence": "Int",
+                "pickerInitial": "String",
+                "pickerWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "pickerReport": 1
+            },
+            "eventTypes": {
+                "pickerReport": "(Int, String) -> Unit"
+            }
+        },
+        {
+            "name": "TimePickerArea",
+            "localTag": 23,
+            "properties": {
+                "pickerVisible": 1,
+                "pickerSequence": 2,
+                "pickerInitial": 3,
+                "pickerWatching": 4
+            },
+            "propertyTypes": {
+                "pickerVisible": "Boolean",
+                "pickerSequence": "Int",
+                "pickerInitial": "String",
+                "pickerWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "pickerReport": 1
+            },
+            "eventTypes": {
+                "pickerReport": "(Int, String) -> Unit"
             }
         }
     ],

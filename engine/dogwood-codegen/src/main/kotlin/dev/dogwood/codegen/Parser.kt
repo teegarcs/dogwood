@@ -396,11 +396,77 @@ class SurfaceParser(
           ),
         ),
       ),
+
+      /*
+       * Date selection: a request that answers with what the user chose.
+       *
+       * The seventh shape, and snackbar's rather than scroll's -- the guest asks, the user decides,
+       * and the answer carries the sequence it answers so two pickers in flight cannot be confused.
+       * What makes it its own shape rather than a snackbar with a different message is the *reply
+       * payload*: a snackbar answers with a boolean, and this answers with a value.
+       *
+       * **The value crosses as ISO-8601 text, never as a millisecond count**, and that is the whole
+       * reason this shape exists rather than reusing an Int holder. A calendar date is not an
+       * instant: "2026-03-14" means different milliseconds in different zones, and a guest that
+       * received an epoch would have to guess a zone to name the day back -- guessing wrong by one
+       * day, near midnight, for users in exactly the places least likely to be testing it.
+       */
+      HolderShape(
+        type = "DatePickerState",
+        mirror = "rememberDatePickerMirror",
+        properties = listOf(
+          HolderProperty(suffix = "Visible", type = "Boolean", field = "requested", absent = "false"),
+          HolderProperty(suffix = "Sequence", type = "Int", field = "requestSequence", absent = "0"),
+          // What to open on. Empty means "the host's idea of today", which only the host has.
+          HolderProperty(suffix = "Initial", type = "String", field = "initialDate", absent = "\"\""),
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("sequence", "Int", "0"),
+            // Empty means dismissed without choosing -- distinguishable from any date, which a
+            // sentinel date would not be.
+            HolderArgument("date", "String", "\"\""),
+          ),
+        ),
+      ),
+
+      /*
+       * Time selection: the seventh shape's twin, and deliberately not a parameter of it.
+       *
+       * Two shapes rather than one with a mode flag, because the *host* renders two genuinely
+       * different controls -- a calendar grid and a clock face -- and a mode flag would put a
+       * conditional inside a mirror that has no business branching on what the guest meant. The
+       * cost of the duplication is one table entry; the cost of the flag is a mirror that does two
+       * jobs badly.
+       *
+       * `HH:mm`, 24-hour, on the wire. The host renders whichever face this platform's users
+       * expect -- the same rule every host-resolved value follows: the guest sends the number, the
+       * host decides what it looks like.
+       */
+      HolderShape(
+        type = "TimePickerState",
+        mirror = "rememberTimePickerMirror",
+        properties = listOf(
+          HolderProperty(suffix = "Visible", type = "Boolean", field = "requested", absent = "false"),
+          HolderProperty(suffix = "Sequence", type = "Int", field = "requestSequence", absent = "0"),
+          HolderProperty(suffix = "Initial", type = "String", field = "initialTime", absent = "\"\""),
+          HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+        ),
+        report = HolderReport(
+          method = "report",
+          arguments = listOf(
+            HolderArgument("sequence", "Int", "0"),
+            HolderArgument("time", "String", "\"\""),
+          ),
+        ),
+      ),
     )
 
     val LIVE_STATE = listOf(
       "InteractionSource", "ScrollState", "LazyListState", "CarouselState", "PagerState",
-      "FocusRequester", "TextFieldState", "MutableState", "SheetState",
+      "FocusRequester", "TextFieldState", "MutableState", "SheetState", "DatePickerState", "TimePickerState",
     )
     val ASSET_TYPES = listOf("Painter", "ImageBitmap", "ImageVector", "Brush", "TextStyle")
     val SERIALIZABLE = listOf("String", "Int", "Long", "Float", "Double", "Boolean")

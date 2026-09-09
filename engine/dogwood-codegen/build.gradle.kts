@@ -88,7 +88,7 @@ val generateDesignSystem by tasks.registering(JavaExec::class) {
       // correctly). Reserving it is what stops the generator handing tag 21 to the next
       // component somebody appends -- a collision renders the wrong widget rather than failing.
       "--reserved", "10,11,21",
-      "--version", "13",
+      "--version", "14",
       "--guest-package", "dev.dogwood.compose",
       "--host-package", "dev.dogwood.host",
       "--impl-package", "dev.dogwood.host",

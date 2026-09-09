@@ -193,10 +193,10 @@ host owns a value the guest must mirror; a dialog's openness is the guest's own 
 thing coming back is a dismissal, which is an ordinary event. Knowing when *not* to reach for the
 machinery is part of the machinery being usable.
 
-Still open: menu, pager and the pickers, and the holder shapes those need — now planned as C1–C3
-in [`plans/engineering-backlog.md`](engineering-backlog.md). The remaining count is the honest one —
-the catalogue is **16 components**, and a product design system is fifty to two hundred. Original
-finding below.
+✅ Menu, pager and both pickers landed 2026-09-08 (C1–C3), with holder shapes six, seven and
+eight — **eight of the roughly thirty** the coverage measurement predicts. The catalogue is
+**20 components**, and a product design system is fifty to two hundred, so this finding stays
+open with a smaller number rather than closing. Original finding below.
 
 ### B1 (original). The catalogue is a slice, and the missing components are the ones every product uses
 
