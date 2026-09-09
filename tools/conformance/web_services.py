@@ -330,6 +330,64 @@ def run(url, chrome, port):
             f"workerCreated={unchecked.get('workerCreated')}",
         )
 
+        # ---------------------------------------------------------------------------------
+        # A4 -- a guest crash reaches the host, with frames.
+        #
+        # ADR-059 fixed the routing and recorded a remainder: the Zipline path carries a
+        # source-mapped stack and the Worker path carried one sentence. This grades the fix on the
+        # thing itself -- a real payload that throws from a real effect in a real browser -- because
+        # the defect ADR-059 found was that the crash was not merely unreadable but *unobservable*,
+        # and only a real crash could have shown that.
+        #
+        # `entry=crash` is `CrashScreen.kt`: it renders a marker, a frame is applied, and then an
+        # effect throws. Rendering first is what makes the two assertions separable -- a payload that
+        # never ran would satisfy "the host saw no widgets" without saying anything about crashes.
+        # ---------------------------------------------------------------------------------
+        crashed = load('manifest=dogwood-manifest-kotlin.json&entry=crash')
+        crash_log = crashed.get('log', [])
+        # Give the effect its delay plus the round trip; the screen composes well before it fails.
+        for _ in range(60):
+            raw = devtools.call('Runtime.evaluate', {
+                'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
+            }, session).get('result', {}).get('value') or ''
+            if raw:
+                crash_log = json.loads(raw).get('log', [])
+                if any('guest error' in line for line in crash_log):
+                    break
+            time.sleep(0.25)
+
+        error_line = next((l for l in crash_log if 'guest error' in l), '')
+        stack_line = next((l for l in crash_log if l.startswith('guest stack:')), '')
+
+        # The control: the screen composed before it failed. Without it, "the host reported a
+        # crash" could be satisfied by a payload that never started.
+        conform(
+            'A4-web-control',
+            'CRASH-COMPOSED' in ' '.join(n['name'] or '' for n in ax_nodes(devtools, session))
+            or 'CRASH-COMPOSED' in error_line,
+            'the crashing screen rendered before it threw',
+        )
+
+        # The message crosses, intact. The fixture's string is distinctive on purpose: a host that
+        # reports something else is not carrying what it thinks it is.
+        conform(
+            'A4-web',
+            'dogwood deliberate guest crash' in error_line,
+            error_line or f'no guest error reached the host: {crash_log[-3:]}',
+        )
+
+        # And the frames cross with it. They are minified -- `bn.p8`, not a function name -- and that
+        # is expected and stated: what a production webpack build preserves is exact line and column
+        # offsets into the bundle, which `tools/symbolicate/resolve.py` turns back into Kotlin files
+        # and lines against the source map the build keeps and does not serve. See ADR-063.
+        frames = stack_line.count('guest-kotlin.js:')
+        conform(
+            'A4-web-stack',
+            frames >= 3,
+            f'{frames} frames arrived with the crash: {stack_line[:180]}'
+            if stack_line else 'the crash arrived with no stack at all',
+        )
+
         return 1 if failed else 0
     finally:
         browser.terminate()

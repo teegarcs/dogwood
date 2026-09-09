@@ -1,8 +1,9 @@
 # Upstream reports, drafted and not filed
 
-Three defects found while building and grading the Web host. All are reproduced, and **none has
-been filed**. The first two have a workaround in this repository; the third does not, because it is
-not something a consumer can work around.
+Four defects found while building and grading the Web host. All are reproduced, and **none has been
+filed**. The first two have a workaround in this repository; the third does not, because it is not
+something a consumer can work around; the fourth is worked around by a tool that reports the
+discrepancy rather than hiding it.
 
 They are drafted rather than submitted deliberately: filing a public bug report publishes this
 project's name, a reproduction, and an implicit claim about a vendor's product. That is an
@@ -17,6 +18,7 @@ is the honest tense.
 | 1 | `wasm-opt` GUFA miscompiles `String.toCharArray()` | `tools/web-weight/bridge/run.sh` | `--gufa` filtered from the pass list |
 | 2 | Kotlin/Wasm klib checker crash | any rebuild after an edit to a source set | clear `build/kotlin` and `build/classes` (the documented flag is **not** enough — see the correction) |
 | 3 | Compose Multiplatform for Web publishes no disabled state to the accessibility tree | `tools/conformance/run-web.sh`, claim `D7` | none available to a consumer |
+| 4 | Kotlin/JavaScript emits source-map positions that are not positions in the file they name | `tools/symbolicate/resolve.py` against any `error(...)` frame | the symbolicator flags the frame and names the nearest in-range mapping |
 
 ---
 
@@ -145,3 +147,59 @@ on it. So this is the web accessibility layer specifically rather than a Compose
 
 **Not worked around here.** There is nothing a consumer can do: the DOM is Compose's, built inside
 the framework, and a host has no seam to add an attribute to it.
+
+
+---
+
+## 4. Kotlin/JavaScript emits source-map positions past the end of the file they name
+
+**Where:** Kotlin 2.3.20, Kotlin/JavaScript IR, production webpack build with source maps.
+
+**What happens:** a stack frame for a `kotlin.error(...)` call resolves, through the build's own
+source map, to a line and column that do not exist in the source the map names.
+
+`samples/slice-screens/src/jsMain/kotlin/dev/dogwood/slice/CrashScreen.kt` is 70 lines long and its
+longest line is 96 characters. The frame for its `error(...)` call at generated column 419445 maps
+to:
+
+```
+CrashScreen.kt:71:436
+```
+
+Line 71 does not exist. Column 436 does not exist on any line of the file. The map's own
+`sourcesContent` entry for that source confirms both.
+
+The mappings immediately around it, decoded from the `mappings` field by hand:
+
+```
+gencol=419397 -> CrashScreen.kt:65:5
+gencol=419438 -> CrashScreen.kt:71:430     <- not a position in the file
+gencol=419444 -> CrashScreen.kt:71:436     <- not a position in the file (the frame lands here)
+gencol=419447 -> CrashScreen.kt:71:466     <- not a position in the file
+gencol=419450 -> CrashScreen.kt:68:11      <- the `error(...)` call
+```
+
+So a correct source-map consumer, following the specification exactly, reports a position that does
+not exist — while the true position is six bytes further into the bundle. The apparent cause is that
+`error(...)` is inlined and the synthesised code carries a position from somewhere other than the
+call site; whatever the cause, the emitted position is outside the named file.
+
+**Why it matters:** this is the frame a crash report exists to produce. A team symbolicating a
+production crash gets a file name that is right and a line number that is wrong and cannot exist,
+which is worse than no line number: it sends somebody to look at a place, and the place is not
+there.
+
+**Reproduction:**
+
+```
+./gradlew :samples:web-guest:jsBrowserProductionWebpack
+tools/symbolicate/resolve.py \
+  engine/samples/web-guest/build/kotlin-webpack/js/productionExecutable/guest-kotlin.js.map \
+  <a stack containing a frame for CrashScreen.kt's error(...) call>
+```
+
+**Workaround in this repository:** `tools/symbolicate/resolve.py` validates each resolved position
+against the map's embedded copy of the source — both the line count and that line's length — and
+when a mapping falls outside the file it prints the specification's answer, marks it, and names the
+nearest in-range mapping for the same source. It does not silently substitute: inventing a plausible
+answer is how a symbolicator becomes something nobody can trust.

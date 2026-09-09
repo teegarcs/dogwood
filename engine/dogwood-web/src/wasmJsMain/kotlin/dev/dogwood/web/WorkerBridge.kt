@@ -85,6 +85,22 @@ interface WorkerBridgeListener {
    * events on the host, not exceptions in host control flow.
    */
   fun onGuestError(correlation: Int, message: String)
+
+  /**
+   * A guest failure with its stack, when the payload sent one.
+   *
+   * Defaulted to dropping the stack and calling [onGuestError], so that a host written before this
+   * existed keeps compiling and keeps working. The default is what makes the stack an addition
+   * rather than a migration -- which matters because the stack is a diagnostic, and a diagnostic
+   * that breaks a build is a diagnostic teams turn off.
+   *
+   * [stack] is whatever the guest's runtime produced. It is **not** guaranteed to be legible: on a
+   * production build it is minified, and Dogwood does not symbolicate it in the host. See ADR-063
+   * for what the measurement found and for where the source map goes.
+   */
+  fun onGuestFailure(correlation: Int, message: String, stack: String?) {
+    onGuestError(correlation, message)
+  }
 }
 
 /**
@@ -328,7 +344,24 @@ class WorkerBridge(
       WorkerMessages.ERROR -> {
         pending.remove(correlation)
         val failure = pendingFailures.remove(correlation)
-        if (failure != null) failure(payload) else listener.onGuestError(correlation, payload)
+        if (failure != null) {
+          failure(payload)
+        } else {
+          // The guest encodes a failure as `message`, a blank line, then the stack. Splitting on
+          // the first blank line rather than parsing a structure is what lets a stack ride the
+          // existing envelope: a payload that sends no stack produces exactly the string this path
+          // always produced, so nothing about the envelope revision changes.
+          val separator = payload.indexOf("\n\n")
+          if (separator < 0) {
+            listener.onGuestFailure(correlation, payload, null)
+          } else {
+            listener.onGuestFailure(
+              correlation,
+              payload.substring(0, separator),
+              payload.substring(separator + 2).ifBlank { null },
+            )
+          }
+        }
       }
 
       // A kind this host does not implement is skew, not corruption: the guest may have been
