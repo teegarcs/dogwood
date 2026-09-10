@@ -4,7 +4,7 @@
 # `umbra.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **1**, segment **3**.
+actually emitted. Version **2**, segment **3**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -33,6 +33,7 @@ Two rules govern every number here, and both are enforced by the lock beside the
 | --- | ---: | ---: | :---: |
 | [`UmbraBanner`](#umbrabanner) | 1 | 50331649 |  |
 | [`UmbraStepper`](#umbrastepper) | 2 | 50331650 | yes |
+| [`UmbraChip`](#umbrachip) | 3 | 50331651 |  |
 
 ---
 
@@ -71,4 +72,18 @@ Local tag 2, widget tag `50331650`.
 Takes a modifier chain.
 
 **Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### UmbraChip
+
+Local tag 3, widget tag `50331651`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `label` | `String` | 1 | required |  |
+
+Takes a modifier chain.
 

@@ -252,8 +252,31 @@ dogwood {
 }
 ```
 
-You then write one `PriceTagImpl` per component — the real Compose — and register the generated
-binding once, before anything renders:
+For each component you either write one `PriceTagImpl` — the real Compose — or, **if you already
+own a design system**, skip the wrapper and point the binding at your component directly:
+
+```kotlin
+@Composable
+@Implementation("com.yourco.designsystem.PriceTag")
+fun PriceTag(
+  amount: Int,
+  currency: String,
+  modifier: Modifier = Modifier,
+) {}
+```
+
+The generated binding then calls `com.yourco.designsystem.PriceTag(amount = …, currency = …,
+modifier = …)` with named arguments — no `PriceTagImpl` exists anywhere. The contract is unchanged,
+only relocated: the target must have those parameter names with wire-compatible types, and the
+compiler enforces it — a target that drifts fails your host build with a named-argument mismatch,
+exactly as a missing wrapper does today.
+
+**When the wrapper still earns its keep:** whenever a wire type needs mapping before your component
+can be called — a `String` that becomes your sealed `ButtonStyle`, a token name that becomes a
+`Color`. `@Implementation` is per component, so a real surface mixes both freely; Umbra's does
+(`UmbraChip` binds directly, its two siblings keep wrappers).
+
+Either way, register the generated binding once, before anything renders:
 
 ```kotlin
 DogwoodRegistry.register(YourDesignSystemBinding)

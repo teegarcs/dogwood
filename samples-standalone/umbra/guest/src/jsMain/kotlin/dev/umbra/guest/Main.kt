@@ -57,6 +57,9 @@ private fun HomeScreen() {
     // Umbra bindings above and below prove themselves by their names appearing as lines.
     Text("UMBRA-ALIVE: a payload built outside the Dogwood repository")
     UmbraStepper(value = count, onChange = { count = it })
+    // Bound directly to the design system's own composable -- no wrapper exists for this one, and
+    // the standalone check requires it in the render transcript for exactly that reason.
+    UmbraChip(label = "direct")
     PrimaryButton(
       label = TextValue("UMBRA-BUMP"),
       modifier = Modifier.fillMaxWidth(),

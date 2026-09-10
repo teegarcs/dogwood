@@ -32,6 +32,9 @@ kotlin {
 
   jvm()
   androidTarget {
+    // Published, not merely compiled. See `dogwood-host/build.gradle.kts` for what the missing
+    // line cost: an Android consumer silently resolving the Java 21 JVM artifact instead.
+    publishLibraryVariants("release")
     compilerOptions {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }

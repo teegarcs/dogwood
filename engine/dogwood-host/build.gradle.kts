@@ -22,6 +22,22 @@ kotlin {
 
   jvm()
   androidTarget {
+    /*
+     * Published, not merely compiled -- and it was the second the day before this line existed.
+     *
+     * `androidTarget` on its own builds an Android variant inside this repository and ships
+     * nothing: `publishToMavenLocal` produced `common`, `jvm`, `native` and `wasm`, with no
+     * `androidJvm` anywhere in the module metadata. An Android consumer would resolve
+     * `dogwood-host-jvm` through Kotlin Multiplatform's platform-compatibility rule, whose class
+     * files are Java 21 bytecode against the `JVM_11` two lines below -- and it would do so
+     * silently, because the fallback is legal.
+     *
+     * Nobody noticed because nobody had tried. The only consumer outside this repository is Umbra,
+     * and Umbra is a desktop application, so the flagship platform's artifact path was the one path
+     * the standalone proof did not cover. An independent grading run read the module metadata and
+     * found it (`tools/framework-grade/results/2026-09-09-run3.md`).
+     */
+    publishLibraryVariants("release")
     compilerOptions {
       jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }

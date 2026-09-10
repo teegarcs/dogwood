@@ -2,7 +2,7 @@
     "segmentName": "umbraDesignSystem",
     "wireName": "umbra.designsystem",
     "segmentId": 3,
-    "version": 1,
+    "version": 2,
     "components": [
         {
             "name": "UmbraBanner",
@@ -39,6 +39,18 @@
             "eventTypes": {
                 "onChange": "(Int) -> Unit"
             }
+        },
+        {
+            "name": "UmbraChip",
+            "localTag": 3,
+            "properties": {
+                "label": 1
+            },
+            "propertyTypes": {
+                "label": "String"
+            },
+            "slots": {},
+            "events": {}
         }
     ]
 }

@@ -182,6 +182,22 @@ data class ParsedRange(val min: Double, val max: Double)
 data class ParsedComponent(
   val name: String,
   val parameters: List<ParsedParameter>,
+  /**
+   * The fully qualified function the host binding calls, or null for the convention.
+   *
+   * Null means `${implPackage}.${name}Impl` — a wrapper the adopter writes. `@Implementation` on
+   * the surface replaces that with the adopter's own composable, called directly, because for a
+   * team that already owns a design system the wrapper is pure ceremony whenever the parameter
+   * names and wire-side types already line up. The generated call uses named arguments either way,
+   * so the contract is identical: the target must exist with these parameter names, and the
+   * compiler is what enforces it — an `@Implementation` pointing at nothing fails the host build
+   * with an unresolved reference, exactly as a missing `Impl` does today.
+   *
+   * Host-side only, deliberately: it never touches the dictionary, the lock, or anything on the
+   * wire, so two clients may bind the same component to different implementations and a payload
+   * cannot tell.
+   */
+  val implementation: String? = null,
 ) {
   val isBindable: Boolean get() = parameters.none { it.kind == ParameterKind.UNSUPPORTED }
   val values: List<ParsedParameter> get() = parameters.filter { it.kind == ParameterKind.VALUE || it.kind == ParameterKind.HOST_RESOLVED }

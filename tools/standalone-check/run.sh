@@ -48,6 +48,29 @@ grep -q "33554435\|50331649" "$ROOT/samples-standalone/umbra/REFERENCE.md" 2>/de
 generated="$ROOT/samples-standalone/umbra/design/build/generated/dogwood/umbraDesignSystem"
 compiled="$ROOT/samples-standalone/umbra/design/build/classes/kotlin/main/dev/umbra/design"
 
+# ---------------------------------------------------------------------------------------------
+# The Android artifact path, which nothing here covered until 2026-09-09.
+#
+# `:app` is a desktop application. For as long as it was the only consumer outside the engine's own
+# build, an Android adopter's resolution was exercised by nothing -- and it was broken: three engine
+# modules declared `androidTarget` and none published a library variant, so no `androidJvm` variant
+# existed and an Android build would have silently resolved the Java 21 `-jvm` artifact instead.
+#
+# Asserted on the RESOLVED VARIANT, not on a green build. A compile succeeds either way, which is
+# precisely how this survived; only the variant Gradle actually selected distinguishes the fix from
+# the bug.
+echo
+echo "==> resolving the Android artifact from a repository, in an Android build"
+"$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :android:assembleRelease --console=plain -q
+insight="$("$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :android:dependencyInsight \
+  --configuration releaseCompileClasspath --dependency dogwood-host --console=plain 2>/dev/null)"
+printf '%s' "$insight" | grep -q "dev.dogwood:dogwood-host-android:" || {
+  echo "FAIL -- an Android build did not resolve the Android variant of dogwood-host." >&2
+  echo "        Check that androidTarget { publishLibraryVariants(\"release\") } is still there;" >&2
+  echo "        without it the -jvm artifact is selected and everything still compiles." >&2
+  exit 1; }
+echo "    resolved $(printf '%s' "$insight" | grep -o 'dev.dogwood:dogwood-host-android:[0-9.]*' | head -1)"
+
 echo
 echo "==> building, signing and serving the payload, and rendering it"
 # The half no build outside the repository had ever produced (`plans/adoption-audit.md` A2): the

@@ -104,7 +104,7 @@ A host release enters the picture in exactly two cases: your payload uses a *reg
 
 ```mermaid
 flowchart LR
-    Write["Write Compose in Android Studio"] --> Preview["@Preview renders locally\n(real Compose, on the JVM)"]
+    Write["Write Compose in Android Studio"] --> Preview["@Preview renders locally\n(planned, not built — see below)"]
     Preview --> Check["Build-time dictionary check"]
     Check -->|"API not in client"| Fix["Compile error naming the API\nand the client versions affected"]
     Fix --> Write
@@ -113,7 +113,11 @@ flowchart LR
     Deploy --> Device["Live on devices"]
 ```
 
-**`@Preview` works, with a caveat.** Your module compiles twice from one source set: to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose. The preview shows the **intended layout** — it runs one Compose runtime with no protocol, no batching, and no thread hop, so it cannot show you the two failure modes that matter most: degraded rendering under version skew, and input latency. A separate device-parity harness covers those. (Which preview mechanism is used — an Android target driving the standard Android Studio pane, or the Compose Multiplatform desktop preview — is still being decided; see [Layer 1](specs/layer-1-authoring.md) Milestone 3.)
+**`@Preview` does not work today, and this paragraph used to say it did.** The design is that your module compiles twice from one source set — to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose — and it remains the plan ([Layer 1](specs/layer-1-authoring.md) Milestone 3). It is not built: `dogwood-compose` declares `js(IR)` and no other target, so a guest screen cannot compile for the Java Virtual Machine and no preview pane can render one. Corrected 2026-09-09, found by an independent grading run reading the build file rather than this sentence.
+
+What the inner loop is *instead*, and it is better than it sounds: `--continuous` on the development webpack task rebuilds the payload on every save, every shell host polls the manifest every five seconds, and the swap carries `rememberSaveable` state across — so the production code-update machinery doubles as hot reload on a real device. Screen tests need no harness the engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
+
+When the preview does land it will show the **intended layout** only: one Compose runtime, no protocol, no batching, no thread hop — so it could never show the two failure modes that matter most, degraded rendering under version skew and input latency. Those need a device.
 
 **Most mistakes are compile errors, not blank screens — and the reason is simpler than this section originally claimed.** It described a build step comparing the Compose APIs you called against each target client's dictionary. **No such step exists.** What does exist is stronger for the common case and weaker for the specific one: guest code can only call the *generated stubs*, so calling something no client binds is not a check that fails, it is a function that does not exist. There is nothing to compare because there is nothing to call.
 
@@ -345,7 +349,7 @@ The trade-off is real and worth stating: **the host application has to be a Comp
 | New component available to you | After a client release | Immediately, if it is in the generated tier of the client's dictionary |
 | What you write | JSON or a schema | Compose |
 | Where logic lives | Split: server rules plus client handlers | With your UI, in one place |
-| Local preview | Rarely | `@Preview`, real rendering |
+| Local preview | Rarely | `@Preview`, real rendering — **planned, not built** |
 | Type safety | At the schema edge | End to end, in Kotlin |
 | Registry to maintain | Yes, by hand, forever | Generated |
 | Accessibility | Per component, by hand | Inherited from Compose |
