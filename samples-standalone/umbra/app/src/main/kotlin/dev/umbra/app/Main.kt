@@ -168,7 +168,11 @@ fun main(args: Array<String>) {
                 // generated bindings ran (their names as transcript lines -- components that exist
                 // nowhere in the Dogwood repository); and the text stack measured real glyphs.
                 val marker = "UMBRA-ALIVE" in dump
-                val ownComponents = "UmbraBanner#" in dump && "UmbraStepper#" in dump
+                // `UmbraChip` is the one with NO wrapper: its binding calls the design system's
+                // own composable through `@Implementation`. Its line in the transcript is what
+                // proves the direct path renders, not merely compiles.
+                val ownComponents = "UmbraBanner#" in dump && "UmbraStepper#" in dump &&
+                  "UmbraChip#" in dump
                 val measured = Regex("measured [1-9]\\d*x[1-9]\\d*").containsMatchIn(dump)
                 val alive = marker && ownComponents && measured
                 println(

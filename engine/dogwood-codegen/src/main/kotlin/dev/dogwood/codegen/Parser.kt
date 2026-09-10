@@ -68,6 +68,22 @@ class SurfaceParser(
   private fun KtNamedFunction.toComponent() = ParsedComponent(
     name = name ?: error("a component must be named"),
     parameters = valueParameters.map { it.classify() },
+    implementation = annotationEntries
+      .firstOrNull { it.shortName?.asString() == "Implementation" }
+      ?.let { annotation ->
+        // The one argument is the fully qualified target. Read as a string literal and nothing
+        // fancier: the surface is parsed rather than compiled, so a constant reference or a
+        // concatenation here would be a name this parser cannot resolve, and failing loudly now
+        // beats generating a call to the wrong function.
+        val raw = annotation.valueArguments.firstOrNull()?.getArgumentExpression()?.text
+          ?: error("@Implementation on '$name' names no target")
+        raw.removeSurrounding("\"").also {
+          require(it.contains('.') && !it.contains('"')) {
+            "@Implementation on '$name' must be a fully qualified function name as a plain " +
+              "string literal, got $raw"
+          }
+        }
+      },
   )
 
   /**

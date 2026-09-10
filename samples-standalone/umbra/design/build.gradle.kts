@@ -42,7 +42,9 @@ dogwood {
     wireName.set("umbra.designsystem")
     // 0 and 1 are Dogwood's; 2 is Acme's in the in-repository sample. Umbra takes 3.
     segmentId.set(3)
-    version.set(1)
+    // 2 since `UmbraChip`: the dictionary is append-only and a new component is a new version,
+    // which is what lets a client declare honestly what it can render (ADR-061's comparison).
+    version.set(2)
     guestPackage.set("dev.umbra.guest")
     hostPackage.set("dev.umbra.design")
     // The component reference, generated from the same parse as the bindings. Committed rather

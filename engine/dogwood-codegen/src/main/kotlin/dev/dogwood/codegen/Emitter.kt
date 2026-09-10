@@ -383,7 +383,11 @@ fun emitHostBindings(
   for (component in bindable) {
     val entry = dictionary.components.first { it.name == component.name }
     appendLine("    widgetTag(${dictionary.segmentId}, ${entry.localTag}).value ->")
-    appendLine("      $implementationPackage.${component.name}Impl(")
+    // `@Implementation` on the surface points the call at the adopter's own composable; the
+    // convention is the fallback, not the rule. Same named-argument call either way, so the
+    // compiler enforces the same contract against either target.
+    val target = component.implementation ?: "$implementationPackage.${component.name}Impl"
+    appendLine("      $target(")
     for (parameter in component.values) {
       val tag = entry.properties.getValue(parameter.name)
       appendLine("        ${parameter.name} = ${reader(parameter, tag, component.name)},")
