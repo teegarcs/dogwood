@@ -39,4 +39,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "umbra"
 
-include(":design", ":guest", ":app")
+// `:android` is a compile probe rather than a fourth product module -- see its build file for the
+// defect that existed for as long as `:app`, a desktop application, was the only consumer here.
+include(":design", ":guest", ":app", ":android")
