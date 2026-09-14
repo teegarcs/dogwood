@@ -120,8 +120,9 @@ cause.
 **Evidence.** Ten generator tests (`EnumTest`), four entry-point tests driving the real `main`
 (`RefusalTest`: the failure names the parameter and the allowed types, nothing is written, the
 audit switch restores the old behaviour, a bindable surface is unaffected), three host reader tests
-(`EnumReaderTest`: known name resolves, unknown name reads as the default and reaches the drain
-under its own kind, absence is the sentinel and not skew). The Acme sample surface gained
+(`EnumReaderTest`, in the shared render source set so they run on the Java Virtual Machine, in
+Chrome and on the iOS simulator: known name resolves, unknown name reads as the default and reaches
+the drain under its own kind, absence is the sentinel and not skew). The Acme sample surface gained
 `AcmeTone` and `AcmeTag(label, tone, onToneChange)`, its host implementation takes the generated
 `AcmeTone`, the About screen composes it with a `remember`ed tone that a tap cycles — and the
 generated code compiles for the Java Virtual Machine, WebAssembly and the iOS simulator, with the
