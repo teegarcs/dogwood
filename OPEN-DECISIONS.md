@@ -1,11 +1,17 @@
-# Decisions and actions that are not engineering's to take
+# Open decisions
 
-Everything in this file is **blocked on a person**, not on work. Each item says what it is, what it
-costs to leave open, and what "done" looks like — so it can be picked up cold, and so nothing here
-needs re-explaining in conversation.
+**This is the project's list of what is not decided.** Every item is blocked on a person rather
+than on work: a purchase, an account, a ruling from somebody else, or a judgement call that code
+cannot make. Each says what it is, what it costs to leave open, and what "done" would look like.
 
-Engineering does not act on these. Where a record says "not filed", "not acquired" or "unproven",
-that is the honest tense and it stays that way until somebody here changes it.
+**If you are evaluating Dogwood, read this before the README's status section.** It is the
+unflattering half, kept current on purpose, and it is where the difference between "built" and "in
+production" is written down. Where a record says "not filed", "not acquired" or "unproven", that is
+the tense it stays in until somebody changes it — nothing here is softened because the repository
+is public.
+
+Dogwood is maintained by one person, so "the owner" below means whoever holds the accounts and the
+keys. Several items are shaped by that arrangement and would read differently on a team.
 
 ---
 
@@ -130,10 +136,20 @@ It resolves them from **`mavenLocal()`**, which is a developer's own machine and
 **What done looks like:** a repository these are deployed to, an account that owns them, and
 credentials a build can use. That is one of:
 
-- Maven Central, under a group somebody has verified ownership of. `dev.dogwood` is not registered
-  to anyone; a real one would be a domain you control.
-- A private repository — an internal Artifactory, Nexus, or GitHub Packages — if this is not meant
-  to be public.
+- **Maven Central under `io.github.<user>`.** Central grants this namespace on GitHub identity
+  alone, with no domain to buy, and it is the shortest path for a project hosted here. It renames
+  every artifact, so it is a decision to take before anyone depends on the current coordinates.
+- **Maven Central under a domain you own.** Keeping `dev.dogwood` means registering and verifying
+  `dogwood.dev`; Central checks ownership. The coordinates in every build file and document today
+  assume this and nobody has bought it.
+- **A private repository** — an internal Artifactory, Nexus, or GitHub Packages — if the artifacts
+  are not meant to be consumable by strangers.
+
+**This became urgent when the repository went public.** While it was private, unpublished
+coordinates inconvenienced nobody. In public, `docs/getting-started.md` tells a reader to depend on
+`dev.dogwood:dogwood-host:0.1.0`, and that resolves from one developer's `mavenLocal()` and nowhere
+else. Either publish or say plainly at the top of getting-started that the artifacts are not yet
+hosted.
 
 Then `samples-standalone/umbra/settings.gradle.kts` points at it instead of `mavenLocal()`, and the
 plugin gets a marker on the Gradle Plugin Portal if it is meant to be applied by identifier without

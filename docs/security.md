@@ -1,5 +1,8 @@
 # Security: what "sandbox" means here, and the threat model
 
+*Found something? [`SECURITY.md`](../SECURITY.md) says how to report it privately, and what is in
+scope. This page is the model; that one is the channel.*
+
 For whoever reviews this before it ships. It answers the question a security reviewer asks first —
 **what stops a downloaded payload from doing harm?** — and it does so by naming the boundaries that
 exist, the ones that do not, and the residual risks a deployment accepts.
@@ -98,7 +101,7 @@ Each row names the protection, where it is enforced, and the record with the evi
 | An attacker on the network replaces the payload | refused: the signature does not verify. On the web, refused before the document is parsed |
 | An attacker on the network deletes the web sidecar signature | refused when keys are passed: a missing signature is a refusal, because an attacker who can replace a manifest can delete the file beside it |
 | An attacker rewrites the kill switch or the declared dictionary to stop clients running their own payload | cannot: both ride signed metadata |
-| The signing key leaks | rotate: publish manifests carrying both signatures until every client trusts the new key, then remove the old. The procedure is the owner's to write down (`DECISIONS-FOR-THE-OWNER.md` §6) |
+| The signing key leaks | rotate: publish manifests carrying both signatures until every client trusts the new key, then remove the old. The procedure is the owner's to write down (`OPEN-DECISIONS.md` §6) |
 | A published payload has a bug that crashes on launch | quarantined on the device after repeated failure, without a server; killed fleet-wide by the switch; rolled back by serving the previous manifest |
 | A payload sends a value Compose throws on | clamped and reported |
 | A payload tries to reach a host it should not | refused by the allow-list, on every hop, on mobile; refused by the page's policy on the web |

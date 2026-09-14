@@ -188,7 +188,7 @@ agree with the *installed* host's Zipline across an over-the-air gap. Nothing do
 application on a different Compose version should expect, whether a payload built with a newer
 Kotlin loads on an older installed host, or which of the three may move independently. The
 dictionary has a versioning discipline that is genuinely excellent; the *toolchains* have none.
-`DECISIONS-FOR-THE-OWNER.md` records that `0.1.0` makes no stability promise — this is the
+`OPEN-DECISIONS.md` records that `0.1.0` makes no stability promise — this is the
 concrete engineering underneath that promise when somebody wants to make it.
 
 *What closing it looks like:* a supported-versions table in getting-started, and one conformance
@@ -331,7 +331,7 @@ a sandbox or process-isolation and should not be used to execute untrusted code"
 used the word "sandbox" twenty-nine times, and nothing stated the trust model a reviewer would ask
 for on day one. [`docs/security.md`](../docs/security.md) now does: what the word means here
 (capability-confined, not isolated), the assets and who is trusted with them, every boundary that
-exists with the record that proves it, the six things that do **not** exist stated plainly, a
+exists with the record that proves it, the seven things that do **not** exist stated plainly, a
 threat table, and what a deployment owes it. The README's first paragraph says the same in one
 clause and links there.
 
@@ -390,14 +390,14 @@ These are decisions or known limits with an owner and a file; they are listed, n
 
 | Gap | Where it is recorded |
 |---|---|
-| Artifacts publish to `mavenLocal()` only — nobody else can resolve them | `DECISIONS-FOR-THE-OWNER.md` §5 |
-| No production signing keys, no key ceremony, no payload hosting, no staged rollout server | `DECISIONS-FOR-THE-OWNER.md` §6 |
-| Performance budgets `G1`–`G4` graded on no real device | `DECISIONS-FOR-THE-OWNER.md` §4, Layer 4 ADR-008 |
-| Web first visit is 3.58 MB brotli, three quarters of it Skiko | `DECISIONS-FOR-THE-OWNER.md` §7, ADR-045 |
+| Artifacts publish to `mavenLocal()` only — nobody else can resolve them | `OPEN-DECISIONS.md` §5 |
+| No production signing keys, no key ceremony, no payload hosting, no staged rollout server | `OPEN-DECISIONS.md` §6 |
+| Performance budgets `G1`–`G4` graded on no real device | `OPEN-DECISIONS.md` §4, Layer 4 ADR-008 |
+| Web first visit is 3.58 MB brotli, three quarters of it Skiko | `OPEN-DECISIONS.md` §7, ADR-045 |
 | Web network policy is the browser's Content Security Policy, not the default-deny allow-list | ADR-032, ADR-055 §4 |
 | Web cannot announce a disabled control | `exempt.tsv`, upstream report 3 (drafted, unfiled) |
-| Continuous integration cannot block a merge (branch protection returns 403) | `DECISIONS-FOR-THE-OWNER.md` §1 |
-| No written Apple ruling on downloaded interpreted payloads | `DECISIONS-FOR-THE-OWNER.md` §2 |
+| Continuous integration cannot block a merge (branch protection returns 403) | `OPEN-DECISIONS.md` §1 |
+| No written Apple ruling on downloaded interpreted payloads | `OPEN-DECISIONS.md` §2 |
 
 ---
 

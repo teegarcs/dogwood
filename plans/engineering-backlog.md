@@ -83,7 +83,7 @@ conditional inside a mirror with no business branching on what the guest meant.
 
 ## Not in this plan
 
-Everything owner-gated, priced in [`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md):
+Everything owner-gated, priced in [`OPEN-DECISIONS.md`](../OPEN-DECISIONS.md):
 publishing, keys and hosting, representative hardware (P1 sharpens that decision; only §4 makes
 it), the Apple ruling, the merge gate, a public home and a second maintainer. And the three
 upstream reports stay drafted and unfiled, as standing instructed.

@@ -66,7 +66,7 @@ content case still classifies as a slot, and a value-returning lambda is still r
 **The trust arrangement is the samples', on purpose.** The guest signs with the same well-known
 throwaway development key the Dogwood samples commit (labelled as such), which lets `:app` trust
 `DogwoodTrust.DEVELOPMENT_KEYS` from the published `dogwood-protocol` instead of carrying a key
-copy. A real product replaces both ends — that is `DECISIONS-FOR-THE-OWNER.md` §6, not this sample.
+copy. A real product replaces both ends — that is `OPEN-DECISIONS.md` §6, not this sample.
 
 ## 4. Unstated Assumptions
 

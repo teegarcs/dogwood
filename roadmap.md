@@ -491,7 +491,7 @@ ADR-002](adrs/layer-4/ADR-002-adopt-zipline-quickjs-substrate.md)): shared *sour
 yes (parallel track); the Phase 0 gate device, not acquired by decision
 ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)); two upstream reports
 drafted and unfiled by decision. All of these now live in
-[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md), which is where they are tracked.
+[`OPEN-DECISIONS.md`](OPEN-DECISIONS.md), which is where they are tracked.
 
 ### Phase 7 is closed, and what closing it means
 
@@ -522,7 +522,7 @@ Java Virtual Machine and claimed for four clients on the strength of shared code
 **The engineering roadmap ends here, and two documents take over.**
 [`plans/production-readiness.md`](plans/production-readiness.md) is what remains before a product can
 ship on this — sequenced, with the one gap that blocks everything else named first — and
-[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) holds everything blocked on a person
+[`OPEN-DECISIONS.md`](OPEN-DECISIONS.md) holds everything blocked on a person
 rather than on work.
 
 What follows is not another phase of building the same thing:

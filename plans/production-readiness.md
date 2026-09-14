@@ -12,7 +12,7 @@ answers:
 3. **Maintenance** — can a team operate it on an ordinary Tuesday, and recover on a bad one?
 
 Everything blocked on a person rather than on work is in
-[`DECISIONS-FOR-THE-OWNER.md`](../DECISIONS-FOR-THE-OWNER.md) and is not repeated here.
+[`OPEN-DECISIONS.md`](../OPEN-DECISIONS.md) and is not repeated here.
 
 > **Superseded in part, 2026-09-07.** This plan closed, and then an adoption audit —
 > [`plans/adoption-audit.md`](adoption-audit.md) — asked a harder question than the plan did: not
@@ -30,7 +30,7 @@ is generated so it cannot go stale. What is left below is not a queue of gaps: �
 **product-scale** work that arrives with a product's own components, and the alignment table's
 remaining rows say what each claim rests on rather than what is missing. The honest summary is that
 the engineering plan is finished and the two things still between this and a first ship —
-[signing keys and payload hosting](../DECISIONS-FOR-THE-OWNER.md) — are decisions rather than code.
+[signing keys and payload hosting](../OPEN-DECISIONS.md) — are decisions rather than code.
 
 ---
 
@@ -272,7 +272,7 @@ exists; the machinery to operate one does not.**
   `SkewReport`.
 - **No key ceremony, and no payload hosting story.** Both are the owner's rather than the
   engineering plan's, and both now live in
-  [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) so they stop being restated
+  [`OPEN-DECISIONS.md` §6](../OPEN-DECISIONS.md) so they stop being restated
   here: production keys need generating, holding, rotating and revoking by somebody, and the samples
   serve from a Gradle task on `localhost:8080`. [`docs/operating.md`](../docs/operating.md) §5 is
   what the person picking that up reads.
@@ -362,7 +362,7 @@ Sequenced by what unblocks the most, not by size.
 | 6 | ~~Host tests on the other targets~~ ✅ done | The shared core is asserted on the Java Virtual Machine, an iOS simulator and a real browser. It found a clamp that fires on one and not the others |
 | 7 | ~~The holders a product hits early~~ ✅ the shapes | All four shapes are proven; the remaining holders are a table entry plus a mirror each, and arrive with their widget |
 | 8 | ~~Skew drill on iOS and web~~ ✅ done | `run-ios.sh` and `run-web.sh`, same five steps, read off each platform's accessibility tree. It found one host-integration defect per client ([ADR-052](../adrs/layer-5/ADR-052-the-skew-drill-on-every-client.md)) |
-| 9 | ~~Key ceremony and payload hosting~~ → the owner | Not engineering work: the mechanism is built and verified. Moved to [`DECISIONS-FOR-THE-OWNER.md` §6](../DECISIONS-FOR-THE-OWNER.md) |
+| 9 | ~~Key ceremony and payload hosting~~ → the owner | Not engineering work: the mechanism is built and verified. Moved to [`OPEN-DECISIONS.md` §6](../OPEN-DECISIONS.md) |
 | 10 | ~~The four documents~~ ✅ done | Getting started, authoring, operating, and a **generated** component reference. The first three are in `docs/`; the fourth is emitted by the generator, because a hand-written page about the components is a fifth thing that can disagree with the surface |
 
 **Both of the items that changed what the project *is* are closed.** A product can declare its own

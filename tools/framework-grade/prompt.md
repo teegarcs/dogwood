@@ -16,7 +16,7 @@ Orient in this order, skimming aggressively:
 1. README.md
 2. plans/adoption-audit.md — the repo's own adversarial adoption audit; mine it for weaknesses
    and check which findings are closed WITH evidence versus still open.
-3. DECISIONS-FOR-THE-OWNER.md — unresolved owner-level gaps.
+3. OPEN-DECISIONS.md — unresolved owner-level gaps.
 4. plans/conformance.md — the capability catalogue and per-client evidence matrix.
 5. docs/ — the manuals and the generated component reference.
 6. adrs/README.md — decision summaries; read for the texture of what running things found.

@@ -24,6 +24,12 @@ for a new component" is whether it can be composed from that vocabulary in the p
 
 **Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 
+> **Nothing ships this yet, and one person maintains it.** No application is in production on
+> Dogwood, there are no production signing keys and no hosted artifacts or payload server; `0.1.0`
+> makes no stability promise. What is and is not decided is kept in
+> [`OPEN-DECISIONS.md`](OPEN-DECISIONS.md), and the unflattering engineering list is
+> [`plans/adoption-audit.md`](plans/adoption-audit.md). Read both before planning work on this.
+>
 > **Status: a working implementation on Android, iOS and the web, from one set of screens.** The
 > design documents remain the substance of this repository, but the load-bearing assumptions are no
 > longer unmeasured. [`tools/phase0/`](tools/phase0/) measures the architecture and
@@ -40,7 +46,7 @@ for a new component" is whether it can be composed from that vocabulary in the p
 > **What is left is not engineering.** [`plans/production-readiness.md`](plans/production-readiness.md)
 > is closed; the two things between this and a first ship — production signing keys and somewhere to
 > serve payloads from — are decisions, and they live in
-> [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
+> [`OPEN-DECISIONS.md`](OPEN-DECISIONS.md).
 > **The Phase 0 gate is formally not closed**, and that is now a decision rather than a pending
 > task: the low-end device it is defined on is not available and will not be acquired
 > ([Layer 4 ADR-008](adrs/layer-4/ADR-008-gate-device-not-available.md)). Every number was taken
@@ -94,7 +100,7 @@ preserved in [`adrs/`](adrs/) and the drafts in [`archive/`](archive/).
 | [`roadmap.md`](roadmap.md) | The phased delivery plan, gates, and what would stop the project. **Phases 0–7 are closed.** |
 | [`plans/adoption-audit.md`](plans/adoption-audit.md) | **What stops a production application from adopting this**, audited against the code with each finding verified. The successor to the readiness plan. |
 | [`plans/production-readiness.md`](plans/production-readiness.md) | The engineering plan that got the engine here — closed, and superseded by the audit above. |
-| [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
+| [`OPEN-DECISIONS.md`](OPEN-DECISIONS.md) | Everything blocked on a person rather than on work — the Apple ruling, the merge gate, the unfiled upstream reports, the gate device. |
 | [`docs/README.md`](docs/README.md) | **Start here for the manuals** — who should read what, in which order. |
 | [`docs/`](docs/) | **The manuals.** [Getting started](docs/getting-started.md) for adding Dogwood to an application, [authoring](docs/authoring.md) for writing screens, [operating](docs/operating.md) for whoever is on call, and a [component reference](docs/api/) generated from the surface. |
 | [`docs/checks.md`](docs/checks.md) | Every check this repository runs, what each proves, and when it fails. |

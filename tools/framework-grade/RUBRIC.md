@@ -1,8 +1,13 @@
 # The framework grade: rubric v1
 
-**What this is.** A repeatable instrument for grading Dogwood against the leading Server-Driven
-User Interface (SDUI) approaches, run by a **fresh agent with no stake in this codebase** and no
-session context. The first run (2026-09-07) is the baseline in [`scores.md`](scores.md); the point
+**What this is, and what it is not.** A repeatable instrument for grading **Dogwood** against the
+leading Server-Driven User Interface (SDUI) approaches, run by a **fresh agent with no stake in
+this codebase** and no session context. It exists to tell this project where it stands and what to
+fix next; the competitor columns are the yardstick, not the subject. **It is not a published
+comparison and should not be read as one** — every competitor is graded in one pass against
+Dogwood's own priorities, by a rubric written here, and none of their maintainers was consulted.
+Where a competitor's row is unflattering the reasoning and sources are in the run report, and a
+correction is welcome as an issue. The first run (2026-09-07) is the baseline in [`scores.md`](scores.md); the point
 of writing the rubric down is that the second run is comparable to the first.
 
 **The anti-gaming rule, stated up front.** The score improves by closing gaps, never by editing

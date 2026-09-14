@@ -10,7 +10,7 @@ Dogwood, and read the build files rather than the claims.
 
 - **Web: no.** `engine/dogwood-web/build.gradle.kts` applied no `maven-publish`, declared no group
   and no version. The module that every web page has to depend on was not an artifact at all, and
-  nothing noticed because the only web consumer was the in-repository sample. `DECISIONS-FOR-THE-OWNER.md`
+  nothing noticed because the only web consumer was the in-repository sample. `OPEN-DECISIONS.md`
   §5 listed the published modules and the web host was not among them, in a sentence nobody had
   read as a gap.
 - **Web guest: a copy.** The code that carries a batch from `sendChanges` to `postMessage` and
@@ -138,7 +138,7 @@ request answers on its own correlation; `ready` announces the envelope revision.
   consumption from outside, which is the only thing these prove.
 - **Assumes the iOS link is run where Xcode is.** The check skips it elsewhere and says so; a
   skipped section is not a passed one and the output makes the difference visible.
-- **Assumes `mavenLocal()` until the owner decides otherwise.** `DECISIONS-FOR-THE-OWNER.md` §5 is
+- **Assumes `mavenLocal()` until the owner decides otherwise.** `OPEN-DECISIONS.md` §5 is
   unchanged in substance: one more module publishes, and none of them publishes anywhere yet.
 
 ## 5. Updated Documents
@@ -146,6 +146,6 @@ request answers on its own correlation; `ready` announces the envelope revision.
 - [`docs/getting-started.md`](../../docs/getting-started.md) — the web section: `runInWorker`, and
   the artifact a page depends on.
 - [`docs/checks.md`](../../docs/checks.md) — the standalone check's three new sections.
-- [`DECISIONS-FOR-THE-OWNER.md`](../../DECISIONS-FOR-THE-OWNER.md) §5 — `dogwood-web` joins the list.
+- [`OPEN-DECISIONS.md`](../../OPEN-DECISIONS.md) §5 — `dogwood-web` joins the list.
 - [`plans/adoption-audit.md`](../../plans/adoption-audit.md) — B9.
 - [`adrs/README.md`](../README.md) — index entry.

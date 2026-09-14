@@ -1,5 +1,9 @@
 # The ledger
 
+**Read [`RUBRIC.md`](RUBRIC.md) before the numbers.** This instrument exists to tell Dogwood where
+it stands; the competitor columns are the yardstick, not the subject, and it is not a published
+comparison of those projects.
+
 One row per run. The full report is filed under `results/` and linked; the row is for the trend.
 Numeric overall per the rubric's mapping, weighted by rubric weights. A rubric version change
 breaks comparability and must be flagged in the row.
@@ -72,7 +76,7 @@ tried**: the only consumer outside this repository is Umbra, and Umbra is a desk
 flagship platform's artifact path is the one path the standalone proof does not cover.
 
 **The merge gate is red on `main` and nobody noticed.** Two of the last three pushes failed, both of
-them merges made this week, while `DECISIONS-FOR-THE-OWNER.md` §1 says the gate "has been green on
+them merges made this week, while `OPEN-DECISIONS.md` §1 says the gate "has been green on
 every merge". The cause is environmental — `SKEW REFUSED Chrome never opened its debugging port`,
 which is the drill's own refusal path declining to report on a broken environment rather than a
 product defect, and the same job passed on the pull-request branch minutes earlier. But a refusal and

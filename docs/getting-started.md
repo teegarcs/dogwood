@@ -3,6 +3,13 @@
 For somebody adding Dogwood to an application that already exists. It assumes you know Compose and
 nothing about this project.
 
+> **The artifacts are not hosted anywhere yet.** Every coordinate on this page —
+> `dev.dogwood:dogwood-host:0.1.0` and its siblings — resolves from a local Maven repository and
+> nowhere else. To follow this guide today you clone this repository and run
+> `./gradlew publishToMavenLocal` in `engine/` first; `tools/standalone-check/run.sh` does exactly
+> that before building the worked example. Where the artifacts will actually be published, and
+> under which coordinates, is [an open decision](../OPEN-DECISIONS.md).
+
 By the end you will have two builds that ship on different schedules: an **application** that goes
 through a store, and a **payload** of screens that does not.
 

@@ -252,7 +252,7 @@ reorder it.
 **Where the artifacts come from is still a decision nobody has taken.** They publish under
 `dev.dogwood` at `0.1.0`, and `publishToMavenLocal` is what the standalone sample consumes. Pointing
 a real deployment at a real repository is in
-[`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
+[`OPEN-DECISIONS.md`](OPEN-DECISIONS.md).
 
 ---
 
@@ -420,6 +420,6 @@ What *is* still open is smaller and is kept in [`plans/production-readiness.md`]
 and [`plans/adoption-audit.md`](plans/adoption-audit.md), which is the unflattering list and the one
 worth reading before adopting.
 
-Everything blocked on a person rather than on work — the Apple ruling among them — is in [`DECISIONS-FOR-THE-OWNER.md`](DECISIONS-FOR-THE-OWNER.md).
+Everything blocked on a person rather than on work — the Apple ruling among them — is in [`OPEN-DECISIONS.md`](OPEN-DECISIONS.md).
 
 The full risk register is section 7 of the [technical specification](high-level-tech-spec-final.md); every architectural decision and its evidence is recorded in [`adrs/`](adrs/).

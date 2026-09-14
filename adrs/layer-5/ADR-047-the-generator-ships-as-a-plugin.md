@@ -57,7 +57,7 @@ guest in its own module, which is all of them.
 
 **`dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host` and `dogwood-codegen` are
 published** under `dev.dogwood` at `0.1.0`. Where the artifacts actually go is a deployment
-decision and is tracked in `DECISIONS-FOR-THE-OWNER.md`; `publishToMavenLocal` is what the proof
+decision and is tracked in `OPEN-DECISIONS.md`; `publishToMavenLocal` is what the proof
 below consumes.
 
 ## 3. Rationale & Research

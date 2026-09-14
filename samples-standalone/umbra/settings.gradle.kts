@@ -16,7 +16,7 @@
  *
  * `mavenLocal()` is what a developer has before anything is published anywhere. A real product
  * would point at the repository the artifacts are actually deployed to; that is a deployment
- * decision and is tracked in `DECISIONS-FOR-THE-OWNER.md` rather than decided here.
+ * decision and is tracked in `OPEN-DECISIONS.md` rather than decided here.
  */
 pluginManagement {
   repositories {

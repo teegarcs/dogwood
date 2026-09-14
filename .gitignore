@@ -41,3 +41,6 @@ tools/phase0/*/webpack.config.d/generated-zipline-webpack-config.js
 samples-standalone/*/build/
 samples-standalone/*/.gradle/
 samples-standalone/*/.kotlin/
+
+# Local Claude Code state: machine-specific, and not something to share.
+.claude/

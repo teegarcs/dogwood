@@ -55,7 +55,7 @@ class GuestLimits(
    *
    * So: the knob is here, its purpose is written down, and the number stays the runtime's until
    * somebody runs `--es experiment pauses` on a device that shows the tail. That run is one
-   * command; the device is the owner's (`DECISIONS-FOR-THE-OWNER.md` §4).
+   * command; the device is the owner's (`OPEN-DECISIONS.md` §4).
    */
   val gcThresholdBytes: Long? = null,
 ) {
