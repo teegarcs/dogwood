@@ -49,6 +49,9 @@ enum class SkewKind {
   /** An enter/exit transition name this client does not implement. */
   UNKNOWN_TRANSITION,
 
+  /** An enumeration entry name absent from this client's surface. Read as the parameter's default. */
+  UNKNOWN_ENUM_VALUE,
+
   /** A number pattern this platform would not accept. */
   REJECTED_NUMBER_PATTERN,
 
@@ -123,6 +126,7 @@ fun SkewReport.entries(): List<SkewEntry> = buildList {
   add(SkewKind.UNKNOWN_TEXT_STYLE, unknownTextStyles)
   add(SkewKind.UNKNOWN_ICON, unknownIcons)
   add(SkewKind.UNKNOWN_TRANSITION, unknownTransitions)
+  add(SkewKind.UNKNOWN_ENUM_VALUE, unknownEnumValues)
   add(SkewKind.REJECTED_NUMBER_PATTERN, rejectedNumberPatterns)
   add(SkewKind.UNTRANSLATED_PLURAL, untranslatedPlurals)
   add(SkewKind.UNKNOWN_ROUTE, unknownRoutes)

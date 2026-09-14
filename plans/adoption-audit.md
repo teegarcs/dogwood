@@ -311,6 +311,41 @@ and with it: `resolved dev.dogwood:dogwood-host-android:0.1.0`.
 The module is a compile probe and says so: it proves the variant exists, is selected, and its API is
 reachable. It does not render — that is covered on Android by the conformance drills.
 
+### B7. ✅ Closed — a rejected component was silent, and an enumeration did not compile ([ADR-068](../adrs/layer-5/ADR-068-the-generator-refuses-what-it-cannot-bind.md))
+
+Found on 2026-09-13 by running a probe surface through the real generator rather than reading it.
+A component with a `List<String>` parameter was dropped from both stubs and bindings while the
+build stayed green — one line on standard output, exit code zero — and ADR-006's "the build fails
+registration" had never been true. An enumeration parameter, the most common non-primitive shape
+in any design system, was accepted and emitted as `JsonPrimitive(it)` on both sides: a compile
+error in a generated file with nothing about the surface in it. Both are closed: the generator
+fails before writing anything, naming the parameter and the allowed types; a surface declares
+`enum class` and the entry name crosses; `Long` and `Double` have readers. The first surface
+written outside this repository had already hit the silent half (`UmbraStepper`), which is A2's
+argument made twice.
+
+### B8. ✅ Closed — "sandbox" was asserted where the substrate disclaims it, and no threat model existed
+
+The third grading run's new production finding: Zipline's own documentation says it "does not offer
+a sandbox or process-isolation and should not be used to execute untrusted code", the repository
+used the word "sandbox" twenty-nine times, and nothing stated the trust model a reviewer would ask
+for on day one. [`docs/security.md`](../docs/security.md) now does: what the word means here
+(capability-confined, not isolated), the assets and who is trusted with them, every boundary that
+exists with the record that proves it, the six things that do **not** exist stated plainly, a
+threat table, and what a deployment owes it. The README's first paragraph says the same in one
+clause and links there.
+
+### B9. ✅ Closed — two of three shipping platforms were not consumable from outside ([ADR-070](../adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md))
+
+Found by reading build files per platform. `dogwood-web` published nothing — no `maven-publish`, no
+group, no version — so no page outside this repository could depend on the web host; the Worker
+guest transport was a 416-line sample a product would copy; and the iOS artifacts had never been
+resolved by a build that was not the engine's own, because Umbra's design system was JVM-only and
+its only probes were desktop and Android. All three closed: `dogwood-web` publishes, `runInWorker`
+is a library, Umbra's design system compiles for every host target and the standalone check
+resolves the web host, builds a Worker payload and links an iOS framework — the same finding as B6,
+on the two platforms B6 did not cover.
+
 ### B4. ✅ Closed — `samples/ios-embed` produces the XCFramework
 
 A library module (not an application) assembling `DogwoodEmbed.xcframework` with device and both

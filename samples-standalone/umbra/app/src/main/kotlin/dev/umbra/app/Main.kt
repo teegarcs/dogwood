@@ -172,7 +172,7 @@ fun main(args: Array<String>) {
                 // own composable through `@Implementation`. Its line in the transcript is what
                 // proves the direct path renders, not merely compiles.
                 val ownComponents = "UmbraBanner#" in dump && "UmbraStepper#" in dump &&
-                  "UmbraChip#" in dump
+                  "UmbraChip#" in dump && "UmbraBadge#" in dump
                 val measured = Regex("measured [1-9]\\d*x[1-9]\\d*").containsMatchIn(dump)
                 val alive = marker && ownComponents && measured
                 println(

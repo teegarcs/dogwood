@@ -36,3 +36,27 @@ fun UmbraChip(
   modifier: Modifier = Modifier,
 ) {}
 
+/**
+ * A tone the design system already owns.
+ *
+ * `@Implementation` on an enumeration is the same bargain as on a component: the surface declares
+ * the entries, the guest gets a copy, and the host decodes the name straight into Umbra's own
+ * `dev.umbra.design.UmbraTone` -- so no generated copy exists on the host and `UmbraBadge` below
+ * is called with the type it was written against. The entry names must match, and the compiler
+ * says so if they stop matching.
+ */
+@Implementation("dev.umbra.design.UmbraTone")
+enum class UmbraTone { Calm, Loud }
+
+/**
+ * Bound directly, like `UmbraChip`, and taking an enumeration rather than the `String` that
+ * `UmbraBanner`'s `tone` had to be before enumerations could cross. The standalone check requires
+ * this component in the render transcript for that reason.
+ */
+@Composable
+@Implementation("dev.umbra.design.UmbraBadge")
+fun UmbraBadge(
+  label: String,
+  tone: UmbraTone = UmbraTone.Calm,
+  modifier: Modifier = Modifier,
+) {}

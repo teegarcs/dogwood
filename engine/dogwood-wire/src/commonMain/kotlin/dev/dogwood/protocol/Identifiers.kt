@@ -72,4 +72,44 @@ object ModifierTags {
   const val BACKGROUND = 10
   const val ROTATE = 11
   const val SCALE = 12
+
+  /*
+   * The primitive tier's second growth (layout segment version 2). Appended, never renumbered: a
+   * client one version behind reaches `else -> modifier` for every tag below and draws the node
+   * without it, which is the containment rule for a cosmetic modifier -- and every one of these is
+   * cosmetic except `CLICKABLE`, whose absence on an old client is contained a different way: a
+   * payload that uses any tag here declares layout version 2, and a client at version 1 refuses it
+   * before it starts (ADR-061) rather than drawing a screen nothing can tap.
+   */
+
+  /** Value: `enabled`. The handler is guest-side, on the event tag derived from the element index. */
+  const val CLICKABLE = 13
+
+  /** Value: `[widthDp, colour recipe]`. */
+  const val BORDER = 14
+
+  /** Value: `[xDp, yDp]`. */
+  const val OFFSET = 15
+  const val FILL_MAX_HEIGHT = 16
+  const val FILL_MAX_SIZE = 17
+
+  /** Value: `[startDp, topDp, endDp, bottomDp]`. The symmetric forms are this with repeats. */
+  const val PADDING_SIDES = 18
+  const val SHADOW = 19
+  const val ASPECT_RATIO = 20
+
+  /** Value: the description. Semantics only; draws nothing. */
+  const val CONTENT_DESCRIPTION = 21
+
+  /** Value: the tag. Semantics only, for tests and drills that need to find a node. */
+  const val TEST_TAG = 22
+  const val WRAP_CONTENT_WIDTH = 23
+  const val WRAP_CONTENT_HEIGHT = 24
+
+  /** Value: `[minWidthDp, minHeightDp]`; -1 leaves a side unconstrained. */
+  const val DEFAULT_MIN_SIZE = 25
+
+  /** Value: `[minDp, maxDp]`; -1 leaves a bound unconstrained. */
+  const val WIDTH_IN = 26
+  const val HEIGHT_IN = 27
 }

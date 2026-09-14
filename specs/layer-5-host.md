@@ -109,6 +109,17 @@ A composable is generable if and only if **every** lambda parameter is a composi
 
 This rule, and not parameter-type marshallability, is what determines coverage. It excludes:
 
+> **The value half of the rule, as the generator enforces it since [ADR-068](../adrs/layer-5/ADR-068-the-generator-refuses-what-it-cannot-bind.md).**
+> A parameter that is not a lambda may be `String`, `Int`, `Long`, `Float`, `Double` or `Boolean`;
+> a host-resolved `TextValue`, `Color` or `Shape`; `Modifier`; a `@Holder` type with a registered
+> shape; or an **enumeration declared on the same surface**, which crosses as its entry name and is
+> copied to both ends (or decoded into the adopter's own type via `@Implementation` on the
+> enumeration). Anything else — a `List`, a data class, `Dp`, `TextStyle`, `Painter` — **fails the
+> build before anything is written**, naming the parameter and this list. For thirteen days before
+> that record the generator dropped such a component silently with the build green, and accepted
+> an enumeration as a value it then could not encode; both are the reason the rule is now enforced
+> at the parse rather than described here.
+
 | Excluded | Why |
 |---|---|
 | `LazyColumn`, `LazyRow`, `LazyVerticalGrid` | `LazyListScope.() -> Unit` is invoked by the host per visible index during layout; `key` and `contentType` are `Any?` |

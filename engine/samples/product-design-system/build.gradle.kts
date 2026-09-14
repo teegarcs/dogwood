@@ -114,7 +114,9 @@ val generateAcme by tasks.registering(JavaExec::class) {
       "--segment", "acmeDesignSystem",
       "--wire-name", "acme.designsystem",
       "--segment-id", "2",
-      "--version", "1",
+      // 2 since `AcmeTag` and `AcmeTone`: an added component and an added enumeration are both
+      // compatibility events, and the lock refuses either without the version moving.
+      "--version", "2",
       "--guest-package", "dev.acme.guest",
       "--host-package", "dev.acme.design",
       "--impl-package", "dev.acme.design",

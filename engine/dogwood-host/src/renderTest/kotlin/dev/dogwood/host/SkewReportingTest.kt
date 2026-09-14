@@ -194,6 +194,7 @@ class SkewReportingTest {
       it.unknownTransitions += "d"; it.rejectedNumberPatterns += "e"; it.untranslatedPlurals += "f"
       it.unknownRoutes += "g"; it.withheldWidgets += 3; it.rejectedBatches += "h"
       it.refusedImages += "i"; it.clampedValues += "j"; it.rejectedFocusRequests += "k"
+      it.unknownEnumValues += "l"
     }
     assertEquals(
       SkewKind.entries.toSet(),

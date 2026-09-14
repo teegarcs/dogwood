@@ -16,17 +16,30 @@
  * because decoding is the larger half of this platform's crossing.
  */
 plugins {
+  // Published, so a product outside this repository can depend on it. Until 2026-09-13 this was
+  // the one engine module with no coordinates at all: the web host existed, rendered, and could not
+  // be consumed by any build that was not this one. `samples-standalone/umbra`'s `:web` probe is
+  // what asserts the artifact resolves.
+  `maven-publish`
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.kotlinSerialization)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.composeMultiplatform)
 }
 
+group = "dev.dogwood"
+version = "0.1.0"
+
 kotlin {
   jvmToolchain(21)
 
   @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
   wasmJs {
+    // Pinned for the reason `dogwood-compose` pins its JavaScript module name: the default is
+    // derived from the project's `group`, `internal` declarations are name-mangled against it,
+    // and adding a `group` for publishing renamed that module and killed its browser tests.
+    // Pinning makes the emitted module independent of where the artifact is published.
+    outputModuleName.set("dogwood-web")
     browser()
   }
 

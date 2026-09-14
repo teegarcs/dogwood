@@ -2,7 +2,7 @@
     "segmentName": "acmeDesignSystem",
     "wireName": "acme.designsystem",
     "segmentId": 2,
-    "version": 1,
+    "version": 2,
     "components": [
         {
             "name": "AcmePrice",
@@ -55,6 +55,32 @@
                 "content": 1
             },
             "events": {}
+        },
+        {
+            "name": "AcmeTag",
+            "localTag": 4,
+            "properties": {
+                "label": 1,
+                "tone": 2
+            },
+            "propertyTypes": {
+                "label": "String",
+                "tone": "AcmeTone"
+            },
+            "slots": {},
+            "events": {
+                "onToneChange": 1
+            },
+            "eventTypes": {
+                "onToneChange": "(AcmeTone) -> Unit"
+            }
         }
-    ]
+    ],
+    "enums": {
+        "AcmeTone": [
+            "Neutral",
+            "Positive",
+            "Negative"
+        ]
+    }
 }

@@ -73,6 +73,17 @@ abstract class DogwoodSegmentSpec @Inject constructor(val name: String, objects:
    * reference, which is the same reasoning that puts the lock beside the surface.
    */
   val referenceFile: Property<String> = objects.property(String::class.java)
+
+  /**
+   * Whether a component the rule cannot bind is a warning rather than a failure.
+   *
+   * Off, and off in anything that ships. A rejected component is left out of both ends of the
+   * boundary, so with this on a surface can declare a component nobody can call and the build stays
+   * green -- which is how Umbra's stepper went unbindable for as long as it existed. On is for one
+   * situation: auditing a surface being written, where seeing every rejection at once is worth more
+   * than fixing them one build at a time.
+   */
+  val allowUnbindable: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 /** The `dogwood { }` block. */
@@ -159,6 +170,8 @@ class DogwoodPlugin : Plugin<Project> {
             spec.referenceFile.orNull
               ?.let { listOf("--docs-out", project.file(it).absolutePath) }
               .orEmpty()
+            ) + (
+            if (spec.allowUnbindable.get()) listOf("--allow-unbindable", "true") else emptyList()
             )
         }
       }

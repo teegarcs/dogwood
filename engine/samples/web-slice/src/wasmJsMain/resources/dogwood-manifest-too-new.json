@@ -1,9 +1,9 @@
 {
-  "_comment": "The refusal case, kept in the sample rather than in a test, because the property being demonstrated is that the guest script never executes -- and only a real browser and a real server can show that. Two refusals at once: a segment this client has never heard of, and a version of one it has that is ahead of it.",
+  "_comment": "The refusal case, kept in the sample rather than in a test, because the property being demonstrated is that the guest script never executes -- and only a real browser and a real server can show that. The refusal rests on the layout number alone: 99 is ahead of any client, while the design-system version named here is behind the client and is accepted. A segment this client has never heard of would be refused on the same path, and used to be claimed here without being present -- corrected 2026-09-13 when the layout version moved to 2 and this fixture had to move past it.",
   "envelopeRevision": 1,
   "guestScript": "guest.js",
   "segmentVersions": {
-    "androidx.layout": 2,
+    "androidx.layout": 99,
     "dogwood.designsystem": 7
   }
 }

@@ -2,7 +2,7 @@
     "segmentName": "umbraDesignSystem",
     "wireName": "umbra.designsystem",
     "segmentId": 3,
-    "version": 2,
+    "version": 3,
     "components": [
         {
             "name": "UmbraBanner",
@@ -51,6 +51,26 @@
             },
             "slots": {},
             "events": {}
+        },
+        {
+            "name": "UmbraBadge",
+            "localTag": 4,
+            "properties": {
+                "label": 1,
+                "tone": 2
+            },
+            "propertyTypes": {
+                "label": "String",
+                "tone": "UmbraTone"
+            },
+            "slots": {},
+            "events": {}
         }
-    ]
+    ],
+    "enums": {
+        "UmbraTone": [
+            "Calm",
+            "Loud"
+        ]
+    }
 }

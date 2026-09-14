@@ -102,6 +102,32 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
     if (locked.components.none { it.name == entry.name }) added += entry.name
   }
 
+  /*
+   * Enumerations. An entry crosses as its name, so the list of names is part of the contract.
+   *
+   * Removing or renaming one is a violation for the reason removing a component is: a payload
+   * built against the old surface still sends the old name, and a client that no longer knows it
+   * would silently render the default where the payload meant something specific. Adding one is
+   * allowed and is a compatibility event -- a client behind the change reads the new name as the
+   * default -- so it needs the version raised, exactly as an added component does. A removed
+   * enumeration is a removal of every entry at once and is refused on the same grounds.
+   */
+  val widened = mutableListOf<String>()
+  for ((name, wasEntries) in locked.enums) {
+    val nowEntries = dictionary.enums[name]
+    if (nowEntries == null) {
+      problems += "enumeration $name was removed; a payload built against it still sends its " +
+        "entry names, and a client must keep reading them"
+      continue
+    }
+    for (entry in wasEntries - nowEntries.toSet()) {
+      problems += "$name.$entry was removed or renamed; entries may only be added, because a " +
+        "client one version behind resolves the name it receives against this list"
+    }
+    for (entry in nowEntries - wasEntries.toSet()) widened += "$name.$entry"
+  }
+  for (name in dictionary.enums.keys - locked.enums.keys) widened += name
+
   // Adding a component that clients cannot detect is worse than not adding it: guest code branches
   // on `segmentVersions["dogwood.designsystem"]`, and a payload that used a component this
   // client's version does not promise gets a placeholder with no explanation.
@@ -120,6 +146,12 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
       "indexed past the end of the list"
   }
 
+  if (widened.isNotEmpty() && dictionary.version <= locked.version) {
+    problems += "added enumeration entries ${widened.sorted()} without raising the segment " +
+      "version past ${locked.version}; a client behind the change reads a new entry name as " +
+      "the parameter's default, and a guest branches on the version to know which names it may send"
+  }
+
   if (reclassified.isNotEmpty() && dictionary.version <= locked.version) {
     problems += "reclassified ${reclassified.sorted()} without raising the segment version past " +
       "${locked.version}; whether a widget is withheld or drawn on skew changes with this marking"
@@ -127,9 +159,9 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
 
   return when {
     problems.isNotEmpty() -> LockResult.Violated(problems)
-    added.isNotEmpty() || retyped.isNotEmpty() || reclassified.isNotEmpty() -> {
+    added.isNotEmpty() || retyped.isNotEmpty() || reclassified.isNotEmpty() || widened.isNotEmpty() -> {
       lockFile.writeText(dictionary.encode())
-      LockResult.Updated(added + retyped + reclassified)
+      LockResult.Updated(added + retyped + reclassified + widened)
     }
     else -> {
       lockFile.writeText(dictionary.encode())

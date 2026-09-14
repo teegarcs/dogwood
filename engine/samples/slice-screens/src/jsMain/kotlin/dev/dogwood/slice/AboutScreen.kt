@@ -51,8 +51,17 @@ import dev.dogwood.compose.ScrollArea
 import dev.acme.guest.AcmeAction
 import dev.acme.guest.AcmePanel
 import dev.acme.guest.AcmePrice
+import dev.acme.guest.AcmeTag
+import dev.acme.guest.AcmeTone
 import kotlinx.coroutines.launch
 import dev.dogwood.compose.SnackbarArea
+import dev.dogwood.compose.Arrangement
+import dev.dogwood.compose.FontWeight
+import dev.dogwood.compose.VerticalAlignment
+import dev.dogwood.compose.border
+import dev.dogwood.compose.clickable
+import dev.dogwood.compose.contentDescription
+import dev.dogwood.compose.size
 import dev.dogwood.compose.SnackbarResult
 import dev.dogwood.compose.rememberFocusRequester
 import dev.dogwood.compose.rememberSnackbarHostState
@@ -164,6 +173,10 @@ fun AboutScreen() {
     AcmePanel(modifier = Modifier.fillMaxWidth(), inset = 16) {
       AcmePrice(amount = 129_900, currency = "USD", emphasis = "strong")
       AcmePrice(amount = 129_900, currency = "JPY")
+      // An enumeration declared on Acme's surface, crossing as its name and coming back through
+      // an event the same way. `remember`ed here, so a tap on the device changes the colour.
+      var tone by remember { mutableStateOf(AcmeTone.Positive) }
+      AcmeTag(label = "Acme tone ${tone.name}", tone = tone, onToneChange = { tone = it })
       Spacer(modifier = Modifier.height(8))
       AcmeAction(
         label = "Acme action",
@@ -174,6 +187,30 @@ fun AboutScreen() {
       // control is withheld rather than drawn if a payload ever says something about it this
       // client cannot read. A product gets that guard by declaring it, not by remembering it.
       AcmeAction(label = "Acme unavailable", enabled = false, onClick = { })
+    }
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
+    var pillTaps by remember { mutableStateOf(0) }
+    SectionHeader(
+      title = "Composed in the payload",
+      description = "Segment nobody's. A pill built from the primitive tier: no surface entry, " +
+        "no tag, no release. Tap it.",
+    )
+    // The practical test of "no release for a new component" (ADR-069): a compositional component
+    // written here, in the payload, from `clickable`, `border`, per-side `padding`, `spacedBy` and
+    // `fontWeight`. The Android and iOS drills see it on a device; the render tests see the parts.
+    Row(
+      modifier = Modifier
+        .border(1, Color(0xFF5C6BC0))
+        .padding(horizontal = 10, vertical = 4)
+        .contentDescription("payload pill, tapped $pillTaps times")
+        .clickable(onClick = { pillTaps += 1 }),
+      horizontalArrangement = Arrangement.spacedBy(6),
+      verticalAlignment = VerticalAlignment.CenterVertically,
+    ) {
+      Box(modifier = Modifier.size(8).background(Color(0xFF5C6BC0)))
+      Text("payload pill · $pillTaps", fontWeight = FontWeight.Medium)
     }
 
     Divider(modifier = Modifier.fillMaxWidth())

@@ -4,7 +4,7 @@
 # `umbra.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **2**, segment **3**.
+actually emitted. Version **3**, segment **3**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -27,6 +27,16 @@ Two rules govern every number here, and both are enforced by the lock beside the
   rather than drawing a control that lies about what it will do. Every other kind of
   skew degrades cosmetically. The components that own one are marked below.
 
+## Enumerations
+
+An entry crosses as its **name**. A client that meets a name it does not know renders the
+parameter's default and reports the name as skew, so adding an entry is a compatibility event
+and the lock requires the segment version to move with it. Entries are append-only.
+
+| Enumeration | Entries |
+| --- | --- |
+| `UmbraTone` | `Calm`, `Loud` |
+
 ## Components
 
 | Component | Local tag | Widget tag | Owns an affordance |
@@ -34,6 +44,7 @@ Two rules govern every number here, and both are enforced by the lock beside the
 | [`UmbraBanner`](#umbrabanner) | 1 | 50331649 |  |
 | [`UmbraStepper`](#umbrastepper) | 2 | 50331650 | yes |
 | [`UmbraChip`](#umbrachip) | 3 | 50331651 |  |
+| [`UmbraBadge`](#umbrabadge) | 4 | 50331652 |  |
 
 ---
 
@@ -84,6 +95,21 @@ Local tag 3, widget tag `50331651`.
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
 | `label` | `String` | 1 | required |  |
+
+Takes a modifier chain.
+
+---
+
+### UmbraBadge
+
+Local tag 4, widget tag `50331652`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `label` | `String` | 1 | required |  |
+| `tone` | `UmbraTone` | 2 | `UmbraTone.Calm` | one of `Calm`, `Loud`, by name |
 
 Takes a modifier chain.
 

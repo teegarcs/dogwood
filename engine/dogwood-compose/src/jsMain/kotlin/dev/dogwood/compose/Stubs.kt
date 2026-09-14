@@ -39,21 +39,25 @@ import kotlinx.serialization.json.jsonPrimitive
 import dev.dogwood.protocol.ModifierTags
 
 /**
- * Records a modifier chain, and rebinds any animation completions it carries.
+ * Records a modifier chain, and rebinds any element callbacks it carries.
  *
  * Called from every stub, hand-written and generated. The chain itself is recorded only when it
- * changes -- completions are outside `Modifier`'s equality, deliberately, because they are
- * lambdas and would otherwise make every chain look new on every recomposition.
+ * changes -- callbacks are outside `Modifier`'s equality, deliberately, because they are lambdas
+ * and would otherwise make every chain look new on every recomposition.
  *
- * The rebinding, though, happens **every** time. A completion captured in the composition where
+ * The rebinding, though, happens **every** time. A callback captured in the composition where
  * the chain last changed would go stale exactly as the viewport reporter did
  * ([Layer 5 ADR-016](../../../../../../adrs/layer-5/ADR-016-leak-detection.md)), and a stale
  * callback firing into a dead closure is the same bug wearing different clothes.
+ *
+ * Two kinds of element carry one: an animated argument's completion, and `clickable`'s handler.
+ * Both are "the host tells the guest something happened to element *n*", and the tag is derived
+ * from *n* on both sides, so neither costs anything on the wire.
  */
 @DogwoodGeneratedApi
 fun applyModifier(id: Id, modifier: Modifier) {
   for (index in modifier.elements.indices) {
-    val tag = EventTag(ANIMATION_EVENT_BASE + index)
+    val tag = EventTag(ELEMENT_EVENT_BASE + index)
     val callback = modifier.completions[index]
     if (callback != null) {
       recording.lambdas.set(id, tag) { callback() }
@@ -98,6 +102,9 @@ object Tags {
   val P6 = PropertyTag(6)
   val P7 = PropertyTag(7)
   val P8 = PropertyTag(8)
+  val P9 = PropertyTag(9)
+  val P10 = PropertyTag(10)
+  val P11 = PropertyTag(11)
 
   /** Event tags are parameter-declaration order, widget-scoped. */
   val OnClick = EventTag(1)
@@ -118,11 +125,12 @@ object Tags {
 open class Modifier internal constructor(
   val elements: List<ModifierElem>,
   /**
-   * Completion callbacks for animated elements, by their position in the chain.
+   * Callbacks for elements that report, by their position in the chain: an animated argument's
+   * completion, a `clickable`'s handler.
    *
    * Guest-side only; nothing here crosses. The *position* is what both sides share -- the host
-   * walks the same ordered chain -- so a completion event needs no allocated identifier and no
-   * registry: the element's index is the identifier. See `Animation.kt`.
+   * walks the same ordered chain -- so an element's event needs no allocated identifier and no
+   * registry: the element's index is the identifier. See `Animation.kt` and `LayoutModifiers.kt`.
    */
   internal val completions: Map<Int, () -> Unit> = emptyMap(),
 ) {
@@ -296,6 +304,19 @@ fun Text(
    * screen does. Absent means the host's default ink, as always.
    */
   color: Color? = null,
+  /**
+   * Per-call overrides on top of the named style, for the text a guest-composed component draws
+   * itself -- a chip's label, a card's caption -- when no token says quite the right thing. Names,
+   * not numbers, wherever Compose's own type is a closed set (`fontWeight`, `textAlign`,
+   * `overflow`, `textDecoration`), so an unknown one is skew a client can name rather than an
+   * ordinal it resolves to the wrong thing. Absent means the style's own value, as always.
+   */
+  fontWeight: FontWeight? = null,
+  textAlign: TextAlign? = null,
+  overflow: TextOverflow? = null,
+  sizeSp: Int? = null,
+  textDecoration: TextDecoration? = null,
+  lineHeightSp: Int? = null,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Text) },
@@ -305,6 +326,7 @@ fun Text(
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
       set(color) { if (it != null) recording.recorder.property(id, Tags.P5, it.json) }
+      textOverrides(fontWeight, textAlign, overflow, sizeSp, textDecoration, lineHeightSp)
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
       reconcile { applyModifier(id, modifier) }
     },
@@ -324,6 +346,13 @@ fun Text(
   modifier: Modifier = Modifier,
   maxLines: Int = -1,
   style: String? = null,
+  color: Color? = null,
+  fontWeight: FontWeight? = null,
+  textAlign: TextAlign? = null,
+  overflow: TextOverflow? = null,
+  sizeSp: Int? = null,
+  textDecoration: TextDecoration? = null,
+  lineHeightSp: Int? = null,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
     factory = { newWidget(Tags.Text) },
@@ -331,24 +360,75 @@ fun Text(
       set(value) { recording.recorder.property(id, Tags.P4, it.json) }
       set(maxLines) { if (it >= 0) recording.recorder.property(id, Tags.P2, JsonPrimitive(it)) }
       set(style) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it)) }
+      set(color) { if (it != null) recording.recorder.property(id, Tags.P5, it.json) }
+      textOverrides(fontWeight, textAlign, overflow, sizeSp, textDecoration, lineHeightSp)
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
       reconcile { applyModifier(id, modifier) }
     },
   )
 }
 
+/**
+ * The six text overrides, recorded the same way from both `Text` overloads.
+ *
+ * One place rather than two copies, because the property tags are the contract: a tag emitted
+ * under one overload and not the other would be a text field that lost its weight depending on
+ * whether it was a literal or a recipe.
+ */
+private fun androidx.compose.runtime.Updater<WidgetNode>.textOverrides(
+  fontWeight: FontWeight?,
+  textAlign: TextAlign?,
+  overflow: TextOverflow?,
+  sizeSp: Int?,
+  textDecoration: TextDecoration?,
+  lineHeightSp: Int?,
+) {
+  set(fontWeight) { if (it != null) recording.recorder.property(id, Tags.P6, JsonPrimitive(it.wire)) }
+  set(textAlign) { if (it != null) recording.recorder.property(id, Tags.P7, JsonPrimitive(it.wire)) }
+  set(overflow) { if (it != null) recording.recorder.property(id, Tags.P8, JsonPrimitive(it.wire)) }
+  set(sizeSp) { if (it != null) recording.recorder.property(id, Tags.P9, JsonPrimitive(it)) }
+  set(textDecoration) { if (it != null) recording.recorder.property(id, Tags.P10, JsonPrimitive(it.wire)) }
+  set(lineHeightSp) { if (it != null) recording.recorder.property(id, Tags.P11, JsonPrimitive(it)) }
+}
+
+/**
+ * A column, with Compose's own two layout parameters.
+ *
+ * Both optional and both absent from the wire until set -- a host one layout version behind meets
+ * neither tag and lays the column out as it always has. Arrangement and alignment are what turn a
+ * `Column` from "things stacked" into a layout a design-system component can actually be built
+ * from; without them every space-between row and every centred label needed a registered
+ * component, which is the treadmill this tier exists to end.
+ */
 @Composable
 fun Column(
   modifier: Modifier = Modifier,
+  verticalArrangement: Arrangement? = null,
+  horizontalAlignment: HorizontalAlignment? = null,
   content: @Composable DogwoodColumnScope.() -> Unit,
 ) {
-  Container(Tags.Column, modifier) { ColumnScopeInstance.content() }
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Column) },
+    update = {
+      set(verticalArrangement) { if (it != null) recording.recorder.property(id, Tags.P1, JsonPrimitive(it.wire)) }
+      set(horizontalAlignment) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it.ordinal)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
+    },
+    content = { Children(Tags.Content) { ColumnScopeInstance.content() } },
+  )
 }
 
 @Composable
 fun Row(
   modifier: Modifier = Modifier,
+  /**
+   * The pre-`clickable` form, kept because payloads already use it. `Modifier.clickable` is the
+   * general answer -- it works on every node, not only rows -- and new code should reach for it.
+   */
   onClick: (() -> Unit)? = null,
+  horizontalArrangement: Arrangement? = null,
+  verticalAlignment: VerticalAlignment? = null,
   content: @Composable DogwoodRowScope.() -> Unit,
 ) {
   ComposeNode<WidgetNode, DogwoodApplier>(
@@ -356,9 +436,6 @@ fun Row(
     update = {
       set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
       reconcile { applyModifier(id, modifier) }
-      // Stand-in for `Modifier.clickable`, which carries a lambda argument and so needs the
-      // modifier subsystem Phase 2 defines.
-      //
       // Two `set` calls, doing two different jobs. The lambda itself is stored guest-side and
       // never crosses. But the host cannot see guest closures, so it has no way to know whether
       // to make this row clickable -- and that has to cross as an ordinary property. Presence
@@ -369,6 +446,8 @@ fun Row(
       set(onClick) { handler ->
         if (handler != null) recording.lambdas.set(id, Tags.OnClick) { handler() }
       }
+      set(horizontalArrangement) { if (it != null) recording.recorder.property(id, Tags.P2, JsonPrimitive(it.wire)) }
+      set(verticalAlignment) { if (it != null) recording.recorder.property(id, Tags.P3, JsonPrimitive(it.ordinal)) }
     },
     content = { Children(Tags.Content) { RowScopeInstance.content() } },
   )
@@ -377,9 +456,18 @@ fun Row(
 @Composable
 fun Box(
   modifier: Modifier = Modifier,
+  contentAlignment: BoxAlignment? = null,
   content: @Composable DogwoodBoxScope.() -> Unit = {},
 ) {
-  Container(Tags.Box, modifier) { BoxScopeInstance.content() }
+  ComposeNode<WidgetNode, DogwoodApplier>(
+    factory = { newWidget(Tags.Box) },
+    update = {
+      set(contentAlignment) { if (it != null) recording.recorder.property(id, Tags.P1, JsonPrimitive(it.ordinal)) }
+      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
+      reconcile { applyModifier(id, modifier) }
+    },
+    content = { Children(Tags.Content) { BoxScopeInstance.content() } },
+  )
 }
 
 @Composable
@@ -392,23 +480,6 @@ fun Spacer(modifier: Modifier = Modifier) {
     },
   )
 }
-
-@Composable
-private fun Container(
-  tag: WidgetTag,
-  modifier: Modifier,
-  content: @Composable () -> Unit,
-) {
-  ComposeNode<WidgetNode, DogwoodApplier>(
-    factory = { newWidget(tag) },
-    update = {
-      set(modifier) { if (it.elements.isNotEmpty()) recording.recorder.modifiers(id, it.elements) }
-      reconcile { applyModifier(id, modifier) }
-    },
-    content = { Children(Tags.Content, content) },
-  )
-}
-
 
 // ---------------------------------------------------------------------------
 // Segment 1 -- the registered design-system slice

@@ -52,7 +52,48 @@ fun WidgetView.boolean(tag: Int, default: Boolean): Boolean =
   (property(tag) as? kotlinx.serialization.json.JsonPrimitive)?.content?.toBooleanStrictOrNull()
     ?: default
 
+fun WidgetView.long(tag: Int, default: Long): Long =
+  (property(tag) as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull() ?: default
+
+fun WidgetView.double(tag: Int, default: Double): Double =
+  (property(tag) as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull() ?: default
+
 fun WidgetView.has(tag: Int): Boolean = property(tag) != null
+
+/*
+ * Enumeration readers.
+ *
+ * An enumeration declared on a surface crosses as its entry **name**, and these resolve the name
+ * against the entries this client was built with. The interesting case is the name that is not
+ * there: a payload built against a newer surface sends an entry this client has never heard of.
+ * That is skew, and it takes the shape every other named thing here takes -- degrade to something
+ * the screen can show, and record the name so a team can see that payloads are ahead of devices.
+ *
+ * The degraded value is the parameter's declared default, or the first entry when it has none.
+ * The first entry rather than a throw, because a throw lands inside composition and a payload is
+ * delivered over the air to every client at once (ADR-035); and rather than nothing, because
+ * a required parameter has to be something and the surface author put the ordinary case first.
+ */
+
+/** Reads an enumeration by name, degrading to [default] and reporting a name not in [entries]. */
+@Composable
+fun <E : Enum<E>> WidgetView.enum(tag: Int, entries: List<E>, default: E, what: String): E {
+  val name = stringOrNull(tag) ?: return default
+  return entries.firstOrNull { it.name == name } ?: run {
+    LocalSkewReport.current.unknownEnumValues += "$what=$name"
+    default
+  }
+}
+
+/** As [enum], for an optional parameter: absence is the "use host default" sentinel and reads null. */
+@Composable
+fun <E : Enum<E>> WidgetView.enumOrNull(tag: Int, entries: List<E>, what: String): E? {
+  val name = stringOrNull(tag) ?: return null
+  return entries.firstOrNull { it.name == name } ?: run {
+    LocalSkewReport.current.unknownEnumValues += "$what=$name"
+    null
+  }
+}
 
 /**
  * Property tags this node carries that [known] does not name.
@@ -90,6 +131,10 @@ private fun WidgetView.primitive(tag: Int): kotlinx.serialization.json.JsonPrimi
 fun WidgetView.stringOrNull(tag: Int): String? = primitive(tag)?.content
 
 fun WidgetView.intOrNull(tag: Int): Int? = primitive(tag)?.content?.toIntOrNull()
+
+fun WidgetView.longOrNull(tag: Int): Long? = primitive(tag)?.content?.toLongOrNull()
+
+fun WidgetView.doubleOrNull(tag: Int): Double? = primitive(tag)?.content?.toDoubleOrNull()
 
 fun WidgetView.floatOrNull(tag: Int): Float? = primitive(tag)?.content?.toFloatOrNull()
 

@@ -33,6 +33,8 @@ kotlin {
       // A source directory rather than a dependency, because the stubs are half of `:design`'s
       // boundary and have no artifact of their own -- the same arrangement `slice-screens` uses.
       kotlin.srcDir(project(":design").layout.buildDirectory.dir("generated/dogwood/umbraDesignSystem/guest"))
+      // The screens, shared with `:web-guest`: one set of screens, two transports.
+      kotlin.srcDir("screens/kotlin")
     }
   }
 }

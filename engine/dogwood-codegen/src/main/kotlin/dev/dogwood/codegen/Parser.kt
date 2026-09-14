@@ -18,6 +18,8 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtEnumEntry
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -45,19 +47,66 @@ class SurfaceParser(
 
   private val factory = org.jetbrains.kotlin.com.intellij.psi.PsiFileFactory.getInstance(environment.project)
 
-  fun parse(source: String, fileName: String = "Surface.kt"): List<ParsedComponent> {
-    val file = factory.createFileFromText(
-      fileName,
-      org.jetbrains.kotlin.idea.KotlinLanguage.INSTANCE,
-      source,
-    ) as KtFile
-    return file.collectDescendantsOfType<KtNamedFunction>()
-      .filter { it.isComposable() && !it.isPrivateOrInternal() }
-      .map { it.toComponent() }
+  fun parse(source: String, fileName: String = "Surface.kt"): List<ParsedComponent> =
+    parseSurface(source, fileName).components
+
+  fun parseFiles(files: List<File>): List<ParsedComponent> = parseSurfaceFiles(files).components
+
+  /** One source, both halves: the enumerations it declares and the components that may use them. */
+  fun parseSurface(source: String, fileName: String = "Surface.kt"): ParsedSurface =
+    parseSources(listOf(fileName to source))
+
+  fun parseSurfaceFiles(files: List<File>): ParsedSurface =
+    parseSources(files.map { it.name to it.readText() })
+
+  /**
+   * Parses a whole surface, in two passes over every file.
+   *
+   * Two passes because an enumeration is a surface-wide declaration: a component in one file may
+   * take an enumeration declared in another, and classifying its parameter needs the whole list.
+   * One pass per file would classify by declaration order across files, which is the kind of
+   * order nobody thinks they are depending on until a file is renamed.
+   */
+  private fun parseSources(sources: List<Pair<String, String>>): ParsedSurface {
+    val files = sources.map { (name, text) ->
+      factory.createFileFromText(name, org.jetbrains.kotlin.idea.KotlinLanguage.INSTANCE, text) as KtFile
+    }
+    val enums = files.flatMap { file ->
+      file.collectDescendantsOfType<KtClass>()
+        .filter { it.isEnum() && !it.isPrivateOrInternal() }
+        .map { it.toEnum() }
+    }
+    val duplicated = enums.groupBy { it.name }.filterValues { it.size > 1 }.keys
+    require(duplicated.isEmpty()) {
+      "enumeration declared twice on the surface: ${duplicated.sorted()}; a parameter naming it " +
+        "could mean either, and the two ends of the boundary would each pick one"
+    }
+    val components = files.flatMap { file ->
+      file.collectDescendantsOfType<KtNamedFunction>()
+        .filter { it.isComposable() && !it.isPrivateOrInternal() }
+        .map { it.toComponent(enums) }
+    }
+    return ParsedSurface(components, enums)
   }
 
-  fun parseFiles(files: List<File>): List<ParsedComponent> =
-    files.flatMap { parse(it.readText(), it.name) }
+  private fun KtClass.isPrivateOrInternal(): Boolean =
+    modifierList?.text?.let { it.contains("private") || it.contains("internal") } ?: false
+
+  /**
+   * An enumeration as the surface declares it: a name, its entries in order, and optionally the
+   * host type the binding decodes into.
+   *
+   * Only entry names are read. An entry with a constructor argument or a body parses, but nothing
+   * past its name reaches either side, and a surface author should not expect it to.
+   */
+  private fun KtClass.toEnum(): ParsedEnum {
+    val name = name ?: error("an enumeration on the surface must be named")
+    val entries = declarations.filterIsInstance<KtEnumEntry>().map {
+      it.name ?: error("an entry of '$name' has no name")
+    }
+    require(entries.isNotEmpty()) { "enumeration '$name' declares no entries" }
+    return ParsedEnum(name, entries, implementationTarget(annotationEntries, name))
+  }
 
   private fun KtNamedFunction.isPrivateOrInternal(): Boolean =
     modifierList?.text?.let { it.contains("private") || it.contains("internal") } ?: false
@@ -65,26 +114,35 @@ class SurfaceParser(
   private fun KtNamedFunction.isComposable(): Boolean =
     annotationEntries.any { it.shortName?.asString() == "Composable" }
 
-  private fun KtNamedFunction.toComponent() = ParsedComponent(
+  private fun KtNamedFunction.toComponent(enums: List<ParsedEnum>) = ParsedComponent(
     name = name ?: error("a component must be named"),
-    parameters = valueParameters.map { it.classify() },
-    implementation = annotationEntries
-      .firstOrNull { it.shortName?.asString() == "Implementation" }
-      ?.let { annotation ->
-        // The one argument is the fully qualified target. Read as a string literal and nothing
-        // fancier: the surface is parsed rather than compiled, so a constant reference or a
-        // concatenation here would be a name this parser cannot resolve, and failing loudly now
-        // beats generating a call to the wrong function.
-        val raw = annotation.valueArguments.firstOrNull()?.getArgumentExpression()?.text
-          ?: error("@Implementation on '$name' names no target")
-        raw.removeSurrounding("\"").also {
-          require(it.contains('.') && !it.contains('"')) {
-            "@Implementation on '$name' must be a fully qualified function name as a plain " +
-              "string literal, got $raw"
-          }
-        }
-      },
+    parameters = valueParameters.map { it.classify(enums) },
+    implementation = implementationTarget(annotationEntries, name ?: "?"),
   )
+
+  /**
+   * The target an `@Implementation` names, or null when the declaration carries none.
+   *
+   * The one argument is the fully qualified target. Read as a string literal and nothing fancier:
+   * the surface is parsed rather than compiled, so a constant reference or a concatenation here
+   * would be a name this parser cannot resolve, and failing loudly now beats generating a call to
+   * the wrong function. Shared by components and enumerations, which carry it for the same reason.
+   */
+  private fun implementationTarget(
+    annotations: List<org.jetbrains.kotlin.psi.KtAnnotationEntry>,
+    owner: String,
+  ): String? = annotations
+    .firstOrNull { it.shortName?.asString() == "Implementation" }
+    ?.let { annotation ->
+      val raw = annotation.valueArguments.firstOrNull()?.getArgumentExpression()?.text
+        ?: error("@Implementation on '$owner' names no target")
+      raw.removeSurrounding("\"").also {
+        require(it.contains('.') && !it.contains('"')) {
+          "@Implementation on '$owner' must be a fully qualified name as a plain " +
+            "string literal, got $raw"
+        }
+      }
+    }
 
   /**
    * The bindability rule, applied.
@@ -93,7 +151,7 @@ class SurfaceParser(
    * parameter is a composition-time slot or a discrete event, and no parameter is a live object
    * the guest must read or call.
    */
-  private fun KtParameter.classify(): ParsedParameter {
+  private fun KtParameter.classify(enums: List<ParsedEnum>): ParsedParameter {
     val name = name ?: error("a parameter must be named")
     val type = typeReference?.text?.replace(Regex("\\s+"), " ")?.trim() ?: "Unit"
     val default = defaultValue?.text
@@ -188,10 +246,26 @@ class SurfaceParser(
 
       HOST_RESOLVED.any { type.removeSuffix("?") == it } -> of(ParameterKind.HOST_RESOLVED)
 
-      SERIALIZABLE.any { type.removeSuffix("?") == it } || type.removeSuffix("?").first().isUpperCase() &&
-        type.removeSuffix("?").all { it.isLetterOrDigit() || it == '?' } -> of(ParameterKind.VALUE)
+      SERIALIZABLE.any { type.removeSuffix("?") == it } -> of(ParameterKind.VALUE)
 
-      else -> of(ParameterKind.UNSUPPORTED, "unclassifiable type: $type")
+      // An enumeration the surface declared: a value, crossing as its entry name.
+      enums.any { it.name == type.removeSuffix("?") } ->
+        of(ParameterKind.VALUE).copy(enumType = enums.first { it.name == type.removeSuffix("?") })
+
+      /*
+       * Anything else is refused, and the refusal names what would have been accepted.
+       *
+       * This branch used to accept any capitalised single word as a value. `Dp`, `ButtonVariant`
+       * and `Alignment` all passed, and each produced generated code that did not compile -- on
+       * both sides, in files the author never wrote, with a message about `JsonPrimitive` and
+       * nothing about the surface. A refusal at the parse, in the surface's own terms, is the
+       * failure that says what to do.
+       */
+      else -> of(
+        ParameterKind.UNSUPPORTED,
+        "type '$type' cannot cross the boundary; a parameter may be $ALLOWED_TYPES, or an " +
+          "enumeration declared on this surface (enum class ${type.removeSuffix("?")} { ... })",
+      )
     }
   }
 
@@ -486,6 +560,12 @@ class SurfaceParser(
     )
     val ASSET_TYPES = listOf("Painter", "ImageBitmap", "ImageVector", "Brush", "TextStyle")
     val SERIALIZABLE = listOf("String", "Int", "Long", "Float", "Double", "Boolean")
+
+    /** What a refusal tells the author. One sentence, so it reads in a build log. */
+    val ALLOWED_TYPES: String =
+      "one of ${SERIALIZABLE.joinToString(", ")}; TextValue, Color or Shape (host-resolved); " +
+        "Modifier; a @Composable content slot; a Unit-returning event lambda whose arguments are " +
+        "those same value types; or a @Holder type with a registered shape"
 
     /**
      * Types whose value the host resolves at draw time.

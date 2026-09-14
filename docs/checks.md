@@ -186,6 +186,27 @@ compile whether or not the generated bindings exist:
 | the binding **compiled** | generated code does not build against the published runtime |
 | a lock was written beside the surface | a product's tags are not being held permanent |
 
+**And, since 2026-09-13, the other two shipping platforms** ([ADR-070](../adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md)).
+Umbra's design system is multiplatform, and the check compiles its generated bindings for
+WebAssembly and the iOS simulator, then runs one probe per platform — each a bounded proof that
+states its own limit, a compile or a link rather than a render:
+
+| Assertion | What its absence would mean |
+|---|---|
+| `:design` compiles for `wasmJs` and `iosSimulatorArm64` | the generated binding, or the `@Implementation` target it calls, works on the desktop and nowhere else |
+| `:web` resolves **`dev.dogwood:dogwood-web-wasm-js`**, read off `dependencyInsight` | the web host is not published (it was not, until this section existed), or the wrong variant was selected and compiled anyway |
+| `:web-guest` emits a bundle carrying `postMessage` | the Worker transport did not link in from `dogwood-compose` |
+| `:ios` links `UmbraEmbed.framework` with `umbraViewController` in its header | the three `ios-embed` lines (`isStatic`, `-lsqlite3`, `export`) are not enough outside the engine — `-lsqlite3` fails only at link time |
+
+The iOS link needs Xcode and several minutes; on a machine without `xcrun` the check **skips it and
+says so**, which is not a pass. The first link outside the engine ran the Kotlin/Native dependency
+cache out of memory, so Umbra's `gradle.properties` carries the same two heap lines the engine's
+does, with the reason.
+
+The negative control for the web section is the one that matters: with `maven-publish` removed from
+`dogwood-web`, `:web:compileKotlinWasmJs` fails resolution and the script prints "Is dogwood-web
+still published?" — the failure the section exists to produce.
+
 ## One check that is not automated, and costs the most
 
 **Serve the web page with `Content-Encoding: br`.**
