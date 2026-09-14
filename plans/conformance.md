@@ -313,8 +313,10 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-09 at commit `ce8e8cb`, by `tools/conformance/run-all.sh`; the raw runs
-are committed beside the tools as `result-<client>-2026-09-09.conf`. The second framework
+Last generated 2026-09-14 on branch `production-review` (pull request #62), by
+`tools/conformance/run-all.sh` with `SKIP_ENGINE_BUILD=1` grading the build that had just run green;
+the raw runs are committed beside the tools as `result-<client>-2026-09-14.conf`. The run before it,
+2026-09-09 at commit `ce8e8cb`, is `result-<client>-2026-09-09.conf`. The second framework
 grading flagged that this matrix had gone stale against prose totals -- the repo's own rule,
 broken at its own finish line -- so regeneration now belongs to the same commit as the claims
 it grades.
@@ -781,3 +783,15 @@ scope that filled twenty-one green cells for a client that does not compile the 
 A `D4-reverse` check that passed *because* its subject had failed. A page-weight harness whose
 number nothing compared to a threshold. Each was found by asking a question the machinery was
 supposed to answer and looking at what came back.
+
+**And the opposite shape, met for the third time on 2026-09-14**: a true sentence about the drill
+reported as a false one about the product. `D4` said "the Expand button was never reachable" on
+three consecutive Android runs, deterministically, after the About screen gained two sections. The
+button was on the screen -- a swipe reached it -- but an accessibility scroll moves about a viewport,
+the control now sat inside the span one scroll jumps over, and the drill only ever searched forward:
+it saw the button in transit, lost it when the scroll settled, and called it unreachable. The first
+two times this line appeared the causes were a fixed scroll budget and a nested container at its
+end. The drill now settles the tree before reading it, steps back a bounded number of scrolls when
+it overshoots -- which is what a screen-reader user does -- and says what was visible when it gives
+up, so the fourth occurrence, if there is one, will not need three runs to diagnose. It passed the
+same run at 19 of 19, one step back.

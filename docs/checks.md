@@ -72,6 +72,16 @@ Recorded because each is a category rather than a one-off.
 Each drill refuses rather than fails when its prerequisite is missing, so a partial run reports what
 it could not do instead of reporting green.
 
+**It is memory-bound on a developer's machine, and that was learned by being killed.** With an
+emulator, a booted simulator and Chrome alive, the gate's own engine build tipped the machine over
+twice on 2026-09-13, and a gate that dies of memory reports nothing. Three things keep it inside the
+budget: the engine build runs with two workers; `SKIP_ENGINE_BUILD=1` grades the test results
+already on disk when that build has just run green (tier S runs it on every pull request anyway,
+and `from_tests.py` still reports an absent or stale result as "did not run"); and the payload is
+better served with `python3 -m http.server 8080` from the built
+`samples/slice-guest/build/zipline/ProductionWebpack` than with `serveProductionWebpackZipline`,
+which is a Gradle daemon and a webpack watcher holding a gigabyte for the duration.
+
 | Drill | Claims | What it actually does |
 |---|---|---|
 | [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |

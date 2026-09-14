@@ -363,7 +363,13 @@ class AccessibilityConformanceTest {
     while (find("Expand") == null && scrolls < MAX_SCROLLS) {
       if (!scrollForward()) break
       scrolls++
-      Thread.sleep(500)
+      // Read the tree only once it has settled. An accessibility scroll is animated, and a read
+      // taken mid-flight sees whatever is passing through the viewport at that instant: the third
+      // scroll on this screen carried `Expand` through the viewport and past it, a read at 500 ms
+      // found it in transit, and the next read -- and every read for eight seconds after -- did
+      // not, because the settled viewport was below it. That reported "never reachable" three
+      // runs in a row, deterministically. A fixed sleep asserts a schedule; this asserts stillness.
+      settle()
     }
     conform("D5", scrolls > 0, "$scrolls scrolls to reach the control")
 
@@ -371,8 +377,31 @@ class AccessibilityConformanceTest {
     // accessibility action, host binding, event across the Zipline boundary, guest recomposition,
     // batch back, host applies, tree rebuilt. The sample's button relabels itself, so its own
     // label is the observable consequence -- no instrumentation and no back channel.
+    // Awaited, not read once. The loop above exits the moment one read finds `Expand`, and the
+    // tree is a snapshot that the settling scroll can blank for a few milliseconds -- so a single
+    // read here, taken immediately after, returned null while the button was on the screen. That
+    // reported "never reachable" on three consecutive runs, deterministically, because the new
+    // sections above it put the button exactly on the third scroll's settling edge. A true
+    // sentence about the read; a false one about the accessibility layer, for the third time.
+    awaitLabel("Expand", timeoutMs = 2_000)
+    // A forward search can jump over the control: an accessibility scroll moves about a viewport,
+    // and a control sitting inside the span one scroll covers is visible in transit and gone once
+    // the scroll settles. That is what a screen-reader user meets too, and what they do about it is
+    // step back. So does this -- a bounded number of backward scrolls, each settled and awaited --
+    // because the claim is that the control is reachable through the accessibility layer, not that
+    // it happens to land inside a viewport boundary the sample's length decides.
+    var stepsBack = 0
+    while (find("Expand") == null && stepsBack < 3 && scroll(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+      stepsBack++
+      settle()
+      awaitLabel("Expand", timeoutMs = 2_000)
+    }
+    if (stepsBack > 0) emit("CONF NOTE stepped back $stepsBack scroll(s) to bring the control into view")
     val expand = find("Expand")
     if (expand == null) {
+      // What the settled screen shows instead, so the next reader of this line does not have to
+      // guess whether the button was above the viewport, below it, or never composed.
+      emit("CONF NOTE visible now: ${labels().take(12)}")
       conform("D4", false, "the Expand button was never reachable")
     } else {
       conform("D4-reachable", true, "Expand is present and exposed")
@@ -510,6 +539,24 @@ class AccessibilityConformanceTest {
   private val UNKNOWN_ROUTE_BUTTON = "Ask for a route"
 
   /**
+   * Waits until two consecutive reads of the tree agree, or gives up after a few seconds.
+   *
+   * "Settled" is the only state in which a read means what the claim thinks it means. The
+   * comparison is over labels rather than node identities, because every read is a fresh snapshot
+   * and identities never agree.
+   */
+  private fun settle(timeoutMs: Long = 4_000) {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    var previous = labels()
+    while (System.currentTimeMillis() < deadline) {
+      Thread.sleep(300)
+      val now = labels()
+      if (now == previous && now.isNotEmpty()) return
+      previous = now
+    }
+  }
+
+  /**
    * Sends a scroll to the scrollable container, the way a screen reader's gesture does.
    *
    * The first draft offered the action to *every* node until one took it, which is wrong twice
@@ -531,7 +578,9 @@ class AccessibilityConformanceTest {
    * The largest scrollable is the page. That is what a user scrolls when they want to reach the
    * bottom of a screen, and it is the only choice here that does not depend on traversal order.
    */
-  private fun scrollForward(): Boolean {
+  private fun scrollForward(): Boolean = scroll(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+
+  private fun scroll(action: Int): Boolean {
     // Largest first, because the largest scrollable is the page and that is what a user scrolls to
     // reach the bottom of a screen. But *try them all*: an inner container that has reached its own
     // end refuses the action, and a drill that took the first refusal as "the screen stopped
@@ -551,9 +600,19 @@ class AccessibilityConformanceTest {
           val bounds = android.graphics.Rect().also { node.getBoundsInScreen(it) }
           bounds.width().toLong() * bounds.height()
         }
-      if (scrollables.any { perform(it, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) }) return true
+      if (scrollables.any { perform(it, action) }) return true
       if (attempt < 2) Thread.sleep(400)
     }
+    // Say what "stopped moving" looked like. A refusal with no description reads as "the control
+    // is unreachable", and twice now the truth was elsewhere -- a nested container at its end, a
+    // walk truncated mid-screen. The bounds and the last few labels are what distinguish a page
+    // that is genuinely at its end from a tree that is not the page at all.
+    val all = nodes()
+    val scrollables = all.filter { it.isScrollable }.map { node ->
+      android.graphics.Rect().also { node.getBoundsInScreen(it) }.toShortString()
+    }
+    val tail = all.map { it.ownName() }.filter { it.isNotBlank() }.takeLast(6)
+    emit("CONF NOTE the screen stopped moving: ${all.size} nodes, scrollables=$scrollables, last labels=$tail")
     return false
   }
 }
