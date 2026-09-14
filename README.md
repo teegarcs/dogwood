@@ -6,14 +6,21 @@ Project Dogwood is an architecture specification for a Server-Driven User Interf
 engine that removes the *hand-maintained* component bridge. Instead of shipping JavaScript
 Object Notation (JSON) schemas that map onto a fixed catalog of native widgets, developers
 author ordinary Kotlin Jetpack Compose code. That code is compiled to Kotlin/JavaScript,
-delivered Over-The-Air (OTA), and executed on-device inside a sandboxed QuickJS interpreter
-running the **real Compose runtime**. Composition produces batched tree changes that a
+delivered Over-The-Air (OTA), and executed on-device inside a QuickJS interpreter with no
+ambient capabilities — "sandbox" in the specifications means capability-confined, not isolated;
+the guest is trusted code, verified by signature, and [`docs/security.md`](docs/security.md) is
+the threat model — running the **real Compose runtime**. Composition produces batched tree changes that a
 **generated** binding layer replays against native Compose Multiplatform.
 
 The key idea: the bridge is required, but it does not have to be written by hand. Dogwood
 generates the declarative portion — the part that grows without bound as Compose grows —
-from the Compose Application Programming Interface (API) surface itself, for both server
-and client, from one source of truth.
+from a declared component surface, for both server and client, from one source of truth.
+Today that surface is Dogwood's own primitive tier plus each product's registered design
+system; the generator that would read the androidx sources themselves is generator v2 in the
+[roadmap](roadmap.md) and is not built — what a payload can call is the vocabulary in
+[`developer-experience.md`](developer-experience.md) §1, and the practical test of "no release
+for a new component" is whether it can be composed from that vocabulary in the payload
+([ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)).
 
 **Target platforms:** Android (Application Programming Interface (API) 26+) first, then Web (Compose Multiplatform Web, Beta), then iOS (iOS 15+) — see the [roadmap's platform order](roadmap.md).
 

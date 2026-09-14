@@ -4,7 +4,7 @@
 # `acme.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **1**, segment **2**.
+actually emitted. Version **2**, segment **2**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -27,6 +27,16 @@ Two rules govern every number here, and both are enforced by the lock beside the
   rather than drawing a control that lies about what it will do. Every other kind of
   skew degrades cosmetically. The components that own one are marked below.
 
+## Enumerations
+
+An entry crosses as its **name**. A client that meets a name it does not know renders the
+parameter's default and reports the name as skew, so adding an entry is a compatibility event
+and the lock requires the segment version to move with it. Entries are append-only.
+
+| Enumeration | Entries |
+| --- | --- |
+| `AcmeTone` | `Neutral`, `Positive`, `Negative` |
+
 ## Components
 
 | Component | Local tag | Widget tag | Owns an affordance |
@@ -34,6 +44,7 @@ Two rules govern every number here, and both are enforced by the lock beside the
 | [`AcmePrice`](#acmeprice) | 1 | 33554433 |  |
 | [`AcmeAction`](#acmeaction) | 2 | 33554434 | yes |
 | [`AcmePanel`](#acmepanel) | 3 | 33554435 |  |
+| [`AcmeTag`](#acmetag) | 4 | 33554436 |  |
 
 ---
 
@@ -91,6 +102,27 @@ Local tag 3, widget tag `33554435`.
 | Name | Tag |
 | --- | ---: |
 | `content` | 1 |
+
+Takes a modifier chain.
+
+---
+
+### AcmeTag
+
+Local tag 4, widget tag `33554436`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `label` | `String` | 1 | required |  |
+| `tone` | `AcmeTone` | 2 | `AcmeTone.Neutral` | one of `Neutral`, `Positive`, `Negative`, by name |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onToneChange` | `(AcmeTone) -> Unit` | 1 |  |
 
 Takes a modifier chain.
 

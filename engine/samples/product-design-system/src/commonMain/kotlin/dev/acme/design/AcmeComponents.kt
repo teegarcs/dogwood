@@ -13,6 +13,7 @@
 package dev.acme.design
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -67,4 +68,26 @@ fun AcmePanelImpl(inset: Int, modifier: Modifier, content: @Composable () -> Uni
   OutlinedCard(modifier = modifier, border = BorderStroke(2.dp, AcmeInk)) {
     Column(Modifier.padding(inset.dp)) { content() }
   }
+}
+
+/**
+ * The generated binding hands this a real `AcmeTone` -- the host-side copy the generator emitted
+ * from the surface -- and a lambda that takes one. Nothing here knows the value crossed as a name.
+ */
+@Composable
+fun AcmeTagImpl(label: String, tone: AcmeTone, modifier: Modifier, onToneChange: (AcmeTone) -> Unit) {
+  val ink = when (tone) {
+    AcmeTone.Neutral -> AcmeInk
+    AcmeTone.Positive -> Color(0xFF2E7D32)
+    AcmeTone.Negative -> Color(0xFFC62828)
+  }
+  Text(
+    text = "[$label]",
+    modifier = modifier.padding(4.dp).clickable {
+      // Cycle to the next tone, so a tap proves an enumeration crosses back as well as down.
+      onToneChange(AcmeTone.entries[(tone.ordinal + 1) % AcmeTone.entries.size])
+    },
+    color = ink,
+    style = MaterialTheme.typography.labelLarge,
+  )
 }

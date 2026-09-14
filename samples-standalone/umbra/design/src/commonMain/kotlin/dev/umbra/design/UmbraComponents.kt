@@ -41,3 +41,18 @@ fun UmbraChip(label: String, modifier: Modifier = Modifier) {
   )
 }
 
+/** Umbra's own tone. The surface names this type, so the generated binding decodes into it. */
+enum class UmbraTone { Calm, Loud }
+
+/**
+ * The design system's badge, called by the generated binding with a real [UmbraTone] and no
+ * wrapper in between. Nothing here knows the value crossed the boundary as a name.
+ */
+@Composable
+fun UmbraBadge(label: String, tone: UmbraTone, modifier: Modifier = Modifier) {
+  Text(
+    text = if (tone == UmbraTone.Loud) "<< ${label.uppercase()} >>" else "< $label >",
+    fontWeight = if (tone == UmbraTone.Loud) FontWeight.Bold else FontWeight.Normal,
+    modifier = modifier.padding(4.dp),
+  )
+}

@@ -129,13 +129,13 @@ class AnimatedModifierTest {
 
     // Element one is the animated alpha; element zero is the padding.
     composition.sendEvent(
-      Event(i = node, e = EventTag(ANIMATION_EVENT_BASE + 1), q = composition.lastSentSequence),
+      Event(i = node, e = EventTag(ELEMENT_EVENT_BASE + 1), q = composition.lastSentSequence),
     )
     assertEquals(1, finished)
 
     // And nothing is registered where there is no animation.
     composition.sendEvent(
-      Event(i = node, e = EventTag(ANIMATION_EVENT_BASE + 0), q = composition.lastSentSequence),
+      Event(i = node, e = EventTag(ELEMENT_EVENT_BASE + 0), q = composition.lastSentSequence),
     )
     assertEquals(1, finished, "an element with no completion must have no handler")
   }
@@ -161,7 +161,7 @@ class AnimatedModifierTest {
     counter = 7
     composition.frame(0L)
     composition.sendEvent(
-      Event(i = node, e = EventTag(ANIMATION_EVENT_BASE + 0), q = composition.lastSentSequence),
+      Event(i = node, e = EventTag(ELEMENT_EVENT_BASE + 0), q = composition.lastSentSequence),
     )
     assertEquals(7, observed, "the completion fired into a stale closure")
   }

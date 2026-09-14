@@ -10,11 +10,22 @@
  */
 package dev.dogwood.host
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,26 +35,34 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import dev.dogwood.protocol.EventTag
 import dev.dogwood.protocol.ModifierTags
 import dev.dogwood.protocol.ExpressionFactories
 
 
 /**
- * The factory identifier of an animated value, and the event tag base its completion is reported
- * under.
+ * The event tag base a chain element reports under: an animation's completion, a `clickable`'s
+ * tap.
  *
  * The tag is derived from the element's position in the chain rather than allocated, because both
  * sides walk the same ordered chain and the index is therefore an identifier they already agree
- * on. Nothing extra crosses.
+ * on. Nothing extra crosses. It was named for animation while animation was the only element that
+ * reported; the guest's `ELEMENT_EVENT_BASE` is the same number under the same reasoning.
  */
-private const val ANIMATION_EVENT_BASE = 1000
+private const val ELEMENT_EVENT_BASE = 1000
 
 /**
  * Rebuilds a node's modifier chain, in order.
@@ -124,10 +143,95 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
       ModifierTags.ALPHA -> modifier.alpha(number(1f))
       ModifierTags.ROTATE -> modifier.rotate(number(0f))
       ModifierTags.SCALE -> modifier.scale(number(1f))
+
+      /*
+       * The second growth of the tier (layout version 2). A client at version 1 reaches the `else`
+       * below for all of these and draws the node without -- the ordinary containment for a
+       * cosmetic modifier. `clickable` is the one that is not cosmetic: a node nobody can tap is a
+       * screen that does nothing, silently. That is contained *upstream* rather than here: a
+       * payload using any of these declares layout version 2 in its manifest, and a version-1
+       * client refuses it before it starts (ADR-061). What this branch owes is only that a client
+       * which *does* know the tag routes the tap to the slot the guest registered.
+       */
+      ModifierTags.CLICKABLE -> {
+        val enabled = value.booleanOrNull ?: true
+        // Same slot, same derivation as an animation completion: the element's index.
+        val node = this
+        modifier.clickable(enabled = enabled) { events.send(node, EventTag(ELEMENT_EVENT_BASE + index)) }
+      }
+      ModifierTags.BORDER -> {
+        val parts = element.v as? JsonArray
+        val width = clampModifierValue(parts?.getOrNull(0)?.jsonPrimitive?.floatOrNull ?: 1f, min = 0f, what = "border")
+        val color = (parts?.getOrNull(1) as? JsonArray)
+          ?.let { androidx.compose.runtime.key(index, element.t.value) { resolveColor(it) } }
+          ?: palette.ink
+        modifier.border(width.dp, color)
+      }
+      ModifierTags.OFFSET -> {
+        val parts = element.v as? JsonArray
+        modifier.offset(
+          x = (parts?.getOrNull(0)?.jsonPrimitive?.floatOrNull ?: 0f).dp,
+          y = (parts?.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: 0f).dp,
+        )
+      }
+      ModifierTags.FILL_MAX_HEIGHT -> modifier.fillMaxHeight(value.floatOrNull ?: 1f)
+      ModifierTags.FILL_MAX_SIZE -> modifier.fillMaxSize(value.floatOrNull ?: 1f)
+      ModifierTags.PADDING_SIDES -> {
+        val parts = element.v as? JsonArray
+        @Composable
+        fun side(at: Int, what: String): Dp =
+          clampModifierValue(parts?.getOrNull(at)?.jsonPrimitive?.floatOrNull ?: 0f, min = 0f, what = what).dp
+        modifier.padding(
+          start = side(0, "padding.start"),
+          top = side(1, "padding.top"),
+          end = side(2, "padding.end"),
+          bottom = side(3, "padding.bottom"),
+        )
+      }
+      ModifierTags.SHADOW ->
+        modifier.shadow(clampModifierValue(value.floatOrNull ?: 0f, min = 0f, what = "shadow").dp)
+      // Zero and negative ratios throw inside layout, and so does the *smallest positive float*:
+      // the first version clamped to `Float.MIN_VALUE` and Compose then tried to represent a
+      // height of two billion pixels in `Constraints`, which is the crash the clamp existed to
+      // prevent, arriving from the other side. The bounds are the range Compose can lay out at any
+      // plausible size; anything outside is a reported clamp and a screen that stays up.
+      ModifierTags.ASPECT_RATIO ->
+        modifier.aspectRatio(clampModifierValue(value.floatOrNull ?: 1f, min = 0.01f, max = 100f, what = "aspectRatio"))
+      ModifierTags.CONTENT_DESCRIPTION -> {
+        val text = value.content
+        modifier.semantics { contentDescription = text }
+      }
+      ModifierTags.TEST_TAG -> modifier.testTag(value.content)
+      ModifierTags.WRAP_CONTENT_WIDTH -> modifier.wrapContentWidth()
+      ModifierTags.WRAP_CONTENT_HEIGHT -> modifier.wrapContentHeight()
+      ModifierTags.DEFAULT_MIN_SIZE -> {
+        val parts = element.v as? JsonArray
+        modifier.defaultMinSize(
+          minWidth = parts.dpOrUnspecified(0),
+          minHeight = parts.dpOrUnspecified(1),
+        )
+      }
+      ModifierTags.WIDTH_IN -> {
+        val parts = element.v as? JsonArray
+        modifier.widthIn(min = parts.dpOrUnspecified(0), max = parts.dpOrUnspecified(1))
+      }
+      ModifierTags.HEIGHT_IN -> {
+        val parts = element.v as? JsonArray
+        modifier.heightIn(min = parts.dpOrUnspecified(0), max = parts.dpOrUnspecified(1))
+      }
       else -> modifier
     }
   }
   return modifier
+}
+
+/**
+ * A bound the guest may leave open. -1 is the wire form of `Dp.Unspecified`, because a JSON number
+ * cannot say "unspecified" and a null would need a reader that tolerates it in every position.
+ */
+private fun JsonArray?.dpOrUnspecified(at: Int): Dp {
+  val raw = this?.getOrNull(at)?.jsonPrimitive?.floatOrNull ?: return Dp.Unspecified
+  return if (raw < 0f) Dp.Unspecified else raw.dp
 }
 
 
@@ -190,7 +294,7 @@ private fun animatedNumber(
     label = "dogwood-modifier-$index",
     finishedListener = {
       if (notify) {
-        currentEvents.send(currentNode, dev.dogwood.protocol.EventTag(ANIMATION_EVENT_BASE + index))
+        currentEvents.send(currentNode, dev.dogwood.protocol.EventTag(ELEMENT_EVENT_BASE + index))
       }
     },
   )
@@ -300,7 +404,7 @@ private fun oscillating(
     animatable.snapTo(from)
     animatable.animateTo(to, androidx.compose.animation.core.repeatable(iterations, spec, mode))
     if (notify) {
-      currentEvents.send(currentNode, dev.dogwood.protocol.EventTag(ANIMATION_EVENT_BASE + index))
+      currentEvents.send(currentNode, dev.dogwood.protocol.EventTag(ELEMENT_EVENT_BASE + index))
     }
   }
   return animatable.value

@@ -60,3 +60,25 @@ fun AcmePanel(
   @Range(min = 0.0, max = 64.0) inset: Int = 12,
   content: @Composable () -> Unit,
 ) {}
+
+/**
+ * A tone, declared on the surface so a component may take one.
+ *
+ * The enumeration is the fourth thing this surface exercises that Dogwood's own does not use, and
+ * it exists here for the reason the other three do: a design system's most common non-primitive
+ * parameter shape is an enumeration, and until a surface outside the engine carried one the
+ * generator had silently emitted code for it that did not compile. It crosses as its entry name.
+ */
+enum class AcmeTone { Neutral, Positive, Negative }
+
+/**
+ * A small label whose look is decided by a [tone] -- and the second component here to hand a
+ * value back, so the event half of an enumeration is exercised as well as the property half.
+ */
+@Composable
+fun AcmeTag(
+  label: String,
+  tone: AcmeTone = AcmeTone.Neutral,
+  modifier: Modifier = Modifier,
+  onToneChange: (AcmeTone) -> Unit = {},
+) {}

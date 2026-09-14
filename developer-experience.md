@@ -9,9 +9,16 @@
 
 You write ordinary Jetpack Compose. You push it. It appears on phones — without an app release.
 
-The host application does not learn about your new screen, and it does not need to. It was built already knowing the generated majority of the Compose Application Programming Interface (API) — about two-thirds of the widget surface, plus the defaults and expression surface — so most of what you assemble out of Compose is something it can already draw. The exceptions are enumerated in section 5, and they include some everyday things (animation, images, text fields) that arrive as hand-built subsystems rather than on day one.
+The host application does not learn about your new screen, and it does not need to. What it was built knowing is a **vocabulary**, and this paragraph used to overstate it: it said the host knew "about two-thirds of the widget surface" of Compose. That is the measured *ceiling* of a generator that reads the androidx sources — generator v2 in the [roadmap](roadmap.md), which is not built. What is built, and what a payload can call today, is the vocabulary in the table below. Everything you compose *out of* that vocabulary — screens, flows, your own composables, your own component library written in the payload — needs no release. Corrected 2026-09-13, after a production review found the claim by reading the stubs rather than this sentence.
 
-**What still requires a host release:** using an API from a *newer Compose version* than the shipped client was built against, and ordinary bug fixes. Both are periodic and predictable. Neither is triggered by what you decide to build.
+| Tier | What a payload can call today |
+|---|---|
+| Layout primitives (segment 0) | `Text`, `Column`, `Row`, `Box`, `Spacer`, with arrangement and alignment on the containers and font weight, text alignment, overflow, size, decoration and line height on text; `VerticalList`, `HorizontalList`, `Pager` |
+| Modifiers (segment 0) | 27: padding (uniform, per side, symmetric), size, width, height, `widthIn`/`heightIn`, `defaultMinSize`, `fillMaxWidth`/`Height`/`Size`, `wrapContentWidth`/`Height`, `aspectRatio`, weight and align (in scope), offset, alpha, rotate, scale, `clip`, `background`, `border`, `shadow`, **`clickable` on any node**, `contentDescription`, `testTag`; most numeric ones accept an animated target |
+| Dogwood's catalogue (segment 1) | 21 components: button, image, card, badge, divider, chip, price, star rating, section header, icon, text input, presence, scroll area, snackbar area, dialog, sheet, menu and menu item, date and time pickers |
+| Yours (segment 2 and up) | whatever your surface declares — see §4b |
+
+**What still requires a host release:** a new *kind* of widget — anything whose implementation must run natively — and ordinary bug fixes. Adding a modifier or a property to the primitive tier is also a release, which is why that tier was grown deliberately ([ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)): the practical test of "no release for a new component" is whether your design system's *compositional* components can be authored in the payload from these primitives, and that is what the tier is now sized for.
 
 ---
 
@@ -127,7 +134,7 @@ What that does **not** give you is version targeting. Whether the client on a gi
 
 ## 4b. Adding Your Own Components
 
-Dogwood's design system is thirteen components and is not yours. A product registers its own, and
+Dogwood's design system is twenty-one components and is not yours. A product registers its own, and
 the whole of what it writes is three things ([ADR-046](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md);
 `engine/samples/product-design-system` is a working example you can copy).
 
@@ -145,6 +152,28 @@ fun AcmeAction(
   onClick: () -> Unit,
 ) {}
 ```
+
+**What a surface may declare, and nothing else.** A parameter is one of `String`, `Int`, `Long`,
+`Float`, `Double`, `Boolean`; a host-resolved `TextValue`, `Color` or `Shape`; `Modifier`; a
+`@Composable` content slot; a Unit-returning event lambda whose arguments are those same value
+types; a `@Holder` type with a registered shape; or **an enumeration declared on the same surface**:
+
+```kotlin
+enum class AcmeTone { Neutral, Positive, Negative }
+
+@Composable
+fun AcmeTag(label: String, tone: AcmeTone = AcmeTone.Neutral, onToneChange: (AcmeTone) -> Unit = {}) {}
+```
+
+Both ends get the enumeration; the entry *name* crosses, so reordering the declaration breaks
+nothing and an old client meeting a name it does not carry renders the default and reports it. If
+your design system already owns the type, `@Implementation("com.yourco.ds.Tone")` on the
+enumeration makes the binding decode into yours. **Anything outside that list fails the build**,
+naming the parameter and what would have been accepted — it used to drop the component silently
+with the build green, which is how one of Umbra's components went unbindable for as long as it
+existed ([ADR-068](adrs/layer-5/ADR-068-the-generator-refuses-what-it-cannot-bind.md)). A `List`,
+a data class, a `TextStyle` or a `Painter` is a wrapper's job: take the pieces the wire can carry
+and assemble the object on the host.
 
 `@Affordance` marks a parameter whose absence changes what a user is *allowed to do* rather than how
 something looks. A widget carrying one is **withheld** — replaced by an inert placeholder — if a
@@ -274,7 +303,7 @@ Honest constraints, not fine print.
 - **7.2% are structurally unreachable.** Anything whose lambda the rendering engine invokes inside a frame — `Canvas`, `Modifier.drawBehind`, `Modifier.pointerInput` — plus custom `Layout` and `SubcomposeLayout`. **This means no custom charts, sparklines, drawing, or signature capture** — a material limitation if your product is data-heavy. Charting arrives only if the host registers its own chart component (section 5, rule 7).
 - **25.2% need a hand-written protocol** because they take a live state holder you read or call (`LazyListState`, `SnackbarHostState`, `DatePickerState`, `SliderState`), an object carrying host-invoked callbacks (`KeyboardActions`, `VisualTransformation`), or an asset (`Painter`). These arrive one subsystem at a time.
 - **`LazyColumn`, text fields, images, and animation are in those groups.** All are planned as bespoke subsystems with Dogwood-specific shapes — a lazy list takes a `placeholder` that Compose's has no equivalent for, a text field takes a state object rather than a plain `String`, an image takes a Uniform Resource Locator (URL) the host loads, and `animate*AsState` is replaced by declarative host-run animation.
-- **67.6% are generated**, once the `Modifier` subsystem lands — and most of those fully once the deferred-expression protocol lands with it.
+- **67.6% are generable** by a generator that reads the androidx sources — and that generator (v2) is **not built**. The generated tier today is the primitive vocabulary in §1 plus whatever a surface declares; the `Modifier` subsystem and the deferred-expression grammar that the 67.6% depend on are built and are what the primitive tier is made of. This line said "are generated" until 2026-09-13.
 
 Note that function coverage overstates parameter coverage: a composable may be available while one of its parameters — commonly `interactionSource` or `visualTransformation` — is not yet passable.
 
@@ -342,11 +371,13 @@ This is not a small detail — it is why the generated-binding approach is affor
 
 The trade-off is real and worth stating: **the host application has to be a Compose Multiplatform application.** Dogwood cannot drive a SwiftUI or UIKit screen.
 
+And it is proven from outside, per platform, rather than claimed: `samples-standalone/umbra` compiles one design system for Android, iOS and the web, resolves the web host artifact, builds the same screen as a Web Worker payload with the transport from a library, and links an iOS framework — all against published artifacts ([ADR-070](adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md)). Until 2026-09-13 only the desktop and Android halves of that sentence were true.
+
 ## 8. How This Compares
 
 | | Traditional Server-Driven UI | Dogwood |
 |---|---|---|
-| New component available to you | After a client release | Immediately, if it is in the generated tier of the client's dictionary |
+| New component available to you | After a client release | Immediately, if you can compose it from the primitive tier and the registered components the client has; after a client release if it needs native powers |
 | What you write | JSON or a schema | Compose |
 | Where logic lives | Split: server rules plus client handlers | With your UI, in one place |
 | Local preview | Rarely | `@Preview`, real rendering — **planned, not built** |

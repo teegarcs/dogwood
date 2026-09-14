@@ -4,7 +4,7 @@
 **Supersedes:** v3.0, archived at [`archive/high-level-tech-spec-wasm-v3.md`](archive/high-level-tech-spec-wasm-v3.md)
 **Target Platforms:** Android (Application Programming Interface (API) 26+), then Web (Compose Multiplatform Web, currently Beta), then iOS (iOS 15+) — delivery order per the [roadmap's platform-order decision](roadmap.md); iOS risk items (Apple inquiry, organisational adoption, device measurements) start in Phase 0 even though iOS code lands last
 
-**Core Thesis:** Developers write ordinary Jetpack Compose code. It is compiled on a build server, delivered Over-The-Air (OTA), and executed on-device inside a sandboxed interpreter that runs the **real Compose runtime**. Composition produces a stream of tree changes that a **generated, whole-API-surface binding layer** replays against native Compose Multiplatform. The host application does not need a release when a developer uses a new component — only when the underlying Compose version changes.
+**Core Thesis:** Developers write ordinary Jetpack Compose code. It is compiled on a build server, delivered Over-The-Air (OTA), and executed on-device inside a sandboxed interpreter that runs the **real Compose runtime**. Composition produces a stream of tree changes that a **generated, whole-API-surface binding layer** replays against native Compose Multiplatform. The host application does not need a release when a developer *composes* a new component from the vocabulary it ships — the primitive tier plus every registered design-system segment — and does need one when a new *kind* of widget arrives, because a binding is native code. The generated whole-surface tier that would make the vocabulary most of Compose is generator v2 in the [roadmap](roadmap.md), and it is not built; the shipped vocabulary is listed in [`developer-experience.md`](developer-experience.md) §1. (This sentence claimed the whole surface until 2026-09-13.)
 
 ---
 
@@ -58,12 +58,14 @@ Under a per-platform model, generation would have to emit four divergent impleme
 | New screen, new layout, restructured UI | **No** |
 | New business logic, state, navigation | **No** |
 | Any combination of already-bound Compose APIs | **No** |
+| A new component *composed in the payload* from the primitive tier and registered components — a status pill, a tab row, a card with a tap target | **No** — it is a plain composable in the payload ([ADR-006](adrs/layer-5/ADR-006-guest-composed-vs-host-registered-and-multi-design-system.md) §2.1, made practical by [ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)) |
+| A new *kind* of widget — anything whose implementation must run natively, or a new primitive or modifier in segment 0 | **Yes** — a binding is native code and cannot arrive over the air ([ADR-046](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md)) |
 | Animation | **No once the bespoke animation subsystem exists** — the animation *target* is declared and run host-side (section 7). Until that subsystem ships, animation APIs are rejected at build time; they are not available on day one |
 | Uses an API added in a *newer Compose version* than the client was built against | **Yes** — periodic, tied to Compose releases |
 | Uses a composable requiring a bespoke subsystem not yet built | **Yes** — bounded and enumerable, not open-ended |
 | Bug fixes to the host, runtime, or bindings | **Yes** — periodic |
 
-**Skew is handled primarily at build time, not by host-side degradation.** The server compiles against the dictionary of the client it is targeting, so a well-configured deployment never sends a tag the client does not know. Host-side skipping exists to prevent crashes when that guarantee fails; it is a safety net with real user-visible costs, not a feature. See section 6.
+**Skew is refused before it renders, and contained if it renders anyway.** A payload cannot call what its stubs do not declare, and it declares the dictionary versions it was built against in its signed manifest; a client behind that declaration refuses the payload before `start` ([Layer 3 ADR-061](adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)). There is no per-client compile on the server — this paragraph used to say there was — so "target the oldest client you support" is a rule the author follows by branching on `LocalSegmentVersions`, not a check the build performs. Host-side containment (section 6) is what protects a payload that declared nothing, and it has real user-visible costs, which is why refusal is the first line.
 
 ---
 

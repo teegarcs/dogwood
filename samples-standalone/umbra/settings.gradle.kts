@@ -39,6 +39,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "umbra"
 
-// `:android` is a compile probe rather than a fourth product module -- see its build file for the
-// defect that existed for as long as `:app`, a desktop application, was the only consumer here.
-include(":design", ":guest", ":app", ":android")
+// `:android`, `:web` and `:ios` are compile probes rather than product modules -- see each build
+// file for what it proves and what it does not. `:android` exists because for as long as `:app`, a
+// desktop application, was the only consumer here, the flagship platform's artifact path was
+// exercised by nothing and was broken; `:web` and `:ios` exist so the other two shipping platforms
+// are not in that position. `:web-guest` is the payload as a Web Worker builds it.
+include(":design", ":guest", ":app", ":android", ":web", ":web-guest", ":ios")

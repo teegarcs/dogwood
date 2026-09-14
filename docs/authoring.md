@@ -147,6 +147,10 @@ The rule that costs nothing to follow now and cannot be retrofitted:
 - **A new component reaches nobody until the hosts ship.** Old clients render it as an inert
   placeholder that keeps its slot, and report it. Plan a component and a screen using it as two
   releases, not one.
+- **A new enumeration entry is the same, one size down.** An entry crosses as its name, and an old
+  client that meets a name it does not carry renders the parameter's declared default and reports
+  it. Entries are append-only like tags, and adding one moves the segment version, so branch on
+  `LocalSegmentVersions` before sending an entry the oldest client you support has not heard of.
 - **Expect to be one version ahead and design for it.** Everything above is contained rather than
   fatal, and every containment is reported — [operating](operating.md) §4 is how a team sees that
   its payloads have moved ahead of its devices, and it is worth wiring before you need it.
@@ -227,7 +231,38 @@ tools/import-migrator/migrate.py src/main/kotlin/checkout/ --write
 It exits non-zero while any decision is outstanding, so it can gate a migration script. Run it on a
 screen already written for Dogwood and it does nothing at all — which is the control.
 
-## 10. What is not there
+## 10. Composing your own components, and when that is not enough
+
+The rule that decides whether a new component needs an app release: **can it be composed from
+pieces the installed client already has?** If yes, write it as an ordinary `@Composable` in the
+payload — it needs no surface entry, no tag, no registration — and it ships and updates with the
+payload. The pieces are the primitive tier (`Text`, `Column`, `Row`, `Box`, `Spacer`, the lists
+and the pager, with arrangement and alignment on the containers and weight, alignment, overflow,
+size and decoration on text; twenty-seven modifiers including `clickable` on any node, `border`,
+`offset`, `shadow`, per-side `padding`, size bounds, `contentDescription` and `testTag`) plus every
+registered component the client carries. A status pill, a tab row, a stat tile, a tappable card,
+a two-line list item are all payload code.
+
+```kotlin
+@Composable
+fun StatusPill(label: String, tone: Color, onClick: () -> Unit) {
+  Row(
+    modifier = Modifier.clip(RoundedCornerShape(12)).border(1, tone).padding(horizontal = 10, vertical = 4).clickable(onClick = onClick),
+    horizontalArrangement = Arrangement.spacedBy(6),
+    verticalAlignment = VerticalAlignment.CenterVertically,
+  ) {
+    Box(Modifier.size(8).clip(CircleShape).background(tone))
+    Text(label, fontWeight = FontWeight.Medium)
+  }
+}
+```
+
+If no — the component owns real drawing, a gesture, an animation the host must run frame by
+frame, platform integration, or a live state holder — it is a surface entry on the host and rides a
+release. When a *compositional* component cannot be written because a primitive is missing, that
+primitive is the thing to add to segment 0, and it is one tag ([ADR-069](../adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)).
+
+## 11. What is not there
 
 Named so you look for the alternative rather than for the bug.
 

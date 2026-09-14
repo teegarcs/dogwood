@@ -115,11 +115,15 @@ and one run of `--es experiment pauses` on that Pixel closes it.
 **Status:** open, and it is now the only thing between this and a product depending on Dogwood.
 **Cost of leaving it:** a product can consume Dogwood only from a developer's own machine.
 
-`dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host` and the Gradle plugin
-`dev.dogwood.codegen` publish under **`dev.dogwood`** at **`0.1.0`**, and
-`samples-standalone/umbra` proves the whole path works — a separate Gradle build with no route into
-this repository, resolving the plugin by identifier and the runtime as artifacts
-([ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)).
+`dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host`, `dogwood-web` (since
+2026-09-13 — it had no publishing coordinates at all before, and this sentence listed the others
+without anyone reading the omission; [ADR-070](adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md))
+and the Gradle plugin `dev.dogwood.codegen` publish under **`dev.dogwood`** at **`0.1.0`**, and
+`samples-standalone/umbra` proves the whole path works on every shipping platform — a separate
+Gradle build with no route into this repository, resolving the plugin by identifier and the runtime
+as artifacts ([ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)), compiling its
+design system for Android, iOS and the web, resolving the web host, building a Worker payload and
+linking an iOS framework.
 
 It resolves them from **`mavenLocal()`**, which is a developer's own machine and nobody else's.
 

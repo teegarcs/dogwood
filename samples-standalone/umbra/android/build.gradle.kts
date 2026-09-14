@@ -36,4 +36,8 @@ dependencies {
   // Resolved from a repository by an Android build, with no path into the engine. That sentence is
   // the whole test.
   implementation("dev.dogwood:dogwood-host:0.1.0")
+  // And the product's own design system, now multiplatform: its generated bindings and the
+  // `@Implementation` target they call have to compile for Android too, or a product's components
+  // are placeholders on the platform that ships first.
+  implementation(project(":design"))
 }

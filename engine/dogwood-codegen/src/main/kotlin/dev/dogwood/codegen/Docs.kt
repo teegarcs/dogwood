@@ -63,6 +63,21 @@ fun emitDocs(dictionary: Dictionary, components: List<ParsedComponent>): String 
     appendLine()
   }
 
+  if (dictionary.enums.isNotEmpty()) {
+    appendLine("## Enumerations")
+    appendLine()
+    appendLine("An entry crosses as its **name**. A client that meets a name it does not know renders the")
+    appendLine("parameter's default and reports the name as skew, so adding an entry is a compatibility event")
+    appendLine("and the lock requires the segment version to move with it. Entries are append-only.")
+    appendLine()
+    appendLine("| Enumeration | Entries |")
+    appendLine("| --- | --- |")
+    for ((name, entries) in dictionary.enums) {
+      appendLine("| `$name` | ${entries.joinToString(", ") { "`$it`" }} |")
+    }
+    appendLine()
+  }
+
   appendLine("## Components")
   appendLine()
   appendLine("| Component | Local tag | Widget tag | Owns an affordance |")
@@ -107,6 +122,7 @@ fun emitDocs(dictionary: Dictionary, components: List<ParsedComponent>): String 
           parameter.range?.let { add("range ${trim(it.min)}..${trim(it.max)}, clamped") }
           property.holder?.let { add("from the `${parameter.name}` holder (`${it.field}`)") }
           if (parameter.kind == ParameterKind.HOST_RESOLVED) add("resolved by the host at draw time")
+          parameter.enumType?.let { add("one of ${it.entries.joinToString(", ") { e -> "`$e`" }}, by name") }
         }.joinToString("; ")
         // A holder's properties are not the parameter's: the parameter is the holder object and
         // may be absent, while these carry the holder's own fields. Showing the parameter's

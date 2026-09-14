@@ -46,7 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.onSizeChanged
 import coil3.compose.AsyncImage
@@ -94,6 +96,9 @@ private const val P5 = 5
 private const val P6 = 6
 private const val P7 = 7
 private const val P8 = 8
+private const val P9 = 9
+private const val P10 = 10
+private const val P11 = 11
 
 object DogwoodDictionary {
   // Segment 0 -- layout primitives, hand-written.
@@ -250,28 +255,49 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
         },
         // Compose throws below 1 rather than clamping, and the throw is inside composition.
         maxLines = node.intClamped(P2, Int.MAX_VALUE, min = 1, what = "Text.maxLines"),
-        overflow = TextOverflow.Ellipsis,
+        overflow = textOverflow(node.stringOrNull(P8)),
         // A colour when the guest sent one -- token or literal, the same recipe channel either
         // way -- and the host's own ink when it did not.
         color = node.colorOrNull(P5) ?: palette().ink,
-        style = textStyle(node.stringOrNull(P3)),
+        textAlign = textAlign(node.stringOrNull(P7)),
+        // The named style first, then the per-call overrides on top of it -- so a `titleLarge`
+        // that asks for bold is a bold title, not body text that happens to be bold.
+        style = textStyle(node.stringOrNull(P3)).withOverrides(
+          fontWeight = node.stringOrNull(P6),
+          sizeSp = node.intOrNull(P9),
+          decoration = node.stringOrNull(P10),
+          lineHeightSp = node.intOrNull(P11),
+        ),
       )
     }
 
-    DogwoodDictionary.Column.value -> Column(modifier) {
+    DogwoodDictionary.Column.value -> Column(
+      modifier,
+      // Compose's own defaults when the guest said nothing, which is the sentinel rule and also
+      // what a client one layout version behind draws -- it never reads these tags at all.
+      verticalArrangement = verticalArrangement(node.stringOrNull(P1)),
+      horizontalAlignment = node.intOrNull(P2)?.let(::horizontalAlignment) ?: Alignment.Start,
+    ) {
       RenderChildren(node, CONTENT, LayoutScope(column = this), events)
     }
 
     DogwoodDictionary.Row.value -> {
       // A lambda parameter surfaces on the wire as "this node carries handler n". The host
       // cannot see guest closures, so presence has to be a property or the binding cannot know
-      // whether to make the row clickable at all.
+      // whether to make the row clickable at all. `Modifier.clickable` is the general form now;
+      // this stays because payloads in the field use it.
       val clickable = if (node.boolean(P1, false)) {
         Modifier.clickable { events.send(node, EventTag(1)) }
       } else {
         Modifier
       }
-      Row(modifier.then(clickable), verticalAlignment = Alignment.CenterVertically) {
+      Row(
+        modifier.then(clickable),
+        horizontalArrangement = horizontalArrangement(node.stringOrNull(P2)),
+        // Centred when unsaid, as it always was here: a row of a label and an icon reads wrong
+        // top-aligned, and every payload built before this tag existed relies on the centring.
+        verticalAlignment = node.intOrNull(P3)?.let(::verticalAlignment) ?: Alignment.CenterVertically,
+      ) {
         RenderChildren(node, CONTENT, LayoutScope(row = this), events)
       }
     }
@@ -279,7 +305,10 @@ fun RenderNode(node: WidgetView, scope: LayoutScope, events: EventSink) {
     // No default background. A `Box` is a transparent container, exactly as Compose's own is,
     // and a host-painted default here would draw OVER whatever the guest's own
     // `background(...)` modifier put down -- silently, because the result still renders.
-    DogwoodDictionary.Box.value -> Box(modifier) {
+    DogwoodDictionary.Box.value -> Box(
+      modifier,
+      contentAlignment = node.intOrNull(P1)?.let(::boxAlignment) ?: Alignment.TopStart,
+    ) {
       RenderChildren(node, CONTENT, LayoutScope(), events)
     }
 
@@ -445,6 +474,143 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
         }
     }
   }
+}
+
+/*
+ * Names the guest sends for Compose's closed sets -- arrangements, alignments, weights, overflow.
+ *
+ * Every resolver below follows the one rule every other named thing obeys: the host owns the
+ * meaning, an unknown name degrades to the default rather than throwing, and the name is recorded
+ * so a team can see that payloads are ahead of devices. They are recorded into the text-style set
+ * because that is the set a "style-shaped token the client did not know" belongs in, and because a
+ * new `SkewKind` is a new metric name in somebody's dashboard -- a decision, not a side effect.
+ */
+
+/** `"spacedBy:8"`, or one of Compose's own names. Negative spacing is clamped, because Compose throws. */
+@Composable
+private fun verticalArrangement(name: String?): Arrangement.Vertical = when {
+  name == null -> Arrangement.Top
+  name.startsWith("spacedBy:") -> Arrangement.spacedBy(spacing(name))
+  else -> when (name) {
+    "start", "top" -> Arrangement.Top
+    "center" -> Arrangement.Center
+    "end", "bottom" -> Arrangement.Bottom
+    "spaceBetween" -> Arrangement.SpaceBetween
+    "spaceAround" -> Arrangement.SpaceAround
+    "spaceEvenly" -> Arrangement.SpaceEvenly
+    else -> Arrangement.Top.also { LocalSkewReport.current.unknownTextStyles += "arrangement:$name" }
+  }
+}
+
+@Composable
+private fun horizontalArrangement(name: String?): Arrangement.Horizontal = when {
+  name == null -> Arrangement.Start
+  name.startsWith("spacedBy:") -> Arrangement.spacedBy(spacing(name))
+  else -> when (name) {
+    "start", "top" -> Arrangement.Start
+    "center" -> Arrangement.Center
+    "end", "bottom" -> Arrangement.End
+    "spaceBetween" -> Arrangement.SpaceBetween
+    "spaceAround" -> Arrangement.SpaceAround
+    "spaceEvenly" -> Arrangement.SpaceEvenly
+    else -> Arrangement.Start.also { LocalSkewReport.current.unknownTextStyles += "arrangement:$name" }
+  }
+}
+
+@Composable
+private fun spacing(name: String): androidx.compose.ui.unit.Dp {
+  val raw = name.substringAfter(':').toFloatOrNull() ?: 0f
+  return clampModifierValue(raw, min = 0f, what = "arrangement.spacedBy").dp
+}
+
+/** The guest enumerations' declaration order, as `Modifiers.kt` reads them for `align`. */
+private fun horizontalAlignment(ordinal: Int): Alignment.Horizontal = when (ordinal) {
+  0 -> Alignment.Start
+  2 -> Alignment.End
+  else -> Alignment.CenterHorizontally
+}
+
+private fun verticalAlignment(ordinal: Int): Alignment.Vertical = when (ordinal) {
+  0 -> Alignment.Top
+  2 -> Alignment.Bottom
+  else -> Alignment.CenterVertically
+}
+
+private fun boxAlignment(ordinal: Int): Alignment = when (ordinal) {
+  0 -> Alignment.TopStart
+  1 -> Alignment.TopCenter
+  2 -> Alignment.TopEnd
+  3 -> Alignment.CenterStart
+  4 -> Alignment.Center
+  5 -> Alignment.CenterEnd
+  6 -> Alignment.BottomStart
+  7 -> Alignment.BottomCenter
+  8 -> Alignment.BottomEnd
+  else -> Alignment.TopStart
+}
+
+@Composable
+private fun textAlign(name: String?): androidx.compose.ui.text.style.TextAlign = when (name) {
+  null, "start" -> androidx.compose.ui.text.style.TextAlign.Start
+  "center" -> androidx.compose.ui.text.style.TextAlign.Center
+  "end" -> androidx.compose.ui.text.style.TextAlign.End
+  "justify" -> androidx.compose.ui.text.style.TextAlign.Justify
+  else -> androidx.compose.ui.text.style.TextAlign.Start.also {
+    LocalSkewReport.current.unknownTextStyles += "textAlign:$name"
+  }
+}
+
+/** Ellipsis when unsaid -- the behaviour every `Text` had before the tag existed. */
+@Composable
+private fun textOverflow(name: String?): TextOverflow = when (name) {
+  null, "ellipsis" -> TextOverflow.Ellipsis
+  "clip" -> TextOverflow.Clip
+  "visible" -> TextOverflow.Visible
+  else -> TextOverflow.Ellipsis.also { LocalSkewReport.current.unknownTextStyles += "overflow:$name" }
+}
+
+@Composable
+private fun fontWeight(name: String): androidx.compose.ui.text.font.FontWeight? = when (name) {
+  "normal" -> androidx.compose.ui.text.font.FontWeight.Normal
+  "medium" -> androidx.compose.ui.text.font.FontWeight.Medium
+  "semibold" -> androidx.compose.ui.text.font.FontWeight.SemiBold
+  "bold" -> androidx.compose.ui.text.font.FontWeight.Bold
+  else -> {
+    // A numeric weight. Compose accepts 1..1000 and throws outside it; the guest documents
+    // 100..900, and anything else is clamped and reported like any other hostile value.
+    val numeric = name.toIntOrNull()
+    if (numeric == null) {
+      LocalSkewReport.current.unknownTextStyles += "fontWeight:$name"
+      null
+    } else {
+      if (numeric !in 100..900) LocalSkewReport.current.clampedValues += "fontWeight=$numeric outside 100..900"
+      androidx.compose.ui.text.font.FontWeight(numeric.coerceIn(100, 900))
+    }
+  }
+}
+
+@Composable
+private fun androidx.compose.ui.text.TextStyle.withOverrides(
+  fontWeight: String?,
+  sizeSp: Int?,
+  decoration: String?,
+  lineHeightSp: Int?,
+): androidx.compose.ui.text.TextStyle {
+  if (fontWeight == null && sizeSp == null && decoration == null && lineHeightSp == null) return this
+  val weight = fontWeight?.let { fontWeight(it) }
+  val textDecoration = when (decoration) {
+    null -> null
+    "underline" -> TextDecoration.Underline
+    "lineThrough" -> TextDecoration.LineThrough
+    else -> null.also { LocalSkewReport.current.unknownTextStyles += "textDecoration:$decoration" }
+  }
+  return copy(
+    fontWeight = weight ?: this.fontWeight,
+    // Below one scaled pixel Compose draws nothing useful and negative sizes throw in layout.
+    fontSize = sizeSp?.let { clampModifierValue(it.toFloat(), min = 1f, what = "Text.sizeSp").sp } ?: this.fontSize,
+    textDecoration = textDecoration ?: this.textDecoration,
+    lineHeight = lineHeightSp?.let { clampModifierValue(it.toFloat(), min = 1f, what = "Text.lineHeightSp").sp } ?: this.lineHeight,
+  )
 }
 
 /**

@@ -72,6 +72,16 @@ Recorded because each is a category rather than a one-off.
 Each drill refuses rather than fails when its prerequisite is missing, so a partial run reports what
 it could not do instead of reporting green.
 
+**It is memory-bound on a developer's machine, and that was learned by being killed.** With an
+emulator, a booted simulator and Chrome alive, the gate's own engine build tipped the machine over
+twice on 2026-09-13, and a gate that dies of memory reports nothing. Three things keep it inside the
+budget: the engine build runs with two workers; `SKIP_ENGINE_BUILD=1` grades the test results
+already on disk when that build has just run green (tier S runs it on every pull request anyway,
+and `from_tests.py` still reports an absent or stale result as "did not run"); and the payload is
+better served with `python3 -m http.server 8080` from the built
+`samples/slice-guest/build/zipline/ProductionWebpack` than with `serveProductionWebpackZipline`,
+which is a Gradle daemon and a webpack watcher holding a gigabyte for the duration.
+
 | Drill | Claims | What it actually does |
 |---|---|---|
 | [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |
@@ -185,6 +195,27 @@ compile whether or not the generated bindings exist:
 | guest stubs were generated | the guest half never ran |
 | the binding **compiled** | generated code does not build against the published runtime |
 | a lock was written beside the surface | a product's tags are not being held permanent |
+
+**And, since 2026-09-13, the other two shipping platforms** ([ADR-070](../adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md)).
+Umbra's design system is multiplatform, and the check compiles its generated bindings for
+WebAssembly and the iOS simulator, then runs one probe per platform — each a bounded proof that
+states its own limit, a compile or a link rather than a render:
+
+| Assertion | What its absence would mean |
+|---|---|
+| `:design` compiles for `wasmJs` and `iosSimulatorArm64` | the generated binding, or the `@Implementation` target it calls, works on the desktop and nowhere else |
+| `:web` resolves **`dev.dogwood:dogwood-web-wasm-js`**, read off `dependencyInsight` | the web host is not published (it was not, until this section existed), or the wrong variant was selected and compiled anyway |
+| `:web-guest` emits a bundle carrying `postMessage` | the Worker transport did not link in from `dogwood-compose` |
+| `:ios` links `UmbraEmbed.framework` with `umbraViewController` in its header | the three `ios-embed` lines (`isStatic`, `-lsqlite3`, `export`) are not enough outside the engine — `-lsqlite3` fails only at link time |
+
+The iOS link needs Xcode and several minutes; on a machine without `xcrun` the check **skips it and
+says so**, which is not a pass. The first link outside the engine ran the Kotlin/Native dependency
+cache out of memory, so Umbra's `gradle.properties` carries the same two heap lines the engine's
+does, with the reason.
+
+The negative control for the web section is the one that matters: with `maven-publish` removed from
+`dogwood-web`, `:web:compileKotlinWasmJs` fails resolution and the script prints "Is dogwood-web
+still published?" — the failure the section exists to produce.
 
 ## One check that is not automated, and costs the most
 

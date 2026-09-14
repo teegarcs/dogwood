@@ -163,6 +163,22 @@ compiles and the header declares a factory taking types the consumer cannot name
 boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page
 declares what it knows in one value and the guest answers the rest itself.
 
+Two artifacts, not one. The **page** depends on `dev.dogwood:dogwood-web:0.1.0` (a Kotlin/WebAssembly
+library; [`samples-standalone/umbra/web`](../samples-standalone/umbra/web/) is the smallest
+consumer). The **payload** is a second guest module beside your Zipline one — same screens, read as
+a shared source directory, no Zipline plugin — whose entry point is the entry-point list plus one
+call; the whole Worker transport lives in `dogwood-compose`
+([ADR-070](../adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md)):
+
+```kotlin
+// web-guest/src/jsMain/kotlin/.../Main.kt
+fun main() = runInWorker(DogwoodGuest("home" to { _ -> HomeScreen() }))
+```
+
+Build it with `jsBrowserProductionWebpack` and `output.globalObject = "self"` in the webpack
+configuration, because a Worker script has no `document`;
+[`samples-standalone/umbra/web-guest`](../samples-standalone/umbra/web-guest/) has the eight lines.
+
 ```kotlin
 val experience = DogwoodWebExperience(
   environment,
@@ -272,9 +288,28 @@ compiler enforces it — a target that drifts fails your host build with a named
 exactly as a missing wrapper does today.
 
 **When the wrapper still earns its keep:** whenever a wire type needs mapping before your component
-can be called — a `String` that becomes your sealed `ButtonStyle`, a token name that becomes a
-`Color`. `@Implementation` is per component, so a real surface mixes both freely; Umbra's does
+can be called — a token name that becomes a `Color`, three integers that become your `Padding`
+class. `@Implementation` is per component, so a real surface mixes both freely; Umbra's does
 (`UmbraChip` binds directly, its two siblings keep wrappers).
+
+**What a parameter may be.** `String`, `Int`, `Long`, `Float`, `Double`, `Boolean`; `TextValue`,
+`Color` or `Shape` (resolved by the host at draw time); `Modifier`; a `@Composable` content slot; a
+Unit-returning event lambda whose arguments are those same value types; a `@Holder` type with a
+registered shape; or an enumeration you declare on the surface:
+
+```kotlin
+@Implementation("com.yourco.designsystem.Tone")   // optional: decode into the type you already own
+enum class Tone { Neutral, Positive, Negative }
+
+@Composable
+fun StatusPill(label: String, tone: Tone = Tone.Neutral, onToneChange: (Tone) -> Unit = {}) {}
+```
+
+The entry **name** crosses, never its ordinal, so an old client meeting a name it does not carry
+renders the default and reports `UNKNOWN_ENUM_VALUE`; entries are append-only and adding one moves
+the segment version. **Anything else fails the build** — the message names the parameter and lists
+what would have been accepted. `allowUnbindable.set(true)` in the `dogwood` block turns that into
+a warning for a surface you are still writing, and should be off in anything that ships.
 
 Either way, register the generated binding once, before anything renders:
 

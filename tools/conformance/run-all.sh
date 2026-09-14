@@ -33,8 +33,20 @@ PY
 }
 
 echo "==> shared-code test evidence"
-"$HERE/../../engine/gradlew" -p "$HERE/../../engine" build \
-  -x :samples:slice-android:lintDebug --console=plain -q || status=1
+# Two workers, because the release builds and the iOS framework links this runs in parallel took
+# the machine past its memory twice on 2026-09-13 and the process was killed mid-gate. A gate that
+# dies of memory reports nothing, which is worse than a slower one.
+#
+# `SKIP_ENGINE_BUILD=1` reuses the test results already on disk. The build is tier S -- it runs on
+# every pull request and it just ran here -- and on a machine also holding an emulator, a simulator
+# and Chrome it is the step that tips the memory. Skipping it does not skip the *grading*: an
+# absent or stale result is exactly what `from_tests.py` reports as "did not run".
+if [ "${SKIP_ENGINE_BUILD:-0}" != "1" ]; then
+  "$HERE/../../engine/gradlew" -p "$HERE/../../engine" build --max-workers=2 \
+    -x :samples:slice-android:lintDebug --console=plain -q || status=1
+else
+  echo "    (engine build skipped by request; grading the results already on disk)"
+fi
 python3 "$HERE/from_tests.py" > "$HERE/build/tests.raw" || status=1
 split_by_client "$HERE/build/tests.raw" ""
 

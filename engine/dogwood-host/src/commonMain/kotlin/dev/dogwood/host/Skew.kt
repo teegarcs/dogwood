@@ -48,6 +48,16 @@ class SkewReport {
   /** Enter/exit transition names this client does not implement. Rendered as a fade. */
   val unknownTransitions = mutableSetOf<String>()
 
+  /**
+   * Enumeration entries, as `Component.parameter=Name`, that this client's surface does not carry.
+   *
+   * An enumeration crosses by name, so a payload built against a surface with a newer entry sends
+   * a name this client cannot resolve. The parameter reads as its declared default, which is a
+   * screen that looks plausible and is subtly not what the payload meant -- the exact situation
+   * this report exists for.
+   */
+  val unknownEnumValues = mutableSetOf<String>()
+
   /** Number patterns the payload supplied that this platform would not accept. */
   val rejectedNumberPatterns = mutableSetOf<String>()
 

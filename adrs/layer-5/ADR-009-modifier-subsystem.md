@@ -1,7 +1,7 @@
 # ADR-009: The `Modifier` Subsystem — Tag Space, Ordering, and Scope as a Build Error
 
 **Date:** 2026-08-31
-**Status:** Accepted
+**Status:** Accepted — **extended** by [ADR-069](ADR-069-the-primitive-tier-is-the-lever.md) (2026-09-13): the tag table below is the first ten; tags 11–12 (`rotate`, `scale`) arrived with animation and 13–27 with the second growth of the tier, including a `clickable` that carries its handler by element index. §4's assumption that "`offset`, `border`, `rotate` and the rest are unbuilt" no longer holds.
 
 *Written jointly with [ADR-010](ADR-010-deferred-expression-grammar.md), because modifier
 arguments are themselves deferred expressions and neither decision is complete without the other.

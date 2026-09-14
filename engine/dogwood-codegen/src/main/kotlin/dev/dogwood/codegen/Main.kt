@@ -45,9 +45,42 @@ fun main(args: Array<String>) {
   // wire and camel-cased in code, which is why this is an option rather than a convention.
   val wireName = options["wire-name"] ?: segmentName
 
-  val components = SurfaceParser().parseFiles(sources)
+  val surface = SurfaceParser().parseSurfaceFiles(sources)
+  val components = surface.components
+  val enums = surface.enums
+
+  /*
+   * A component the rule cannot bind fails the build, before anything is written.
+   *
+   * It used to be a line on standard output and an exit code of zero, and the consequence was
+   * exactly what a silent failure always is here: Umbra's `UmbraStepper` sat unbindable for as
+   * long as it existed and nothing noticed until a payload tried to call it. ADR-006 had promised
+   * that "the build fails registration for a signature that violates it, with an error naming the
+   * offending parameter"; this is the first time that sentence was true.
+   *
+   * `--allow-unbindable true` restores the old behaviour for one purpose -- auditing a surface
+   * that is being written, where seeing every rejection at once beats fixing them one build at a
+   * time -- and the plugin exposes it as `allowUnbindable`. Nothing that ships should set it.
+   */
+  val allowUnbindable = options["allow-unbindable"]?.toBoolean() ?: false
+  val rejected = components.filterNot { it.isBindable }
+  if (rejected.isNotEmpty() && !allowUnbindable) {
+    error(
+      buildString {
+        appendLine("dogwood-codegen: ${rejected.size} component(s) on the surface cannot be bound, so nothing was generated:")
+        for (component in rejected) {
+          for (parameter in component.parameters.filter { it.kind == ParameterKind.UNSUPPORTED }) {
+            appendLine("  - ${component.name}.${parameter.name}: ${parameter.rejection}")
+          }
+        }
+        appendLine("A parameter may be ${SurfaceParser.ALLOWED_TYPES}.")
+        appendLine("To audit a surface in progress instead, pass --allow-unbindable true (allowUnbindable.set(true) in the dogwood block); the rejected components are then left out of both ends of the boundary and recorded in the dictionary.")
+      },
+    )
+  }
+
   val dictionary =
-    buildDictionary(segmentName, segmentId, version, components, reserved, wireName)
+    buildDictionary(segmentName, segmentId, version, components, reserved, wireName, enums)
 
   /*
    * The segment-version vector, emitted where every platform can read it.
@@ -74,7 +107,7 @@ fun main(args: Array<String>) {
       appendLine(" */")
       appendLine("object DogwoodSegments {")
       appendLine("  const val LAYOUT: String = \"androidx.layout\"")
-      appendLine("  const val LAYOUT_VERSION: Int = 1")
+      appendLine("  const val LAYOUT_VERSION: Int = 2")
       appendLine()
       appendLine("  const val DESIGN_SYSTEM: String = \"${dictionary.wireName}\"")
       appendLine("  const val DESIGN_SYSTEM_VERSION: Int = ${dictionary.version}")
@@ -117,11 +150,10 @@ fun main(args: Array<String>) {
     docsOut.writeText(emitDocs(dictionary, components))
   }
 
-  guestOut.writeText(emitGuestStubs(guestPackage, dictionary, components))
-  hostOut.writeText(emitHostBindings(hostPackage, implementationPackage, dictionary, components))
+  guestOut.writeText(emitGuestStubs(guestPackage, dictionary, components, enums))
+  hostOut.writeText(emitHostBindings(hostPackage, implementationPackage, dictionary, components, enums))
   dictionaryOut.writeText(dictionary.encode())
 
-  val rejected = components.filterNot { it.isBindable }
   println("dogwood-codegen: ${components.size} composables, ${components.size - rejected.size} bound, ${rejected.size} rejected")
   for (component in rejected) {
     for (parameter in component.parameters.filter { it.kind == ParameterKind.UNSUPPORTED }) {

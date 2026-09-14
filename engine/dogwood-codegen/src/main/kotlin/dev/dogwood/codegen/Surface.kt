@@ -161,6 +161,16 @@ data class ParsedParameter(
    * renders and is silently inert.
    */
   val holderShape: HolderShape? = null,
+  /**
+   * The enumeration this parameter's type names, when the surface declared one.
+   *
+   * An enumeration crosses as its entry **name**, never its ordinal. Names survive a reordered
+   * declaration, read as themselves in a transcript or a skew report, and let a client one
+   * dictionary version behind meet an entry it has never heard of and say so -- an ordinal would
+   * silently resolve to whichever entry happened to sit at that index. The bytes cost is a few
+   * characters per property and is not worth an ambiguity.
+   */
+  val enumType: ParsedEnum? = null,
 ) {
   /**
    * Whether the host must resolve this parameter's default itself.
@@ -177,6 +187,34 @@ data class ParsedParameter(
 /** An inclusive numeric range declared on the surface. See [ParsedParameter.range]. */
 @Serializable
 data class ParsedRange(val min: Double, val max: Double)
+
+/**
+ * An enumeration declared on the surface, so a component may take one as a parameter.
+ *
+ * Before this existed a parameter typed `variant: ButtonVariant` was classified as an ordinary
+ * value and the generator emitted `JsonPrimitive(it)` for it -- code that does not compile, on
+ * both sides, pointing at a generated file rather than at the surface. A design system's most
+ * common non-primitive parameter shape was therefore unusable and the failure said nothing about
+ * why. See [ADR-068](../../../../../../../adrs/layer-5/ADR-068-the-generator-refuses-what-it-cannot-bind.md).
+ *
+ * @param entries in declaration order. Append-only, like tags: the lock refuses a removed or renamed
+ *   entry, because a client one version behind resolves the name it receives against this list.
+ * @param implementation the fully qualified host enumeration the binding decodes into, when the
+ *   adopter already owns one; null means the generator emits a host-side copy. Host-side only, as
+ *   `@Implementation` is on a component: it never reaches the dictionary or the wire.
+ */
+@Serializable
+data class ParsedEnum(
+  val name: String,
+  val entries: List<String>,
+  val implementation: String? = null,
+)
+
+/** Everything one parse of a surface produced: the components, and the enumerations they may use. */
+data class ParsedSurface(
+  val components: List<ParsedComponent>,
+  val enums: List<ParsedEnum> = emptyList(),
+)
 
 @Serializable
 data class ParsedComponent(
@@ -291,6 +329,16 @@ data class Dictionary(
    * prevent. It happened: adding `Icon` as the tenth component collided with `VerticalList`.
    */
   val reservedLocalTags: List<Int> = emptyList(),
+  /**
+   * Every enumeration this segment's components may carry, with its entries in declaration order.
+   *
+   * Part of the contract, so the lock can see it: an entry crosses as its name, and a name a client
+   * has never heard of degrades to the parameter's default. Adding an entry is therefore a
+   * compatibility event -- a client behind the change renders the default where a newer payload
+   * meant something specific -- and the lock requires the segment version to move with it, exactly
+   * as it does for an added component.
+   */
+  val enums: Map<String, List<String>> = emptyMap(),
 )
 
 @Serializable
