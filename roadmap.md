@@ -257,7 +257,7 @@ Compose's `Modifier.Element` implementations are `internal`, so Dogwood defines 
 
 **Gate — met for generator v1.** Generated bindings reproduce the Phase 1 and 2 behaviour exactly: the substitution is done, the forty existing tests pass unchanged, and the sample screen renders identically to the hand-written version. A Compose version bump is not reproducible in a test, but the property that matters under one is tested directly — when the surface gains a component and an optional parameter, every existing widget, property and event tag keeps its number, and the build fails if one moves.
 
-**What the gate does not cover, and should not be read as covering:** this is generator v1, whose target is *registered modules with curated signatures*. The full Compose surface is generator v2, its parse needs resolved types rather than declaration text, and the roadmap's "6–8 weeks is a floor" applies to that, not to this.
+**What the gate does not cover, and should not be read as covering:** this is generator v1, whose target is *registered modules with curated signatures*. The full Compose surface is generator v2, its parse needs resolved types rather than declaration text, and the roadmap's "6–8 weeks is a floor" applies to that, not to this. **Generator v2 is planned and under way as of 2026-09-15** — [`plans/generator-v2.md`](plans/generator-v2.md), [ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md) — and two of the fears above turned out smaller than written: the host *quotes* a library default rather than evaluating it, and the host binding needs the library file's imports rather than resolved types. The denominator at the pinned versions is 241, not 445.
 
 ---
 
