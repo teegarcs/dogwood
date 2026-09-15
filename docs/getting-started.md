@@ -266,7 +266,7 @@ fun PriceTag(
 dogwood {
   segment("yourDesignSystem") {
     wireName.set("yourco.designsystem")
-    segmentId.set(2)          // 0 and 1 are Dogwood's. THIS NUMBER IS PERMANENT.
+    segmentId.set(2)          // 2..200 are yours. 0, 1 and 201..255 are Dogwood's. PERMANENT.
     version.set(1)            // raise it when you add a component
     guestPackage.set("dev.yourco.guest")
     hostPackage.set("dev.yourco.design")

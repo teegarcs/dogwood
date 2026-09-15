@@ -206,7 +206,7 @@ dependencies {
 dogwood {
   segment("acmeDesignSystem") {          // names your Kotlin declarations
     wireName.set("acme.designsystem")    // what a guest sees in LocalSegmentVersions
-    segmentId.set(2)                     // 0 and 1 are Dogwood's. Yours, forever.
+    segmentId.set(2)                     // 2..200 are yours, forever. 0, 1 and 201..255 are Dogwood's.
     version.set(1)
     guestPackage.set("dev.acme.guest")
     hostPackage.set("dev.acme.design")
