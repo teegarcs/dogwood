@@ -1,6 +1,26 @@
 # Project Dogwood
 
+[![conformance](https://github.com/teegarcs/dogwood/actions/workflows/conformance.yml/badge.svg?branch=main)](https://github.com/teegarcs/dogwood/actions/workflows/conformance.yml)
+[![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 **Server-Driven Compose via a Generated Full-Surface Binding**
+
+**What that badge covers, and what it does not.** It is **tier S**: every target compiles, every
+shared test passes, the shared-code conformance claims are graded against tests that *actually
+ran*, the web slice is inside its byte budget, every render test is shaped so it can report on
+Kotlin/WebAssembly, and every relative link in this repository resolves. It runs on every push and
+every pull request.
+
+**Tier C has no badge, deliberately.** The claims that need a booted iOS simulator, an attached
+Android device, Chrome and a served payload cannot run on a hosted runner, so a badge for them
+would be a number nobody recomputed. They run locally through
+[`tools/conformance/run-all.sh`](tools/conformance/run-all.sh), and each run is committed with its
+date: the latest is [`result-android`](tools/conformance/result-android-2026-09-14.conf),
+[`result-ios`](tools/conformance/result-ios-2026-09-14.conf),
+[`result-web`](tools/conformance/result-web-2026-09-14.conf) and
+[`result-desktop`](tools/conformance/result-desktop-2026-09-14.conf) — every claim this machine can
+grade, met on all four clients. [`docs/checks.md`](docs/checks.md) explains the split and
+[`plans/conformance.md`](plans/conformance.md) is the full matrix.
 
 Project Dogwood is an architecture specification for a Server-Driven User Interface (SDUI)
 engine that removes the *hand-maintained* component bridge. Instead of shipping JavaScript
