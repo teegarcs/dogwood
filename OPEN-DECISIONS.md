@@ -15,26 +15,32 @@ keys. Several items are shaped by that arrangement and would read differently on
 
 ---
 
-## 1. Continuous integration is not an enforced merge gate
+## 1. ✅ Closed — continuous integration is an enforced merge gate
 
-**Status:** open. **Cost of leaving it:** everything is green by discipline rather than by
-enforcement.
+**Status:** closed, 2026-09-14, by making the repository public.
 
-`.github/workflows/conformance.yml` runs on every push and pull request and has been green on every
-merge. What it cannot do is *block* a merge: setting branch protection on `main` returns **403**,
-because the repository is private on a plan that does not include protected branches.
+For the life of this project the check ran, reported, and could be ignored: setting branch
+protection on `main` returned **403**, because the repository was private on a plan without
+protected branches. Going public made protection free, and it is now on. A pull request cannot be
+merged into `main` until both jobs pass:
 
-So the check exists, runs, reports, and can be ignored. Nothing prevents a red pull request being
-merged — the only thing stopping it is that nobody has.
+| Required check | What it grades |
+|---|---|
+| `Tier S — shared-code claims and budgets` | every target compiles, every shared test passes, the shared-code claims are graded against tests that actually ran, the web slice is inside its byte budget, render tests are shaped to report on Kotlin/WebAssembly, every link resolves |
+| `Skew containment — the web client` | a client at dictionary version N meeting a payload at N+1, in a real browser |
 
-**What done looks like — either one:**
+**`enforce_admins` is deliberately off**, which is the one loose thread. The checks are required
+for every pull request, including from forks; the repository owner can still push directly to
+`main` and bypass them. That is the right setting for a solo maintainer with an emergency to fix,
+and it is a discipline rather than a wall. Tighten it with:
 
-- Make the repository public. Branch protection is free on public repositories.
-- Upgrade the plan to one that includes protected branches on private repositories.
+```
+gh api -X PUT repos/teegarcs/dogwood/branches/main/protection/enforce_admins
+```
 
-Then, in **Settings → Branches → Add rule** on `main`, require the status check named
-**`Tier S — shared-code claims and budgets`**. That is one setting; `docs/checks.md` records what
-the check covers and what it deliberately does not.
+**The status is visible rather than assumed:** the badge at the top of
+[`README.md`](README.md) is the live tier-S result on `main`. Tier C has no badge on purpose —
+see `docs/checks.md` for why, and the dated `result-<client>-*.conf` files for what it last found.
 
 ---
 
