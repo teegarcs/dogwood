@@ -21,7 +21,7 @@ plugins {
   // Compose Multiplatform's own plugin, which is what maps `compose.material3` onto the right
   // artifact for the platform being built. A product using Compose applies it anyway.
   id("org.jetbrains.compose")
-  id("dev.dogwood.codegen")
+  id("io.github.teegarcs.dogwood.codegen")
 }
 
 kotlin {
@@ -45,7 +45,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        implementation("dev.dogwood:dogwood-host:0.1.0")
+        implementation("io.github.teegarcs:dogwood-host:0.1.0")
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)
@@ -64,7 +64,7 @@ android {
 val dogwoodGenerator by configurations.creating
 
 dependencies {
-  dogwoodGenerator("dev.dogwood:dogwood-codegen:0.1.0")
+  dogwoodGenerator("io.github.teegarcs:dogwood-codegen:0.1.0")
 }
 
 /*

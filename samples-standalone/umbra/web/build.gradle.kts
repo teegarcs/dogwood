@@ -4,7 +4,7 @@
  * Until 2026-09-13 `dogwood-web` was the one engine module with no publishing coordinates at all:
  * the web host existed, rendered, passed its conformance drill, and could not be depended on by any
  * build that was not the engine's own. This module is what asserts that it can. It resolves
- * `dev.dogwood:dogwood-web` from a repository in a Kotlin/WebAssembly build and compiles a page
+ * `io.github.teegarcs:dogwood-web` from a repository in a Kotlin/WebAssembly build and compiles a page
  * against it -- the delivery, the experience, and the registration of Umbra's own design system,
  * which is the shape every page has.
  *
@@ -32,7 +32,7 @@ kotlin {
       dependencies {
         // Resolved from a repository by a WebAssembly build, with no path into the engine. That
         // sentence is the whole test.
-        implementation("dev.dogwood:dogwood-web:0.1.0")
+        implementation("io.github.teegarcs:dogwood-web:0.1.0")
         // The product's own design system, compiled for the same target: the web page calls the
         // same generated binding the Android and iOS applications do.
         implementation(project(":design"))

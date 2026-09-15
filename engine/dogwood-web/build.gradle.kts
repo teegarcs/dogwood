@@ -27,7 +27,7 @@ plugins {
   alias(libs.plugins.composeMultiplatform)
 }
 
-group = "dev.dogwood"
+group = "io.github.teegarcs"
 version = "0.1.0"
 
 kotlin {

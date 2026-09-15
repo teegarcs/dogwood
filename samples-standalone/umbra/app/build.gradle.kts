@@ -18,7 +18,7 @@ plugins {
 kotlin { jvmToolchain(21) }
 
 dependencies {
-  implementation("dev.dogwood:dogwood-host:0.1.0")
+  implementation("io.github.teegarcs:dogwood-host:0.1.0")
   implementation(project(":design"))
   implementation(compose.desktop.currentOs)
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")

@@ -296,7 +296,7 @@ only consumer outside this repository exercised the one platform an adopter is l
 with. The flagship platform's artifact path was covered by nothing.
 
 Closed with the line, and with a check that would have caught it: Umbra gains an `:android` module
-that resolves `dev.dogwood:dogwood-host` from a repository in an Android build, and
+that resolves `io.github.teegarcs:dogwood-host` from a repository in an Android build, and
 `tools/standalone-check/run.sh` asserts on the **resolved variant** rather than on a green build —
 because a compile succeeds either way, which is exactly how this survived. Watched to fail without
 the fix before it was believed:
@@ -306,7 +306,7 @@ the fix before it was believed:
 FAIL -- an Android build did not resolve the Android variant of dogwood-host.
 ```
 
-and with it: `resolved dev.dogwood:dogwood-host-android:0.1.0`.
+and with it: `resolved io.github.teegarcs:dogwood-host-android:0.1.0`.
 
 The module is a compile probe and says so: it proves the variant exists, is selected, and its API is
 reachable. It does not render — that is covered on Android by the conformance drills.

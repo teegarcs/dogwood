@@ -8,7 +8,7 @@ plugins {
   alias(libs.plugins.zipline)
 }
 
-group = "dev.dogwood"
+group = "io.github.teegarcs"
 version = "0.1.0"
 
 

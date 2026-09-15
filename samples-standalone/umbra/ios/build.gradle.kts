@@ -36,7 +36,7 @@ kotlin {
       linkerOpts += "-lsqlite3"
       // Everything a Swift caller needs, exported by name. Without this the Kotlin API is compiled
       // in but not visible: the header would carry the factory and none of the types it takes.
-      export("dev.dogwood:dogwood-host:0.1.0")
+      export("io.github.teegarcs:dogwood-host:0.1.0")
       export(project(":design"))
     }
   }
@@ -45,7 +45,7 @@ kotlin {
     iosMain {
       dependencies {
         // `api`, not `implementation`, because `export(...)` above requires it.
-        api("dev.dogwood:dogwood-host:0.1.0")
+        api("io.github.teegarcs:dogwood-host:0.1.0")
         api(project(":design"))
         implementation(compose.runtime)
         implementation(compose.foundation)

@@ -26,8 +26,8 @@ withholds a widget. This one degrades into a screen that works.
 **A build-time check, applied to guest modules, that rejects two families of API and names the
 replacement for each.**
 
-`dev.dogwood.guest` is a second plugin in the generator's artifact. It is separate from
-`dev.dogwood.codegen` because the two are applied to different modules by different people: a
+`io.github.teegarcs.dogwood.guest` is a second plugin in the generator's artifact. It is separate from
+`io.github.teegarcs.dogwood.codegen` because the two are applied to different modules by different people: a
 product's design-system module *generates* bindings, and a product's *guest* module is checked. A
 module doing both would be one whose guest code can see its host code, which is the confusion the
 architecture exists to prevent. It joins `check`, so it runs where a person expects a rule to be

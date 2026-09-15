@@ -204,7 +204,7 @@ states its own limit, a compile or a link rather than a render:
 | Assertion | What its absence would mean |
 |---|---|
 | `:design` compiles for `wasmJs` and `iosSimulatorArm64` | the generated binding, or the `@Implementation` target it calls, works on the desktop and nowhere else |
-| `:web` resolves **`dev.dogwood:dogwood-web-wasm-js`**, read off `dependencyInsight` | the web host is not published (it was not, until this section existed), or the wrong variant was selected and compiled anyway |
+| `:web` resolves **`io.github.teegarcs:dogwood-web-wasm-js`**, read off `dependencyInsight` | the web host is not published (it was not, until this section existed), or the wrong variant was selected and compiled anyway |
 | `:web-guest` emits a bundle carrying `postMessage` | the Worker transport did not link in from `dogwood-compose` |
 | `:ios` links `UmbraEmbed.framework` with `umbraViewController` in its header | the three `ios-embed` lines (`isStatic`, `-lsqlite3`, `export`) are not enough outside the engine — `-lsqlite3` fails only at link time |
 

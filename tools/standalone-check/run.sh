@@ -77,12 +77,12 @@ echo "==> resolving the Android artifact from a repository, in an Android build"
 "$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :android:assembleRelease --console=plain -q
 insight="$("$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :android:dependencyInsight \
   --configuration releaseCompileClasspath --dependency dogwood-host --console=plain 2>/dev/null)"
-printf '%s' "$insight" | grep -q "dev.dogwood:dogwood-host-android:" || {
+printf '%s' "$insight" | grep -q "io.github.teegarcs:dogwood-host-android:" || {
   echo "FAIL -- an Android build did not resolve the Android variant of dogwood-host." >&2
   echo "        Check that androidTarget { publishLibraryVariants(\"release\") } is still there;" >&2
   echo "        without it the -jvm artifact is selected and everything still compiles." >&2
   exit 1; }
-echo "    resolved $(printf '%s' "$insight" | grep -o 'dev.dogwood:dogwood-host-android:[0-9.]*' | head -1)"
+echo "    resolved $(printf '%s' "$insight" | grep -o 'io.github.teegarcs:dogwood-host-android:[0-9.]*' | head -1)"
 
 echo
 echo "==> building, signing and serving the payload, and rendering it"
@@ -132,7 +132,7 @@ fi
 #
 # Watched to fail without the artifact (2026-09-13): with `dogwood-web` withheld from the local
 # repository, `:web:compileKotlinWasmJs` fails with
-#   > Could not resolve dev.dogwood:dogwood-web:0.1.0.
+#   > Could not resolve io.github.teegarcs:dogwood-web:0.1.0.
 # and passes again once it is restored. That is the failure this section exists to produce.
 echo
 echo "==> resolving the web host from a repository, in a WebAssembly build"
@@ -143,10 +143,10 @@ echo "==> resolving the web host from a repository, in a WebAssembly build"
   exit 1; }
 insight="$("$ROOT/engine/gradlew" -p "$ROOT/samples-standalone/umbra" :web:dependencyInsight \
   --configuration wasmJsCompileClasspath --dependency dogwood-web --console=plain 2>/dev/null)"
-printf '%s' "$insight" | grep -q "dev.dogwood:dogwood-web-wasm-js:" || {
+printf '%s' "$insight" | grep -q "io.github.teegarcs:dogwood-web-wasm-js:" || {
   echo "FAIL -- a WebAssembly build did not resolve the wasm-js variant of dogwood-web." >&2
   exit 1; }
-echo "    resolved $(printf '%s' "$insight" | grep -o 'dev.dogwood:dogwood-web-wasm-js:[0-9.]*' | head -1)"
+echo "    resolved $(printf '%s' "$insight" | grep -o 'io.github.teegarcs:dogwood-web-wasm-js:[0-9.]*' | head -1)"
 
 # The web GUEST: the same screen `:guest` ships, built for a Worker, with the transport coming from
 # `dogwood-compose` rather than from four hundred lines copied out of a sample. The verdict is the

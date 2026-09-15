@@ -118,13 +118,16 @@ and one run of `--es experiment pauses` on that Pixel closes it.
 
 ## 5. Where the published artifacts actually go
 
-**Status:** open, and it is now the only thing between this and a product depending on Dogwood.
-**Cost of leaving it:** a product can consume Dogwood only from a developer's own machine.
+**Status:** half closed. The **coordinates are decided** — `io.github.teegarcs`, taken 2026-09-14
+by [ADR-071](adrs/layer-5/ADR-071-the-coordinates-are-a-namespace-somebody-owns.md) — and the
+**deployment is still open**: nothing is published anywhere but a developer's own machine.
+**Cost of leaving the rest:** a reader who follows `docs/getting-started.md` cannot resolve a
+single artifact without cloning this repository first.
 
 `dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host`, `dogwood-web` (since
 2026-09-13 — it had no publishing coordinates at all before, and this sentence listed the others
 without anyone reading the omission; [ADR-070](adrs/layer-5/ADR-070-every-shipping-platform-is-consumable.md))
-and the Gradle plugin `dev.dogwood.codegen` publish under **`dev.dogwood`** at **`0.1.0`**, and
+and the Gradle plugin `io.github.teegarcs.dogwood.codegen` publish under **`io.github.teegarcs`** at **`0.1.0`**, and
 `samples-standalone/umbra` proves the whole path works on every shipping platform — a separate
 Gradle build with no route into this repository, resolving the plugin by identifier and the runtime
 as artifacts ([ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)), compiling its
@@ -133,27 +136,25 @@ linking an iOS framework.
 
 It resolves them from **`mavenLocal()`**, which is a developer's own machine and nobody else's.
 
-**What done looks like:** a repository these are deployed to, an account that owns them, and
-credentials a build can use. That is one of:
+**What is decided.** The group is `io.github.teegarcs`, because Maven Central grants that
+namespace on GitHub identity alone. The alternative was keeping `dev.dogwood` and buying and
+verifying `dogwood.dev`, which is a recurring cost and a second thing to renew for a project that
+is not yet published. Taken while nobody depended on the old coordinates, which is the only time it
+is free.
 
-- **Maven Central under `io.github.<user>`.** Central grants this namespace on GitHub identity
-  alone, with no domain to buy, and it is the shortest path for a project hosted here. It renames
-  every artifact, so it is a decision to take before anyone depends on the current coordinates.
-- **Maven Central under a domain you own.** Keeping `dev.dogwood` means registering and verifying
-  `dogwood.dev`; Central checks ownership. The coordinates in every build file and document today
-  assume this and nobody has bought it.
-- **A private repository** — an internal Artifactory, Nexus, or GitHub Packages — if the artifacts
-  are not meant to be consumable by strangers.
+**What is left, and it is an afternoon of account work rather than a decision:**
 
-**This became urgent when the repository went public.** While it was private, unpublished
-coordinates inconvenienced nobody. In public, `docs/getting-started.md` tells a reader to depend on
-`dev.dogwood:dogwood-host:0.1.0`, and that resolves from one developer's `mavenLocal()` and nowhere
-else. Either publish or say plainly at the top of getting-started that the artifacts are not yet
-hosted.
+- A Sonatype Central account for `io.github.teegarcs`, verified by the namespace-ownership check.
+- A GPG signing key for the artifacts, which Central requires and which is **not** the Ed25519
+  payload signing key of §6. Two different keys for two different jobs.
+- Credentials a build can use, and a publish step that is reviewable rather than a developer's
+  Gradle invocation.
+- Then `samples-standalone/umbra/settings.gradle.kts` points at Central instead of `mavenLocal()`,
+  and the plugin gets a marker on the Gradle Plugin Portal if it is to be applied by identifier
+  without a `pluginManagement` block.
 
-Then `samples-standalone/umbra/settings.gradle.kts` points at it instead of `mavenLocal()`, and the
-plugin gets a marker on the Gradle Plugin Portal if it is meant to be applied by identifier without
-a `pluginManagement` block.
+**Until that is done, `docs/getting-started.md` says so in its first paragraph** rather than letting
+a reader discover it at the first failed resolution.
 
 **A related decision that comes with it:** `0.1.0` is a number, not a stability promise. Nothing is
 API-frozen. Whether the first published version carries a compatibility commitment is a decision to

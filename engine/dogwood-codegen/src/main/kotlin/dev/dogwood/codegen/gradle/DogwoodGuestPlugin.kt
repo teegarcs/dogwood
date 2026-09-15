@@ -1,8 +1,8 @@
 /*
  * Project Dogwood -- the guest-side plugin, which is one task.
  *
- * `dev.dogwood.guest` applies the authoring check Layer 1 requires and nothing else. It is a
- * separate plugin from `dev.dogwood.codegen` because the two are applied to different modules by
+ * `io.github.teegarcs.dogwood.guest` applies the authoring check Layer 1 requires and nothing else. It is a
+ * separate plugin from `io.github.teegarcs.dogwood.codegen` because the two are applied to different modules by
  * different people: a product's design-system module generates bindings, and a product's *guest*
  * module is checked. A module that did both would be a module whose guest code can see its host
  * code, which is the confusion the whole architecture exists to prevent.

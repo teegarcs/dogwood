@@ -11,7 +11,7 @@
  * the published module metadata, ten days into the project's life and after two clients had shipped
  * conformance evidence. See `tools/framework-grade/results/2026-09-09-run3.md`.
  *
- * **What this module proves, and what it does not.** It resolves `dev.dogwood:dogwood-host` from a
+ * **What this module proves, and what it does not.** It resolves `io.github.teegarcs:dogwood-host` from a
  * repository in an *Android* build and compiles real host code against it, so the variant exists,
  * is selected, and its API is reachable. It does **not** render: there is no device in this check
  * and the verdict is a compile. `tools/ios-embed-check/run.sh` states its own limit the same way and
@@ -35,7 +35,7 @@ kotlin { jvmToolchain(21) }
 dependencies {
   // Resolved from a repository by an Android build, with no path into the engine. That sentence is
   // the whole test.
-  implementation("dev.dogwood:dogwood-host:0.1.0")
+  implementation("io.github.teegarcs:dogwood-host:0.1.0")
   // And the product's own design system, now multiplatform: its generated bindings and the
   // `@Implementation` target they call have to compile for Android too, or a product's components
   // are placeholders on the platform that ships first.

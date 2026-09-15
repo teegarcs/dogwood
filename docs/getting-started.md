@@ -4,7 +4,7 @@ For somebody adding Dogwood to an application that already exists. It assumes yo
 nothing about this project.
 
 > **The artifacts are not hosted anywhere yet.** Every coordinate on this page —
-> `dev.dogwood:dogwood-host:0.1.0` and its siblings — resolves from a local Maven repository and
+> `io.github.teegarcs:dogwood-host:0.1.0` and its siblings — resolves from a local Maven repository and
 > nowhere else. To follow this guide today you clone this repository and run
 > `./gradlew publishToMavenLocal` in `engine/` first; `tools/standalone-check/run.sh` does exactly
 > that before building the worked example. Where the artifacts will actually be published, and
@@ -49,15 +49,15 @@ step below is unclear, Umbra is the same step with real files around it.
 
 ```kotlin
 plugins {
-  id("dev.dogwood.codegen") version "0.1.0"
+  id("io.github.teegarcs.dogwood.codegen") version "0.1.0"
 }
 
 val dogwoodGenerator by configurations.creating
 
 dependencies {
   // The generator is a *tool*: it runs before compilation and nothing you write links against it.
-  dogwoodGenerator("dev.dogwood:dogwood-codegen:0.1.0")
-  implementation("dev.dogwood:dogwood-host:0.1.0")
+  dogwoodGenerator("io.github.teegarcs:dogwood-codegen:0.1.0")
+  implementation("io.github.teegarcs:dogwood-host:0.1.0")
 }
 ```
 
@@ -170,7 +170,7 @@ compiles and the header declares a factory taking types the consumer cannot name
 boundary carries no object references. There is no `DogwoodServiceHost` to hand across: the page
 declares what it knows in one value and the guest answers the rest itself.
 
-Two artifacts, not one. The **page** depends on `dev.dogwood:dogwood-web:0.1.0` (a Kotlin/WebAssembly
+Two artifacts, not one. The **page** depends on `io.github.teegarcs:dogwood-web:0.1.0` (a Kotlin/WebAssembly
 library; [`samples-standalone/umbra/web`](../samples-standalone/umbra/web/) is the smallest
 consumer). The **payload** is a second guest module beside your Zipline one — same screens, read as
 a shared source directory, no Zipline plugin — whose entry point is the entry-point list plus one
@@ -359,7 +359,7 @@ Screens are ordinary `@Composable` functions using your components and `remember
 names which one it wants and hands it launch parameters; a name the payload does not offer is
 reported back with the names it does, rather than rendering nothing.
 
-**Run the authoring check on this module.** Applying `dev.dogwood.guest` fails the build on the
+**Run the authoring check on this module.** Applying `io.github.teegarcs.dogwood.guest` fails the build on the
 handful of APIs that do not work in a sandbox — per-frame animation, resource loaders — and names
 the replacement. Finding those at build time rather than on a device is the whole point.
 

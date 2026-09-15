@@ -195,12 +195,12 @@ fun AcmeActionImpl(label: String, enabled: Boolean, modifier: Modifier, onClick:
 **Three — a build file, whose only real decision is a segment identifier.**
 
 ```kotlin
-plugins { id("dev.dogwood.codegen") version "0.1.0" }
+plugins { id("io.github.teegarcs.dogwood.codegen") version "0.1.0" }
 
 val dogwoodGenerator by configurations.creating
 dependencies {
-  dogwoodGenerator("dev.dogwood:dogwood-codegen:0.1.0")
-  implementation("dev.dogwood:dogwood-host:0.1.0")
+  dogwoodGenerator("io.github.teegarcs:dogwood-codegen:0.1.0")
+  implementation("io.github.teegarcs:dogwood-host:0.1.0")
 }
 
 dogwood {
@@ -250,7 +250,7 @@ renumbered tag does not fail to render, it renders the wrong widget. Append to a
 reorder it.
 
 **Where the artifacts come from is still a decision nobody has taken.** They publish under
-`dev.dogwood` at `0.1.0`, and `publishToMavenLocal` is what the standalone sample consumes. Pointing
+`io.github.teegarcs` at `0.1.0`, and `publishToMavenLocal` is what the standalone sample consumes. Pointing
 a real deployment at a real repository is in
 [`OPEN-DECISIONS.md`](OPEN-DECISIONS.md).
 
@@ -284,7 +284,7 @@ costs one crossing whatever its duration.
 the sandbox, no stable host resource identifiers, and the payload ships months apart from the host.
 Name an image by URL and a string from a payload-carried table instead ([ADR-017](adrs/layer-5/ADR-017-resources-and-assets.md)).
 
-Apply it with `plugins { id("dev.dogwood.guest") }` on your guest module; it joins `check`.
+Apply it with `plugins { id("io.github.teegarcs.dogwood.guest") }` on your guest module; it joins `check`.
 
 **It is best-effort and says so.** A call assembled at runtime or hidden behind an alias is
 invisible to it. It catches a directly-named API, which is the case that actually happens, and it is

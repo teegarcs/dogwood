@@ -29,7 +29,7 @@ things are: what the segment is called, and which identifier it owns.
 **The generator ships as a Gradle plugin, and a separate build proves it.**
 
 ```kotlin
-plugins { id("dev.dogwood.codegen") version "0.1.0" }
+plugins { id("io.github.teegarcs.dogwood.codegen") version "0.1.0" }
 
 dogwood {
   segment("umbraDesignSystem") {
@@ -56,7 +56,9 @@ a plugin that guessed which compilation wanted them would be wrong for every pro
 guest in its own module, which is all of them.
 
 **`dogwood-wire`, `dogwood-protocol`, `dogwood-compose`, `dogwood-host` and `dogwood-codegen` are
-published** under `dev.dogwood` at `0.1.0`. Where the artifacts actually go is a deployment
+published** under `dev.dogwood` at `0.1.0` (moved to `io.github.teegarcs` by
+[ADR-071](ADR-071-the-coordinates-are-a-namespace-somebody-owns.md) when the repository went
+public; the reasoning below is unchanged, only the group). Where the artifacts actually go is a deployment
 decision and is tracked in `OPEN-DECISIONS.md`; `publishToMavenLocal` is what the proof
 below consumes.
 

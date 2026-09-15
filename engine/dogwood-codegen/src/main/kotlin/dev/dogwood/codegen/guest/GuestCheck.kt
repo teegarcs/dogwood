@@ -187,7 +187,7 @@ fun guestCheckFailure(violations: List<GuestViolation>): String = buildString {
  *
  * The engine's own guest modules are in the build that *defines* the plugin, so applying it by
  * identifier there would need a composite build or a prior publish — the same reason the generator
- * is invoked directly here. A product applies `dev.dogwood.guest` and never sees this.
+ * is invoked directly here. A product applies `io.github.teegarcs.dogwood.guest` and never sees this.
  *
  * Arguments are source directories. Exits non-zero with the report on any violation.
  */

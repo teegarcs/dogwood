@@ -102,6 +102,28 @@ sequenceDiagram
 - **Snapshot mirror** — the host's tree, whose every property is snapshot state, so applying a
   change invalidates exactly the composables that read it.
 
+## One failure worth recognising before you debug it
+
+`TypeError: … .then_<hash>_k$ is not a function`, in `dogwood-compose`'s JavaScript tests, usually
+means **the build cache is serving output mangled against a different Maven group** — not that
+anything is broken.
+
+A Kotlin klib records `unique_name=<group>:<project>`, and `internal` declarations are name-mangled
+against it, so changing `group` re-mangles every internal in the module. That is consistent and
+harmless on a clean build. The Kotlin/JavaScript compile task's cache key does not capture it,
+though, so a warm cache can restore old-group output beside new-group callers. Twenty-two tests
+failed this way when the group moved to `io.github.teegarcs`
+([ADR-071](../adrs/layer-5/ADR-071-the-coordinates-are-a-namespace-somebody-owns.md)).
+
+```
+./gradlew build --no-build-cache
+```
+
+once, after pulling any change to a module's `group`. Deleting `build/` does **not** help, because
+the cache repopulates it — that is what makes this look like a real defect for the first two
+attempts. `outputModuleName`, which this repository pins for a related failure, does not protect
+against it.
+
 ## Tests
 
 ```bash

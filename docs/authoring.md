@@ -24,7 +24,7 @@ Two things follow that explain almost every rule below:
 
 ## 2. What the build refuses, and what to write instead
 
-Apply the `dev.dogwood.guest` plugin to your payload module and these fail the build with the
+Apply the `io.github.teegarcs.dogwood.guest` plugin to your payload module and these fail the build with the
 replacement named. They are refused rather than left to fail on a device, because on a device they
 fail as *slowness*, which is the hardest symptom to trace back to a cause.
 

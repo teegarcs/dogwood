@@ -2,7 +2,7 @@
  * Umbra's web page, in outline: the four things a page does, against published artifacts.
  *
  * Not executed by the standalone check -- the verdict is that this compiles against
- * `dev.dogwood:dogwood-web` resolved from a repository. The shapes are the ones
+ * `io.github.teegarcs:dogwood-web` resolved from a repository. The shapes are the ones
  * `docs/getting-started.md` documents, so if that page and this file ever disagree, the compiler
  * says so here.
  */

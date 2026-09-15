@@ -198,7 +198,7 @@ tasks.matching { it.name == "serveProductionWebpackZipline" }.configureEach {
 /*
  * The authoring check Layer 1 requires.
  *
- * Invoked as a command rather than through the `dev.dogwood.guest` plugin, for the reason the
+ * Invoked as a command rather than through the `io.github.teegarcs.dogwood.guest` plugin, for the reason the
  * generator is invoked as one here too: the plugin lives in this build, and applying it by
  * identifier inside the build that defines it would need a composite build or a prior publish. A
  * product applies the plugin and never sees this shape.

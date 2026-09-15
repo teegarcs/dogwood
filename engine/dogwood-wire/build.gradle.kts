@@ -23,7 +23,7 @@ plugins {
   alias(libs.plugins.kotlinSerialization)
 }
 
-group = "dev.dogwood"
+group = "io.github.teegarcs"
 version = "0.1.0"
 
 

@@ -51,7 +51,7 @@ system in the version map twice the moment a binding named itself.
 
 ✅ **And the packaging is done too**
 ([ADR-047](../adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)). The generator ships as the
-Gradle plugin `dev.dogwood.codegen`; the runtime publishes under `dev.dogwood`. What a product
+Gradle plugin `io.github.teegarcs.dogwood.codegen`; the runtime publishes under `io.github.teegarcs`. What a product
 writes is a `dogwood { segment(…) }` block with two real decisions in it, not fourteen command-line
 arguments — one of which had to be *omitted* or the engine's version vector was silently overwritten.
 
@@ -277,7 +277,7 @@ exists; the machinery to operate one does not.**
   serve from a Gradle task on `localhost:8080`. [`docs/operating.md`](../docs/operating.md) §5 is
   what the person picking that up reads.
 - ✅ **The authoring check exists** ([ADR-050](../adrs/layer-5/ADR-050-the-authoring-check.md)).
-  `dev.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
+  `io.github.teegarcs.dogwood.guest` rejects per-frame animation APIs and resource loaders at build time, joins
   `check`, and names the replacement for each. Best-effort by construction, as Layer 1 always said:
   it catches a directly-named API and not one assembled at runtime. Capability group **I**.
 
@@ -354,7 +354,7 @@ Sequenced by what unblocks the most, not by size.
 
 | # | Item | Why here |
 |---|---|---|
-| 1 | ~~Publish the generator~~ ✅ done | `dev.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
+| 1 | ~~Publish the generator~~ ✅ done | `io.github.teegarcs.dogwood.codegen` at `0.1.0`, proved by a build with no path into this repository |
 | 2 | ~~The real guest on web~~ ✅ done | Closed, and so is the clause it left behind: the Worker service surface, launch parameters and segment versions all cross now ([ADR-055](../adrs/layer-5/ADR-055-the-web-guest-gets-its-hosts-services.md)) |
 | 3 | ~~Ship the `SkewReport`~~ ✅ done | The seam exists and is verified against real skew on a device; wiring it to a product's telemetry is per-product |
 | 4 | ~~Rollout, rollback, kill switch~~ ✅ the device half | A bad publish is survivable without a server. Resuming a previous payload and staging a release still need one |

@@ -8,7 +8,7 @@ plugins {
   alias(libs.plugins.zipline)
 }
 
-group = "dev.dogwood"
+group = "io.github.teegarcs"
 version = "0.1.0"
 
 
@@ -27,6 +27,18 @@ kotlin {
      * A clean build did not fix it, which is what said it was a naming problem rather than a stale
      * one. Pinning the name makes the emitted module independent of where the artifact is published,
      * which is the relationship that should have held all along.
+     *
+     * **It covers less than it looks like it covers, and 2026-09-14 is where that was measured.**
+     * `outputModuleName` pins the name of the emitted JavaScript. It does *not* pin the klib's
+     * `unique_name`, which the manifest records as `<group>:<project>` and which is what `internal`
+     * declarations are actually mangled against. Moving the group to `io.github.teegarcs` (ADR-071)
+     * therefore re-mangled every internal in this module -- correctly and consistently, so a clean
+     * build passes. What did not pass was a build with Gradle's **build cache** warm: the
+     * Kotlin/JavaScript compile task's cache key does not capture `unique_name`, so cached output
+     * mangled under the old group was restored beside freshly compiled callers and twenty-two
+     * tests died on `then_vuiwuj_k$ is not a function` -- the same symptom as the defect above,
+     * from an unrelated cause. `--no-build-cache` once, after any group change, is the whole fix.
+     * Setting `compilerOptions.moduleName` was tried and does not move `unique_name`.
      */
     outputModuleName.set("dogwood-compose")
     browser()

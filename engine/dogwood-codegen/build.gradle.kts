@@ -8,19 +8,19 @@ plugins {
   `maven-publish`
 }
 
-group = "dev.dogwood"
+group = "io.github.teegarcs"
 version = "0.1.0"
 
 gradlePlugin {
   plugins {
     create("dogwood") {
-      id = "dev.dogwood.codegen"
+      id = "io.github.teegarcs.dogwood.codegen"
       implementationClass = "dev.dogwood.codegen.gradle.DogwoodPlugin"
       displayName = "Dogwood component generator"
       description = "Generates guest stubs and host bindings from a component surface"
     }
     create("dogwoodGuest") {
-      id = "dev.dogwood.guest"
+      id = "io.github.teegarcs.dogwood.guest"
       implementationClass = "dev.dogwood.codegen.gradle.DogwoodGuestPlugin"
       displayName = "Dogwood guest authoring check"
       description = "Rejects guest code that would tick the boundary every frame"

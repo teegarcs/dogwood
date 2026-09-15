@@ -32,7 +32,7 @@ the same cause: the proof covered the platform somebody happened to try.
 
 ### 2.1 `dogwood-web` publishes, with its module name pinned
 
-`maven-publish`, `group = "dev.dogwood"`, `version = "0.1.0"` — exactly as `dogwood-host` — and
+`maven-publish`, a group and `version = "0.1.0"` — exactly as `dogwood-host` — and
 `outputModuleName.set("dogwood-web")` on the WebAssembly target for the reason `dogwood-compose`
 pins its JavaScript module name: `internal` declarations are name-mangled against the module name,
 which is derived from the group, and adding a group renamed the module out from under the browser
@@ -67,7 +67,7 @@ caveat, the stack encoding of ADR-063.
 moved to `commonMain` unchanged. Three probe modules join `:android`, each a bounded proof that
 states its own limit:
 
-- **`:web`** — a WebAssembly library depending on `dev.dogwood:dogwood-web:0.1.0` and `:design`,
+- **`:web`** — a WebAssembly library depending on `dogwood-web` and `:design`,
   whose one file constructs a `WebDelivery` and a `DogwoodWebExperience` and registers the binding.
   The verdict is a compile, and the standalone check asserts the **resolved variant** is
   `dogwood-web-wasm-js`, for the reason the Android section does: a module that publishes the
@@ -140,6 +140,11 @@ request answers on its own correlation; `ready` announces the envelope revision.
   skipped section is not a passed one and the output makes the difference visible.
 - **Assumes `mavenLocal()` until the owner decides otherwise.** `OPEN-DECISIONS.md` §5 is
   unchanged in substance: one more module publishes, and none of them publishes anywhere yet.
+
+> **The coordinates quoted above are the ones observed on 2026-09-13.** The group moved from
+> `dev.dogwood` to `io.github.teegarcs` the next day ([ADR-071](ADR-071-the-coordinates-are-a-namespace-somebody-owns.md)),
+> and the run log is left as it was rather than edited to match: what the check printed is evidence,
+> and evidence is not updated in place. Everything else here holds; only the group changed.
 
 ## 5. Updated Documents
 
