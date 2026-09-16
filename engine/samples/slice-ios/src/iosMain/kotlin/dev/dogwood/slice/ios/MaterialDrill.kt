@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
 import platform.UIKit.UIAccessibilityScrollDirectionDown
 import platform.UIKit.UIAccessibilityScrollDirectionUp
 import platform.UIKit.UIAccessibilityIsVoiceOverRunning
+import platform.Foundation.NSDate
+import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIView
 import platform.UIKit.accessibilityActivate
 import platform.UIKit.accessibilityIncrement
@@ -43,6 +45,18 @@ private val MATERIAL_SECTIONS = listOf(
   "Dialogs" to "Open alert",
   "Sheets" to "Open the sheet",
 )
+
+/**
+ * When this run must stop, whatever it is in the middle of.
+ *
+ * A file-level value rather than a parameter threaded through nine functions, because every loop
+ * in this drill has to be able to see it. The first complete run walked five claims and then sat
+ * inside a scroll until the harness killed it: no failure, no result line, a simulator running
+ * until somebody noticed. A drill that hangs is worse than one that fails.
+ */
+private var deadline: Double = Double.MAX_VALUE
+
+private fun outOfTime(): Boolean = NSDate().timeIntervalSince1970 > deadline
 
 private fun NSObject.spoken(): String = (accessibilityLabel ?: "").removePrefix("● ")
 
@@ -68,17 +82,27 @@ private fun witnessOf(root: UIView, prefix: String): String? =
  */
 private suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
   if (predicate()) return true
+  /*
+   * The page, not whatever answers first.
+   *
+   * Offering the scroll to every published element in turn takes a tree walk per attempt and, worse,
+   * stops at whichever element accepts it -- on the Selection section that is the slider, which
+   * takes the scroll and moves nothing. The window first, then the elements once.
+   */
   fun scroll(direction: platform.UIKit.UIAccessibilityScrollDirection): Boolean {
     if (root.accessibilityScroll(direction)) return true
-    for (element in elementsOf(root)) if (element.accessibilityScroll(direction)) return true
+    val elements = elementsOf(root)
+    for (element in elements) if (element.accessibilityScroll(direction)) return true
     return false
   }
   repeat(steps) {
+    if (outOfTime()) return false
     if (!scroll(UIAccessibilityScrollDirectionUp)) return@repeat
   }
   delay(400)
   if (predicate()) return true
   repeat(steps) {
+    if (outOfTime()) return predicate()
     if (!scroll(UIAccessibilityScrollDirectionDown)) return predicate()
     delay(350)
     if (predicate()) return true
@@ -94,6 +118,7 @@ private suspend fun reach(root: UIView, label: String): NSObject? {
 /** Waits for a witness to say something other than [was]: the consequence, not the activation. */
 private suspend fun awaitWitness(root: UIView, prefix: String, was: String?, attempts: Int = 60): String? {
   repeat(attempts) {
+    if (outOfTime()) return null
     val now = witnessOf(root, prefix)
     if (now != null && now != was) return now
     delay(250)
@@ -114,6 +139,7 @@ private suspend fun openSection(root: UIView, label: String): Boolean {
   if (!chip.accessibilityActivate()) return false
   val wanted = "m3.section=" + label.lowercase().replace(" ", "")
   repeat(60) {
+    if (outOfTime()) return false
     if (witnessOf(root, "m3.section=") == wanted) return true
     delay(250)
   }
@@ -132,6 +158,18 @@ suspend fun runMaterialDrill(root: UIView): Int {
     println("CONF REFUSED VoiceOver is not running, so Compose publishes no accessibility tree")
     return 1
   }
+  /*
+   * A deadline, and it is not belt and braces.
+   *
+   * The first complete run of this drill walked five claims and then stopped, inside the scroll
+   * that precedes the dialog section, and stayed there: no failure, no result line, a simulator
+   * running until somebody noticed. A drill that hangs is worse than one that fails, because a
+   * failure is a sentence and a hang is a person waiting. Every claim from here on is given a
+   * budget, and a claim that runs out of it is reported as a failure naming the budget.
+   */
+  // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
+  // by the drill rather than cut off by the harness.
+  deadline = NSDate().timeIntervalSince1970 + 300.0
 
   var passed = 0
   var failed = 0
@@ -234,10 +272,17 @@ suspend fun runMaterialDrill(root: UIView): Int {
   }
 
   // M4 -- a dialog opens, is announced, and confirms.
+  if (outOfTime()) {
+    conform("M4", false, "the drill ran out of its budget before reaching the dialogs")
+    conform("M5", false, "the drill ran out of its budget before reaching the sheets")
+    println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
+    return failed
+  }
   openSection(root, "Dialogs")
   reach(root, "Open alert")?.accessibilityActivate()
   var announced = false
   repeat(60) {
+    if (outOfTime()) return@repeat
     if (labelsOf(root).any { it.contains("Cancel this booking?") }) {
       announced = true
       return@repeat
@@ -262,6 +307,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
   reach(root, "Open the sheet")?.accessibilityActivate()
   var sheetShown = false
   repeat(60) {
+    if (outOfTime()) return@repeat
     if (labelsOf(root).any { it.contains("Fare conditions") }) {
       sheetShown = true
       return@repeat

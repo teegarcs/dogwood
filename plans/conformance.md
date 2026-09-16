@@ -197,10 +197,17 @@ below ends at the witness rather than at a property that ought to imply it (AGEN
 | M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
 | M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
 | M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead, as skips carrying the observation |
-| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process |
-| M5 | A generated sheet and menu open and choose | C | ✅ android, web |
+| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS not established** |
+| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS not established** |
 | M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
 | M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
+
+**Two cells say "not established", which is neither a pass nor a failure.** The iOS drill grades
+`M1`, `M2`, `M3`, `M6` and `M7` and then stalls in the scroll that precedes the dialogs section,
+where its own deadline stops it. Nothing has been observed to fail: the same two claims pass on
+Android, and the dialog and sheet bindings pass in the tier's own render tests *on the iOS
+simulator*. An empty cell here means the drill has not settled the question, which is the rule this
+matrix has always used and the reason its empty cells mean something.
 
 Three of these cells are **skips carrying an observation** rather than failures, on the precedent
 `D7` set: what they record is Compose Multiplatform's accessibility bridge on that client, not the

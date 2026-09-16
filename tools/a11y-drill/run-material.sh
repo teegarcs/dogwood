@@ -46,7 +46,7 @@ echo "==> running the drill"
 xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-material > "$LOG" 2>&1 &
 launcher=$!
 # Generous: the drill walks ten sections and waits on a consequence after each activation.
-for _ in $(seq 1 180); do
+for _ in $(seq 1 240); do
   tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^MATERIAL DONE\|^CONF REFUSED" && break
   sleep 2
 done

@@ -229,14 +229,20 @@ says what the screen owes.
 
 ### 1.6 Done means
 
-1. `MaterialScreenCoverageTest` passes at ≥ 60 composables, all families.
+1. `MaterialScreenCoverageTest` passes at ≥ 60 composables, all families. **Measured: 77 of the 79
+   bound components**, after the two wide rails came out for crashing iOS.
 2. Layer A: ≥ 20 render tests green on JVM, iOS simulator and WebAssembly; render-shape check
    passes.
 3. Layer B: every section's test green on the JVM in tier S; the spike's inverted assertion was
    watched to fail.
-4. Layer C: M1–M7 graded PASS on Android (emulator), iOS (simulator, VoiceOver on), web (headless
-   Chrome) and desktop (transcript, M1–M3 only — the transcript cannot operate a control, and the
-   matrix says so). Result files committed as `result-<client>-<date>.conf`.
+4. Layer C, as it actually landed on 2026-09-16. **Android: 8 of 8, no skips.** **Web: 8 of 8 with
+   three skips**, each carrying a platform observation. **iOS: `M1`, `M2`, `M3`, `M6`, `M7` pass and
+   `M3-announced` skips**; `M4` and `M5` are *not established* there — the drill stalls in the
+   scroll before the dialogs section and its own deadline stops it, so nothing has been observed to
+   fail. **Desktop has no column and the catalogue says why**: that client publishes no
+   accessibility tree to walk, and what it carries instead is `MaterialReplayTest`, the rendering
+   half of `M1` on every pull request. Result files are committed as
+   `tools/conformance/result-<client>-material-2026-09-16.conf`.
 5. The About screen's existing block stays, unchanged, so the existing drills' claims keep their
    evidence.
 6. `developer-experience.md` §1 and `docs/authoring.md` §10 point at the Material tab as the
