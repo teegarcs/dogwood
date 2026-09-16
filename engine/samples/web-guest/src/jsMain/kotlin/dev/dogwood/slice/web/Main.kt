@@ -27,6 +27,7 @@ import dev.dogwood.slice.CrashOnLaunchScreen
 import dev.dogwood.slice.CrashScreen
 import dev.dogwood.slice.ExploreScreen
 import dev.dogwood.slice.FeedScreen
+import dev.dogwood.slice.MaterialScreen
 import dev.dogwood.slice.exploreParams
 
 /**
@@ -40,6 +41,8 @@ private val guest = DogwoodGuest(
   "about" to { _ -> AboutScreen() },
   "feed" to { _ -> FeedScreen() },
   "app" to { params -> AppShell(exploreParams(params)) },
+  // The generated Material 3 catalogue, as its own entry point. See `slice-guest`'s table.
+  "material" to { _ -> MaterialScreen() },
   // A payload that fails on purpose, so that the two mechanisms built for a bad publish
   // -- a readable crash (ADR-059) and the crash-loop quarantine (ADR-049) -- can be graded
   // against a real failure instead of a simulated one. See `CrashScreen.kt`.

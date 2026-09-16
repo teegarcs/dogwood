@@ -81,6 +81,14 @@ status=${PIPESTATUS[0]}
 python3 "$HERE/web_services.py" "http://127.0.0.1:$PORT/index.html" "$CHROME" $((PORT + 700)) \
   | tee -a "$OUT"
 services=${PIPESTATUS[0]}
+
+# The generated Material 3 tier, operated. Its own module and its own browser because it drives a
+# different screen for a long time, and a claim that has to scroll past nine other sections to
+# reach its control is a claim nobody can read the failure of.
+python3 "$HERE/web_material.py" "http://127.0.0.1:$PORT/index.html" "$CHROME" $((PORT + 900)) \
+  | tee -a "$OUT"
+material=${PIPESTATUS[0]}
 set -e
 [ "$status" = "0" ] || exit "$status"
-exit "$services"
+[ "$services" = "0" ] || exit "$services"
+exit "$material"

@@ -65,49 +65,93 @@ val generatedRoot: Provider<Directory> = rootProject.layout.buildDirectory.dir("
  * it carries default expressions, which a signature dump does not (ADR-002). Only `commonMain/`
  * is extracted: the common source set is the surface every host shares.
  *
- * `compose.material3` under Compose Multiplatform 1.10.3 resolves to
- * `org.jetbrains.compose.material3:material3:1.9.0` -- Material 3 has been versioned on its own
- * since 1.10 -- so that one is pinned here rather than read from the catalog, which only knows
- * the Compose Multiplatform version. The rest follow the catalog. See plans/generator-v2.md D-A.
+ * The VERSION is not written here. `compose.material3` is an alias the Compose Multiplatform
+ * plugin maps to a Material 3 version of its own choosing -- 1.10.3 maps to 1.9.0, because
+ * Material 3 has been versioned separately since 1.10 -- and a number typed here would be a second
+ * opinion about that mapping, silently wrong the day the plugin moves. So each module's version is
+ * resolved off `dogwood-host`'s own compile classpath, which is by definition what the host
+ * compiles against, and written to `versions.json` beside the sources for the generator to read.
+ * See ADR-073 and plans/material3-proof.md section 3.
  */
-val composeSourceCoordinates = mapOf(
-  "material3" to "org.jetbrains.compose.material3:material3:1.9.0",
-  "foundation" to "org.jetbrains.compose.foundation:foundation:${libs.versions.composeMultiplatform.get()}",
-  "foundation-layout" to "org.jetbrains.compose.foundation:foundation-layout:${libs.versions.composeMultiplatform.get()}",
-  "ui" to "org.jetbrains.compose.ui:ui:${libs.versions.composeMultiplatform.get()}",
+val composeSourceModules = mapOf(
+  "material3" to "org.jetbrains.compose.material3:material3",
+  "foundation" to "org.jetbrains.compose.foundation:foundation",
+  "foundation-layout" to "org.jetbrains.compose.foundation:foundation-layout",
+  "ui" to "org.jetbrains.compose.ui:ui",
 )
 
+/*
+ * What the host resolves, as a task input.
+ *
+ * A `Provider` rather than a value, so the resolution happens when Gradle snapshots the task's
+ * inputs rather than while this file is being configured -- which both avoids resolving another
+ * project's configuration during configuration and, more importantly, makes the resolved version
+ * part of the up-to-date check. A version that changed while the coordinates did not has to
+ * invalidate the fetch, or the generator would read last week's sources for this week's host: the
+ * exact failure this indirection exists to prevent.
+ */
+val resolvedComposeVersions: Provider<Map<String, String>> = provider {
+  val classpath = project(":dogwood-host").configurations.getByName("jvmCompileClasspath")
+  val resolved = classpath.incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
+  composeSourceModules.mapValues { (_, coordinate) ->
+    val (group, name) = coordinate.split(":")
+    // The root Kotlin Multiplatform module is what the classpath names; its platform variant
+    // (`-jvm`, `-desktop`, `-android`) is the fallback, because which one appears depends on how
+    // the variant was published. An exact match is tried first: `foundation` and
+    // `foundation-layout` are two modules, and a prefix match would confuse them.
+    val exact = resolved.firstOrNull { it.group == group && it.name == name }
+    val variant = resolved.firstOrNull {
+      it.group == group && it.name in setOf("$name-jvm", "$name-desktop", "$name-android")
+    }
+    (exact ?: variant)?.version ?: error(
+      "dogwood-host's compile classpath resolves no $coordinate. The generator reads the sources " +
+        "of what the host compiles against; a module the host does not link is a module no " +
+        "payload could call.",
+    )
+  }
+}
+
 val composeSourcesRoot: Provider<Directory> = layout.buildDirectory.dir("compose-sources")
+val composeVersionsFile: Provider<RegularFile> = composeSourcesRoot.map { it.file("versions.json") }
 
 val fetchComposeSources by tasks.registering {
   group = "build"
-  description = "Resolves the pinned Compose Multiplatform sources jars and extracts commonMain"
-  val resolved = composeSourceCoordinates.mapValues { (_, coords) ->
-    configurations.detachedConfiguration(dependencies.create("$coords:sources@jar")).apply {
-      isTransitive = false
-    }
-  }
-  inputs.property("coordinates", composeSourceCoordinates)
+  description = "Extracts commonMain from the sources jars of the Compose artifacts the host resolves"
+  inputs.property("modules", composeSourceModules)
+  inputs.property("versions", resolvedComposeVersions)
   outputs.dir(composeSourcesRoot)
   doLast {
+    val versions = resolvedComposeVersions.get()
     val root = composeSourcesRoot.get().asFile
     root.deleteRecursively()
-    for ((module, configuration) in resolved) {
-      val jar = configuration.singleFile
+    for ((module, coordinate) in composeSourceModules) {
+      val configuration = configurations
+        .detachedConfiguration(dependencies.create("$coordinate:${versions.getValue(module)}:sources@jar"))
+        .apply { isTransitive = false }
       copy {
-        from(zipTree(jar)) { include("commonMain/**/*.kt") }
+        from(zipTree(configuration.singleFile)) { include("commonMain/**/*.kt") }
         into(File(root, module))
       }
     }
+    File(root, "versions.json").writeText(
+      versions.entries.sortedBy { it.key }
+        .joinToString(",\n", "{\n", "\n}\n") { "  \"${it.key}\": \"${it.value}\"" },
+    )
+    logger.lifecycle(
+      "compose sources: " + versions.entries.sortedBy { it.key }.joinToString(", ") { "${it.key} ${it.value}" },
+    )
   }
 }
 
 /*
- * The Material 3 tier (plans/generator-v2.md, M2). Segment 255, version 10900 -- the library's
- * own 1.9.0, encoded so a payload can declare it in its signed manifest and a host behind it
- * refuses before `start` (ADR-061). The lock and the exclusions live beside the module that
- * compiles the output, because that is where the failure they guard against shows up.
+ * The Material 3 tier (plans/generator-v2.md, M2). Segment 255. Its version is the library's own,
+ * encoded (1.9.0 is 10900) so a payload can declare it in its signed manifest and a host behind it
+ * refuses before `start` (ADR-061) -- derived by the generator from `versions.json` rather than
+ * passed in, since ADR-073. The lock and the exclusions live beside the module that compiles the
+ * output, because that is where the failure they guard against shows up.
  */
+val material3Lock: File = rootProject.file("dogwood-material3/androidx.material3.lock.json")
+
 val generateMaterial3 by tasks.registering(JavaExec::class) {
   group = "build"
   description = "Generates the Material 3 tier: guest stubs, host bindings, dictionary and lock"
@@ -120,7 +164,7 @@ val generateMaterial3 by tasks.registering(JavaExec::class) {
   // `publishToMavenLocal` after the tier existed failed on exactly that. Separate roots, no overlap.
   val root = rootProject.layout.buildDirectory.dir("generated/dogwood-material3")
   val exclusions = rootProject.file("dogwood-material3/exclusions.txt")
-  val lock = rootProject.file("dogwood-material3/androidx.material3.lock.json")
+  val lock = material3Lock
   val reference = rootProject.file("../docs/api/androidx.material3.md")
   inputs.dir(composeSourcesRoot)
   inputs.file(exclusions)
@@ -131,11 +175,11 @@ val generateMaterial3 by tasks.registering(JavaExec::class) {
     listOf(
       "generate",
       "--sources", composeSourcesRoot.get().asFile.absolutePath,
+      "--versions", composeVersionsFile.get().asFile.absolutePath,
       "--module", "material3",
       "--wire-name", "androidx.material3",
       "--segment", "material3",
       "--segment-id", "255",
-      "--version", "10900",
       "--guest-package", "dev.dogwood.compose.material3",
       "--host-package", "dev.dogwood.material3",
       "--guest-out", File(out, "guest/dev/dogwood/compose/material3").absolutePath,
@@ -144,9 +188,44 @@ val generateMaterial3 by tasks.registering(JavaExec::class) {
       "--lock", lock.absolutePath,
       "--exclusions", exclusions.absolutePath,
       "--docs-out", reference.absolutePath,
+    ) + if (providers.gradleProperty("dogwoodAcceptTierDowngrade").getOrElse("false") == "true") {
+      listOf("--accept-downgrade", "true")
+    } else {
+      emptyList()
+    }
+  }
+}
+
+/*
+ * The cross-check the derivation still needs.
+ *
+ * Deriving the version removes the three numbers a person had to keep in step; it does not by
+ * itself tell anyone that the *committed* lock -- which is what a payload's declaration is
+ * compared against -- describes the library this checkout resolves. A Compose Multiplatform bump
+ * that moves the Material 3 mapping and is committed without regenerating leaves exactly that
+ * disagreement, and the symptom would be a payload declaring a version no host has.
+ *
+ * So: read the committed lock, read what the host resolves, and refuse if they differ. Cheap
+ * enough to run in `check`, and watched to fail on a hand-edited lock before it was believed.
+ */
+val checkGeneratedTierVersions by tasks.registering(JavaExec::class) {
+  group = "verification"
+  description = "Refuses a committed tier lock whose version is not the one the host resolves"
+  dependsOn(fetchComposeSources)
+  classpath = sourceSets["main"].runtimeClasspath
+  mainClass.set("dev.dogwood.codegen.v2.MainKt")
+  inputs.dir(composeSourcesRoot)
+  inputs.file(material3Lock)
+  argumentProviders.add {
+    listOf(
+      "check-versions",
+      "--versions", composeVersionsFile.get().asFile.absolutePath,
+      "--tiers", "material3=${material3Lock.absolutePath}",
     )
   }
 }
+
+tasks.named("check") { dependsOn(checkGeneratedTierVersions) }
 
 val generateComposeCoverage by tasks.registering(JavaExec::class) {
   group = "verification"
@@ -162,6 +241,7 @@ val generateComposeCoverage by tasks.registering(JavaExec::class) {
     listOf(
       "coverage",
       "--sources", composeSourcesRoot.get().asFile.absolutePath,
+      "--versions", composeVersionsFile.get().asFile.absolutePath,
       "--out", report.absolutePath,
       "--exclusions", rootProject.file("dogwood-material3/exclusions.txt").absolutePath,
     )

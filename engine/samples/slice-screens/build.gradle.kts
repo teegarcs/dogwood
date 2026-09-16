@@ -24,6 +24,10 @@ kotlin {
   js(IR) {
     outputModuleName.set("slice-screens")
     browser()
+    // Tests run on Node, as dogwood-compose's do and for the same reason: what
+    // `MaterialScreenCoverageTest` asserts is a property of a real composition -- which widget tags
+    // this screen actually sends -- so it has to run where the real Compose runtime runs.
+    nodejs()
   }
   sourceSets {
     jsMain {
@@ -36,7 +40,26 @@ kotlin {
         project(":samples:product-design-system").layout.buildDirectory.dir("generated/acme/guest"),
       )
     }
+    jsTest {
+      dependencies {
+        implementation(kotlin("test"))
+      }
+    }
   }
+}
+
+/*
+ * Where the guest's own change batches are written for the Java Virtual Machine side to replay.
+ *
+ * `MaterialScreenCoverageTest` composes every section of the Material catalogue to count what it
+ * uses; writing what it sent costs nothing extra and gives `:samples:slice-desktop:test` a real
+ * payload's wire to render through the real host bindings, with no device and no Zipline.
+ */
+val materialWireDirectory: Provider<Directory> = layout.buildDirectory.dir("material-wire")
+
+tasks.named<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>("jsNodeTest") {
+  environment("DOGWOOD_WIRE_OUT", materialWireDirectory.get().asFile.absolutePath)
+  outputs.dir(materialWireDirectory)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {

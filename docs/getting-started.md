@@ -455,6 +455,11 @@ order:
 3. **`0.1.0` makes no stability promise.** Nothing is API-frozen; a Dogwood upgrade is an
    engine-and-host upgrade, and belongs in step 1.
 
+**Material 3 moves on its own schedule**, because the generated tier's dictionary version *is* the
+library's version and Compose Multiplatform maps `compose.material3` to a Material 3 release of its
+own choosing. [`upgrading-compose.md`](upgrading-compose.md) is the procedure, the four things the
+lock can say, and the table of what an old payload does on a new host.
+
 This is the honest whole of the policy today. What a cross-version guarantee would take — a
 conformance row that loads a payload built at engine N with a host at N−1 — is recorded in
 [`plans/adoption-audit.md`](../plans/adoption-audit.md) A6 rather than promised here.

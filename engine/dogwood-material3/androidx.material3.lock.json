@@ -1391,34 +1391,6 @@
             }
         },
         {
-            "name": "Slider~d234905b",
-            "localTag": 66,
-            "properties": {
-                "value": 1,
-                "enabled": 2,
-                "onValueChangeFinishedPresent": 3,
-                "steps": 4
-            },
-            "propertyTypes": {
-                "value": "Float",
-                "enabled": "Boolean",
-                "onValueChangeFinishedPresent": "Boolean",
-                "steps": "Int"
-            },
-            "safetyRelevant": [
-                "enabled"
-            ],
-            "slots": {},
-            "events": {
-                "onValueChange": 1,
-                "onValueChangeFinished": 2
-            },
-            "eventTypes": {
-                "onValueChange": "(Float) -> Unit",
-                "onValueChangeFinished": "(() -> Unit)?"
-            }
-        },
-        {
             "name": "Snackbar",
             "localTag": 67,
             "properties": {
@@ -1775,5 +1747,8 @@
                 "onClick": "() -> Unit"
             }
         }
+    ],
+    "reservedLocalTags": [
+        66
     ]
 }

@@ -207,6 +207,14 @@ ship faster than clients, so "which release" is the first question anyone will a
   ([ADR-049](../adrs/layer-5/ADR-049-surviving-a-bad-publish.md),
   [ADR-059](../adrs/layer-5/ADR-059-a-guest-crash-a-host-can-read.md)).
 
+### One visual difference that is not a bug
+
+Two devices on the same release can render a component from the generated Material 3 tier slightly
+differently, and the cause is usually the host rather than the payload: **a parameter the payload
+did not set is the host's own library's default**, evaluated on the device. A fleet mid-upgrade has
+two Material 3 versions in it. Check the host version before looking for a payload defect;
+[`upgrading-compose.md`](upgrading-compose.md) section 5 explains why it works that way.
+
 ## 5. Publishing
 
 [`tools/reference-server/`](../tools/reference-server/) is a working implementation of this section:

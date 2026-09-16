@@ -326,9 +326,47 @@ val signWebSidecars by tasks.registering {
      * the point of it is that its signature is *valid* over that wrong digest -- a script swapped
      * after signing, seen from the client.
      */
+    /*
+     * The dictionary a sidecar declares, stamped from the generators' own output before signing.
+     *
+     * `"segmentVersions": null` in a committed fixture is a request to be filled in. A fixture that
+     * spells the versions out keeps them, because the refusal fixtures exist precisely to name
+     * numbers no client has.
+     *
+     * A committed number goes stale silently, and this repository has the receipt:
+     * `dogwood-manifest-kotlin.json` named design-system version 9 for weeks after the surface
+     * reached 15, so the one sidecar meant to model a healthy payload was describing a payload
+     * nobody had built. The mobile payload has read its declaration from the generators since the
+     * first time that bit it (`samples/slice-guest/build.gradle.kts`); this is the web's half.
+     */
+    val builtIns = rootProject.file("build/generated/dogwood/wire/dev/dogwood/protocol/DogwoodSegments.kt")
+    val tierDictionary = rootProject.file("build/generated/dogwood-material3/dictionary/androidx.material3.json")
+    val declaredVersions: String by lazy {
+      require(builtIns.isFile) { "the built-in segment vector has not been generated: $builtIns" }
+      require(tierDictionary.isFile) { "the Material 3 tier's dictionary has not been generated: $tierDictionary" }
+      val vector = builtIns.readText()
+      fun builtIn(prefix: String): Pair<String, String> {
+        val name = Regex("""const val $prefix: String = "([^"]+)"""").find(vector)?.groupValues?.get(1)
+          ?: error("no $prefix in $builtIns")
+        val version = Regex("""const val ${prefix}_VERSION: Int = (\d+)""").find(vector)?.groupValues?.get(1)
+          ?: error("no ${prefix}_VERSION in $builtIns")
+        return name to version
+      }
+      val tier = tierDictionary.readText()
+      val tierName = Regex(""""wireName"\s*:\s*"([^"]+)"""").find(tier)?.groupValues?.get(1)
+        ?: error("no wireName in $tierDictionary")
+      val tierVersion = Regex(""""version"\s*:\s*(\d+)""").find(tier)?.groupValues?.get(1)
+        ?: error("no version in $tierDictionary")
+      listOf(builtIn("LAYOUT"), builtIn("DESIGN_SYSTEM"), tierName to tierVersion)
+        .joinToString(", ", "{ ", " }") { (name, version) -> "\"$name\": $version" }
+    }
+
     val digests = MessageDigest.getInstance("SHA-256")
     for (manifest in manifests) {
       if (!manifest.name.contains("tampered-script")) {
+        val withVersions = Regex(""""segmentVersions"\s*:\s*null""")
+          .replace(manifest.readText()) { "\"segmentVersions\": $declaredVersions" }
+        manifest.writeText(withVersions)
         val text = manifest.readText()
         val script = Regex(""""guestScript"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
           ?: error("${manifest.name} names no guestScript")

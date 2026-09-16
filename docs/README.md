@@ -12,6 +12,7 @@ statement of where *you* should start. This page is that statement. Find your ro
 | **On call for a product using this** | [`operating.md`](operating.md) | you know the three protections that run without you, how to stop a release, and how to read a skew report and a guest crash |
 | **Reviewing this for security** | [`security.md`](security.md), then [`SECURITY.md`](../SECURITY.md) to report something | you can name the boundary that answers each threat in its table, and the two residual risks it says are not prevented — "sandbox" here means capability-confined, not isolated |
 | **Running Dogwood across several teams** | [`multi-team.md`](multi-team.md) | you know that two teams means two shells, what the second one costs, and how to resolve a surface-lock conflict without renumbering a tag |
+| **Upgrading Compose or Material** | [`upgrading-compose.md`](upgrading-compose.md) | you know what the lock will refuse, and what an old payload does on a new host |
 | **Maintaining the engine itself** | [`../high-level-tech-spec-final.md`](../high-level-tech-spec-final.md) → the [layer spec](../specs/) you are touching → its ADRs via [`../adrs/README.md`](../adrs/README.md) → [`checks.md`](checks.md) | you can say which conformance claims your change touches — [`../plans/conformance.md`](../plans/conformance.md) is the list |
 
 Two rules of this documentation, worth knowing before trusting it:

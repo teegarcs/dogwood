@@ -133,6 +133,7 @@ cell below is a claim about what a user would install, not about a debug build
 | B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
 | B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
+| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -175,6 +176,57 @@ the interpreter is closed. See
 | D11 | A guest can ask the host for something and **wait for the answer**; a reply carries the request it answers | S + C | ✅ S on three targets; C Android |
 | D12 | A guest can declare where a sheet should be and be told where the **user** left it | S | ✅ both halves — guest holder and host mirror |
 | D13 | A modal interrupts, and closing it removes its content rather than hiding it | S | ✅ `DialogTest` |
+
+### M. The generated library tier
+
+Everything else in this catalogue grades a surface somebody wrote. This family grades one nobody
+wrote: [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)'s
+Material 3 tier, emitted from the library's own sources, and the question is whether a *generated*
+binding survives the whole path -- payload, guest stub, wire, host binding, the real library, the
+platform's accessibility layer, and back to the payload's own state.
+
+The screen is `MaterialScreen.kt` in `samples/slice-screens`, which all four clients render from
+its own entry point. Every control on it has a **witness** beside it: a line of primitive-tier text
+whose content is a function of that control's state. Four clients read a screen through four
+different instruments, and a line of text is the observation all four can make -- so every claim
+below ends at the witness rather than at a property that ought to imply it (AGENTS.md section 1.5).
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| M1 | Every section of the generated catalogue renders: its components' own labels reach the screen | C | ✅ android, ios, web |
+| M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
+| M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
+| M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead, as skips carrying the observation |
+| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS not established** |
+| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS not established** |
+| M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
+| M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
+
+**Two cells say "not established", which is neither a pass nor a failure.** The iOS drill grades
+`M1`, `M2`, `M3`, `M6` and `M7` and then stops making progress before the dialogs section — twice,
+reproducibly, and not at a point its own deadline reaches, so the cause is in the drill or in what
+the platform does to it rather than in anything it has measured. Nothing has been observed to fail: the same two claims pass on
+Android, and the dialog and sheet bindings pass in the tier's own render tests *on the iOS
+simulator*. An empty cell here means the drill has not settled the question, which is the rule this
+matrix has always used and the reason its empty cells mean something.
+
+Three of these cells are **skips carrying an observation** rather than failures, on the precedent
+`D7` set: what they record is Compose Multiplatform's accessibility bridge on that client, not the
+generated binding, and the binding itself is covered by `Material3FamiliesTest` on the Java Virtual
+Machine, WebAssembly and the iOS simulator. The observations are in
+[`plans/material3-proof.md`](material3-proof.md) section 5 and drafted in
+`tools/upstream-reports/README.md`.
+
+**No desktop column, deliberately.** The desktop client has no accessibility tree a drill can walk
+from outside the process -- that is why its skew drill reads a render transcript instead -- and
+every claim here is about what an assistive technology can find and operate. What the desktop does
+carry is `MaterialReplayTest`, which renders a real payload's own change batches through the real
+host bindings on the Java Virtual Machine and asserts every section's labels and witnesses. That is
+the rendering half of `M1` on every pull request, without a device; the interaction half is what
+the three device columns are for.
+
+`B6` belongs with this family in spirit and sits in `B` because it is a delivery claim: a payload
+that declares a generated tier the host does not have is refused before any guest code runs.
 
 ### H. Release control — surviving a bad publish
 
