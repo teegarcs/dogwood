@@ -203,8 +203,9 @@ below ends at the witness rather than at a property that ought to imply it (AGEN
 | M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
 
 **Two cells say "not established", which is neither a pass nor a failure.** The iOS drill grades
-`M1`, `M2`, `M3`, `M6` and `M7` and then stalls in the scroll that precedes the dialogs section,
-where its own deadline stops it. Nothing has been observed to fail: the same two claims pass on
+`M1`, `M2`, `M3`, `M6` and `M7` and then stops making progress before the dialogs section — twice,
+reproducibly, and not at a point its own deadline reaches, so the cause is in the drill or in what
+the platform does to it rather than in anything it has measured. Nothing has been observed to fail: the same two claims pass on
 Android, and the dialog and sheet bindings pass in the tier's own render tests *on the iOS
 simulator*. An empty cell here means the drill has not settled the question, which is the rule this
 matrix has always used and the reason its empty cells mean something.

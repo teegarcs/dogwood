@@ -237,9 +237,10 @@ says what the screen owes.
    watched to fail.
 4. Layer C, as it actually landed on 2026-09-16. **Android: 8 of 8, no skips.** **Web: 8 of 8 with
    three skips**, each carrying a platform observation. **iOS: `M1`, `M2`, `M3`, `M6`, `M7` pass and
-   `M3-announced` skips**; `M4` and `M5` are *not established* there — the drill stalls in the
-   scroll before the dialogs section and its own deadline stops it, so nothing has been observed to
-   fail. **Desktop has no column and the catalogue says why**: that client publishes no
+   `M3-announced` skips**; `M4` and `M5` are *not established* there — the drill stops making
+   progress before the dialogs section, reproducibly and not at a point its own deadline reaches,
+   so the cause is in the drill rather than in anything it has measured. Nothing has been observed
+   to fail, and finishing those two cells is the one piece of this plan left open. **Desktop has no column and the catalogue says why**: that client publishes no
    accessibility tree to walk, and what it carries instead is `MaterialReplayTest`, the rendering
    half of `M1` on every pull request. Result files are committed as
    `tools/conformance/result-<client>-material-2026-09-16.conf`.
