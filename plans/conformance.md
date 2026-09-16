@@ -133,6 +133,7 @@ cell below is a claim about what a user would install, not about a debug build
 | B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
 | B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
+| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -175,6 +176,41 @@ the interpreter is closed. See
 | D11 | A guest can ask the host for something and **wait for the answer**; a reply carries the request it answers | S + C | ✅ S on three targets; C Android |
 | D12 | A guest can declare where a sheet should be and be told where the **user** left it | S | ✅ both halves — guest holder and host mirror |
 | D13 | A modal interrupts, and closing it removes its content rather than hiding it | S | ✅ `DialogTest` |
+
+### M. The generated library tier
+
+Everything else in this catalogue grades a surface somebody wrote. This family grades one nobody
+wrote: [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)'s
+Material 3 tier, emitted from the library's own sources, and the question is whether a *generated*
+binding survives the whole path -- payload, guest stub, wire, host binding, the real library, the
+platform's accessibility layer, and back to the payload's own state.
+
+The screen is `MaterialScreen.kt` in `samples/slice-screens`, which all four clients render from
+its own entry point. Every control on it has a **witness** beside it: a line of primitive-tier text
+whose content is a function of that control's state. Four clients read a screen through four
+different instruments, and a line of text is the observation all four can make -- so every claim
+below ends at the witness rather than at a property that ought to imply it (AGENTS.md section 1.5).
+
+| ID | Claim | Tier | Today |
+|---|---|---|---|
+| M1 | Every section of the generated catalogue renders: its components' own labels reach the screen | C | ✅ android, ios, web |
+| M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
+| M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
+| M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead |
+| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process |
+| M5 | A generated sheet and menu open and choose | C | ✅ android, web |
+| M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
+| M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android; web publishes no node for one |
+
+Three of these cells are **skips carrying an observation** rather than failures, on the precedent
+`D7` set: what they record is Compose Multiplatform's accessibility bridge on that client, not the
+generated binding, and the binding itself is covered by `Material3FamiliesTest` on the Java Virtual
+Machine, WebAssembly and the iOS simulator. The observations are in
+[`plans/material3-proof.md`](material3-proof.md) section 5 and drafted in
+`tools/upstream-reports/README.md`.
+
+`B6` belongs with this family in spirit and sits in `B` because it is a delivery claim: a payload
+that declares a generated tier the host does not have is refused before any guest code runs.
 
 ### H. Release control — surviving a bad publish
 

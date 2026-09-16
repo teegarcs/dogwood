@@ -62,6 +62,7 @@ import dev.dogwood.compose.VerticalAlignment
 import dev.dogwood.compose.FontWeight
 import dev.dogwood.compose.dp
 import dev.dogwood.compose.sp
+import dev.dogwood.compose.contentDescription
 import dev.dogwood.compose.fillMaxWidth
 import dev.dogwood.compose.height
 import dev.dogwood.compose.padding
@@ -115,14 +116,30 @@ fun MaterialScreen() {
        * touches: if the chips do not work, nothing below them can be reached, and the failure is
        * unambiguous rather than mysterious.
        */
-      Row(horizontalArrangement = Arrangement.spacedBy(6), verticalAlignment = VerticalAlignment.CenterVertically) {
-        for ((id, label) in MATERIAL_SECTIONS) {
-          FilterChip(
-            selected = id == section,
-            onClick = { section = id },
-            label = { M3Text(label) },
-            modifier = Modifier.testTag("m3.section.$id"),
-          )
+      /*
+       * Wrapped rows, not one scrolling row, and this is the third shape the picker has had.
+       *
+       * Ten chips do not fit across a phone. A plain `Row` clipped the last five and the Android
+       * drill reported five sections as unreachable; a `HorizontalList` made them reachable in
+       * principle and flaky in practice, because a lazy row composes only what is on screen, so
+       * off-screen chips are not merely invisible to a drill -- they do not exist for it to find,
+       * and on iOS `accessibilityScroll` did not move the row at all.
+       *
+       * Three rows of four always exist, are always laid out, and are reached by the vertical
+       * scrolling every client already handles. It is also what Material itself recommends for a
+       * filter set, which is the sort of agreement worth noticing after arriving from the other
+       * direction.
+       */
+      for (row in MATERIAL_SECTIONS.chunked(4)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6), verticalAlignment = VerticalAlignment.CenterVertically) {
+          for ((id, label) in row) {
+            FilterChip(
+              selected = id == section,
+              onClick = { section = id },
+              label = { M3Text(label) },
+              modifier = Modifier.testTag("m3.section.$id"),
+            )
+          }
         }
       }
       Text("m3.section=$section", modifier = Modifier.testTag("m3.section"))
@@ -276,7 +293,20 @@ private fun SelectionSection() {
 
   Column(verticalArrangement = Arrangement.spacedBy(8)) {
     Row(verticalAlignment = VerticalAlignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6)) {
-      Checkbox(checked = checked, onCheckedChange = { checked = it })
+      /*
+       * A description on the control itself, not only the text beside it.
+       *
+       * A `Checkbox` composes no text, so without this the platform announces an anonymous
+       * checkable control and a person using a screen reader is told "checkbox, not ticked" with
+       * no idea of what. The label beside it is a separate node and is not read as its name. This
+       * is also what lets every drill find the control rather than guessing by position, which is
+       * how the first Android run ticked a chip instead.
+       */
+      Checkbox(
+        checked = checked,
+        onCheckedChange = { checked = it },
+        modifier = Modifier.contentDescription("Send me the summary"),
+      )
       M3Text("Send me the summary")
     }
     Text("m3.checkbox=${on(checked)}", modifier = Modifier.testTag("m3.checkbox"))
@@ -288,6 +318,7 @@ private fun SelectionSection() {
         checked = switched,
         onCheckedChange = { switched = it },
         thumbContent = { Icon(name = "check", contentDescription = null, sizeDp = 14) },
+        modifier = Modifier.contentDescription("Background refresh"),
       )
       M3Text("Background refresh")
     }
@@ -297,7 +328,11 @@ private fun SelectionSection() {
 
     for ((id, label) in listOf("first" to "Economy", "second" to "Premium", "third" to "Business")) {
       Row(verticalAlignment = VerticalAlignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6)) {
-        RadioButton(selected = choice == id, onClick = { choice = id })
+        RadioButton(
+          selected = choice == id,
+          onClick = { choice = id },
+          modifier = Modifier.contentDescription(label),
+        )
         M3Text(label)
       }
     }
@@ -315,7 +350,11 @@ private fun SelectionSection() {
      * parameter order now (ADR-073), which makes the second overload one component with the first.
      */
     M3Text("Volume")
-    Slider(value = volume, onValueChange = { volume = it }, modifier = Modifier.fillMaxWidth())
+    Slider(
+      value = volume,
+      onValueChange = { volume = it },
+      modifier = Modifier.fillMaxWidth().contentDescription("Volume slider"),
+    )
     Text("m3.slider=${twoPlaces(volume)}", modifier = Modifier.testTag("m3.slider"))
 
     M3Text("Seats, in whole numbers")
@@ -323,7 +362,7 @@ private fun SelectionSection() {
       value = stepped,
       onValueChange = { stepped = it },
       steps = 3,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().contentDescription("Seats slider"),
     )
     Text("m3.steps=${twoPlaces(stepped)}", modifier = Modifier.testTag("m3.steps"))
 
@@ -605,36 +644,44 @@ private fun NavigationSection() {
 
     HorizontalDivider(modifier = Modifier.fillMaxWidth())
 
-    // Rails are tall and narrow; bounded, so the section stays one screen rather than becoming a
-    // viewport of its own.
-    Row(horizontalArrangement = Arrangement.spacedBy(12)) {
-      Box(modifier = Modifier.height(200).width(90)) {
-        NavigationRail(header = { Icon(name = "flight", contentDescription = null) }) {
-          for ((index, entry) in NAV_ENTRIES.withIndex()) {
-            NavigationRailItem(
-              selected = index == rail,
-              onClick = { rail = index },
-              icon = { Icon(name = entry.second, contentDescription = null) },
-              label = { M3Text(entry.first) },
-            )
-          }
-        }
-      }
-      Box(modifier = Modifier.height(200).width(150)) {
-        WideNavigationRail(header = { M3Text("Wide rail") }) {
-          for ((index, entry) in NAV_ENTRIES.take(2).withIndex()) {
-            WideNavigationRailItem(
-              selected = index == wide,
-              onClick = { wide = index },
-              icon = { Icon(name = entry.second, contentDescription = null) },
-              label = { M3Text(entry.first) },
-              railExpanded = true,
-            )
-          }
+    /*
+     * Each rail gets its own full-width container, and that is a correction rather than a layout
+     * preference.
+     *
+     * The first version put the plain rail and the wide rail side by side in fixed-width boxes,
+     * 90 and 150 density-independent pixels. Android and the web laid that out; iOS crashed the
+     * whole application with `maxWidth must be >= than minWidth`, because a wide navigation rail
+     * asks for more width than 150 and a maximum below a minimum is not a constraint any platform
+     * can satisfy. Bounding a component's height is fair -- otherwise a rail becomes the viewport
+     * and the drill cannot reach anything past it -- but bounding its width below what it needs is
+     * asking for a contradiction, and only one of the three clients said so.
+     */
+    Box(modifier = Modifier.height(200).fillMaxWidth()) {
+      NavigationRail(header = { Icon(name = "flight", contentDescription = null) }) {
+        for ((index, entry) in NAV_ENTRIES.withIndex()) {
+          NavigationRailItem(
+            selected = index == rail,
+            onClick = { rail = index },
+            icon = { Icon(name = entry.second, contentDescription = null) },
+            label = { M3Text(entry.first) },
+          )
         }
       }
     }
-    Box(modifier = Modifier.height(200).width(170)) {
+    Box(modifier = Modifier.height(200).fillMaxWidth()) {
+      WideNavigationRail(header = { M3Text("Wide rail") }) {
+        for ((index, entry) in NAV_ENTRIES.take(2).withIndex()) {
+          WideNavigationRailItem(
+            selected = index == wide,
+            onClick = { wide = index },
+            icon = { Icon(name = entry.second, contentDescription = null) },
+            label = { M3Text(entry.first) },
+            railExpanded = true,
+          )
+        }
+      }
+    }
+    Box(modifier = Modifier.height(200).fillMaxWidth()) {
       ModalWideNavigationRail(header = { M3Text("Modal wide rail") }, hideOnCollapse = false) {
         WideNavigationRailItem(
           selected = true,

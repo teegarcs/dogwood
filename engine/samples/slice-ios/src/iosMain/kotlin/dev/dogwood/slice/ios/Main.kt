@@ -454,6 +454,29 @@ private fun SliceHost(configuration: HostEnvironment) {
   }
 
   /*
+   * The Material 3 drill, `--dogwood-a11y`'s sibling.
+   *
+   * A flag of its own rather than a mode of the accessibility drill, for the reason every other
+   * pair here is separate: it needs a different screen and it must have that screen to itself,
+   * because it activates controls and watches for the consequence. See `MaterialDrill.kt`.
+   */
+  LaunchedEffect(shell) {
+    if (!NSProcessInfo.processInfo.arguments.contains("--dogwood-material")) return@LaunchedEffect
+    shell ?: return@LaunchedEffect
+    // The catalogue has its own entry point so that no claim depends first on a claim about a
+    // tab bar; this is the iOS equivalent of the Android drill's intent extra.
+    current = "material"
+    kotlinx.coroutines.delay(8_000)
+    val root = (UIApplication.sharedApplication.delegate as? DogwoodAppDelegate)?.window()
+    if (root == null) {
+      println("CONF REFUSED there is no key window to walk")
+    } else {
+      val failures = runMaterialDrill(root)
+      println("MATERIAL DONE failures=$failures")
+    }
+  }
+
+  /*
    * The pre-flight dictionary drill, `--dogwood-skew`'s sibling and the reason there are two flags
    * rather than one with a mode.
    *

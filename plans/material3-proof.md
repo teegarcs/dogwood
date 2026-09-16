@@ -460,12 +460,43 @@ and matrix need to be honest about. §2's mobile half beside §1; §2's web half
 | `checkGeneratedTierVersions` | hand-editing the lock's version |
 | the downgrade refusal | pointing the sources override at an older version |
 
+**What the first runs found, recorded rather than worked around.** None of it is about a generated
+binding: each entry is Compose Multiplatform's accessibility bridge on one client, and each has a
+skip carrying its observation rather than a red cell that can never go green — the precedent `D7`
+set.
+
+| Client | Observation | Where it is recorded |
+|---|---|---|
+| web | `Checkbox`, `Switch` and `RadioButton` are published as unnamed `button` nodes with no state | `M3-announced` skip; the catalogue now names each control with a `contentDescription`, which is the fix for a real user as well as for the drill |
+| web | No accessibility node at all is published for a `Slider` | `M7` skip |
+| web | While a Compose dialog is open, the client answers no input from outside the process: not a click on the accessibility node, not a mouse event at its own box, not Escape | `M4-operable` skip; each modal claim gets a page of its own |
+| iOS | A `Switch` announces its label and its button trait but publishes no value, so VoiceOver is not told whether it is on | `M3-announced` skip |
+| iOS | A `Slider` publishes no adjustable element to find or move | `M7` skip |
+
+The bindings are not in doubt in any of these: `Material3FamiliesTest` toggles the switch, moves the
+slider and confirms the dialog on the Java Virtual Machine, WebAssembly and the iOS simulator. What
+a platform hands an assistive technology is a different question from whether the event crossed the
+boundary, and keeping the two apart is why both are graded.
+
+**Three defects in this work's own making, found by running it.** The `Slider` overload ambiguity
+(§0, fixed in the classifier). The section picker, which was a clipped `Row`, then a lazy
+`HorizontalList` whose off-screen chips do not exist for a drill to find, and is now three wrapped
+rows. And the Android drill scrolling whichever container the tree published first, which moved the
+chip row instead of the page and reported six controls as missing that were one swipe away.
+
 **Known risks, with the fallback.**
 
-- *Layer B feasibility.* Zipline on the JVM inside `runComposeUiTest` is new here. The spike
-  settles it in a day. Fallback: Layer B becomes a desktop-only *transcript* test (the instrument
-  the desktop already has) that operates controls through Compose's test semantics rather than
-  the accessibility layer — weaker, still real.
+- *Layer B feasibility.* **Resolved, and differently from either option.** Running Zipline inside
+  `runComposeUiTest` was not attempted: the guest is Kotlin/JavaScript, so a Java Virtual Machine
+  test cannot compose it directly, and standing up QuickJS plus a served payload inside a unit test
+  buys a slow, fragile version of what the device drills already do. What was built instead splits
+  the path at the wire. `slice-screens` composes every section on Node — the real guest module, the
+  real generated stubs, the real Compose runtime — and writes the change batches it sent;
+  `MaterialReplayTest` in `slice-desktop` replays those exact bytes through `HostTree` and the
+  generated bindings and reads the screen. Everything between a payload and a pixel is covered with
+  no device, which is what lets it run on every pull request. What it does not cover is
+  interaction, because there is no guest at the other end to receive an event: Layer A covers that
+  per binding and the device drills cover it end to end.
 - *iOS dialogs and VoiceOver.* If a dialog's title is not the next announced element, M4 on iOS
   is recorded as a finding with the observation, not loosened.
 - *CI time.* Tier S is 20 minutes today; Layer A adds about a minute and Layer B an estimated

@@ -233,6 +233,16 @@ screen already written for Dogwood and it does nothing at all — which is the c
 
 ## 10. Composing your own components, and when that is not enough
 
+**A default you do not set belongs to the host.** The generated bindings call the real library
+function with the library on the *host's* classpath, so any optional parameter you leave out takes
+that host's default, evaluated on the device. Set the parameter when you need one look;
+[`upgrading-compose.md`](upgrading-compose.md) section 5 says what that means for a fleet
+mid-upgrade.
+
+**The worked example is `MaterialScreen.kt`** in `samples/slice-screens`, which every client
+renders: ten sections composing all 79 bound components, every control with a line of text beside
+it that says what it changed. It is what the `M` conformance claims are graded against on a device.
+
 **Look in the generated Material 3 tier first.** Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
 a payload can `import dev.dogwood.compose.material3.*` and call `Button`, `Switch`, `Card`,
 `TopAppBar` and eighty more with the library's own signatures, if the host registered the tier.

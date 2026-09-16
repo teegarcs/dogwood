@@ -203,3 +203,46 @@ against the map's embedded copy of the source — both the line count and that l
 when a mapping falls outside the file it prints the specification's answer, marks it, and names the
 nearest in-range mapping for the same source. It does not silently substitute: inventing a plausible
 answer is how a symbolicator becomes something nobody can trust.
+
+---
+
+## 5. Compose Multiplatform's accessibility bridge, on the web and on iOS (drafted 2026-09-16)
+
+**Status: drafted, not filed.** The owner's standing instruction is that upstream reports stay
+here rather than being opened against other projects' trackers.
+
+Found by running `plans/material3-proof.md`'s Material catalogue -- a screen of generated Material 3
+bindings -- through each client's own accessibility layer. None of these is about the generated
+bindings: the same components, composed from the same wire, toggle and confirm under
+`runComposeUiTest` on the Java Virtual Machine, WebAssembly and the iOS simulator. What differs is
+what the platform bridge publishes.
+
+**a. Web: selection controls are unnamed and stateless.** `androidx.compose.material3.Checkbox`,
+`Switch` and `RadioButton` reach Chrome's accessibility tree as `button` nodes with an empty name
+and no properties -- no `checkbox`, `switch` or `radio` role and no checked state. A screen reader
+is told neither what the control is nor whether it is on. Setting a `contentDescription` on the
+control gives it a name; nothing observed gives it a state or a role.
+
+*Reproduce:* any Compose Multiplatform 1.10.3 wasm page with a `Switch`, read with
+`Accessibility.getFullAXTree` over the DevTools protocol and `--force-renderer-accessibility`.
+
+**b. Web: a Slider publishes no node at all.** Not an unnamed one -- none. There is nothing for an
+assistive technology to find or to move.
+
+**c. Web: a dialog blocks input from outside the process.** While a Compose dialog is open, the
+page answers neither a click synthesised on an accessibility node, nor a mouse event dispatched at
+that node's own box model, nor the Escape key. The accessibility tree holds the dialog's own names
+and nothing else, and the page cannot be driven further. Whether a real pointer on a real display
+behaves differently is not something this environment can settle, and the drill says so rather than
+claiming a defect it did not watch.
+
+**d. iOS: a Switch announces no value.** Under VoiceOver a Material 3 `Switch` publishes its label
+and the button trait, and an empty `accessibilityValue`. It can be activated and it does toggle --
+the payload's own state changes -- but VoiceOver is not told whether it is on.
+
+**e. iOS: a Slider is not adjustable.** No element announces itself as the slider, so there is
+nothing for `accessibilityIncrement` to move.
+
+Each of these is a `SKIP` carrying its observation in `plans/conformance.md`'s `M` family, on the
+precedent report 3 set for Android's disabled-state announcements: a red cell that can never go
+green teaches people to ignore the column.
