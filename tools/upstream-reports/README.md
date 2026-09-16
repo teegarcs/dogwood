@@ -227,7 +227,9 @@ control gives it a name; nothing observed gives it a state or a role.
 `Accessibility.getFullAXTree` over the DevTools protocol and `--force-renderer-accessibility`.
 
 **b. Web: a Slider publishes no node at all.** Not an unnamed one -- none. There is nothing for an
-assistive technology to find or to move.
+assistive technology to find or to move. This one is web-only: on iOS the same slider is published
+as an adjustable element and `accessibilityIncrement` moves it, and on Android it carries a range
+and answers a scroll-forward action.
 
 **c. Web: a dialog blocks input from outside the process.** While a Compose dialog is open, the
 page answers neither a click synthesised on an accessibility node, nor a mouse event dispatched at
@@ -236,12 +238,22 @@ and nothing else, and the page cannot be driven further. Whether a real pointer 
 behaves differently is not something this environment can settle, and the drill says so rather than
 claiming a defect it did not watch.
 
-**d. iOS: a Switch announces no value.** Under VoiceOver a Material 3 `Switch` publishes its label
+**d. iOS: a wide navigation rail crashes the application during measurement.**
+`WideNavigationRail` and `ModalWideNavigationRail` raise
+`IllegalArgumentException: maxWidth must be >= than minWidth` from
+`WideNavigationRailLayout$1$invoke$2.measure`, taking the process with them. Reproduced on the iOS
+simulator with Compose Multiplatform 1.10.3 and Material 3 1.9.0, both inside a fixed-width
+container and inside a full-width one; the identical composition lays out on Android and on the web
+without complaint, and both components pass the tier's own render tests on the Java Virtual
+Machine, WebAssembly and the iOS simulator under `runComposeUiTest`. The difference is the real
+window's constraints rather than anything in the payload.
+
+*Consequence here:* the two components are excluded from the Material catalogue sample, which says
+so where they used to be, and the coverage count is two lower.
+
+**e. iOS: a Switch announces no value.** Under VoiceOver a Material 3 `Switch` publishes its label
 and the button trait, and an empty `accessibilityValue`. It can be activated and it does toggle --
 the payload's own state changes -- but VoiceOver is not told whether it is on.
-
-**e. iOS: a Slider is not adjustable.** No element announces itself as the slider, so there is
-nothing for `accessibilityIncrement` to move.
 
 Each of these is a `SKIP` carrying its observation in `plans/conformance.md`'s `M` family, on the
 precedent report 3 set for Android's disabled-state announcements: a red cell that can never go

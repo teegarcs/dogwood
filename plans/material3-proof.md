@@ -470,8 +470,8 @@ set.
 | web | `Checkbox`, `Switch` and `RadioButton` are published as unnamed `button` nodes with no state | `M3-announced` skip; the catalogue now names each control with a `contentDescription`, which is the fix for a real user as well as for the drill |
 | web | No accessibility node at all is published for a `Slider` | `M7` skip |
 | web | While a Compose dialog is open, the client answers no input from outside the process: not a click on the accessibility node, not a mouse event at its own box, not Escape | `M4-operable` skip; each modal claim gets a page of its own |
+| iOS | `WideNavigationRail` and `ModalWideNavigationRail` crash the application during measurement (`maxWidth must be >= than minWidth`), while the same composition lays out on Android and the web | excluded from the catalogue, which says so where they were |
 | iOS | A `Switch` announces its label and its button trait but publishes no value, so VoiceOver is not told whether it is on | `M3-announced` skip |
-| iOS | A `Slider` publishes no adjustable element to find or move | `M7` skip |
 
 The bindings are not in doubt in any of these: `Material3FamiliesTest` toggles the switch, moves the
 slider and confirms the dialog on the Java Virtual Machine, WebAssembly and the iOS simulator. What

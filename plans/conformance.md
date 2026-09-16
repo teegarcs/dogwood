@@ -196,11 +196,11 @@ below ends at the witness rather than at a property that ought to imply it (AGEN
 | M1 | Every section of the generated catalogue renders: its components' own labels reach the screen | C | ✅ android, ios, web |
 | M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
 | M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
-| M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead |
+| M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead, as skips carrying the observation |
 | M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process |
 | M5 | A generated sheet and menu open and choose | C | ✅ android, web |
 | M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
-| M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android; web publishes no node for one |
+| M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
 
 Three of these cells are **skips carrying an observation** rather than failures, on the precedent
 `D7` set: what they record is Compose Multiplatform's accessibility bridge on that client, not the
@@ -208,6 +208,14 @@ generated binding, and the binding itself is covered by `Material3FamiliesTest` 
 Machine, WebAssembly and the iOS simulator. The observations are in
 [`plans/material3-proof.md`](material3-proof.md) section 5 and drafted in
 `tools/upstream-reports/README.md`.
+
+**No desktop column, deliberately.** The desktop client has no accessibility tree a drill can walk
+from outside the process -- that is why its skew drill reads a render transcript instead -- and
+every claim here is about what an assistive technology can find and operate. What the desktop does
+carry is `MaterialReplayTest`, which renders a real payload's own change batches through the real
+host bindings on the Java Virtual Machine and asserts every section's labels and witnesses. That is
+the rendering half of `M1` on every pull request, without a device; the interaction half is what
+the three device columns are for.
 
 `B6` belongs with this family in spirit and sits in `B` because it is a delivery claim: a payload
 that declares a generated tier the host does not have is refused before any guest code runs.

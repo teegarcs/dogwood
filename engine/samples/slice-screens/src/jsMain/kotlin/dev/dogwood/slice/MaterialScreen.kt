@@ -668,30 +668,23 @@ private fun NavigationSection() {
         }
       }
     }
-    Box(modifier = Modifier.height(200).fillMaxWidth()) {
-      WideNavigationRail(header = { M3Text("Wide rail") }) {
-        for ((index, entry) in NAV_ENTRIES.take(2).withIndex()) {
-          WideNavigationRailItem(
-            selected = index == wide,
-            onClick = { wide = index },
-            icon = { Icon(name = entry.second, contentDescription = null) },
-            label = { M3Text(entry.first) },
-            railExpanded = true,
-          )
-        }
-      }
-    }
-    Box(modifier = Modifier.height(200).fillMaxWidth()) {
-      ModalWideNavigationRail(header = { M3Text("Modal wide rail") }, hideOnCollapse = false) {
-        WideNavigationRailItem(
-          selected = true,
-          onClick = { wide = 0 },
-          icon = { Icon(name = "search", contentDescription = null) },
-          label = { M3Text("Search") },
-          railExpanded = false,
-        )
-      }
-    }
+    /*
+     * The two wide rails are NOT on this screen, and their absence is a finding rather than an
+     * oversight.
+     *
+     * `WideNavigationRail` and `ModalWideNavigationRail` bind, compile and render under the tier's
+     * own render tests on three targets. On the iOS simulator they crash the whole application from
+     * inside `WideNavigationRailLayout`'s measure pass -- `maxWidth must be >= than minWidth` --
+     * whether they are given a fixed width or the full one, while Android and the web lay the same
+     * screen out without complaint. That is a Compose Multiplatform layout failure rather than a
+     * Dogwood binding failure: nothing about the wire or the generated code differs between the
+     * three clients.
+     *
+     * A sample that crashes one client is not a sample. They are excluded here, the coverage test's
+     * count is two lower for it, and the observation is drafted in tools/upstream-reports/README.md
+     * with the frame that raised it. The plain `NavigationRail` above is the same family and works
+     * everywhere.
+     */
     Text("m3.rail=$rail/$wide", modifier = Modifier.testTag("m3.rail"))
   }
 }
