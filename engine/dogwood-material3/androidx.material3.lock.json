@@ -2,7 +2,7 @@
     "segmentName": "material3",
     "wireName": "androidx.material3",
     "segmentId": 255,
-    "version": 10900,
+    "version": 1090001,
     "components": [
         {
             "name": "AlertDialog",
@@ -183,6 +183,41 @@
             },
             "slots": {
                 "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "BottomSheetScaffold",
+            "localTag": 82,
+            "properties": {
+                "sheetPeekHeight": 1,
+                "sheetMaxWidth": 2,
+                "sheetShape": 3,
+                "sheetContainerColor": 4,
+                "sheetContentColor": 5,
+                "sheetTonalElevation": 6,
+                "sheetShadowElevation": 7,
+                "sheetSwipeEnabled": 8,
+                "containerColor": 9,
+                "contentColor": 10
+            },
+            "propertyTypes": {
+                "sheetPeekHeight": "Dp",
+                "sheetMaxWidth": "Dp",
+                "sheetShape": "Shape",
+                "sheetContainerColor": "Color",
+                "sheetContentColor": "Color",
+                "sheetTonalElevation": "Dp",
+                "sheetShadowElevation": "Dp",
+                "sheetSwipeEnabled": "Boolean",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "sheetContent": 1,
+                "sheetDragHandle": 2,
+                "topBar": 3,
+                "content": 4
             },
             "events": {}
         },
@@ -1029,6 +1064,33 @@
             "events": {}
         },
         {
+            "name": "DropdownMenu",
+            "localTag": 81,
+            "properties": {
+                "expanded": 1,
+                "shape": 2,
+                "containerColor": 3,
+                "tonalElevation": 4,
+                "shadowElevation": 5
+            },
+            "propertyTypes": {
+                "expanded": "Boolean",
+                "shape": "Shape",
+                "containerColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
             "name": "DropdownMenuItem",
             "localTag": 48,
             "properties": {
@@ -1085,6 +1147,24 @@
             "eventTypes": {
                 "onDismissRequest": "() -> Unit"
             }
+        },
+        {
+            "name": "NavigationBar",
+            "localTag": 83,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2,
+                "tonalElevation": 3
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
         },
         {
             "name": "ModalNavigationDrawer",
@@ -1293,6 +1373,26 @@
             }
         },
         {
+            "name": "Scaffold",
+            "localTag": 84,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "topBar": 1,
+                "bottomBar": 2,
+                "snackbarHost": 3,
+                "floatingActionButton": 4,
+                "content": 5
+            },
+            "events": {}
+        },
+        {
             "name": "SingleChoiceSegmentedButtonRow",
             "localTag": 61,
             "properties": {
@@ -1415,6 +1515,130 @@
                 "content": 3
             },
             "events": {}
+        },
+        {
+            "name": "Surface",
+            "localTag": 85,
+            "properties": {
+                "shape": 1,
+                "color": 2,
+                "contentColor": 3,
+                "tonalElevation": 4,
+                "shadowElevation": 5
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Surface~0b388a87",
+            "localTag": 86,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "color": 3,
+                "contentColor": 4,
+                "tonalElevation": 5,
+                "shadowElevation": 6
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Surface~9d901ca7",
+            "localTag": 87,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "shape": 3,
+                "color": 4,
+                "contentColor": 5,
+                "tonalElevation": 6,
+                "shadowElevation": 7
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Surface~819e1863",
+            "localTag": 88,
+            "properties": {
+                "checked": 1,
+                "enabled": 2,
+                "shape": 3,
+                "color": 4,
+                "contentColor": 5,
+                "tonalElevation": 6,
+                "shadowElevation": 7
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "(Boolean) -> Unit"
+            }
         },
         {
             "name": "Switch",

@@ -42,7 +42,8 @@ fun generateTier(
   wireName: String,
   segmentName: String,
   segmentId: Int,
-  version: Int,
+  /** The library's own version, as text. The encoded segment version is derived below. */
+  libraryVersion: String,
   guestPackage: String,
   hostPackage: String,
   guestOut: File,
@@ -84,12 +85,44 @@ fun generateTier(
       previous.components.filter { it.name !in generatedNames }.map { it.localTag }
   }.orEmpty()
 
-  val dictionary = buildDictionary(
+  /*
+   * The generator revision, computed rather than typed (ADR-074).
+   *
+   * A segment version identifies a surface, and this surface has two authors: the library, whose
+   * version is the first three components, and the generator, whose revision is the last two. When
+   * the generator learns to bind something new from a library version it has already generated --
+   * which is exactly what ADR-074's change did, twenty-six times over -- the contents grow while
+   * the library version does not, and two different surfaces would otherwise share a number.
+   *
+   * So: same library version as the lock and a different surface means the revision goes up. A
+   * different library version starts again at zero, because the first three components already
+   * distinguish it. Nobody types it; it appears in the lock's diff beside the components that
+   * caused it.
+   */
+  val previousRevision = locked?.let { generatorRevisionOf(it.version) } ?: 0
+  val sameLibrary = locked != null && decodeLibraryVersion(locked.version) == libraryVersion
+  fun dictionaryAt(version: Int) = buildDictionary(
     segmentName = segmentName, segmentId = segmentId, version = version,
     components = bound.map { it.component }, wireName = wireName,
     reservedLocalTags = retiredTags,
     existingTags = locked?.components?.associate { it.name to it.localTag }.orEmpty(),
   )
+  val surfaceChanged = locked != null && dictionaryAt(locked.version).encode() != lock.readText()
+  val revision = when {
+    !sameLibrary -> 0
+    surfaceChanged -> previousRevision + 1
+    else -> previousRevision
+  }
+  val version = encodeLibraryVersion(libraryVersion, revision)
+  if (sameLibrary && surfaceChanged) {
+    println(
+      "generator-v2: $wireName stays at library $libraryVersion and its surface changed, so the " +
+        "generator revision goes $previousRevision -> $revision (version $version). A payload may " +
+        "declare the new number only once the fleet's hosts carry it (docs/upgrading-compose.md).",
+    )
+  }
+
+  val dictionary = dictionaryAt(version)
   val lockedVersion = locked?.version
   when (val result = checkAgainstLock(dictionary, lock, acceptDowngrade)) {
     is LockResult.Violated -> error(
@@ -111,7 +144,9 @@ fun generateTier(
     }
     LockResult.Unchanged -> Unit
   }
-  if (lockedVersion != null && lockedVersion != version) {
+  // Reported only when the *library* moved; a revision bump has already said so above, and one
+  // event printed twice reads as two events.
+  if (lockedVersion != null && !sameLibrary) {
     println(
       "generator-v2: $wireName moved from version $lockedVersion (${decodeLibraryVersion(lockedVersion)}) " +
         "to $version (${decodeLibraryVersion(version)}) -- the library the host resolves moved, and " +
@@ -487,7 +522,18 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
      * expression may name a sibling parameter (`contentColorFor(containerColor)`), and a slot
      * chosen by an `if` needs its lambda type stated or Kotlin infers `Any`.
      */
+    /*
+     * Host-default-only parameters are left off the call unless something else names them
+     * (`ClassifiedComposable.keptHostDefaults`, ADR-074). Omitting is what a Kotlin caller does
+     * when it wants the library's default, and unlike quoting it works when that default names a
+     * symbol the library keeps `internal`.
+     */
+    val omitted = b.classified.hostDefaultOnly
+      .map { it.parameter.name }
+      .filterNot { it in b.classified.keptHostDefaults }
+      .toSet()
     for ((p, v) in b.classified.parameters) {
+      if (p.name in omitted) continue
       val type = localType(p.type)
       val line = when (v) {
         is Verdict.HostDefaultOnly -> "val ${p.name}: $type = (${v.defaultText})"
@@ -530,7 +576,10 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
       appendLine("      $line")
     }
     appendLine("      $libraryPackage.${b.name}(")
-    for ((p, _) in b.classified.parameters) appendLine("        ${p.name} = ${p.name},")
+    for ((p, _) in b.classified.parameters) {
+      if (p.name in omitted) continue
+      appendLine("        ${p.name} = ${p.name},")
+    }
     appendLine("      )")
     appendLine("    }")
   }

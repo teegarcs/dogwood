@@ -26,7 +26,7 @@ library's version. So a Compose Multiplatform bump moves four things, of which y
 | Compose Multiplatform | `engine/gradle/libs.versions.toml` | you |
 | The Material 3 version | the plugin's own mapping (1.10.3 → 1.9.0) | JetBrains |
 | The sources the generator reads | resolved from `dogwood-host`'s compile classpath | the build |
-| The tier's dictionary version | `1.9.0` encoded as `10900` | the generator |
+| The tier's dictionary version | `1.9.0` encoded as `1090000`, plus a generator revision in the last two digits | the generator |
 
 Since [ADR-073](../adrs/layer-5/ADR-073-a-generated-tier-derives-its-version-and-keeps-its-tags.md)
 no version is typed twice. `fetchComposeSources` resolves each module off the host's classpath,
@@ -37,6 +37,14 @@ would otherwise cause silently, because the Material 3 version it maps to is not
 
 **`compose.material3` is versioned independently.** 1.10.3 maps to Material 3 1.9.0 today. A
 Compose Multiplatform patch release can move that mapping without changing anything you typed.
+
+**A segment version has two authors, and the last two digits are the second one.** `1090001` is
+Material 3 1.9.0 at generator revision 1. The revision exists because the generator can learn to
+bind more of a library version it has already generated — [ADR-074](../adrs/layer-5/ADR-074-a-segment-version-has-two-authors.md)
+did exactly that — and two different surfaces must never share a number. Nobody types it: the
+generator reads the previous revision from the lock and raises it when the bound set changes at an
+unchanged library version, so it appears in the diff beside the components that caused it. For
+everything in this manual, a revision bump behaves exactly like a patch bump.
 
 ---
 
@@ -163,11 +171,11 @@ pass is deleting the evidence that the build was right to fail.
 
 | P | H | What happens | Graded by |
 |---|---|---|---|
-| tier 10900 | tier 10900 | renders | `M1`–`M7` on four clients |
-| tier 10900 | tier 10901 | renders; every tag still exists; **defaults are the host's library's** ([§5](#5-the-host-evaluates-the-default-and-that-is-a-compatibility-rule)) | `K1`, `K2` |
-| tier 10901 | tier 10900 | **refused before `start`**, naming the segment, if the payload declares the tier | `B3` |
-| tier 10901 | tier 10900 | if the payload declares nothing: the components this host lacks are placeholders with a report, and the rest of the screen renders | `A2`, `A3`, `A4` |
-| uses a component 10901 retired | tier 10901 | that component is a placeholder with a report; everything else renders | `A2` |
+| tier 1090000 | tier 1090000 | renders | `M1`–`M7` on four clients |
+| tier 1090000 | tier 1090100 | renders; every tag still exists; **defaults are the host's library's** ([§5](#5-the-host-evaluates-the-default-and-that-is-a-compatibility-rule)) | `K1`, `K2` |
+| tier 1090100 | tier 1090000 | **refused before `start`**, naming the segment, if the payload declares the tier | `B3` |
+| tier 1090100 | tier 1090000 | if the payload declares nothing: the components this host lacks are placeholders with a report, and the rest of the screen renders | `A2`, `A3`, `A4` |
+| uses a component 1090100 retired | tier 1090100 | that component is a placeholder with a report; everything else renders | `A2` |
 | declares the tier | **no tier registered** | refused before `start`, naming `androidx.material3` | `B6` |
 | declares nothing | no tier registered | every tier component is a placeholder; the screen's structure holds | `A2` |
 

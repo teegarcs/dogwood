@@ -22,10 +22,28 @@ class VersionTest {
 
   @Test
   fun aReleasedVersionEncodesToTheNumberAPayloadDeclares() {
-    assertEquals(10900, encodeLibraryVersion("1.9.0"))
-    assertEquals(10901, encodeLibraryVersion("1.9.1"))
-    assertEquals(11003, encodeLibraryVersion("1.10.3"))
-    assertEquals(20000, encodeLibraryVersion("2.0.0"))
+    assertEquals(1_090_000, encodeLibraryVersion("1.9.0"))
+    assertEquals(1_090_100, encodeLibraryVersion("1.9.1"))
+    assertEquals(1_100_300, encodeLibraryVersion("1.10.3"))
+    assertEquals(2_000_000, encodeLibraryVersion("2.0.0"))
+  }
+
+  /**
+   * The second author, in the last two digits.
+   *
+   * A generator revision orders *after* the library version it belongs to and *before* the next
+   * patch, which is the whole requirement: a host that has 1.9.0 at revision 0 must refuse a
+   * payload built at revision 1, and a host at 1.9.1 must accept both.
+   */
+  @Test
+  fun aGeneratorRevisionOrdersInsideItsLibraryVersion() {
+    assertEquals(1_090_001, encodeLibraryVersion("1.9.0", revision = 1))
+    assertTrue(encodeLibraryVersion("1.9.0", 1) > encodeLibraryVersion("1.9.0", 0))
+    assertTrue(encodeLibraryVersion("1.9.1") > encodeLibraryVersion("1.9.0", 99))
+    assertEquals("1.9.0", decodeLibraryVersion(encodeLibraryVersion("1.9.0", 7)))
+    assertEquals(7, generatorRevisionOf(encodeLibraryVersion("1.9.0", 7)))
+    val failure = assertFailsWith<IllegalArgumentException> { encodeLibraryVersion("1.9.0", 100) }
+    assertTrue("collide" in failure.message!!, failure.message!!)
   }
 
   @Test
@@ -68,7 +86,8 @@ class VersionTest {
     }""")
     val versions = readResolvedVersions(file)
     assertEquals("1.9.0", versions["material3"])
-    assertEquals(10900, tierVersion(versions, "material3"))
+    assertEquals(1_090_000, tierVersion(versions, "material3"))
+    assertEquals(1_090_002, tierVersion(versions, "material3", revision = 2))
     val missing = assertFailsWith<IllegalStateException> { tierVersion(versions, "ui") }
     assertTrue("no version for" in missing.message!!, missing.message!!)
     file.delete()
@@ -86,13 +105,13 @@ class VersionTest {
     // Deleted, not merely created: `checkAgainstLock` reads a lock that exists, and an empty file
     // exists. The first call below is the one that writes it.
     val lock = File.createTempFile("lock", ".json").also { it.delete() }
-    val at10901 = dictionary(version = 10901)
+    val at10901 = dictionary(version = 1_090_100)
     assertTrue(checkAgainstLock(at10901, lock) is LockResult.Updated)
 
-    val at10900 = dictionary(version = 10900)
+    val at10900 = dictionary(version = 1_090_000)
     val refused = checkAgainstLock(at10900, lock)
     assertTrue(refused is LockResult.Violated, "a downgrade must be refused, got $refused")
-    assertTrue(refused.problems.single().contains("10901"), refused.problems.toString())
+    assertTrue(refused.problems.single().contains("1090100"), refused.problems.toString())
 
     // The same run, said to be intended, writes.
     assertTrue(checkAgainstLock(at10900, lock, acceptDowngrade = true) !is LockResult.Violated)

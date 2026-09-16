@@ -4,7 +4,7 @@
 # `androidx.material3` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **10900**, segment **255**.
+actually emitted. Version **1090001**, segment **255**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -45,6 +45,7 @@ appear in no table below and are not free.
 | [`BottomAppBar~5acd9818`](#bottomappbar~5acd9818) | 8 | -16777208 |  |
 | [`BadgedBox`](#badgedbox) | 9 | -16777207 |  |
 | [`Badge`](#badge) | 10 | -16777206 |  |
+| [`BottomSheetScaffold`](#bottomsheetscaffold) | 82 | -16777134 |  |
 | [`Button`](#button) | 11 | -16777205 | yes |
 | [`ElevatedButton`](#elevatedbutton) | 12 | -16777204 | yes |
 | [`FilledTonalButton`](#filledtonalbutton) | 13 | -16777203 | yes |
@@ -82,8 +83,10 @@ appear in no table below and are not free.
 | [`OutlinedIconToggleButton`](#outlinedicontogglebutton) | 45 | -16777171 | yes |
 | [`Label`](#label) | 46 | -16777170 |  |
 | [`ListItem`](#listitem) | 47 | -16777169 |  |
+| [`DropdownMenu`](#dropdownmenu) | 81 | -16777135 |  |
 | [`DropdownMenuItem`](#dropdownmenuitem) | 48 | -16777168 | yes |
 | [`ModalBottomSheet`](#modalbottomsheet) | 49 | -16777167 |  |
+| [`NavigationBar`](#navigationbar) | 83 | -16777133 |  |
 | [`ModalNavigationDrawer`](#modalnavigationdrawer) | 50 | -16777166 |  |
 | [`DismissibleNavigationDrawer`](#dismissiblenavigationdrawer) | 51 | -16777165 |  |
 | [`PermanentNavigationDrawer`](#permanentnavigationdrawer) | 52 | -16777164 |  |
@@ -95,12 +98,17 @@ appear in no table below and are not free.
 | [`LinearProgressIndicator~0d6d7e83`](#linearprogressindicator~0d6d7e83) | 58 | -16777158 |  |
 | [`CircularProgressIndicator~03d52693`](#circularprogressindicator~03d52693) | 59 | -16777157 |  |
 | [`RadioButton`](#radiobutton) | 60 | -16777156 | yes |
+| [`Scaffold`](#scaffold) | 84 | -16777132 |  |
 | [`SingleChoiceSegmentedButtonRow`](#singlechoicesegmentedbuttonrow) | 61 | -16777155 |  |
 | [`MultiChoiceSegmentedButtonRow`](#multichoicesegmentedbuttonrow) | 62 | -16777154 |  |
 | [`ShortNavigationBar`](#shortnavigationbar) | 63 | -16777153 |  |
 | [`ShortNavigationBarItem`](#shortnavigationbaritem) | 64 | -16777152 | yes |
 | [`Slider`](#slider) | 65 | -16777151 | yes |
 | [`Snackbar`](#snackbar) | 67 | -16777149 |  |
+| [`Surface`](#surface) | 85 | -16777131 |  |
+| [`Surface~0b388a87`](#surface~0b388a87) | 86 | -16777130 | yes |
+| [`Surface~9d901ca7`](#surface~9d901ca7) | 87 | -16777129 | yes |
+| [`Surface~819e1863`](#surface~819e1863) | 88 | -16777128 | yes |
 | [`Switch`](#switch) | 68 | -16777148 | yes |
 | [`Tab`](#tab) | 69 | -16777147 | yes |
 | [`LeadingIconTab`](#leadingicontab) | 70 | -16777146 | yes |
@@ -340,6 +348,38 @@ Local tag 10, widget tag `-16777206`.
 | Name | Tag |
 | --- | ---: |
 | `content` | 1 |
+
+Takes a modifier chain.
+
+---
+
+### BottomSheetScaffold
+
+Local tag 82, widget tag `-16777134`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `sheetPeekHeight` | `Dp` | 1 | `BottomSheetDefaults.SheetPeekHeight` |  |
+| `sheetMaxWidth` | `Dp` | 2 | `BottomSheetDefaults.SheetMaxWidth` |  |
+| `sheetShape` | `Shape` | 3 | `BottomSheetDefaults.ExpandedShape` |  |
+| `sheetContainerColor` | `Color` | 4 | `BottomSheetDefaults.ContainerColor` |  |
+| `sheetContentColor` | `Color` | 5 | `contentColorFor(sheetContainerColor)` |  |
+| `sheetTonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `sheetShadowElevation` | `Dp` | 7 | `BottomSheetDefaults.Elevation` |  |
+| `sheetSwipeEnabled` | `Boolean` | 8 | `true` |  |
+| `containerColor` | `Color` | 9 | host |  |
+| `contentColor` | `Color` | 10 | `contentColorFor(containerColor)` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `sheetContent` | 1 |
+| `sheetDragHandle` | 2 |
+| `topBar` | 3 |
+| `content` | 4 |
 
 Takes a modifier chain.
 
@@ -1343,6 +1383,36 @@ Takes a modifier chain.
 
 ---
 
+### DropdownMenu
+
+Local tag 81, widget tag `-16777135`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `expanded` | `Boolean` | 1 | required |  |
+| `shape` | `Shape` | 2 | `MenuDefaults.shape` |  |
+| `containerColor` | `Color` | 3 | `MenuDefaults.containerColor` |  |
+| `tonalElevation` | `Dp` | 4 | `MenuDefaults.TonalElevation` |  |
+| `shadowElevation` | `Dp` | 5 | `MenuDefaults.ShadowElevation` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onDismissRequest` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+---
+
 ### DropdownMenuItem
 
 Local tag 48, widget tag `-16777168`.
@@ -1402,6 +1472,28 @@ Local tag 49, widget tag `-16777167`.
 | Name | Signature | Tag | Notes |
 | --- | --- | ---: | --- |
 | `onDismissRequest` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+---
+
+### NavigationBar
+
+Local tag 83, widget tag `-16777133`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `containerColor` | `Color` | 1 | `NavigationBarDefaults.containerColor` |  |
+| `contentColor` | `Color` | 2 | host |  |
+| `tonalElevation` | `Dp` | 3 | `NavigationBarDefaults.Elevation` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
 
 Takes a modifier chain.
 
@@ -1644,6 +1736,31 @@ Takes a modifier chain.
 
 ---
 
+### Scaffold
+
+Local tag 84, widget tag `-16777132`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `containerColor` | `Color` | 1 | host |  |
+| `contentColor` | `Color` | 2 | `contentColorFor(containerColor)` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `topBar` | 1 |
+| `bottomBar` | 2 |
+| `snackbarHost` | 3 |
+| `floatingActionButton` | 4 |
+| `content` | 5 |
+
+Takes a modifier chain.
+
+---
+
 ### SingleChoiceSegmentedButtonRow
 
 Local tag 61, widget tag `-16777155`.
@@ -1785,6 +1902,131 @@ Local tag 67, widget tag `-16777149`.
 | `content` | 3 |
 
 Takes a modifier chain.
+
+---
+
+### Surface
+
+Local tag 85, widget tag `-16777131`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `shape` | `Shape` | 1 | `RectangleShape` |  |
+| `color` | `Color` | 2 | host |  |
+| `contentColor` | `Color` | 3 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 4 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 5 | `0.dp` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+Takes a modifier chain.
+
+---
+
+### Surface~0b388a87
+
+Local tag 86, widget tag `-16777130`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `enabled` | `Boolean` | 1 | `true` | **affordance** |
+| `shape` | `Shape` | 2 | `RectangleShape` |  |
+| `color` | `Color` | 3 | host |  |
+| `contentColor` | `Color` | 4 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 5 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 6 | `0.dp` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### Surface~9d901ca7
+
+Local tag 87, widget tag `-16777129`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `selected` | `Boolean` | 1 | required | **affordance** |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `shape` | `Shape` | 3 | `RectangleShape` |  |
+| `color` | `Color` | 4 | host |  |
+| `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`, `selected`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### Surface~819e1863
+
+Local tag 88, widget tag `-16777128`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `checked` | `Boolean` | 1 | required | **affordance** |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `shape` | `Shape` | 3 | `RectangleShape` |  |
+| `color` | `Color` | 4 | host |  |
+| `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onCheckedChange` | `(Boolean) -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`checked`, `enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
 
 ---
 
@@ -2161,6 +2403,8 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `BasicAlertDialog` | `properties` | `DialogProperties` | `DialogProperties()` |
 | `BottomAppBar` | `windowInsets` | `WindowInsets` | `BottomAppBarDefaults.windowInsets` |
 | `BottomAppBar~5acd9818` | `windowInsets` | `WindowInsets` | `BottomAppBarDefaults.windowInsets` |
+| `BottomSheetScaffold` | `scaffoldState` | `BottomSheetScaffoldState` | `rememberBottomSheetScaffoldState()` |
+| `BottomSheetScaffold` | `snackbarHost` | `@Composable (SnackbarHostState) -> Unit` | `{ SnackbarHost(it) }` |
 | `Button` | `colors` | `ButtonColors` | `ButtonDefaults.buttonColors()` |
 | `Button` | `elevation` | `ButtonElevation?` | `ButtonDefaults.buttonElevation()` |
 | `Button` | `border` | `BorderStroke?` | `null` |
@@ -2182,6 +2426,10 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `DatePickerDialog` | `properties` | `DialogProperties` | `DialogProperties(usePlatformDefaultWidth = false)` |
 | `DismissibleDrawerSheet` | `windowInsets` | `WindowInsets` | `DrawerDefaults.windowInsets` |
 | `DismissibleNavigationDrawer` | `drawerState` | `DrawerState` | `rememberDrawerState(DrawerValue.Closed)` |
+| `DropdownMenu` | `offset` | `DpOffset` | `DpOffset(0.dp, 0.dp)` |
+| `DropdownMenu` | `scrollState` | `ScrollState` | `rememberScrollState()` |
+| `DropdownMenu` | `properties` | `PopupProperties` | `DefaultMenuProperties` |
+| `DropdownMenu` | `border` | `BorderStroke?` | `null` |
 | `DropdownMenuItem` | `colors` | `MenuItemColors` | `MenuDefaults.itemColors()` |
 | `DropdownMenuItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedAssistChip` | `colors` | `ChipColors` | `AssistChipDefaults.elevatedAssistChipColors()` |
@@ -2252,6 +2500,7 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `ModalWideNavigationRail` | `colors` | `WideNavigationRailColors` | `WideNavigationRailDefaults.colors()` |
 | `ModalWideNavigationRail` | `windowInsets` | `WindowInsets` | `WideNavigationRailDefaults.windowInsets` |
 | `ModalWideNavigationRail` | `expandedProperties` | `ModalWideNavigationRailProperties` | `WideNavigationRailDefaults.ModalExpandedProperties` |
+| `NavigationBar` | `windowInsets` | `WindowInsets` | `NavigationBarDefaults.windowInsets` |
 | `NavigationRail` | `windowInsets` | `WindowInsets` | `NavigationRailDefaults.windowInsets` |
 | `NavigationRailItem` | `colors` | `NavigationRailItemColors` | `NavigationRailItemDefaults.colors()` |
 | `NavigationRailItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2276,6 +2525,8 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `PrimaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `RadioButton` | `colors` | `RadioButtonColors` | `RadioButtonDefaults.colors()` |
 | `RadioButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Scaffold` | `floatingActionButtonPosition` | `FabPosition` | `FabPosition.End` |
+| `Scaffold` | `contentWindowInsets` | `WindowInsets` | `ScaffoldDefaults.contentWindowInsets` |
 | `SecondaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `ShortNavigationBar` | `windowInsets` | `WindowInsets` | `ShortNavigationBarDefaults.windowInsets` |
 | `ShortNavigationBar` | `arrangement` | `ShortNavigationBarArrangement` | `ShortNavigationBarDefaults.arrangement` |
@@ -2291,6 +2542,13 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `SuggestionChip` | `elevation` | `ChipElevation?` | `SuggestionChipDefaults.suggestionChipElevation()` |
 | `SuggestionChip` | `border` | `BorderStroke?` | `SuggestionChipDefaults.suggestionChipBorder(enabled)` |
 | `SuggestionChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface` | `border` | `BorderStroke?` | `null` |
+| `Surface~0b388a87` | `border` | `BorderStroke?` | `null` |
+| `Surface~0b388a87` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface~819e1863` | `border` | `BorderStroke?` | `null` |
+| `Surface~819e1863` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface~9d901ca7` | `border` | `BorderStroke?` | `null` |
+| `Surface~9d901ca7` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Switch` | `colors` | `SwitchColors` | `SwitchDefaults.colors()` |
 | `Switch` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Tab` | `interactionSource` | `MutableInteractionSource?` | `null` |

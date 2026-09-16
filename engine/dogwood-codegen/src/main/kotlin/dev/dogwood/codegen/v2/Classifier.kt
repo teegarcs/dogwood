@@ -61,6 +61,65 @@ data class ClassifiedComposable(
   val isBindable: Boolean get() = unbindableReason == null
   val settable: List<ClassifiedParameter> get() = parameters.filter { it.verdict is Verdict.Settable }
   val hostDefaultOnly: List<ClassifiedParameter> get() = parameters.filter { it.verdict is Verdict.HostDefaultOnly }
+
+  /**
+   * The host-default-only parameters the binding has to **write out**, which is not all of them.
+   *
+   * A binding quotes a library default because the guest *might* not send the parameter, and
+   * absence is the sentinel. For a host-default-only parameter the guest can never send it at all
+   * — so the binding can simply leave the argument off the call, and Kotlin passes the library's
+   * own default. That is better than quoting in every way that matters: it is shorter, it cannot
+   * drift from the library, and it works when the default names something the library keeps
+   * `internal`, which a quote cannot. Twenty-six of the thirty-nine components this generator
+   * excluded were excluded for exactly that (ADR-074).
+   *
+   * One parameter must still be written out: the one another emitted default *names*. Material 3
+   * writes `contentColor = contentColorFor(containerColor)`, and a binding that dropped
+   * `containerColor` would not compile. So the set starts from the names every always-emitted
+   * default mentions and closes over itself — a kept default may name a third parameter.
+   */
+  val keptHostDefaults: Set<String> by lazy {
+    val byName = parameters.associateBy { it.parameter.name }
+    val hostOnly = hostDefaultOnly.mapTo(mutableSetOf()) { it.parameter.name }
+
+    fun namesIn(text: String?): List<String> =
+      text?.let { Classifier.identifiersIn(it) }.orEmpty()
+
+    // Settable parameters are always emitted, so whatever their defaults name is required.
+    val required = ArrayDeque<String>()
+    for ((_, verdict) in parameters) {
+      when (verdict) {
+        is Verdict.Settable -> required += namesIn(verdict.defaultText).filter { it in hostOnly }
+        else -> Unit
+      }
+    }
+
+    val kept = mutableSetOf<String>()
+    while (required.isNotEmpty()) {
+      val name = required.removeFirst()
+      if (!kept.add(name)) continue
+      val verdict = byName[name]?.verdict
+      if (verdict is Verdict.HostDefaultOnly) {
+        required += namesIn(verdict.defaultText).filter { it in hostOnly }
+      }
+    }
+    kept
+  }
+
+  /**
+   * Every default expression this component's binding actually emits.
+   *
+   * What the internal-symbol check has to look at: a default nobody writes out cannot name
+   * anything the compiler will object to.
+   */
+  val emittedDefaults: List<Pair<LibraryParameter, String>>
+    get() = parameters.mapNotNull { (p, v) ->
+      when (v) {
+        is Verdict.Settable -> if (v.hasDefault) v.defaultText?.let { p to it } else null
+        is Verdict.HostDefaultOnly -> if (p.name in keptHostDefaults) p to v.defaultText else null
+        else -> null
+      }
+    }
 }
 
 object Classifier {
@@ -156,6 +215,9 @@ object Classifier {
 
   private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
+  /** The identifiers a default expression mentions. Shared with [ClassifiedComposable]. */
+  internal fun identifiersIn(text: String): List<String> = IDENTIFIER.findAll(text).map { it.value }.toList()
+
   private fun classifyOne(composable: LibraryComposable, dictionaryName: String, surface: LibrarySurface): ClassifiedComposable {
     var modifierSeen = false
     val parameters = composable.parameters.map { parameter ->
@@ -163,14 +225,18 @@ object Classifier {
       if (verdict is Verdict.Settable && verdict.kind == Kind.MODIFIER) modifierSeen = true
       ClassifiedParameter(parameter, verdict)
     }
-    // A default the binding would have to copy but cannot: it names something the library keeps
-    // to itself. Refused here, with the name, rather than by the host compiler with a path.
-    val internalDefault = parameters.firstNotNullOfOrNull { (p, v) ->
-      val default = when (v) {
-        is Verdict.HostDefaultOnly -> v.defaultText
-        is Verdict.Settable -> if (v.hasDefault) v.defaultText else null
-        else -> null
-      } ?: return@firstNotNullOfOrNull null
+    /*
+     * A default the binding would have to copy but cannot: it names something the library keeps to
+     * itself. Refused here, with the name, rather than by the host compiler with a path.
+     *
+     * **Only the defaults the binding actually emits**, which since ADR-074 is not all of them: a
+     * host-default-only parameter is left off the call entirely unless another emitted default
+     * names it, so its default expression is never written and an `internal` symbol inside it
+     * cannot be a problem. Checking all of them refused twenty-six components for a reason that
+     * was never true of the code that would have been generated.
+     */
+    val provisional = ClassifiedComposable(composable, dictionaryName, parameters, unbindableReason = null)
+    val internalDefault = provisional.emittedDefaults.firstNotNullOfOrNull { (p, default) ->
       IDENTIFIER.findAll(default).map { it.value }.firstOrNull { it in surface.internalNames }?.let { "${p.name}: default names internal `$it`" }
     }
     val internalMarker = composable.optIns.firstOrNull { it in surface.internalMarkers }

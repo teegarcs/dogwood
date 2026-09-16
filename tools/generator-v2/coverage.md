@@ -13,13 +13,13 @@ own default for. Function coverage overstates parameter coverage, and both are h
 
 | Module | Version | Composables | Bound | Generable, excluded | Bespoke | Unreachable | Deprecated | Settable params | Host-default params |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `foundation` | 1.10.3 | 47 | **2** | 17 | 12 | 4 | 12 | 3 | 0 |
+| `foundation` | 1.10.3 | 47 | **3** | 0 | 17 | 4 | 23 | 9 | 4 |
 | `foundation-layout` | 1.10.3 | 12 | **8** | 0 | 0 | 0 | 4 | 32 | 0 |
-| `material3` | 1.9.0 | 186 | **79** | 22 | 38 | 6 | 41 | 469 | 165 |
+| `material3` | 1.9.0 | 186 | **87** | 12 | 40 | 6 | 41 | 541 | 181 |
 | `ui` | 1.10.3 | 15 | **4** | 0 | 8 | 1 | 2 | 15 | 4 |
-| **all** | | **260** | **93** | 39 | 58 | 11 | 59 | 519 | 169 |
+| **all** | | **260** | **102** | 12 | 65 | 11 | 70 | 597 | 189 |
 
-**93 of 260 bound (35.8%).** Affordance rule for a library tier: a
+**102 of 260 bound (39.2%).** Affordance rule for a library tier: a
 `Boolean` parameter named `enabled`, `checked`, `selected` or `readOnly` withholds the widget on
 unreadable skew, exactly as `@Affordance` does on a product surface.
 
@@ -55,23 +55,23 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `HorizontalPager~2bbc1ee6` |  | modifier, contentPadding, beyondViewportPageCount, pageSpacing, verticalAlignment, userScrollEnabled, reverseLayout | pageSize, flingBehavior, key, pageNestedScrollConnection, snapPosition | deprecated in the library |
 | `VerticalPager` |  | modifier, contentPadding, beyondViewportPageCount, pageSpacing, horizontalAlignment, userScrollEnabled, reverseLayout | pageSize, flingBehavior, key, pageNestedScrollConnection, snapPosition, overscrollEffect | state: live-state holder PagerState |
 | `VerticalPager~db50577f` |  | modifier, contentPadding, beyondViewportPageCount, pageSpacing, horizontalAlignment, userScrollEnabled, reverseLayout | pageSize, flingBehavior, key, pageNestedScrollConnection, snapPosition | deprecated in the library |
-| `BasicSecureTextField` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter, scrollState | textStyle: default names internal `Default` |
-| `BasicSecureTextField~3be96ab8` |  | modifier, enabled | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter | textStyle: default names internal `Default` |
-| `BasicSecureTextField~6fe24c65` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter | textStyle: default names internal `Default` |
-| `BasicText` |  | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, color, autoSize | style: default names internal `Default` |
-| `BasicText~4b6e2e90` |  | modifier, overflow, softWrap, maxLines | style, onTextLayout, inlineContent | style: default names internal `Default` |
-| `BasicText~709049d2` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent | style: default names internal `Default` |
-| `BasicText~802f9d7e` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent, color | style: default names internal `Default` |
-| `BasicText~d57d2339` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent, color, autoSize | style: default names internal `Default` |
-| `BasicText~d5d29bab` |  | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, color | style: default names internal `Default` |
-| `BasicText~e1eaa739` |  | text, modifier, overflow, softWrap, maxLines | style, onTextLayout | style: default names internal `Default` |
-| `BasicText~f92c6d32` |  | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout | style: default names internal `Default` |
-| `BasicTextField` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, lineLimits, onTextLayout, interactionSource, cursorBrush, outputTransformation, decorator, scrollState | textStyle: default names internal `Default` |
-| `BasicTextField~0ff90d44` |  | modifier, enabled, readOnly, singleLine, maxLines, minLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | textStyle: default names internal `Default` |
-| `BasicTextField~443ac9db` |  | modifier, enabled, readOnly, singleLine, maxLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | textStyle: default names internal `Default` |
-| `BasicTextField~5634b4f0` |  | value, onValueChange, modifier, enabled, readOnly, singleLine, maxLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | textStyle: default names internal `Default` |
-| `BasicTextField~99fd548e` |  | value, onValueChange, modifier, enabled, readOnly, singleLine, maxLines, minLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | textStyle: default names internal `Default` |
-| `ClickableText` |  | modifier, softWrap, overflow, maxLines, onClick | style, onTextLayout | style: default names internal `Default` |
+| `BasicSecureTextField` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter, scrollState | controlled text input; use TextInput (ADR-019) |
+| `BasicSecureTextField~3be96ab8` |  | modifier, enabled | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter | deprecated in the library |
+| `BasicSecureTextField~6fe24c65` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, onTextLayout, interactionSource, cursorBrush, decorator, textObfuscationMode, textObfuscationCharacter | deprecated in the library |
+| `BasicText` | ✅ | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, color, autoSize |  |
+| `BasicText~4b6e2e90` |  | modifier, overflow, softWrap, maxLines | style, onTextLayout, inlineContent | deprecated in the library |
+| `BasicText~709049d2` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent | deprecated in the library |
+| `BasicText~802f9d7e` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent, color | deprecated in the library |
+| `BasicText~d57d2339` |  | modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, inlineContent, color, autoSize | text: type AnnotatedString cannot cross the boundary |
+| `BasicText~d5d29bab` |  | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout, color | deprecated in the library |
+| `BasicText~e1eaa739` |  | text, modifier, overflow, softWrap, maxLines | style, onTextLayout | deprecated in the library |
+| `BasicText~f92c6d32` |  | text, modifier, overflow, softWrap, maxLines, minLines | style, onTextLayout | deprecated in the library |
+| `BasicTextField` |  | modifier, enabled, readOnly | inputTransformation, textStyle, keyboardOptions, onKeyboardAction, lineLimits, onTextLayout, interactionSource, cursorBrush, outputTransformation, decorator, scrollState | controlled text input; use TextInput (ADR-019) |
+| `BasicTextField~0ff90d44` |  | modifier, enabled, readOnly, singleLine, maxLines, minLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | controlled text input; use TextInput (ADR-019) |
+| `BasicTextField~443ac9db` |  | modifier, enabled, readOnly, singleLine, maxLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | deprecated in the library |
+| `BasicTextField~5634b4f0` |  | value, onValueChange, modifier, enabled, readOnly, singleLine, maxLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | deprecated in the library |
+| `BasicTextField~99fd548e` |  | value, onValueChange, modifier, enabled, readOnly, singleLine, maxLines, minLines | textStyle, keyboardOptions, keyboardActions, visualTransformation, onTextLayout, interactionSource, cursorBrush, decorationBox | controlled text input; use TextInput (ADR-019) |
+| `ClickableText` |  | modifier, softWrap, overflow, maxLines, onClick | style, onTextLayout | deprecated in the library |
 | `DisableSelection` | ✅ | content |  |  |
 | `SelectionContainer` | ✅ | modifier, content |  |  |
 
@@ -115,7 +115,7 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `AppBarRow` |  | modifier, maxItemCount |  | overflowIndicator: slot receives AppBarMenuState the guest cannot read |
 | `Badge` | ✅ | modifier, containerColor, contentColor, content |  |  |
 | `BadgedBox` | ✅ | badge, modifier, content |  |  |
-| `BottomSheetScaffold` ⚠ |  | sheetContent, modifier, sheetPeekHeight, sheetMaxWidth, sheetShape, sheetContainerColor, sheetContentColor, sheetTonalElevation, sheetShadowElevation, sheetDragHandle, sheetSwipeEnabled, topBar, containerColor, contentColor, content | scaffoldState, snackbarHost | containerColor: default names internal `MaterialTheme` |
+| `BottomSheetScaffold` ⚠ | ✅ | sheetContent, modifier, sheetPeekHeight, sheetMaxWidth, sheetShape, sheetContainerColor, sheetContentColor, sheetTonalElevation, sheetShadowElevation, sheetDragHandle, sheetSwipeEnabled, topBar, containerColor, contentColor, content | scaffoldState, snackbarHost |  |
 | `Button` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
 | `ElevatedButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
 | `FilledTonalButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
@@ -172,11 +172,11 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `Label` ⚠ | ✅ | label, modifier, isPersistent, content | interactionSource |  |
 | `ListItem` | ✅ | headlineContent, modifier, overlineContent, supportingContent, leadingContent, trailingContent, tonalElevation, shadowElevation | colors |  |
 | `MaterialTheme` ⚠ |  | content | colorScheme, shapes, typography | requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi) |
-| `DropdownMenu` |  | expanded, onDismissRequest, modifier, shape, containerColor, tonalElevation, shadowElevation, content | offset, scrollState, properties, border | properties: default names internal `DefaultMenuProperties` |
+| `DropdownMenu` | ✅ | expanded, onDismissRequest, modifier, shape, containerColor, tonalElevation, shadowElevation, content | offset, scrollState, properties, border |  |
 | `DropdownMenuItem` | ✅ | text, onClick, modifier, leadingIcon, trailingIcon, enabled, contentPadding | colors, interactionSource |  |
 | `ModalBottomSheet` ⚠ | ✅ | onDismissRequest, modifier, sheetMaxWidth, sheetGesturesEnabled, shape, containerColor, contentColor, tonalElevation, scrimColor, dragHandle, content | sheetState, contentWindowInsets, properties |  |
 | `ModalBottomSheet~f5ef210f` ⚠ |  | onDismissRequest, modifier, sheetMaxWidth, shape, containerColor, contentColor, tonalElevation, scrimColor, dragHandle, content | sheetState, contentWindowInsets, properties | deprecated in the library |
-| `NavigationBar` |  | modifier, containerColor, contentColor, tonalElevation, content | windowInsets | contentColor: default names internal `MaterialTheme` |
+| `NavigationBar` | ✅ | modifier, containerColor, contentColor, tonalElevation, content | windowInsets |  |
 | `NavigationBarItem` |  | selected, onClick, icon, modifier, enabled, label, alwaysShowLabel | colors, interactionSource | extension on RowScope; a binding calls by name |
 | `DismissibleDrawerSheet` | ✅ | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets |  |
 | `DismissibleDrawerSheet~08f0067c` |  | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets | drawerState: live-state holder DrawerState |
@@ -207,7 +207,7 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `LinearProgressIndicator~d79d2572` ⚠ |  | modifier, color, trackColor, gapSize | strokeCap, drawStopIndicator | progress: host-invoked lambda returning Float |
 | `LinearProgressIndicator~f391b8aa` ⚠ |  | modifier, color, trackColor | strokeCap | deprecated in the library |
 | `RadioButton` | ✅ | selected, onClick, modifier, enabled | colors, interactionSource |  |
-| `Scaffold` |  | modifier, topBar, bottomBar, snackbarHost, floatingActionButton, containerColor, contentColor, content | floatingActionButtonPosition, contentWindowInsets | containerColor: default names internal `MaterialTheme` |
+| `Scaffold` | ✅ | modifier, topBar, bottomBar, snackbarHost, floatingActionButton, containerColor, contentColor, content | floatingActionButtonPosition, contentWindowInsets |  |
 | `DockedSearchBar` ⚠ |  | inputField, expanded, onExpandedChange, modifier, shape, tonalElevation, shadowElevation, content | colors | controlled text input; use TextInput (ADR-019) |
 | `DockedSearchBar~28d03c8e` ⚠ |  | query, onQueryChange, onSearch, active, onActiveChange, modifier, enabled, placeholder, leadingIcon, trailingIcon, shape, tonalElevation, shadowElevation, content | colors, interactionSource | deprecated in the library |
 | `ExpandedDockedSearchBar` ⚠ |  | inputField, modifier, shape, tonalElevation, shadowElevation, content | colors, properties | controlled text input; use TextInput (ADR-019) |
@@ -216,8 +216,8 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `SearchBar~3e66cf48` ⚠ |  | query, onQueryChange, onSearch, active, onActiveChange, modifier, enabled, placeholder, leadingIcon, trailingIcon, shape, tonalElevation, shadowElevation, content | colors, windowInsets, interactionSource | deprecated in the library |
 | `SearchBar~979e0fa2` ⚠ |  | inputField, expanded, onExpandedChange, modifier, shape, tonalElevation, shadowElevation, content | colors, windowInsets | controlled text input; use TextInput (ADR-019) |
 | `TopSearchBar` ⚠ |  | inputField, modifier, shape, tonalElevation, shadowElevation | colors, windowInsets, scrollBehavior | state: live-state holder SearchBarState |
-| `OutlinedSecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | textObfuscationCharacter: default names internal `DefaultObfuscationCharacter` |
-| `SecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | textObfuscationCharacter: default names internal `DefaultObfuscationCharacter` |
+| `OutlinedSecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
+| `SecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `MultiChoiceSegmentedButtonRow` | ✅ | modifier, space, content |  |  |
 | `SegmentedButton` |  | checked, onCheckedChange, shape, modifier, enabled, contentPadding, icon, label | colors, border, interactionSource | extension on MultiChoiceSegmentedButtonRowScope; a binding calls by name |
 | `SegmentedButton~0302e58a` |  | selected, onClick, shape, modifier, enabled, contentPadding, icon, label | colors, border, interactionSource | extension on SingleChoiceSegmentedButtonRowScope; a binding calls by name |
@@ -235,10 +235,10 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `Snackbar` | ✅ | modifier, action, dismissAction, actionOnNewLine, shape, containerColor, contentColor, actionContentColor, dismissActionContentColor, content |  |  |
 | `Snackbar~0158ce0b` |  | modifier, actionOnNewLine, shape, containerColor, contentColor, actionColor, actionContentColor, dismissActionContentColor |  | snackbarData: type SnackbarData cannot cross the boundary |
 | `SnackbarHost` |  | modifier | snackbar | hostState: live-state holder SnackbarHostState |
-| `Surface` |  | modifier, shape, color, contentColor, tonalElevation, shadowElevation, content | border | color: default names internal `MaterialTheme` |
-| `Surface~0b388a87` |  | onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource | color: default names internal `MaterialTheme` |
-| `Surface~819e1863` |  | checked, onCheckedChange, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource | color: default names internal `MaterialTheme` |
-| `Surface~9d901ca7` |  | selected, onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource | color: default names internal `MaterialTheme` |
+| `Surface` | ✅ | modifier, shape, color, contentColor, tonalElevation, shadowElevation, content | border |  |
+| `Surface~0b388a87` | ✅ | onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
+| `Surface~819e1863` | ✅ | checked, onCheckedChange, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
+| `Surface~9d901ca7` | ✅ | selected, onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
 | `SwipeToDismissBox` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content | onDismiss | state: live-state holder SwipeToDismissBoxState |
 | `SwipeToDismissBox~037141c9` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content |  | deprecated in the library |
 | `Switch` | ✅ | checked, onCheckedChange, modifier, thumbContent, enabled | colors, interactionSource |  |

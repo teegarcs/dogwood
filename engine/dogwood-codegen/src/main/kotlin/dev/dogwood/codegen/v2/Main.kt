@@ -38,8 +38,11 @@ fun main(args: Array<String>) {
       wireName = required("wire-name"),
       segmentName = required("segment"),
       segmentId = required("segment-id").toInt(),
-      // Derived from what the host resolves, never passed in. ADR-073.
-      version = tierVersion(readResolvedVersions(File(required("versions"))), required("module")),
+      // Derived from what the host resolves, never passed in (ADR-073). The *string*, because the
+      // encoded version also carries a generator revision that only `generateTier` can compute --
+      // it depends on whether this run's surface differs from the lock's (ADR-074).
+      libraryVersion = readResolvedVersions(File(required("versions")))
+        .getValue(required("module")),
       acceptDowngrade = options["accept-downgrade"] == "true",
       guestPackage = required("guest-package"),
       hostPackage = required("host-package"),
@@ -64,7 +67,9 @@ fun main(args: Array<String>) {
         val locked = Regex(""""version"\s*:\s*(\d+)""").find(lock.readText())
           ?.groupValues?.get(1)?.toInt()
           ?: return@mapNotNull "${lock.name} names no version"
-        val expected = tierVersion(versions, module)
+        // The library half only: the generator revision in the last two digits is this
+        // generator's business and moves without the library moving (ADR-074).
+        val expected = tierVersion(versions, module, generatorRevisionOf(locked))
         if (locked == expected) {
           null
         } else {
