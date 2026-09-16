@@ -238,6 +238,9 @@ val signWebSidecars by tasks.registering {
   val trustFile = rootProject.file("dogwood-wire/src/commonMain/kotlin/dev/dogwood/protocol/Trust.kt")
   inputs.file(trustFile)
   outputs.dir(distribution)
+  // Never up to date: the digest it stamps is of whatever `guest-kotlin.js` is in the distribution
+  // right now, and the skew drill swaps that file in without Gradle's knowledge.
+  outputs.upToDateWhen { false }
   doLast {
     /*
      * The SEEDS below are THROWAWAY DEVELOPMENT KEYS, committed on purpose so the sample builds for
