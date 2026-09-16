@@ -28,6 +28,15 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 /*
+ * The manifest declares the Material 3 tier's version, so the file it reads that from has to exist
+ * before the manifest is written. Declared on every Zipline task rather than on the compile, because
+ * the declaration is assembled when the manifest is, which is later.
+ */
+tasks.matching { it.name.contains("Zipline") }.configureEach {
+  dependsOn(":dogwood-codegen:generateMaterial3")
+}
+
+/*
  * The manifest is signed, and Layer 3 will not load an unsigned one.
  *
  * The default below is a THROWAWAY DEVELOPMENT KEY, committed on purpose so the slice builds
@@ -94,20 +103,36 @@ val declaredSegments: Provider<String> = providers.provider {
       (version ?: error("no " + prefix + "_VERSION in the generated vector"))
   }
 
-  val acme = read(
-    rootProject.file(
-      "samples/product-design-system/build/generated/acme/dictionary/acme.designsystem.json",
-    ),
-    "Acme's dictionary",
-  )
-  val acmeName = Regex(""""wireName"\s*:\s*"([^"]+)"""").find(acme)?.groupValues?.get(1)
-  val acmeVersion = Regex(""""version"\s*:\s*(\d+)""").find(acme)?.groupValues?.get(1)
+  fun fromDictionary(file: File, what: String): String {
+    val text = read(file, what)
+    val name = Regex(""""wireName"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+      ?: error("no wireName in $what")
+    val version = Regex(""""version"\s*:\s*(\d+)""").find(text)?.groupValues?.get(1)
+      ?: error("no version in $what")
+    return "$name:$version"
+  }
 
   listOf(
     builtIn("LAYOUT"),
     builtIn("DESIGN_SYSTEM"),
-    (acmeName ?: error("no wireName in Acme's dictionary")) + ":" +
-      (acmeVersion ?: error("no version in Acme's dictionary")),
+    fromDictionary(
+      rootProject.file(
+        "samples/product-design-system/build/generated/acme/dictionary/acme.designsystem.json",
+      ),
+      "Acme's dictionary",
+    ),
+    /*
+     * The generated Material 3 tier, declared like any other segment.
+     *
+     * `slice-screens` composes the Material catalogue, so a client with no `Material3Binding`
+     * registered genuinely cannot render this payload -- and the point of the declaration is that
+     * such a client refuses at launch rather than rendering a screen of placeholders. Read from
+     * the generator's own dictionary, never typed, for the reason the whole of this block exists.
+     */
+    fromDictionary(
+      rootProject.file("build/generated/dogwood-material3/dictionary/androidx.material3.json"),
+      "the Material 3 tier's dictionary",
+    ),
   ).joinToString(",")
 }
 

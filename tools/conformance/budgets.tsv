@@ -8,10 +8,28 @@
 # G5 is bytes, not milliseconds; its unit is named in the description because it is the one
 # exception and hiding that in a column header would be worse than saying it here.
 #
-# 3.90 MB against a measured 3.77 MB: a ceiling with headroom rather than today's figure. Pinning it
+# 4.06 MB against a measured 3.93 MB: a ceiling with headroom rather than today's figure. Pinning it
 # exactly fails on the next legitimate component and teaches everyone to raise the number, which is
 # how a budget stops meaning anything. The headroom is deliberately tight -- about 130 kilobytes --
 # because on Fast 3G every 100 kilobytes is roughly half a second of waiting (ADR-038).
+#
+# G5 WAS 3.90 MB, AND RAISING IT WAS AN OWNER DECISION (2026-09-16, ADR-072, OPEN-DECISIONS 7).
+#
+# The generated Material 3 tier -- 79 components, read from the library's own sources rather than
+# hand-written -- was registered on the web profile. The attribution this rule demands, three
+# builds of the web slice in brotli bytes:
+#
+#   without the tier at all                3,770,785
+#   the tier linked but not registered     3,772,894   (+2,109)
+#   the tier registered                    3,929,095   (+158,310)
+#
+# The 2,109 is the module merely being on the classpath, and it is the measurement that settles the
+# engineering backlog's `D1`: dead-code elimination does drop an unregistered binding module. The
+# 158,310 is what a payload's whole Material vocabulary costs every web client, globally, which is
+# exactly the trade ADR-066 framed for the catalogue and is the reason the ceiling moves rather
+# than the profile diverging. The alternative considered and rejected was leaving the tier out of
+# the web build, which would have meant a payload could call `Button` on three clients and not in
+# a browser.
 #
 # G5 WAS 3.70 MB, AND RAISING IT WAS AN OWNER DECISION, NOT A CONVENIENCE (2026-09-09, ADR-066).
 #
@@ -37,4 +55,4 @@ G1	8.0	guest recomposition of the reference screen, 95th percentile
 G2	4.0	batch crossing, per-frame reading: a steady-state recomposition batch
 G3	16.7	maximum garbage-collection pause under load, 99th percentile
 G4	500.0	cold start: module load plus first composition
-G5	3900000	the shipped web slice, brotli-compressed, in bytes
+G5	4060000	the shipped web slice, brotli-compressed, in bytes

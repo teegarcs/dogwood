@@ -1,10 +1,7 @@
 {
-  "_comment": "The same sidecar, pointing at the REAL guest: Kotlin/Compose compiled for a Web Worker, running the same screens as the mobile payload from `samples/slice-screens`. `dogwood-manifest.json` points at the hand-written JavaScript guest, which stays because it is what proves the protocol is an interface rather than an artefact of having Kotlin on both ends. Load the page with ?manifest=dogwood-manifest-kotlin.json to get this one.",
+  "_comment": "The same sidecar, pointing at the REAL guest: Kotlin/Compose compiled for a Web Worker, running the same screens as the mobile payload from `samples/slice-screens`. `dogwood-manifest.json` points at the hand-written JavaScript guest, which stays because it is what proves the protocol is an interface rather than an artefact of having Kotlin on both ends. Load the page with ?manifest=dogwood-manifest-kotlin.json to get this one. `segmentVersions` is null on purpose: `signWebSidecars` fills it in from the generators before signing, because this file once named design-system version 9 for weeks after the surface reached 15 -- the one sidecar meant to model a healthy payload, describing a payload nobody had built.",
   "envelopeRevision": 1,
   "guestScript": "guest-kotlin.js",
-  "segmentVersions": {
-    "androidx.layout": 1,
-    "dogwood.designsystem": 9
-  },
+  "segmentVersions": null,
   "guestScriptSha256": null
 }

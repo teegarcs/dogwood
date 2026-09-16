@@ -42,6 +42,10 @@ fun main() {
       "feed" to { _ -> FeedScreen() },
       // Path A: one experience whose tab bar and navigation are guest Compose.
       "app" to { params -> AppShell(exploreParams(params)) },
+      // The generated Material 3 catalogue, as its own entry point so a drill can open it
+      // directly. Reaching it through the shell's tab bar would make every claim about a Material
+      // component depend first on a claim about a chip (plans/material3-proof.md, section 1).
+      "material" to { _ -> MaterialScreen() },
       // A payload that fails on purpose, so that the two mechanisms built for a bad publish
       // -- a readable crash (ADR-059) and the crash-loop quarantine (ADR-049) -- can be graded
       // against a real failure instead of a simulated one. See `CrashScreen.kt`.

@@ -48,6 +48,20 @@ kotlin {
   }
 }
 
+/*
+ * Where the guest's own change batches are written for the Java Virtual Machine side to replay.
+ *
+ * `MaterialScreenCoverageTest` composes every section of the Material catalogue to count what it
+ * uses; writing what it sent costs nothing extra and gives `:samples:slice-desktop:test` a real
+ * payload's wire to render through the real host bindings, with no device and no Zipline.
+ */
+val materialWireDirectory: Provider<Directory> = layout.buildDirectory.dir("material-wire")
+
+tasks.named<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>("jsNodeTest") {
+  environment("DOGWOOD_WIRE_OUT", materialWireDirectory.get().asFile.absolutePath)
+  outputs.dir(materialWireDirectory)
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
   dependsOn(":samples:product-design-system:generateAcme")
 }

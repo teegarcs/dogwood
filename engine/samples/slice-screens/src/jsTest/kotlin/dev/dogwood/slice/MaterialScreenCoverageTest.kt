@@ -51,18 +51,54 @@ private class CountingHost : DogwoodHost {
   override fun close() = Unit
 }
 
-private fun tagsOf(section: String): Set<Int> {
+/**
+ * Where the captured batches go, if anywhere.
+ *
+ * The Gradle test task sets this. When it is unset -- somebody running one test from an editor --
+ * nothing is written and nothing fails, because the capture is a side effect of this suite rather
+ * than its purpose.
+ */
+private fun captureDirectory(): String? =
+  js("(typeof process !== 'undefined' && process.env && process.env.DOGWOOD_WIRE_OUT) || null") as String?
+
+/**
+ * The batches this screen sent, written where the Java Virtual Machine side can replay them.
+ *
+ * `MaterialReplayTest` in `slice-desktop` renders exactly these through the real host bindings.
+ * Passing them as a file rather than regenerating them there is the whole point: the wire a real
+ * guest produced is the input, so nothing between the payload and the screen is a stand-in.
+ */
+private fun capture(section: String, batches: List<String>) {
+  val directory = captureDirectory() ?: return
+  val fs = js("require('fs')")
+  fs.mkdirSync(directory, js("({ recursive: true })"))
+  fs.writeFileSync("$directory/$section.wire", batches.joinToString("\n"))
+}
+
+private fun batchesOf(section: String, openEverything: Boolean): List<String> {
   val host = CountingHost()
   val composition = DogwoodComposition(
     host = host,
     initialConfiguration = HostEnvironment(),
     segmentVersions = emptyMap(),
     restoredState = null,
-    content = { MaterialSection(section, openEverything = true) },
+    content = { MaterialSection(section, openEverything = openEverything) },
   )
   composition.frame(0)
   composition.dispose()
   return host.batches
+}
+
+private fun tagsOf(section: String): Set<Int> {
+  // Two captures per section, because they answer two questions. The *open* one composes the
+  // dialogs, the sheet and the menu at once and is what the coverage count is taken from: a
+  // component nobody opened is still a component this payload can send. The *resting* one is the
+  // screen a person actually arrives at, and is what `MaterialReplayTest` renders -- a modal sheet
+  // covering the section would make "is it displayed" a question about a scrim.
+  capture(section, batchesOf(section, openEverything = false))
+  val open = batchesOf(section, openEverything = true)
+  capture("$section.open", open)
+  return open
     .flatMap { decodePositional(it).g }
     .filterIsInstance<Create>()
     // A widget tag packs the segment into the top byte and the local tag into the rest, which is

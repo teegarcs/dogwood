@@ -17,6 +17,30 @@ dependencies {
   implementation(compose.desktop.currentOs)
   implementation(libs.coroutines.core)
   add(PLUGIN_CLASSPATH_CONFIGURATION_NAME, "app.cash.zipline:zipline-kotlin-plugin:${libs.versions.zipline.get()}")
+
+  testImplementation(kotlin("test"))
+  @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+  testImplementation(compose.uiTest)
+}
+
+/*
+ * The replay test's input: the change batches a real guest produced.
+ *
+ * `:samples:slice-screens:jsNodeTest` composes the Material catalogue on Node and writes what it
+ * sent. This task renders those batches through the real host bindings on the Java Virtual
+ * Machine, so the pair covers the whole path -- payload, generated stub, wire, generated binding,
+ * Material 3 itself -- on a machine with no device attached, which is what lets it run on every
+ * pull request. See plans/material3-proof.md section 1.3, layer B.
+ */
+val materialWire = project(":samples:slice-screens").layout.buildDirectory.dir("material-wire")
+
+tasks.named<Test>("test") {
+  dependsOn(":samples:slice-screens:jsNodeTest")
+  inputs.dir(materialWire).withPathSensitivity(PathSensitivity.RELATIVE)
+  systemProperty("dogwood.wire.dir", materialWire.get().asFile.absolutePath)
+  // QuickJS is not involved here, but the Compose test harness composes deeply and the rest of
+  // this module already runs with a larger stack for the same reason.
+  jvmArgs("-Xss8m")
 }
 
 compose.desktop {

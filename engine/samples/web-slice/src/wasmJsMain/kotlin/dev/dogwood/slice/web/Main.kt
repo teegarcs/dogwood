@@ -149,6 +149,18 @@ private fun trustParameter(): String =
   js("new URLSearchParams(location.search).get('trust') || ''")
 
 /**
+ * `?tier=none` runs the page **without** the generated Material 3 tier registered.
+ *
+ * The same shape as `?trust=none`, for the same reason and to grade the same kind of claim. The
+ * payload declares `androidx.material3` in its signed sidecar, so a client that does not have the
+ * tier must refuse it before a Worker exists rather than rendering a screen of placeholders
+ * (ADR-061, claim `B6`). One distribution gives both sides: this page with the tier, and this page
+ * without it, differing in one registration.
+ */
+private fun tierParameter(): String =
+  js("new URLSearchParams(location.search).get('tier') || ''")
+
+/**
  * Which experience to open.
  *
  * The *host's* choice now, rather than the guest reading its own Worker URL. That is the shape
@@ -168,20 +180,24 @@ fun main() {
   // placeholders and are reported as skew, which is what the first run of the real Kotlin guest
   // showed: correct behaviour, and the wrong reason.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
-  // The Material 3 tier (plans/generator-v2.md). On the web this line is a page-weight decision,
-  // and it is measured rather than guessed (2026-09-15, three builds, brotli bytes):
-  //
-  //   without the tier at all                                3,770,785
-  //   the tier LINKED but not registered (this file as is)   3,772,894   (+2,109)
-  //   the tier registered (this line uncommented)            3,929,685   (+158,900; G5 ceiling 3,900,000)
-  //
-  // So dead-code elimination does drop an unregistered binding module -- the premise `D1` in the
-  // backlog called unverified -- and registering costs 159 KB, which is 30 KB over the ceiling.
-  // Whether to raise the ceiling with attribution (ADR-066's rule), let the web profile leave the
-  // tier out, or take up per-component binding is the owner's call, put in OPEN-DECISIONS section 7
-  // with these numbers. Until it is taken this line stays commented, so the tier-S gate stays
-  // honest; mobile and desktop register the tier.
-  // dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  /*
+   * The Material 3 tier (plans/generator-v2.md), registered -- which on the web is a page-weight
+   * decision and was taken as one. Three builds, brotli bytes, per ADR-066's attribution rule:
+   *
+   *   without the tier at all                   3,770,785
+   *   the tier linked but not registered        3,772,894   (+2,109)
+   *   the tier registered                       3,929,685   (+158,900)
+   *
+   * The owner took option (a) of OPEN-DECISIONS section 7 on 2026-09-16: raise `G5` by the
+   * measured amount with the attribution, and register. The reason is that the alternative makes
+   * the web a second-class profile for the one capability this tier exists to provide -- a payload
+   * could call `Button` everywhere except in a browser -- and a profile difference that large is
+   * worse than a second of first load on Fast 3G. The two kilobytes above also settle the
+   * backlog's `D1`: dead-code elimination does drop an unregistered binding module.
+   */
+  if (tierParameter() != "none") {
+    dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  }
 
   // -----------------------------------------------------------------------------------------
   // 1. The correctness gate, before anything else.
