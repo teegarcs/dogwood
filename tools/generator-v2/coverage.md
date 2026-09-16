@@ -15,11 +15,11 @@ own default for. Function coverage overstates parameter coverage, and both are h
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `foundation` | 1.10.3 | 47 | **2** | 17 | 12 | 4 | 12 | 3 | 0 |
 | `foundation-layout` | 1.10.3 | 12 | **8** | 0 | 0 | 0 | 4 | 32 | 0 |
-| `material3` | 1.9.0 | 186 | **80** | 21 | 38 | 6 | 41 | 475 | 170 |
+| `material3` | 1.9.0 | 186 | **79** | 22 | 38 | 6 | 41 | 469 | 165 |
 | `ui` | 1.10.3 | 15 | **4** | 0 | 8 | 1 | 2 | 15 | 4 |
-| **all** | | **260** | **94** | 38 | 58 | 11 | 59 | 525 | 174 |
+| **all** | | **260** | **93** | 39 | 58 | 11 | 59 | 519 | 169 |
 
-**94 of 260 bound (36.2%).** Affordance rule for a library tier: a
+**93 of 260 bound (35.8%).** Affordance rule for a library tier: a
 `Boolean` parameter named `enabled`, `checked`, `selected` or `readOnly` withholds the widget on
 unreadable skew, exactly as `@Affordance` does on a product surface.
 
@@ -230,7 +230,7 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `RangeSlider~0b997a2c` ⚠ |  | modifier, enabled, onValueChangeFinished, steps | valueRange, colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | value: type ClosedFloatingPointRange<Float> cannot cross the boundary |
 | `RangeSlider~bb1147d1` ⚠ |  | modifier, enabled | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | state: live-state holder RangeSliderState |
 | `Slider` ⚠ | ✅ | value, onValueChange, modifier, enabled, steps, onValueChangeFinished | valueRange, colors, interactionSource |  |
-| `Slider~d234905b` ⚠ | ✅ | value, onValueChange, modifier, enabled, onValueChangeFinished, steps | colors, interactionSource, thumb, track, valueRange |  |
+| `Slider~d234905b` ⚠ |  | value, onValueChange, modifier, enabled, onValueChangeFinished, steps | colors, interactionSource, thumb, track, valueRange | guest signature identical to Slider after erasing host-default-only parameters |
 | `Slider~e15d63b2` ⚠ |  | modifier, enabled | colors, interactionSource, thumb, track | state: live-state holder SliderState |
 | `Snackbar` | ✅ | modifier, action, dismissAction, actionOnNewLine, shape, containerColor, contentColor, actionContentColor, dismissActionContentColor, content |  |  |
 | `Snackbar~0158ce0b` |  | modifier, actionOnNewLine, shape, containerColor, contentColor, actionColor, actionContentColor, dismissActionContentColor |  | snackbarData: type SnackbarData cannot cross the boundary |

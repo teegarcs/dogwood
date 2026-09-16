@@ -37,13 +37,24 @@ fun buildDictionary(
   reservedLocalTags: Set<Int> = emptySet(),
   wireName: String = segmentName,
   enums: List<ParsedEnum> = emptyList(),
+  /**
+   * Tags a previous run already published, by component name.
+   *
+   * Empty for a hand-written surface, where tags follow declaration order and the author controls
+   * the order. A **generated** tier cannot work that way: its component list is a library's, and a
+   * library release that drops one composable would shift every tag after it -- renumbering, which
+   * is the one thing this dictionary may never do. So a generated tier passes its lock's tags in
+   * here, keeps them, and allocates only for names the lock has never seen (ADR-073).
+   */
+  existingTags: Map<String, Int> = emptyMap(),
 ): Dictionary {
-  val allocated = ArrayList<Int>(components.size)
+  val taken = (existingTags.values + reservedLocalTags).toMutableSet()
   var next = 1
-  repeat(components.size) {
-    while (next in reservedLocalTags) next++
-    allocated += next
-    next++
+  val allocated = components.map { component ->
+    existingTags[component.name] ?: run {
+      while (next in taken) next++
+      next.also { taken += it; next++ }
+    }
   }
   return Dictionary(
   segmentName = segmentName,

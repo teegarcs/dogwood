@@ -51,6 +51,7 @@ fun generateTier(
   lock: File,
   exclusions: Map<String, String>,
   docsOut: File?,
+  acceptDowngrade: Boolean = false,
 ) {
   val surface = LibrarySurfaceParser().parseModule(module, File(sources, module))
   val classified = Classifier.classify(surface)
@@ -58,11 +59,39 @@ fun generateTier(
     .filter { it.isBindable && it.dictionaryName !in exclusions }
     .map { Bound(it, it.toParsedComponent()) }
 
+  /*
+   * The lock is read before the dictionary is built, not only afterwards to check it.
+   *
+   * A generated tier's component list belongs to a library, and a library release that drops one
+   * composable would renumber every tag after it if tags followed position -- so the tags a
+   * previous run published are an *input* here. Names the lock has never seen get new tags above
+   * everything taken; names the lock has and this run does not get their tags retired, so nothing
+   * can ever take them and a payload in the field that still sends one gets a placeholder and a
+   * report rather than the wrong widget. ADR-073; docs/upgrading-compose.md says what an upgrade
+   * does with each outcome.
+   */
+  val locked = if (lock.isFile) {
+    runCatching {
+      kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        .decodeFromString(dev.dogwood.codegen.Dictionary.serializer(), lock.readText())
+    }.getOrNull()
+  } else {
+    null
+  }
+  val generatedNames = bound.mapTo(mutableSetOf()) { it.component.name }
+  val retiredTags = locked?.let { previous ->
+    previous.reservedLocalTags.toSet() +
+      previous.components.filter { it.name !in generatedNames }.map { it.localTag }
+  }.orEmpty()
+
   val dictionary = buildDictionary(
     segmentName = segmentName, segmentId = segmentId, version = version,
     components = bound.map { it.component }, wireName = wireName,
+    reservedLocalTags = retiredTags,
+    existingTags = locked?.components?.associate { it.name to it.localTag }.orEmpty(),
   )
-  when (val result = checkAgainstLock(dictionary, lock)) {
+  val lockedVersion = locked?.version
+  when (val result = checkAgainstLock(dictionary, lock, acceptDowngrade)) {
     is LockResult.Violated -> error(
       buildString {
         appendLine("dictionary lock violated for $wireName; tags are permanent:")
@@ -70,8 +99,24 @@ fun generateTier(
         appendLine("A library upgrade that removes or reorders a component retires its tag; add the component to exclusions.txt with the reason rather than moving the tag.")
       },
     )
-    is LockResult.Updated -> println("generator-v2: $wireName lock updated, added ${result.added.size}")
+    is LockResult.Updated -> {
+      println("generator-v2: $wireName lock updated, added ${result.added.size}")
+      for (entry in result.retired) {
+        println(
+          "generator-v2: $wireName retired $entry -- the library no longer declares it, or an " +
+            "overload now wins it. Its tag can never be reused; payloads that still send it get a " +
+            "placeholder and a skew report (docs/upgrading-compose.md).",
+        )
+      }
+    }
     LockResult.Unchanged -> Unit
+  }
+  if (lockedVersion != null && lockedVersion != version) {
+    println(
+      "generator-v2: $wireName moved from version $lockedVersion (${decodeLibraryVersion(lockedVersion)}) " +
+        "to $version (${decodeLibraryVersion(version)}) -- the library the host resolves moved, and " +
+        "a payload may declare the new number only once the fleet has it (docs/upgrading-compose.md)",
+    )
   }
 
   guestOut.deleteRecursively(); guestOut.mkdirs()

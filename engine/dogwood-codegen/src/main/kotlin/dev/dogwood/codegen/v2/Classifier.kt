@@ -126,15 +126,24 @@ object Classifier {
    * parameters the guest cannot set -- `TopAppBar` with and without a `subtitle` slot is the
    * first case the compiler found. The first declaration in the file wins; the later ones are
    * reported as excluded with the winner named, so the coverage report shows the choice.
+   *
+   * **The key ignores parameter order**, and that is the correction plans/material3-proof.md
+   * section 1.5 predicted. Material 3's two `Slider` overloads take the same guest-visible
+   * parameters with `steps` and `onValueChangeFinished` swapped. Different Kotlin signatures, so
+   * both compiled -- and every call that supplied only the two required parameters was an
+   * overload-resolution ambiguity, which made `Slider` uncallable from any payload. No test
+   * caught it because no payload had called it. Sorting the descriptors is the whole fix: two
+   * overloads a guest cannot tell apart are one component, whatever order the library declared
+   * them in.
    */
   private fun List<ClassifiedComposable>.dedupeErasedOverloads(): List<ClassifiedComposable> {
     val winners = mutableMapOf<String, String>()
     return map { c ->
       if (!c.isBindable) return@map c
-      val key = c.source.file + "/" + c.source.name + "(" + c.settable.joinToString(",") { (p, v) ->
+      val key = c.source.file + "/" + c.source.name + "(" + c.settable.map { (p, v) ->
         v as Verdict.Settable
         "${p.name}:${v.kind}:${v.eventArguments.joinToString("|")}:${v.hasDefault || v.nullable}"
-      } + ")"
+      }.sorted().joinToString(",") + ")"
       val winner = winners[key]
       if (winner == null) {
         winners[key] = c.dictionaryName

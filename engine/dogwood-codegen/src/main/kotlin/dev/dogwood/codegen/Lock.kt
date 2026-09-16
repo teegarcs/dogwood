@@ -15,7 +15,7 @@ import java.io.File
 
 sealed class LockResult {
   object Unchanged : LockResult()
-  data class Updated(val added: List<String>) : LockResult()
+  data class Updated(val added: List<String>, val retired: List<String> = emptyList()) : LockResult()
   data class Violated(val problems: List<String>) : LockResult()
 }
 
@@ -25,7 +25,20 @@ sealed class LockResult {
  * Additions are allowed and update the lock. Renumberings and removals are violations: a removed
  * component's tag must stay retired rather than be reused by the next component to be added.
  */
-fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
+fun checkAgainstLock(
+  dictionary: Dictionary,
+  lockFile: File,
+  /**
+   * Whether a version *lower* than the lock's may be written.
+   *
+   * A generated tier derives its version from the library the host resolves (ADR-073), so a
+   * version going backwards means the host was downgraded -- and payloads already in the field may
+   * declare the higher one, which this host would now refuse at launch. That is a decision
+   * somebody takes deliberately, not a thing a regeneration does quietly, so the default refuses
+   * and `--accept-downgrade` is how the decision is expressed.
+   */
+  acceptDowngrade: Boolean = false,
+): LockResult {
   if (!lockFile.exists()) {
     lockFile.parentFile?.mkdirs()
     lockFile.writeText(dictionary.encode())
@@ -56,10 +69,23 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
     }
   }
 
+  val retired = mutableListOf<String>()
   for (lockedEntry in locked.components) {
     val current = dictionary.components.firstOrNull { it.name == lockedEntry.name }
     if (current == null) {
-      problems += "${lockedEntry.name} was removed; its tag ${lockedEntry.localTag} must stay retired, not be reused"
+      /*
+       * A component that is gone. Permitted only if its tag is *retired* -- listed among the
+       * reserved tags of the dictionary being written -- so that nothing can ever take it. A
+       * generated tier does that for itself when a library release drops a composable; a
+       * hand-written surface's author does it by adding the reservation, and until they do, this
+       * refuses. Either way the payloads in the field that still send the tag get a placeholder
+       * and a skew report, which is the containment rule, not a crash.
+       */
+      if (lockedEntry.localTag in dictionary.reservedLocalTags) {
+        retired += "${lockedEntry.name} (tag ${lockedEntry.localTag})"
+      } else {
+        problems += "${lockedEntry.name} was removed; its tag ${lockedEntry.localTag} must stay retired, not be reused"
+      }
       continue
     }
     if (current.localTag != lockedEntry.localTag) {
@@ -128,6 +154,13 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
   }
   for (name in dictionary.enums.keys - locked.enums.keys) widened += name
 
+  if (dictionary.version < locked.version && !acceptDowngrade) {
+    problems += "this run would write version ${dictionary.version} over the lock's " +
+      "${locked.version}. For a generated tier that means the library the host resolves went " +
+      "backwards; payloads in the field may declare ${locked.version} and this host would refuse " +
+      "them at launch. Pass --accept-downgrade to say that is intended."
+  }
+
   // Adding a component that clients cannot detect is worse than not adding it: guest code branches
   // on `segmentVersions["dogwood.designsystem"]`, and a payload that used a component this
   // client's version does not promise gets a placeholder with no explanation.
@@ -159,9 +192,10 @@ fun checkAgainstLock(dictionary: Dictionary, lockFile: File): LockResult {
 
   return when {
     problems.isNotEmpty() -> LockResult.Violated(problems)
-    added.isNotEmpty() || retyped.isNotEmpty() || reclassified.isNotEmpty() || widened.isNotEmpty() -> {
+    added.isNotEmpty() || retyped.isNotEmpty() || reclassified.isNotEmpty() ||
+      widened.isNotEmpty() || retired.isNotEmpty() -> {
       lockFile.writeText(dictionary.encode())
-      LockResult.Updated(added + retyped + reclassified + widened)
+      LockResult.Updated(added + retyped + reclassified + widened, retired)
     }
     else -> {
       lockFile.writeText(dictionary.encode())

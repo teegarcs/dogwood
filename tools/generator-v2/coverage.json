@@ -22,13 +22,13 @@
         },
         "material3": {
             "composables": 186,
-            "bound": 80,
-            "generableExcluded": 21,
+            "bound": 79,
+            "generableExcluded": 22,
             "bespoke": 38,
             "unreachable": 6,
             "deprecated": 41,
-            "settableParameters": 475,
-            "hostDefaultOnlyParameters": 170
+            "settableParameters": 469,
+            "hostDefaultOnlyParameters": 165
         },
         "ui": {
             "composables": 15,
@@ -43,13 +43,13 @@
     },
     "overall": {
         "composables": 260,
-        "bound": 94,
-        "generableExcluded": 38,
+        "bound": 93,
+        "generableExcluded": 39,
         "bespoke": 58,
         "unreachable": 11,
         "deprecated": 59,
-        "settableParameters": 525,
-        "hostDefaultOnlyParameters": 174
+        "settableParameters": 519,
+        "hostDefaultOnlyParameters": 169
     },
     "rows": [
         {
@@ -4194,9 +4194,9 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "Slider",
             "dictionaryName": "Slider~d234905b",
-            "bound": true,
-            "bucket": "generable",
-            "reason": null,
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to Slider after erasing host-default-only parameters",
             "settable": [
                 "value",
                 "onValueChange",

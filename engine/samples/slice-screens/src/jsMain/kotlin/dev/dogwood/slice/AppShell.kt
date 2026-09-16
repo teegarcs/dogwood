@@ -47,7 +47,14 @@ import dev.dogwood.compose.services
 import dev.dogwood.compose.size
 import dev.dogwood.compose.Spacer
 
-private val TABS = listOf("explore" to "Explore", "feed" to "Feed", "about" to "Diagnostics")
+private val TABS = listOf(
+  "explore" to "Explore",
+  "feed" to "Feed",
+  "about" to "Diagnostics",
+  // The generated Material 3 catalogue. A fourth `when` branch and one more entry here is the
+  // whole of adding a screen to this shell, which is the point Path A makes.
+  "material" to "Material",
+)
 
 @Composable
 fun AppShell(params: ExploreParams) {
@@ -95,6 +102,7 @@ fun AppShell(params: ExploreParams) {
       when (tab) {
         "feed" -> FeedScreen()
         "about" -> AboutScreen()
+        "material" -> MaterialScreen()
         else -> ExploreScreen(params, onSaved = { saved += 1 })
       }
     }

@@ -27,6 +27,10 @@ Two rules govern every number here, and both are enforced by the lock beside the
   rather than drawing a control that lies about what it will do. Every other kind of
   skew degrades cosmetically. The components that own one are marked below.
 
+**Reserved local tags: 66.** Those
+belong to hand-written bindings in this same segment, not to the generator. They
+appear in no table below and are not free.
+
 ## Components
 
 | Component | Local tag | Widget tag | Owns an affordance |
@@ -96,7 +100,6 @@ Two rules govern every number here, and both are enforced by the lock beside the
 | [`ShortNavigationBar`](#shortnavigationbar) | 63 | -16777153 |  |
 | [`ShortNavigationBarItem`](#shortnavigationbaritem) | 64 | -16777152 | yes |
 | [`Slider`](#slider) | 65 | -16777151 | yes |
-| [`Slider~d234905b`](#slider~d234905b) | 66 | -16777150 | yes |
 | [`Snackbar`](#snackbar) | 67 | -16777149 |  |
 | [`Switch`](#switch) | 68 | -16777148 | yes |
 | [`Tab`](#tab) | 69 | -16777147 | yes |
@@ -1758,32 +1761,6 @@ Takes a modifier chain.
 
 ---
 
-### Slider~d234905b
-
-Local tag 66, widget tag `-16777150`.
-
-**Properties**
-
-| Name | Type | Tag | Default | Notes |
-| --- | --- | ---: | --- | --- |
-| `value` | `Float` | 1 | required |  |
-| `enabled` | `Boolean` | 2 | `true` | **affordance** |
-| `onValueChangeFinishedPresent` | `Boolean` | 3 | `false` |  |
-| `steps` | `Int` | 4 | `0` |  |
-
-**Events**
-
-| Name | Signature | Tag | Notes |
-| --- | --- | ---: | --- |
-| `onValueChange` | `(Float) -> Unit` | 1 |  |
-| `onValueChangeFinished` | `(() -> Unit)?` | 2 |  |
-
-Takes a modifier chain.
-
-**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
-
----
-
 ### Snackbar
 
 Local tag 67, widget tag `-16777149`.
@@ -2308,19 +2285,6 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `Slider` | `valueRange` | `ClosedFloatingPointRange<Float>` | `0f..1f` |
 | `Slider` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
 | `Slider` | `interactionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
-| `Slider~d234905b` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
-| `Slider~d234905b` | `interactionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
-| `Slider~d234905b` | `thumb` | `@Composable (SliderState) -> Unit` | `{
-        SliderDefaults.Thumb(
-            interactionSource = interactionSource,
-            colors = colors,
-            enabled = enabled,
-        )
-    }` |
-| `Slider~d234905b` | `track` | `@Composable (SliderState) -> Unit` | `{ sliderState ->
-        SliderDefaults.Track(colors = colors, enabled = enabled, sliderState = sliderState)
-    }` |
-| `Slider~d234905b` | `valueRange` | `ClosedFloatingPointRange<Float>` | `0f..1f` |
 | `SmallFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `SmallFloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `SuggestionChip` | `colors` | `ChipColors` | `SuggestionChipDefaults.suggestionChipColors()` |

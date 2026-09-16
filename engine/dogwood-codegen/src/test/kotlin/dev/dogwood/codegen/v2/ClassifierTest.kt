@@ -53,6 +53,30 @@ fun TextField(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit) {}
 
 @Composable
 fun Lazy(content: LazyListScope.() -> Unit) {}
+
+/*
+ * Material 3 1.9.0's two Slider overloads, reduced to what makes them indistinguishable: the same
+ * guest-visible parameters, `steps` and `onValueChangeFinished` swapped. See the ambiguity test.
+ */
+@Composable
+fun Slider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    steps: Int = 0,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {}
+
+@Composable
+fun Slider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onValueChangeFinished: (() -> Unit)? = null,
+    steps: Int = 0,
+) {}
 """
 
 class ClassifierTest {
@@ -111,6 +135,26 @@ class ClassifierTest {
     // The names match; only the types differ. The key must still differ, or the lock sees one
     // component with two encodings.
     assertTrue(fields[0].dictionaryName != fields[1].dictionaryName)
+  }
+
+  /**
+   * The defect plans/material3-proof.md section 0 measured before it was fixed.
+   *
+   * Both overloads used to bind. Kotlin accepted them, because swapping two parameters of
+   * different types is a different signature -- and every call that supplied only `value` and
+   * `onValueChange` was an overload-resolution ambiguity, so no payload could call `Slider` at
+   * all. Nothing caught it: the tier's tests composed wire trees, not Kotlin calls, and no sample
+   * had used it.
+   */
+  @Test
+  fun twoOverloadsAGuestCannotTellApartAreOneComponent() {
+    val sliders = classified.filter { it.source.name == "Slider" }
+    assertEquals(2, sliders.size)
+    assertTrue(sliders[0].isBindable, sliders[0].unbindableReason.orEmpty())
+    assertEquals(
+      "guest signature identical to Slider after erasing host-default-only parameters",
+      sliders[1].unbindableReason,
+    )
   }
 
   @Test

@@ -24,6 +24,10 @@ kotlin {
   js(IR) {
     outputModuleName.set("slice-screens")
     browser()
+    // Tests run on Node, as dogwood-compose's do and for the same reason: what
+    // `MaterialScreenCoverageTest` asserts is a property of a real composition -- which widget tags
+    // this screen actually sends -- so it has to run where the real Compose runtime runs.
+    nodejs()
   }
   sourceSets {
     jsMain {
@@ -35,6 +39,11 @@ kotlin {
       kotlin.srcDir(
         project(":samples:product-design-system").layout.buildDirectory.dir("generated/acme/guest"),
       )
+    }
+    jsTest {
+      dependencies {
+        implementation(kotlin("test"))
+      }
     }
   }
 }
