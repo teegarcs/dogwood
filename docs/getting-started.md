@@ -233,6 +233,13 @@ decision somebody wrote rather than a default they inherited. Signing needs `cry
 page must be on HTTPS or `localhost`. The guest *script* is still fetched without an integrity
 check; that half is recorded as open.
 
+**Your Content Security Policy must admit `blob:` workers.** The page fetches the guest script,
+verifies its digest against the signed sidecar, and constructs the Worker from a `Blob` of the
+bytes it verified, so `worker-src` needs `blob:` beside `'self'`. With `'self'` alone the browser
+creates the Worker and kills it before it runs; since 2026-09-15 the page reports that as "the
+Worker died before it could speak", and before that it looked like a guest that never composed.
+The sample's `index.html` carries the reference policy.
+
 **`network` is the browser's guarantee, not Dogwood's.** Your guest calls `fetch` inside the page's
 origin, so set a `connect-src` Content Security Policy if you want the mobile allow-list's
 behaviour. To publish an update to a live page, call `experience.update(newBridge)`; it carries the
@@ -335,6 +342,31 @@ handling; those are generated. Three things to get right the first time:
 - **A lock file appears beside your surface. Commit it.** It fails the build if a tag ever moves,
   and a moved tag does not fail to render — it renders the wrong widget on a client one version
   behind.
+
+### The Material 3 tier, if you want the library rather than a catalogue
+
+Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
+the host can also bind **Material 3 itself**, generated from the library's own sources at the
+version the host resolves. It is a separate artifact, registered explicitly, because on the web it
+is a page-weight decision (it references every Material 3 composable):
+
+```kotlin
+// host
+implementation("io.github.teegarcs:dogwood-material3:0.1.0")
+DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)   // beside your own binding
+```
+
+```kotlin
+// payload
+import dev.dogwood.compose.material3.*
+Card { Column { Switch(checked = on, onCheckedChange = { on = it }); Button(onClick = {}) { Text("Go") } } }
+```
+
+Every optional parameter is `null` on the payload side and the host passes the library's own
+default. What you can and cannot set on each component is
+[`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md); the short version is that
+colours, elevations and interaction sources are not settable from a payload yet, and the shapes,
+paddings, booleans, text and slots are.
 
 ## 3. The payload
 

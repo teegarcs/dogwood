@@ -55,6 +55,7 @@ kotlin {
         // dependency the Android, desktop and web hosts already had. Its absence was invisible
         // until `tools/skew-drill/run-ios.sh` reported three unknown widget tags on a simulator.
         implementation(project(":samples:product-design-system"))
+        implementation(project(":dogwood-material3"))
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)

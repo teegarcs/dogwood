@@ -36,7 +36,11 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "engine/dogwood-host/src/renderTest/kotlin"
+# Every module with a shared render source set. The Material 3 tier has one too (plans/generator-v2.md, M2).
+SOURCES = [
+    ROOT / "engine/dogwood-host/src/renderTest/kotlin",
+    ROOT / "engine/dogwood-material3/src/renderTest/kotlin",
+]
 
 # A call that starts a composition, directly or through one of this source set's helpers.
 RENDERS = re.compile(r"\brunComposeUiTest\s*\{|\b(render|rendered|show|showing|scrolling|mounted)\s*\(")
@@ -44,7 +48,7 @@ RENDERS = re.compile(r"\brunComposeUiTest\s*\{|\b(render|rendered|show|showing|s
 
 def problems() -> list[str]:
     found = []
-    for path in sorted(SOURCE.rglob("*.kt")):
+    for path in sorted(p for source in SOURCES for p in source.rglob("*.kt")):
         lines = path.read_text().split("\n")
         i = 0
         while i < len(lines):
@@ -79,8 +83,9 @@ def problems() -> list[str]:
 
 
 if __name__ == "__main__":
-    if not SOURCE.is_dir():
-        sys.exit(f"no shared render tests at {SOURCE}")
+    for source in SOURCES:
+        if not source.is_dir():
+            sys.exit(f"no shared render tests at {source}")
     found = problems()
     for problem in found:
         print(f"render-shape: {problem}")
@@ -89,4 +94,4 @@ if __name__ == "__main__":
               f"header.", file=sys.stderr)
         sys.exit(1)
     print(f"render-shape: every shared render test returns its harness result "
-          f"({len(list(SOURCE.rglob('*.kt')))} files)")
+          f"({sum(len(list(source.rglob('*.kt'))) for source in SOURCES)} files)")

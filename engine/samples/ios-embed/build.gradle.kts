@@ -44,6 +44,7 @@ kotlin {
       // in but not visible: the header would carry the factory and none of the types it takes.
       export(project(":dogwood-host"))
       export(project(":samples:product-design-system"))
+      export(project(":dogwood-material3"))
     }
   }
 
@@ -55,6 +56,7 @@ kotlin {
         // combination outright rather than producing a header with holes in it.
         api(project(":dogwood-host"))
         api(project(":samples:product-design-system"))
+        api(project(":dogwood-material3"))
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)

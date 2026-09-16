@@ -73,11 +73,17 @@ Each row names the protection, where it is enforced, and the record with the evi
 - **No process isolation.** The guest shares the application's process and address space. A
   memory-safety defect in QuickJS, or in a native library it reaches, is exploitable by a payload
   that can trigger it. The mitigation is that only signed payloads run; there is no second line.
-- **No integrity check on the web guest script.** The sidecar manifest is signed and verified; the
-  script it names is fetched by `new Worker(url)`, which supports no Subresource Integrity
-  attribute. HTTPS and same-origin are what protect it ([ADR-032](../adrs/layer-5/ADR-032-the-web-profile.md)
-  states this as the profile's weakest part). Closing it means constructing the Worker from a
-  verified blob, which is recorded as open.
+- ~~**No integrity check on the web guest script.**~~ **Closed 2026-09-15.** The signed sidecar now
+  carries `guestScriptSha256`; `WebDelivery` fetches the script bytes itself, digests them with
+  `crypto.subtle`, refuses on a mismatch (`IntegrityRefused`, no Worker created), and constructs
+  the Worker from a `Blob` of the bytes it verified — never from the network address. A manifest
+  without the digest is refused when keys are passed and accepted only in believe-the-origin mode.
+  Conformance claim `B5` grades it with a fixture whose signature is valid and whose digest is
+  wrong, which is what a script swapped at the origin after signing looks like. **A deployment's
+  Content Security Policy must therefore allow `worker-src blob:`**; the first drill after the
+  change found the sample's own policy did not, and the Worker died silently. What HTTPS gave was
+  transport integrity; what this gives is the mobile property — a substituted server cannot make a
+  client run code the signing key never covered.
 - **No origin isolation on the web.** A Worker shares the page's origin and carries its credentials
   on requests the Content Security Policy permits. The mobile allow-list is the host's; on the web
   it is the page's `connect-src`, and a page that sets none has no allow-list at all.

@@ -175,6 +175,12 @@ class WorkerBridge(
     if (!notifiedFailure) {
       notifiedFailure = true
       onWorkerFailure(reason)
+      // And the listener, always. The optional callback above is what a host wires for its own
+      // recovery; the listener is what puts the reason where the page's report and the drills
+      // read. Without this line a Content Security Policy that refused the blob: Worker produced
+      // `workerCreated=true` and "the guest never sent a batch" and nothing in between -- found
+      // 2026-09-15, when the accessibility drill saw an empty page and every diagnostic said fine.
+      listener.onGuestError(0, "the Worker died before it could speak: $reason")
     }
   }
 

@@ -407,6 +407,9 @@ class SurfaceParser(
           HolderProperty(suffix = "ActionLabel", type = "String", field = "actionLabel", absent = "\"\""),
           HolderProperty(suffix = "Sequence", type = "Int", field = "sequence", absent = "0"),
           HolderProperty(suffix = "Watching", type = "Boolean", field = "watching", absent = "false"),
+          // Appended, never inserted: a holder's properties are tags, and this one arrived a week
+          // after the other four (ADR-051 §4's "another target property", built 2026-09-15).
+          HolderProperty(suffix = "DismissSequence", type = "Int", field = "dismissSequence", absent = "0"),
         ),
         report = HolderReport(
           method = "report",

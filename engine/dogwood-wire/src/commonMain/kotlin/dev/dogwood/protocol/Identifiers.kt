@@ -112,4 +112,20 @@ object ModifierTags {
   /** Value: `[minDp, maxDp]`; -1 leaves a bound unconstrained. */
   const val WIDTH_IN = 26
   const val HEIGHT_IN = 27
+
+  /**
+   * Value: `[enabled, roleName]`. `CLICKABLE` with a semantics role; the handler rides the same
+   * per-element slot. A separate tag rather than a widened `CLICKABLE`, so a payload that names no
+   * role keeps sending the form a version-2 host already reads.
+   */
+  const val CLICKABLE_ROLE = 28
+
+  /** Value: `[widthDp, colourRecipe, shapeRecipe]`. `BORDER` with a shape. */
+  const val BORDER_SHAPE = 29
+
+  /**
+   * Value: `[start, top, end, bottom]`, each a number or an animated-number recipe. `PADDING_SIDES`
+   * with targets: one element, so all four sides retarget together and one completion fires.
+   */
+  const val PADDING_SIDES_ANIMATED = 30
 }

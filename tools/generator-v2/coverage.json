@@ -1,0 +1,5729 @@
+{
+    "modules": {
+        "foundation": {
+            "composables": 47,
+            "bound": 2,
+            "generableExcluded": 17,
+            "bespoke": 12,
+            "unreachable": 4,
+            "deprecated": 12,
+            "settableParameters": 3,
+            "hostDefaultOnlyParameters": 0
+        },
+        "foundation-layout": {
+            "composables": 12,
+            "bound": 8,
+            "generableExcluded": 0,
+            "bespoke": 0,
+            "unreachable": 0,
+            "deprecated": 4,
+            "settableParameters": 32,
+            "hostDefaultOnlyParameters": 0
+        },
+        "material3": {
+            "composables": 186,
+            "bound": 80,
+            "generableExcluded": 21,
+            "bespoke": 38,
+            "unreachable": 6,
+            "deprecated": 41,
+            "settableParameters": 475,
+            "hostDefaultOnlyParameters": 170
+        },
+        "ui": {
+            "composables": 15,
+            "bound": 4,
+            "generableExcluded": 0,
+            "bespoke": 8,
+            "unreachable": 1,
+            "deprecated": 2,
+            "settableParameters": 15,
+            "hostDefaultOnlyParameters": 4
+        }
+    },
+    "overall": {
+        "composables": 260,
+        "bound": 94,
+        "generableExcluded": 38,
+        "bespoke": 58,
+        "unreachable": 11,
+        "deprecated": 59,
+        "settableParameters": 525,
+        "hostDefaultOnlyParameters": 174
+    },
+    "rows": [
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/BasicTooltip.kt",
+            "name": "BasicTooltipBox",
+            "dictionaryName": "BasicTooltipBox",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "positionProvider: type PopupPositionProvider cannot cross the boundary",
+            "settable": [
+                "tooltip",
+                "modifier",
+                "focusable",
+                "enableUserInput",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Canvas.kt",
+            "name": "Canvas",
+            "dictionaryName": "Canvas",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "onDraw: DrawScope is invoked inside a frame",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Canvas.kt",
+            "name": "Canvas",
+            "dictionaryName": "Canvas~bf782469",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "onDraw: DrawScope is invoked inside a frame",
+            "settable": [
+                "modifier",
+                "contentDescription"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Image.kt",
+            "name": "Image",
+            "dictionaryName": "Image",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "alignment",
+                "alpha"
+            ],
+            "hostDefaultOnly": [
+                "contentScale",
+                "colorFilter"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Image.kt",
+            "name": "Image",
+            "dictionaryName": "Image~56d9f578",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "bitmap: asset-backed type ImageBitmap",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "alignment",
+                "alpha"
+            ],
+            "hostDefaultOnly": [
+                "contentScale",
+                "colorFilter",
+                "filterQuality"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Image.kt",
+            "name": "Image",
+            "dictionaryName": "Image~bbb6c09a",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "imageVector: asset-backed type ImageVector",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "alignment",
+                "alpha"
+            ],
+            "hostDefaultOnly": [
+                "contentScale",
+                "colorFilter"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/Image.kt",
+            "name": "Image",
+            "dictionaryName": "Image~23f3ab81",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "painter: asset-backed type Painter",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "alignment",
+                "alpha"
+            ],
+            "hostDefaultOnly": [
+                "contentScale",
+                "colorFilter"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyRow",
+            "dictionaryName": "LazyRow",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "content: LazyListScope is invoked inside a frame",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "horizontalArrangement",
+                "verticalAlignment",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyColumn",
+            "dictionaryName": "LazyColumn",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "content: LazyListScope is invoked inside a frame",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalAlignment",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyColumn",
+            "dictionaryName": "LazyColumn~448d5165",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalAlignment",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyColumn",
+            "dictionaryName": "LazyColumn~bc1165d0",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalAlignment"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyRow",
+            "dictionaryName": "LazyRow~2758cbd7",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "horizontalArrangement",
+                "verticalAlignment",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/LazyDsl.kt",
+            "name": "LazyRow",
+            "dictionaryName": "LazyRow~55c0e15f",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "horizontalArrangement",
+                "verticalAlignment"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/grid/LazyGridDsl.kt",
+            "name": "LazyVerticalGrid",
+            "dictionaryName": "LazyVerticalGrid",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "columns: type GridCells cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/grid/LazyGridDsl.kt",
+            "name": "LazyVerticalGrid",
+            "dictionaryName": "LazyVerticalGrid~24cbfd50",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/grid/LazyGridDsl.kt",
+            "name": "LazyHorizontalGrid",
+            "dictionaryName": "LazyHorizontalGrid",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "rows: type GridCells cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "horizontalArrangement",
+                "verticalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/grid/LazyGridDsl.kt",
+            "name": "LazyHorizontalGrid",
+            "dictionaryName": "LazyHorizontalGrid~2b5da1a8",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "horizontalArrangement",
+                "verticalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/layout/LazyLayout.kt",
+            "name": "LazyLayout",
+            "dictionaryName": "LazyLayout",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "prefetchState"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/layout/LazyLayout.kt",
+            "name": "LazyLayout",
+            "dictionaryName": "LazyLayout~036db7da",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "itemProvider: host-invoked lambda returning LazyLayoutItemProvider",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "prefetchState"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/layout/LazyLayoutPinnableItem.kt",
+            "name": "LazyLayoutPinnableItem",
+            "dictionaryName": "LazyLayoutPinnableItem",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "key: type Any cannot cross the boundary",
+            "settable": [
+                "index",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/staggeredgrid/LazyStaggeredGridDsl.kt",
+            "name": "LazyVerticalStaggeredGrid",
+            "dictionaryName": "LazyVerticalStaggeredGrid",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "columns: type StaggeredGridCells cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalItemSpacing",
+                "horizontalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/staggeredgrid/LazyStaggeredGridDsl.kt",
+            "name": "LazyVerticalStaggeredGrid",
+            "dictionaryName": "LazyVerticalStaggeredGrid~6ae35d73",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalItemSpacing",
+                "horizontalArrangement",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/staggeredgrid/LazyStaggeredGridDsl.kt",
+            "name": "LazyHorizontalStaggeredGrid",
+            "dictionaryName": "LazyHorizontalStaggeredGrid",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "rows: type StaggeredGridCells cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalItemSpacing",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/lazy/staggeredgrid/LazyStaggeredGridDsl.kt",
+            "name": "LazyHorizontalStaggeredGrid",
+            "dictionaryName": "LazyHorizontalStaggeredGrid~94dab581",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "reverseLayout",
+                "verticalArrangement",
+                "horizontalItemSpacing",
+                "userScrollEnabled"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "flingBehavior"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/pager/Pager.kt",
+            "name": "HorizontalPager",
+            "dictionaryName": "HorizontalPager",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder PagerState",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "beyondViewportPageCount",
+                "pageSpacing",
+                "verticalAlignment",
+                "userScrollEnabled",
+                "reverseLayout"
+            ],
+            "hostDefaultOnly": [
+                "pageSize",
+                "flingBehavior",
+                "key",
+                "pageNestedScrollConnection",
+                "snapPosition",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/pager/Pager.kt",
+            "name": "HorizontalPager",
+            "dictionaryName": "HorizontalPager~2bbc1ee6",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "beyondViewportPageCount",
+                "pageSpacing",
+                "verticalAlignment",
+                "userScrollEnabled",
+                "reverseLayout"
+            ],
+            "hostDefaultOnly": [
+                "pageSize",
+                "flingBehavior",
+                "key",
+                "pageNestedScrollConnection",
+                "snapPosition"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/pager/Pager.kt",
+            "name": "VerticalPager",
+            "dictionaryName": "VerticalPager",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder PagerState",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "beyondViewportPageCount",
+                "pageSpacing",
+                "horizontalAlignment",
+                "userScrollEnabled",
+                "reverseLayout"
+            ],
+            "hostDefaultOnly": [
+                "pageSize",
+                "flingBehavior",
+                "key",
+                "pageNestedScrollConnection",
+                "snapPosition",
+                "overscrollEffect"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/pager/Pager.kt",
+            "name": "VerticalPager",
+            "dictionaryName": "VerticalPager~db50577f",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "contentPadding",
+                "beyondViewportPageCount",
+                "pageSpacing",
+                "horizontalAlignment",
+                "userScrollEnabled",
+                "reverseLayout"
+            ],
+            "hostDefaultOnly": [
+                "pageSize",
+                "flingBehavior",
+                "key",
+                "pageNestedScrollConnection",
+                "snapPosition"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicSecureTextField.kt",
+            "name": "BasicSecureTextField",
+            "dictionaryName": "BasicSecureTextField",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly"
+            ],
+            "hostDefaultOnly": [
+                "inputTransformation",
+                "textStyle",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorator",
+                "textObfuscationMode",
+                "textObfuscationCharacter",
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicSecureTextField.kt",
+            "name": "BasicSecureTextField",
+            "dictionaryName": "BasicSecureTextField~3be96ab8",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "inputTransformation",
+                "textStyle",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorator",
+                "textObfuscationMode",
+                "textObfuscationCharacter"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicSecureTextField.kt",
+            "name": "BasicSecureTextField",
+            "dictionaryName": "BasicSecureTextField~6fe24c65",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly"
+            ],
+            "hostDefaultOnly": [
+                "inputTransformation",
+                "textStyle",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorator",
+                "textObfuscationMode",
+                "textObfuscationCharacter"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "text",
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "color",
+                "autoSize"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~d57d2339",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "inlineContent",
+                "color",
+                "autoSize"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~d5d29bab",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "text",
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "color"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~802f9d7e",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "inlineContent",
+                "color"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~e1eaa739",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "text",
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~4b6e2e90",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "inlineContent"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~f92c6d32",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "text",
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicText.kt",
+            "name": "BasicText",
+            "dictionaryName": "BasicText~709049d2",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout",
+                "inlineContent"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicTextField.kt",
+            "name": "BasicTextField",
+            "dictionaryName": "BasicTextField",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly"
+            ],
+            "hostDefaultOnly": [
+                "inputTransformation",
+                "textStyle",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "lineLimits",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "outputTransformation",
+                "decorator",
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicTextField.kt",
+            "name": "BasicTextField",
+            "dictionaryName": "BasicTextField~99fd548e",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "readOnly",
+                "singleLine",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "keyboardOptions",
+                "keyboardActions",
+                "visualTransformation",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorationBox"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicTextField.kt",
+            "name": "BasicTextField",
+            "dictionaryName": "BasicTextField~0ff90d44",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "singleLine",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "keyboardOptions",
+                "keyboardActions",
+                "visualTransformation",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorationBox"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicTextField.kt",
+            "name": "BasicTextField",
+            "dictionaryName": "BasicTextField~5634b4f0",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "readOnly",
+                "singleLine",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "keyboardOptions",
+                "keyboardActions",
+                "visualTransformation",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorationBox"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/BasicTextField.kt",
+            "name": "BasicTextField",
+            "dictionaryName": "BasicTextField~443ac9db",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textStyle: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "singleLine",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "keyboardOptions",
+                "keyboardActions",
+                "visualTransformation",
+                "onTextLayout",
+                "interactionSource",
+                "cursorBrush",
+                "decorationBox"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/ClickableText.kt",
+            "name": "ClickableText",
+            "dictionaryName": "ClickableText",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "style: default names internal `Default`",
+            "settable": [
+                "modifier",
+                "softWrap",
+                "overflow",
+                "maxLines",
+                "onClick"
+            ],
+            "hostDefaultOnly": [
+                "style",
+                "onTextLayout"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/selection/SelectionContainer.kt",
+            "name": "SelectionContainer",
+            "dictionaryName": "SelectionContainer",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation",
+            "file": "androidx/compose/foundation/text/selection/SelectionContainer.kt",
+            "name": "DisableSelection",
+            "dictionaryName": "DisableSelection",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/Box.kt",
+            "name": "Box",
+            "dictionaryName": "Box",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "contentAlignment",
+                "propagateMinConstraints",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/Box.kt",
+            "name": "Box",
+            "dictionaryName": "Box~890fe8b6",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/BoxWithConstraints.kt",
+            "name": "BoxWithConstraints",
+            "dictionaryName": "BoxWithConstraints",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "contentAlignment",
+                "propagateMinConstraints",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/Column.kt",
+            "name": "Column",
+            "dictionaryName": "Column",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "verticalArrangement",
+                "horizontalAlignment",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/ContextualFlowLayout.kt",
+            "name": "ContextualFlowRow",
+            "dictionaryName": "ContextualFlowRow",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "itemCount",
+                "modifier",
+                "horizontalArrangement",
+                "verticalArrangement",
+                "itemVerticalAlignment",
+                "maxItemsInEachRow",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "overflow"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/ContextualFlowLayout.kt",
+            "name": "ContextualFlowColumn",
+            "dictionaryName": "ContextualFlowColumn",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "itemCount",
+                "modifier",
+                "verticalArrangement",
+                "horizontalArrangement",
+                "itemHorizontalAlignment",
+                "maxItemsInEachColumn",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "overflow"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/FlowLayout.kt",
+            "name": "FlowRow",
+            "dictionaryName": "FlowRow",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "horizontalArrangement",
+                "verticalArrangement",
+                "itemVerticalAlignment",
+                "maxItemsInEachRow",
+                "maxLines",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "overflow"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/FlowLayout.kt",
+            "name": "FlowRow",
+            "dictionaryName": "FlowRow~cd63def4",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "horizontalArrangement",
+                "verticalArrangement",
+                "itemVerticalAlignment",
+                "maxItemsInEachRow",
+                "maxLines",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/FlowLayout.kt",
+            "name": "FlowColumn",
+            "dictionaryName": "FlowColumn",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "verticalArrangement",
+                "horizontalArrangement",
+                "itemHorizontalAlignment",
+                "maxItemsInEachColumn",
+                "maxLines",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "overflow"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/FlowLayout.kt",
+            "name": "FlowColumn",
+            "dictionaryName": "FlowColumn~4f8a3c9f",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "verticalArrangement",
+                "horizontalArrangement",
+                "itemHorizontalAlignment",
+                "maxItemsInEachColumn",
+                "maxLines",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/Row.kt",
+            "name": "Row",
+            "dictionaryName": "Row",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "horizontalArrangement",
+                "verticalAlignment",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "foundation-layout",
+            "file": "androidx/compose/foundation/layout/Spacer.kt",
+            "name": "Spacer",
+            "dictionaryName": "Spacer",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AlertDialog.kt",
+            "name": "AlertDialog",
+            "dictionaryName": "AlertDialog",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "confirmButton",
+                "modifier",
+                "dismissButton",
+                "icon",
+                "title",
+                "text",
+                "shape",
+                "containerColor",
+                "iconContentColor",
+                "titleContentColor",
+                "textContentColor",
+                "tonalElevation"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AlertDialog.kt",
+            "name": "BasicAlertDialog",
+            "dictionaryName": "BasicAlertDialog",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AlertDialog.kt",
+            "name": "AlertDialog",
+            "dictionaryName": "AlertDialog~4c65fc57",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onDismissRequest",
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "TopAppBar",
+            "dictionaryName": "TopAppBar",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "TopAppBar",
+            "dictionaryName": "TopAppBar~b00f901d",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions",
+                "expandedHeight"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "CenterAlignedTopAppBar",
+            "dictionaryName": "CenterAlignedTopAppBar",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "CenterAlignedTopAppBar",
+            "dictionaryName": "CenterAlignedTopAppBar~b00f901d",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions",
+                "expandedHeight"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "MediumTopAppBar",
+            "dictionaryName": "MediumTopAppBar",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "MediumTopAppBar",
+            "dictionaryName": "MediumTopAppBar~f7301943",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions",
+                "collapsedHeight",
+                "expandedHeight"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "LargeTopAppBar",
+            "dictionaryName": "LargeTopAppBar",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "LargeTopAppBar",
+            "dictionaryName": "LargeTopAppBar~f7301943",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "title",
+                "modifier",
+                "navigationIcon",
+                "actions",
+                "collapsedHeight",
+                "expandedHeight"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "colors",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "BottomAppBar",
+            "dictionaryName": "BottomAppBar",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "actions",
+                "modifier",
+                "floatingActionButton",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "BottomAppBar",
+            "dictionaryName": "BottomAppBar~92a24b63",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to BottomAppBar after erasing host-default-only parameters",
+            "settable": [
+                "actions",
+                "modifier",
+                "floatingActionButton",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "BottomAppBar",
+            "dictionaryName": "BottomAppBar~5acd9818",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBar.kt",
+            "name": "BottomAppBar",
+            "dictionaryName": "BottomAppBar~e0f16674",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to BottomAppBar~5acd9818 after erasing host-default-only parameters",
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBarColumn.kt",
+            "name": "AppBarColumn",
+            "dictionaryName": "AppBarColumn",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "overflowIndicator: slot receives AppBarMenuState the guest cannot read",
+            "settable": [
+                "modifier",
+                "maxItemCount"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/AppBarRow.kt",
+            "name": "AppBarRow",
+            "dictionaryName": "AppBarRow",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "overflowIndicator: slot receives AppBarMenuState the guest cannot read",
+            "settable": [
+                "modifier",
+                "maxItemCount"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Badge.kt",
+            "name": "BadgedBox",
+            "dictionaryName": "BadgedBox",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "badge",
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Badge.kt",
+            "name": "Badge",
+            "dictionaryName": "Badge",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/BottomSheetScaffold.kt",
+            "name": "BottomSheetScaffold",
+            "dictionaryName": "BottomSheetScaffold",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "containerColor: default names internal `MaterialTheme`",
+            "settable": [
+                "sheetContent",
+                "modifier",
+                "sheetPeekHeight",
+                "sheetMaxWidth",
+                "sheetShape",
+                "sheetContainerColor",
+                "sheetContentColor",
+                "sheetTonalElevation",
+                "sheetShadowElevation",
+                "sheetDragHandle",
+                "sheetSwipeEnabled",
+                "topBar",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "scaffoldState",
+                "snackbarHost"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Button.kt",
+            "name": "Button",
+            "dictionaryName": "Button",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Button.kt",
+            "name": "ElevatedButton",
+            "dictionaryName": "ElevatedButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Button.kt",
+            "name": "FilledTonalButton",
+            "dictionaryName": "FilledTonalButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Button.kt",
+            "name": "OutlinedButton",
+            "dictionaryName": "OutlinedButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Button.kt",
+            "name": "TextButton",
+            "dictionaryName": "TextButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "contentPadding",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "Card",
+            "dictionaryName": "Card",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "Card",
+            "dictionaryName": "Card~6ae0a5d2",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "ElevatedCard",
+            "dictionaryName": "ElevatedCard",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "ElevatedCard",
+            "dictionaryName": "ElevatedCard~cc5087f1",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "OutlinedCard",
+            "dictionaryName": "OutlinedCard",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Card.kt",
+            "name": "OutlinedCard",
+            "dictionaryName": "OutlinedCard~2c46c5fa",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Checkbox.kt",
+            "name": "Checkbox",
+            "dictionaryName": "Checkbox",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Checkbox.kt",
+            "name": "Checkbox",
+            "dictionaryName": "Checkbox~609b80d6",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "checkmarkStroke: type Stroke cannot cross the boundary",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Checkbox.kt",
+            "name": "TriStateCheckbox",
+            "dictionaryName": "TriStateCheckbox",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder ToggleableState",
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Checkbox.kt",
+            "name": "TriStateCheckbox",
+            "dictionaryName": "TriStateCheckbox~a32797bf",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder ToggleableState",
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "AssistChip",
+            "dictionaryName": "AssistChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "AssistChip",
+            "dictionaryName": "AssistChip~3f28020e",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "ElevatedAssistChip",
+            "dictionaryName": "ElevatedAssistChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "ElevatedAssistChip",
+            "dictionaryName": "ElevatedAssistChip~3f28020e",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "FilterChip",
+            "dictionaryName": "FilterChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "ElevatedFilterChip",
+            "dictionaryName": "ElevatedFilterChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "InputChip",
+            "dictionaryName": "InputChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "leadingIcon",
+                "avatar",
+                "trailingIcon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "SuggestionChip",
+            "dictionaryName": "SuggestionChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "icon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "SuggestionChip",
+            "dictionaryName": "SuggestionChip~502ac174",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "icon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "ElevatedSuggestionChip",
+            "dictionaryName": "ElevatedSuggestionChip",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "icon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Chip.kt",
+            "name": "ElevatedSuggestionChip",
+            "dictionaryName": "ElevatedSuggestionChip~502ac174",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onClick",
+                "label",
+                "modifier",
+                "enabled",
+                "icon",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "elevation",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/DatePicker.kt",
+            "name": "DatePicker",
+            "dictionaryName": "DatePicker",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "title: default names internal `DatePickerTitlePadding`",
+            "settable": [
+                "modifier",
+                "title",
+                "headline",
+                "showModeToggle"
+            ],
+            "hostDefaultOnly": [
+                "dateFormatter",
+                "colors",
+                "focusRequester"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/DatePickerDialog.kt",
+            "name": "DatePickerDialog",
+            "dictionaryName": "DatePickerDialog",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "confirmButton",
+                "modifier",
+                "dismissButton",
+                "shape",
+                "tonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "properties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/DateRangePicker.kt",
+            "name": "DateRangePicker",
+            "dictionaryName": "DateRangePicker",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "title: default names internal `DateRangePickerTitlePadding`",
+            "settable": [
+                "modifier",
+                "title",
+                "headline",
+                "showModeToggle"
+            ],
+            "hostDefaultOnly": [
+                "dateFormatter",
+                "colors",
+                "focusRequester"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Divider.kt",
+            "name": "HorizontalDivider",
+            "dictionaryName": "HorizontalDivider",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "thickness",
+                "color"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Divider.kt",
+            "name": "VerticalDivider",
+            "dictionaryName": "VerticalDivider",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "thickness",
+                "color"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Divider.kt",
+            "name": "Divider",
+            "dictionaryName": "Divider",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "thickness",
+                "color"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/DragHandle.kt",
+            "name": "VerticalDragHandle",
+            "dictionaryName": "VerticalDragHandle",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "sizes",
+                "colors",
+                "shapes",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ExposedDropdownMenu.kt",
+            "name": "ExposedDropdownMenuBox",
+            "dictionaryName": "ExposedDropdownMenuBox",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "expanded",
+                "onExpandedChange",
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/FloatingActionButton.kt",
+            "name": "FloatingActionButton",
+            "dictionaryName": "FloatingActionButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/FloatingActionButton.kt",
+            "name": "SmallFloatingActionButton",
+            "dictionaryName": "SmallFloatingActionButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/FloatingActionButton.kt",
+            "name": "LargeFloatingActionButton",
+            "dictionaryName": "LargeFloatingActionButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/FloatingActionButton.kt",
+            "name": "ExtendedFloatingActionButton",
+            "dictionaryName": "ExtendedFloatingActionButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/FloatingActionButton.kt",
+            "name": "ExtendedFloatingActionButton",
+            "dictionaryName": "ExtendedFloatingActionButton~76dd3930",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "text",
+                "icon",
+                "onClick",
+                "modifier",
+                "expanded",
+                "shape",
+                "containerColor",
+                "contentColor"
+            ],
+            "hostDefaultOnly": [
+                "elevation",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Icon.kt",
+            "name": "Icon",
+            "dictionaryName": "Icon",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "imageVector: asset-backed type ImageVector",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "tint"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Icon.kt",
+            "name": "Icon",
+            "dictionaryName": "Icon~832f5978",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "bitmap: asset-backed type ImageBitmap",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "tint"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Icon.kt",
+            "name": "Icon",
+            "dictionaryName": "Icon~9cad86c5",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "painter: asset-backed type Painter",
+            "settable": [
+                "contentDescription",
+                "modifier",
+                "tint"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Icon.kt",
+            "name": "Icon",
+            "dictionaryName": "Icon~5c00e551",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "painter: asset-backed type Painter",
+            "settable": [
+                "contentDescription",
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "IconButton",
+            "dictionaryName": "IconButton",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "IconButton",
+            "dictionaryName": "IconButton~562a5151",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi)",
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "IconToggleButton",
+            "dictionaryName": "IconToggleButton",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "IconToggleButton",
+            "dictionaryName": "IconToggleButton~ac323557",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi)",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "FilledIconButton",
+            "dictionaryName": "FilledIconButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "FilledIconToggleButton",
+            "dictionaryName": "FilledIconToggleButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "FilledTonalIconButton",
+            "dictionaryName": "FilledTonalIconButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "FilledTonalIconToggleButton",
+            "dictionaryName": "FilledTonalIconToggleButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "OutlinedIconButton",
+            "dictionaryName": "OutlinedIconButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/IconButton.kt",
+            "name": "OutlinedIconToggleButton",
+            "dictionaryName": "OutlinedIconToggleButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "shape",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Label.kt",
+            "name": "Label",
+            "dictionaryName": "Label",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "label",
+                "modifier",
+                "isPersistent",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ListItem.kt",
+            "name": "ListItem",
+            "dictionaryName": "ListItem",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "headlineContent",
+                "modifier",
+                "overlineContent",
+                "supportingContent",
+                "leadingContent",
+                "trailingContent",
+                "tonalElevation",
+                "shadowElevation"
+            ],
+            "hostDefaultOnly": [
+                "colors"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/MaterialTheme.kt",
+            "name": "MaterialTheme",
+            "dictionaryName": "MaterialTheme",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi)",
+            "settable": [
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colorScheme",
+                "shapes",
+                "typography"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Menu.kt",
+            "name": "DropdownMenu",
+            "dictionaryName": "DropdownMenu",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "properties: default names internal `DefaultMenuProperties`",
+            "settable": [
+                "expanded",
+                "onDismissRequest",
+                "modifier",
+                "shape",
+                "containerColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "offset",
+                "scrollState",
+                "properties",
+                "border"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Menu.kt",
+            "name": "DropdownMenuItem",
+            "dictionaryName": "DropdownMenuItem",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "text",
+                "onClick",
+                "modifier",
+                "leadingIcon",
+                "trailingIcon",
+                "enabled",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ModalBottomSheet.kt",
+            "name": "ModalBottomSheet",
+            "dictionaryName": "ModalBottomSheet",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "modifier",
+                "sheetMaxWidth",
+                "sheetGesturesEnabled",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "scrimColor",
+                "dragHandle",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "sheetState",
+                "contentWindowInsets",
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ModalBottomSheet.kt",
+            "name": "ModalBottomSheet",
+            "dictionaryName": "ModalBottomSheet~f5ef210f",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "onDismissRequest",
+                "modifier",
+                "sheetMaxWidth",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "scrimColor",
+                "dragHandle",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "sheetState",
+                "contentWindowInsets",
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationBar.kt",
+            "name": "NavigationBar",
+            "dictionaryName": "NavigationBar",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "contentColor: default names internal `MaterialTheme`",
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "tonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationBar.kt",
+            "name": "NavigationBarItem",
+            "dictionaryName": "NavigationBarItem",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "extension on RowScope; a binding calls by name",
+            "settable": [
+                "selected",
+                "onClick",
+                "icon",
+                "modifier",
+                "enabled",
+                "label",
+                "alwaysShowLabel"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "ModalNavigationDrawer",
+            "dictionaryName": "ModalNavigationDrawer",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "drawerContent",
+                "modifier",
+                "gesturesEnabled",
+                "scrimColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "drawerState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "DismissibleNavigationDrawer",
+            "dictionaryName": "DismissibleNavigationDrawer",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "drawerContent",
+                "modifier",
+                "gesturesEnabled",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "drawerState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "PermanentNavigationDrawer",
+            "dictionaryName": "PermanentNavigationDrawer",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "drawerContent",
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "ModalDrawerSheet",
+            "dictionaryName": "ModalDrawerSheet",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "drawerShape",
+                "drawerContainerColor",
+                "drawerContentColor",
+                "drawerTonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "ModalDrawerSheet",
+            "dictionaryName": "ModalDrawerSheet~08f0067c",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "drawerState: live-state holder DrawerState",
+            "settable": [
+                "modifier",
+                "drawerShape",
+                "drawerContainerColor",
+                "drawerContentColor",
+                "drawerTonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "DismissibleDrawerSheet",
+            "dictionaryName": "DismissibleDrawerSheet",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "drawerShape",
+                "drawerContainerColor",
+                "drawerContentColor",
+                "drawerTonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "DismissibleDrawerSheet",
+            "dictionaryName": "DismissibleDrawerSheet~08f0067c",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "drawerState: live-state holder DrawerState",
+            "settable": [
+                "modifier",
+                "drawerShape",
+                "drawerContainerColor",
+                "drawerContentColor",
+                "drawerTonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "PermanentDrawerSheet",
+            "dictionaryName": "PermanentDrawerSheet",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "drawerShape",
+                "drawerContainerColor",
+                "drawerContentColor",
+                "drawerTonalElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationDrawer.kt",
+            "name": "NavigationDrawerItem",
+            "dictionaryName": "NavigationDrawerItem",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "shape: default names internal `NavigationDrawerTokens`",
+            "settable": [
+                "label",
+                "selected",
+                "onClick",
+                "modifier",
+                "icon",
+                "badge",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationRail.kt",
+            "name": "NavigationRail",
+            "dictionaryName": "NavigationRail",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "header",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/NavigationRail.kt",
+            "name": "NavigationRailItem",
+            "dictionaryName": "NavigationRailItem",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "icon",
+                "modifier",
+                "enabled",
+                "label",
+                "alwaysShowLabel"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/OutlinedTextField.kt",
+            "name": "OutlinedTextField",
+            "dictionaryName": "OutlinedTextField",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "shape",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "labelPosition",
+                "inputTransformation",
+                "outputTransformation",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "lineLimits",
+                "onTextLayout",
+                "scrollState",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/OutlinedTextField.kt",
+            "name": "OutlinedTextField",
+            "dictionaryName": "OutlinedTextField~7a8e07ca",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "singleLine",
+                "maxLines",
+                "minLines",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "visualTransformation",
+                "keyboardOptions",
+                "keyboardActions",
+                "interactionSource",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/OutlinedTextField.kt",
+            "name": "OutlinedTextField",
+            "dictionaryName": "OutlinedTextField~927d21ff",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "singleLine",
+                "maxLines",
+                "minLines",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "visualTransformation",
+                "keyboardOptions",
+                "keyboardActions",
+                "interactionSource",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~d79d2572",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "progress: host-invoked lambda returning Float",
+            "settable": [
+                "modifier",
+                "color",
+                "trackColor",
+                "gapSize"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap",
+                "drawStopIndicator"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~f391b8aa",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~0d6d7e83",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "color",
+                "trackColor",
+                "gapSize"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~36951ee9",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "progress",
+                "modifier",
+                "color",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~5c505af9",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "progress",
+                "modifier",
+                "color",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "LinearProgressIndicator",
+            "dictionaryName": "LinearProgressIndicator~49d2a1cb",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "strokeWidth",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~0acd37f3",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "progress: host-invoked lambda returning Float",
+            "settable": [
+                "modifier",
+                "color",
+                "strokeWidth",
+                "trackColor",
+                "gapSize"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~eae197ef",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "strokeWidth",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~03d52693",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "color",
+                "strokeWidth",
+                "trackColor",
+                "gapSize"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~73b71fcd",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "progress",
+                "modifier",
+                "color",
+                "strokeWidth",
+                "trackColor"
+            ],
+            "hostDefaultOnly": [
+                "strokeCap"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~80369773",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "progress",
+                "modifier",
+                "color",
+                "strokeWidth"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ProgressIndicator.kt",
+            "name": "CircularProgressIndicator",
+            "dictionaryName": "CircularProgressIndicator~23b1e793",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "strokeWidth"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/RadioButton.kt",
+            "name": "RadioButton",
+            "dictionaryName": "RadioButton",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Scaffold.kt",
+            "name": "Scaffold",
+            "dictionaryName": "Scaffold",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "containerColor: default names internal `MaterialTheme`",
+            "settable": [
+                "modifier",
+                "topBar",
+                "bottomBar",
+                "snackbarHost",
+                "floatingActionButton",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "floatingActionButtonPosition",
+                "contentWindowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "SearchBar",
+            "dictionaryName": "SearchBar",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "inputField",
+                "modifier",
+                "shape",
+                "tonalElevation",
+                "shadowElevation"
+            ],
+            "hostDefaultOnly": [
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "TopSearchBar",
+            "dictionaryName": "TopSearchBar",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder SearchBarState",
+            "settable": [
+                "inputField",
+                "modifier",
+                "shape",
+                "tonalElevation",
+                "shadowElevation"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "windowInsets",
+                "scrollBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "ExpandedFullScreenSearchBar",
+            "dictionaryName": "ExpandedFullScreenSearchBar",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "inputField",
+                "modifier",
+                "collapsedShape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "windowInsets",
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "ExpandedDockedSearchBar",
+            "dictionaryName": "ExpandedDockedSearchBar",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "inputField",
+                "modifier",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "properties"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "SearchBar",
+            "dictionaryName": "SearchBar~979e0fa2",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "inputField",
+                "expanded",
+                "onExpandedChange",
+                "modifier",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "windowInsets"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "DockedSearchBar",
+            "dictionaryName": "DockedSearchBar",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "inputField",
+                "expanded",
+                "onExpandedChange",
+                "modifier",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "SearchBar",
+            "dictionaryName": "SearchBar~3e66cf48",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "query",
+                "onQueryChange",
+                "onSearch",
+                "active",
+                "onActiveChange",
+                "modifier",
+                "enabled",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "windowInsets",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SearchBar.kt",
+            "name": "DockedSearchBar",
+            "dictionaryName": "DockedSearchBar~28d03c8e",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "query",
+                "onQueryChange",
+                "onSearch",
+                "active",
+                "onActiveChange",
+                "modifier",
+                "enabled",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SecureTextField.kt",
+            "name": "SecureTextField",
+            "dictionaryName": "SecureTextField",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textObfuscationCharacter: default names internal `DefaultObfuscationCharacter`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "shape",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "labelPosition",
+                "inputTransformation",
+                "textObfuscationMode",
+                "textObfuscationCharacter",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "onTextLayout",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SecureTextField.kt",
+            "name": "OutlinedSecureTextField",
+            "dictionaryName": "OutlinedSecureTextField",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "textObfuscationCharacter: default names internal `DefaultObfuscationCharacter`",
+            "settable": [
+                "modifier",
+                "enabled",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "shape",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "labelPosition",
+                "inputTransformation",
+                "textObfuscationMode",
+                "textObfuscationCharacter",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "onTextLayout",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "SegmentedButton",
+            "dictionaryName": "SegmentedButton",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "extension on MultiChoiceSegmentedButtonRowScope; a binding calls by name",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "shape",
+                "modifier",
+                "enabled",
+                "contentPadding",
+                "icon",
+                "label"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "SegmentedButton",
+            "dictionaryName": "SegmentedButton~0302e58a",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "extension on SingleChoiceSegmentedButtonRowScope; a binding calls by name",
+            "settable": [
+                "selected",
+                "onClick",
+                "shape",
+                "modifier",
+                "enabled",
+                "contentPadding",
+                "icon",
+                "label"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "SegmentedButton",
+            "dictionaryName": "SegmentedButton~7124f473",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "shape",
+                "modifier",
+                "enabled",
+                "icon",
+                "label"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "SegmentedButton",
+            "dictionaryName": "SegmentedButton~fbd6e498",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "selected",
+                "onClick",
+                "shape",
+                "modifier",
+                "enabled",
+                "icon",
+                "label"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "SingleChoiceSegmentedButtonRow",
+            "dictionaryName": "SingleChoiceSegmentedButtonRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "space",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SegmentedButton.kt",
+            "name": "MultiChoiceSegmentedButtonRow",
+            "dictionaryName": "MultiChoiceSegmentedButtonRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "space",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ShortNavigationBar.kt",
+            "name": "ShortNavigationBar",
+            "dictionaryName": "ShortNavigationBar",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "windowInsets",
+                "arrangement"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/ShortNavigationBar.kt",
+            "name": "ShortNavigationBarItem",
+            "dictionaryName": "ShortNavigationBarItem",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "icon",
+                "label",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "iconPosition",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "Slider",
+            "dictionaryName": "Slider",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "steps",
+                "onValueChangeFinished"
+            ],
+            "hostDefaultOnly": [
+                "valueRange",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "Slider",
+            "dictionaryName": "Slider~d234905b",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "onValueChangeFinished",
+                "steps"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource",
+                "thumb",
+                "track",
+                "valueRange"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "Slider",
+            "dictionaryName": "Slider~e15d63b2",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder SliderState",
+            "settable": [
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource",
+                "thumb",
+                "track"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "RangeSlider",
+            "dictionaryName": "RangeSlider",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "enabled",
+                "steps",
+                "onValueChangeFinished"
+            ],
+            "hostDefaultOnly": [
+                "valueRange",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "RangeSlider",
+            "dictionaryName": "RangeSlider~0b997a2c",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "enabled",
+                "onValueChangeFinished",
+                "steps"
+            ],
+            "hostDefaultOnly": [
+                "valueRange",
+                "colors",
+                "startInteractionSource",
+                "endInteractionSource",
+                "startThumb",
+                "endThumb",
+                "track"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Slider.kt",
+            "name": "RangeSlider",
+            "dictionaryName": "RangeSlider~bb1147d1",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder RangeSliderState",
+            "settable": [
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "startInteractionSource",
+                "endInteractionSource",
+                "startThumb",
+                "endThumb",
+                "track"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Snackbar.kt",
+            "name": "Snackbar",
+            "dictionaryName": "Snackbar",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "action",
+                "dismissAction",
+                "actionOnNewLine",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "actionContentColor",
+                "dismissActionContentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Snackbar.kt",
+            "name": "Snackbar",
+            "dictionaryName": "Snackbar~0158ce0b",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "snackbarData: type SnackbarData cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "actionOnNewLine",
+                "shape",
+                "containerColor",
+                "contentColor",
+                "actionColor",
+                "actionContentColor",
+                "dismissActionContentColor"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SnackbarHost.kt",
+            "name": "SnackbarHost",
+            "dictionaryName": "SnackbarHost",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "hostState: live-state holder SnackbarHostState",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "snackbar"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Surface.kt",
+            "name": "Surface",
+            "dictionaryName": "Surface",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "color: default names internal `MaterialTheme`",
+            "settable": [
+                "modifier",
+                "shape",
+                "color",
+                "contentColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "border"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Surface.kt",
+            "name": "Surface",
+            "dictionaryName": "Surface~0b388a87",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "color: default names internal `MaterialTheme`",
+            "settable": [
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "color",
+                "contentColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Surface.kt",
+            "name": "Surface",
+            "dictionaryName": "Surface~9d901ca7",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "color: default names internal `MaterialTheme`",
+            "settable": [
+                "selected",
+                "onClick",
+                "modifier",
+                "enabled",
+                "shape",
+                "color",
+                "contentColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Surface.kt",
+            "name": "Surface",
+            "dictionaryName": "Surface~819e1863",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "color: default names internal `MaterialTheme`",
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "enabled",
+                "shape",
+                "color",
+                "contentColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "border",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SwipeToDismissBox.kt",
+            "name": "SwipeToDismissBox",
+            "dictionaryName": "SwipeToDismissBox",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder SwipeToDismissBoxState",
+            "settable": [
+                "backgroundContent",
+                "modifier",
+                "enableDismissFromStartToEnd",
+                "enableDismissFromEndToStart",
+                "gesturesEnabled",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "onDismiss"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/SwipeToDismissBox.kt",
+            "name": "SwipeToDismissBox",
+            "dictionaryName": "SwipeToDismissBox~037141c9",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "backgroundContent",
+                "modifier",
+                "enableDismissFromStartToEnd",
+                "enableDismissFromEndToStart",
+                "gesturesEnabled",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Switch.kt",
+            "name": "Switch",
+            "dictionaryName": "Switch",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "checked",
+                "onCheckedChange",
+                "modifier",
+                "thumbContent",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tab.kt",
+            "name": "Tab",
+            "dictionaryName": "Tab",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "modifier",
+                "enabled",
+                "text",
+                "icon",
+                "selectedContentColor",
+                "unselectedContentColor"
+            ],
+            "hostDefaultOnly": [
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tab.kt",
+            "name": "LeadingIconTab",
+            "dictionaryName": "LeadingIconTab",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "text",
+                "icon",
+                "modifier",
+                "enabled",
+                "selectedContentColor",
+                "unselectedContentColor"
+            ],
+            "hostDefaultOnly": [
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tab.kt",
+            "name": "Tab",
+            "dictionaryName": "Tab~48365473",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "modifier",
+                "enabled",
+                "selectedContentColor",
+                "unselectedContentColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "PrimaryTabRow",
+            "dictionaryName": "PrimaryTabRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "indicator",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "SecondaryTabRow",
+            "dictionaryName": "SecondaryTabRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "indicator",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "PrimaryScrollableTabRow",
+            "dictionaryName": "PrimaryScrollableTabRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "edgePadding",
+                "indicator",
+                "divider",
+                "minTabWidth",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "SecondaryScrollableTabRow",
+            "dictionaryName": "SecondaryScrollableTabRow",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "edgePadding",
+                "indicator",
+                "divider",
+                "minTabWidth",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "PrimaryScrollableTabRow",
+            "dictionaryName": "PrimaryScrollableTabRow~4e88c3c7",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "edgePadding",
+                "indicator",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "SecondaryScrollableTabRow",
+            "dictionaryName": "SecondaryScrollableTabRow~4e88c3c7",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "edgePadding",
+                "indicator",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "scrollState"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "TabRow",
+            "dictionaryName": "TabRow",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "indicator"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TabRow.kt",
+            "name": "ScrollableTabRow",
+            "dictionaryName": "ScrollableTabRow",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "selectedTabIndex",
+                "modifier",
+                "containerColor",
+                "contentColor",
+                "edgePadding",
+                "divider",
+                "tabs"
+            ],
+            "hostDefaultOnly": [
+                "indicator"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "text",
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "autoSize",
+                "fontStyle",
+                "fontFamily",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text~4d4f4a78",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "text: type AnnotatedString cannot cross the boundary",
+            "settable": [
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "autoSize",
+                "fontStyle",
+                "fontFamily",
+                "inlineContent",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text~1f018385",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "text",
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "fontStyle",
+                "fontFamily",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text~f9f6a430",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines",
+                "minLines"
+            ],
+            "hostDefaultOnly": [
+                "fontStyle",
+                "fontFamily",
+                "inlineContent",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text~2a67d79a",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "text",
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "fontStyle",
+                "fontFamily",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "Text",
+            "dictionaryName": "Text~ead50e46",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "color",
+                "fontSize",
+                "fontWeight",
+                "letterSpacing",
+                "textDecoration",
+                "textAlign",
+                "lineHeight",
+                "overflow",
+                "softWrap",
+                "maxLines"
+            ],
+            "hostDefaultOnly": [
+                "fontStyle",
+                "fontFamily",
+                "inlineContent",
+                "onTextLayout",
+                "style"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Text.kt",
+            "name": "ProvideTextStyle",
+            "dictionaryName": "ProvideTextStyle",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "value: type TextStyle cannot cross the boundary",
+            "settable": [
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TextField.kt",
+            "name": "TextField",
+            "dictionaryName": "TextField",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "shape",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "labelPosition",
+                "inputTransformation",
+                "outputTransformation",
+                "keyboardOptions",
+                "onKeyboardAction",
+                "lineLimits",
+                "onTextLayout",
+                "scrollState",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TextField.kt",
+            "name": "TextField",
+            "dictionaryName": "TextField~7a8e07ca",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "value",
+                "onValueChange",
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "singleLine",
+                "maxLines",
+                "minLines",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "visualTransformation",
+                "keyboardOptions",
+                "keyboardActions",
+                "interactionSource",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TextField.kt",
+            "name": "TextField",
+            "dictionaryName": "TextField~927d21ff",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
+            "settable": [
+                "modifier",
+                "enabled",
+                "readOnly",
+                "label",
+                "placeholder",
+                "leadingIcon",
+                "trailingIcon",
+                "prefix",
+                "suffix",
+                "supportingText",
+                "isError",
+                "singleLine",
+                "maxLines",
+                "minLines",
+                "shape"
+            ],
+            "hostDefaultOnly": [
+                "textStyle",
+                "visualTransformation",
+                "keyboardOptions",
+                "keyboardActions",
+                "interactionSource",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TimePicker.kt",
+            "name": "TimePicker",
+            "dictionaryName": "TimePicker",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder TimePickerState",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "colors",
+                "layoutType"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TimePicker.kt",
+            "name": "TimeInput",
+            "dictionaryName": "TimeInput",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder TimePickerState",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/TimePickerDialog.kt",
+            "name": "TimePickerDialog",
+            "dictionaryName": "TimePickerDialog",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "confirmButton",
+                "title",
+                "modifier",
+                "modeToggleButton",
+                "dismissButton",
+                "shape",
+                "containerColor",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "TooltipBox",
+            "dictionaryName": "TooltipBox",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "tooltip",
+                "modifier",
+                "focusable",
+                "enableUserInput",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "TooltipBox",
+            "dictionaryName": "TooltipBox~d29b2a1c",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "tooltip",
+                "modifier",
+                "onDismissRequest",
+                "focusable",
+                "enableUserInput",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "TooltipBox",
+            "dictionaryName": "TooltipBox~07be3220",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "positionProvider: type PopupPositionProvider cannot cross the boundary",
+            "settable": [
+                "tooltip",
+                "modifier",
+                "onDismissRequest",
+                "focusable",
+                "enableUserInput",
+                "hasAction",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "PlainTooltip",
+            "dictionaryName": "PlainTooltip",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "maxWidth",
+                "shape",
+                "contentColor",
+                "containerColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "caretSize"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "PlainTooltip",
+            "dictionaryName": "PlainTooltip~bc881833",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "extension on TooltipScope; a binding calls by name",
+            "settable": [
+                "modifier",
+                "maxWidth",
+                "shape",
+                "contentColor",
+                "containerColor",
+                "tonalElevation",
+                "shadowElevation",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "caretShape"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "RichTooltip",
+            "dictionaryName": "RichTooltip",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "tonalElevation: default names internal `ElevationTokens`",
+            "settable": [
+                "modifier",
+                "title",
+                "action",
+                "maxWidth",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "text"
+            ],
+            "hostDefaultOnly": [
+                "caretSize",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/Tooltip.kt",
+            "name": "RichTooltip",
+            "dictionaryName": "RichTooltip~a45a90ef",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "tonalElevation: default names internal `ElevationTokens`",
+            "settable": [
+                "modifier",
+                "title",
+                "action",
+                "maxWidth",
+                "shape",
+                "tonalElevation",
+                "shadowElevation",
+                "text"
+            ],
+            "hostDefaultOnly": [
+                "caretShape",
+                "colors"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/WideNavigationRail.kt",
+            "name": "WideNavigationRail",
+            "dictionaryName": "WideNavigationRail",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "shape",
+                "header",
+                "arrangement",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "colors",
+                "windowInsets"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/WideNavigationRail.kt",
+            "name": "ModalWideNavigationRail",
+            "dictionaryName": "ModalWideNavigationRail",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "modifier",
+                "hideOnCollapse",
+                "collapsedShape",
+                "expandedShape",
+                "header",
+                "expandedHeaderTopPadding",
+                "arrangement",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "state",
+                "colors",
+                "windowInsets",
+                "expandedProperties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/WideNavigationRail.kt",
+            "name": "WideNavigationRailItem",
+            "dictionaryName": "WideNavigationRailItem",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "selected",
+                "onClick",
+                "icon",
+                "label",
+                "railExpanded",
+                "modifier",
+                "enabled"
+            ],
+            "hostDefaultOnly": [
+                "iconPosition",
+                "colors",
+                "interactionSource"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/carousel/Carousel.kt",
+            "name": "HorizontalMultiBrowseCarousel",
+            "dictionaryName": "HorizontalMultiBrowseCarousel",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder CarouselState",
+            "settable": [
+                "preferredItemWidth",
+                "modifier",
+                "itemSpacing",
+                "userScrollEnabled",
+                "minSmallItemWidth",
+                "maxSmallItemWidth",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "flingBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/carousel/Carousel.kt",
+            "name": "HorizontalMultiBrowseCarousel",
+            "dictionaryName": "HorizontalMultiBrowseCarousel~71811abe",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "preferredItemWidth",
+                "modifier",
+                "itemSpacing",
+                "minSmallItemWidth",
+                "maxSmallItemWidth",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "flingBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/carousel/Carousel.kt",
+            "name": "HorizontalUncontainedCarousel",
+            "dictionaryName": "HorizontalUncontainedCarousel",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder CarouselState",
+            "settable": [
+                "itemWidth",
+                "modifier",
+                "itemSpacing",
+                "userScrollEnabled",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "flingBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/carousel/Carousel.kt",
+            "name": "HorizontalUncontainedCarousel",
+            "dictionaryName": "HorizontalUncontainedCarousel~e9156642",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "itemWidth",
+                "modifier",
+                "itemSpacing",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "flingBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/carousel/Carousel.kt",
+            "name": "HorizontalCenteredHeroCarousel",
+            "dictionaryName": "HorizontalCenteredHeroCarousel",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder CarouselState",
+            "settable": [
+                "modifier",
+                "maxItemWidth",
+                "itemSpacing",
+                "userScrollEnabled",
+                "minSmallItemWidth",
+                "maxSmallItemWidth",
+                "contentPadding"
+            ],
+            "hostDefaultOnly": [
+                "flingBehavior"
+            ],
+            "experimental": true
+        },
+        {
+            "module": "material3",
+            "file": "androidx/compose/material3/pulltorefresh/PullToRefresh.kt",
+            "name": "PullToRefreshBox",
+            "dictionaryName": "PullToRefreshBox",
+            "bound": false,
+            "bucket": "generable-excluded",
+            "reason": "indicator: default names internal `Indicator`",
+            "settable": [
+                "isRefreshing",
+                "onRefresh",
+                "modifier",
+                "contentAlignment",
+                "indicator",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "state"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/graphics/vector/VectorCompose.kt",
+            "name": "Group",
+            "dictionaryName": "Group",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "name",
+                "rotation",
+                "pivotX",
+                "pivotY",
+                "scaleX",
+                "scaleY",
+                "translationX",
+                "translationY",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "clipPathData"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/graphics/vector/VectorCompose.kt",
+            "name": "Path",
+            "dictionaryName": "Path",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "pathData: type List<PathNode> cannot cross the boundary",
+            "settable": [
+                "name",
+                "fillAlpha",
+                "strokeAlpha",
+                "strokeLineWidth",
+                "strokeLineMiter",
+                "trimPathStart",
+                "trimPathEnd",
+                "trimPathOffset"
+            ],
+            "hostDefaultOnly": [
+                "pathFillType",
+                "fill",
+                "stroke",
+                "strokeLineCap",
+                "strokeLineJoin"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/graphics/vector/VectorPainter.kt",
+            "name": "RenderVectorGroup",
+            "dictionaryName": "RenderVectorGroup",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "group: type VectorGroup cannot cross the boundary",
+            "settable": [],
+            "hostDefaultOnly": [
+                "configs"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/Layout.kt",
+            "name": "Layout",
+            "dictionaryName": "Layout",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "measurePolicy: type MeasurePolicy cannot cross the boundary",
+            "settable": [
+                "content",
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/Layout.kt",
+            "name": "Layout",
+            "dictionaryName": "Layout~b64dbf2b",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "measurePolicy: type MeasurePolicy cannot cross the boundary",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/Layout.kt",
+            "name": "Layout",
+            "dictionaryName": "Layout~e8c14522",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "contents: composable lambda returning Unit>",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/Layout.kt",
+            "name": "MultiMeasureLayout",
+            "dictionaryName": "MultiMeasureLayout",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [
+                "modifier",
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/LookaheadScope.kt",
+            "name": "LookaheadScope",
+            "dictionaryName": "LookaheadScope",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/SubcomposeLayout.kt",
+            "name": "SubcomposeLayout",
+            "dictionaryName": "SubcomposeLayout",
+            "bound": false,
+            "bucket": "unreachable",
+            "reason": "measurePolicy: SubcomposeMeasureScope is invoked inside a frame",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/SubcomposeLayout.kt",
+            "name": "SubcomposeLayout",
+            "dictionaryName": "SubcomposeLayout~d91f46b3",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "state: live-state holder SubcomposeLayoutState",
+            "settable": [
+                "modifier"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/layout/TestModifierUpdater.kt",
+            "name": "TestModifierUpdaterLayout",
+            "dictionaryName": "TestModifierUpdaterLayout",
+            "bound": false,
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
+            "settable": [],
+            "hostDefaultOnly": [],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/platform/PlatformTextInputModifierNode.kt",
+            "name": "InterceptPlatformTextInput",
+            "dictionaryName": "InterceptPlatformTextInput",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "interceptor: type PlatformTextInputInterceptor cannot cross the boundary",
+            "settable": [
+                "content"
+            ],
+            "hostDefaultOnly": [],
+            "experimental": true
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/window/Dialog.kt",
+            "name": "Dialog",
+            "dictionaryName": "Dialog",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "onDismissRequest",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/window/Popup.kt",
+            "name": "Popup",
+            "dictionaryName": "Popup",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
+            "settable": [
+                "alignment",
+                "onDismissRequest",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "offset",
+                "properties"
+            ],
+            "experimental": false
+        },
+        {
+            "module": "ui",
+            "file": "androidx/compose/ui/window/Popup.kt",
+            "name": "Popup",
+            "dictionaryName": "Popup~5e7f40ed",
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "popupPositionProvider: type PopupPositionProvider cannot cross the boundary",
+            "settable": [
+                "onDismissRequest",
+                "content"
+            ],
+            "hostDefaultOnly": [
+                "properties"
+            ],
+            "experimental": false
+        }
+    ]
+}

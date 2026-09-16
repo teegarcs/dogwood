@@ -215,6 +215,51 @@ fun WidgetView.composeModifier(scope: LayoutScope, events: EventSink): Modifier 
         val parts = element.v as? JsonArray
         modifier.widthIn(min = parts.dpOrUnspecified(0), max = parts.dpOrUnspecified(1))
       }
+      /*
+       * Tags 28-30 (2026-09-15): the three ADR-069 §4 named as "one more tag when a component
+       * needs them". Each is an older tag with one more argument, and a host that predates it
+       * draws the node without -- for the border and the padding that is cosmetic; for the role
+       * it is a tappable node a screen reader calls nothing in particular, which is what it was
+       * before roles existed.
+       */
+      ModifierTags.CLICKABLE_ROLE -> {
+        val parts = element.v as? JsonArray
+        val enabled = parts?.getOrNull(0)?.jsonPrimitive?.booleanOrNull ?: true
+        val role = semanticsRole(parts?.getOrNull(1)?.jsonPrimitive?.content)
+        val node = this
+        modifier.clickable(enabled = enabled, role = role) {
+          events.send(node, EventTag(ELEMENT_EVENT_BASE + index))
+        }
+      }
+      ModifierTags.BORDER_SHAPE -> {
+        val parts = element.v as? JsonArray
+        val width = clampModifierValue(parts?.getOrNull(0)?.jsonPrimitive?.floatOrNull ?: 1f, min = 0f, what = "border")
+        val color = (parts?.getOrNull(1) as? JsonArray)
+          ?.let { androidx.compose.runtime.key(index, element.t.value) { resolveColor(it) } }
+          ?: palette.ink
+        val shape = parts?.getOrNull(2)?.let { evaluator.shape(it) }
+          ?: androidx.compose.ui.graphics.RectangleShape
+        modifier.border(width.dp, color, shape)
+      }
+      ModifierTags.PADDING_SIDES_ANIMATED -> {
+        val parts = element.v as? JsonArray
+        // Keyed on the side as well as the element: four animations live in one element, and an
+        // unkeyed call in a loop would hand one side's in-flight animation to the next.
+        @Composable
+        fun side(at: Int, what: String): Dp {
+          val raw = parts?.getOrNull(at) ?: kotlinx.serialization.json.JsonPrimitive(0f)
+          val value = androidx.compose.runtime.key(index, element.t.value, at) {
+            animatedNumber(raw, index, this@composeModifier, events, 0f)
+          }
+          return clampModifierValue(value, min = 0f, what = what).dp
+        }
+        modifier.padding(
+          start = side(0, "padding.start"),
+          top = side(1, "padding.top"),
+          end = side(2, "padding.end"),
+          bottom = side(3, "padding.bottom"),
+        )
+      }
       ModifierTags.HEIGHT_IN -> {
         val parts = element.v as? JsonArray
         modifier.heightIn(min = parts.dpOrUnspecified(0), max = parts.dpOrUnspecified(1))
@@ -234,6 +279,23 @@ private fun JsonArray?.dpOrUnspecified(at: Int): Dp {
   return if (raw < 0f) Dp.Unspecified else raw.dp
 }
 
+
+/**
+ * A semantics role by name. An unknown name is no role, reported: a host that predates `Tab`
+ * must not resolve it to `Button`, and a screen reader saying nothing beats one saying the wrong thing.
+ */
+@Composable
+private fun semanticsRole(name: String?): androidx.compose.ui.semantics.Role? = when (name) {
+  null -> null
+  "button" -> androidx.compose.ui.semantics.Role.Button
+  "checkbox" -> androidx.compose.ui.semantics.Role.Checkbox
+  "switch" -> androidx.compose.ui.semantics.Role.Switch
+  "radioButton" -> androidx.compose.ui.semantics.Role.RadioButton
+  "tab" -> androidx.compose.ui.semantics.Role.Tab
+  "image" -> androidx.compose.ui.semantics.Role.Image
+  "dropdownList" -> androidx.compose.ui.semantics.Role.DropdownList
+  else -> null.also { LocalSkewReport.current.unknownNames += "role:$name" }
+}
 
 /** Alignments cross as an ordinal; these are the guest enumerations in declaration order. */
 private fun verticalAlignment(ordinal: Int): Alignment.Vertical = when (ordinal) {

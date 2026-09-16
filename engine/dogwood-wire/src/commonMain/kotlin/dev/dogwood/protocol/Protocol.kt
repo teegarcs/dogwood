@@ -83,6 +83,18 @@ object Segments {
 
   /** The first registered module -- the design-system slice. */
   const val DESIGN_SYSTEM = 1
+
+  /*
+   * Generator v2's tiers: the Compose libraries themselves, bound from their sources
+   * (plans/generator-v2.md, D-B). Allocated DOWNWARD from the top of the eight-bit segment
+   * range, so they can never meet a product's identifier, which products allocate upward from
+   * `FIRST_PRODUCT_SEGMENT` and may not take past `LAST_PRODUCT_SEGMENT`. Permanent, like every
+   * segment identifier: a tag is half this number.
+   */
+  const val MATERIAL3 = 255
+  const val FOUNDATION = 254
+  const val FOUNDATION_LAYOUT = 253
+  const val UI = 252
 }
 
 // ---------------------------------------------------------------------------

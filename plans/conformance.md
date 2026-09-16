@@ -132,6 +132,7 @@ cell below is a claim about what a user would install, not about a debug build
 | B2 | Key rotation: a manifest carrying both signatures is accepted by clients holding either | S + C | S ✅; C web ✅ (ADR-062) |
 | B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
+| B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host

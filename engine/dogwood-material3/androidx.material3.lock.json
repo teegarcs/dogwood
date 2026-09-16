@@ -1,0 +1,1779 @@
+{
+    "segmentName": "material3",
+    "wireName": "androidx.material3",
+    "segmentId": 255,
+    "version": 10900,
+    "components": [
+        {
+            "name": "AlertDialog",
+            "localTag": 1,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2,
+                "iconContentColor": 3,
+                "titleContentColor": 4,
+                "textContentColor": 5,
+                "tonalElevation": 6
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color",
+                "iconContentColor": "Color",
+                "titleContentColor": "Color",
+                "textContentColor": "Color",
+                "tonalElevation": "Dp"
+            },
+            "slots": {
+                "confirmButton": 1,
+                "dismissButton": 2,
+                "icon": 3,
+                "title": 4,
+                "text": 5
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "BasicAlertDialog",
+            "localTag": 2,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "TopAppBar~b00f901d",
+            "localTag": 3,
+            "properties": {
+                "expandedHeight": 1
+            },
+            "propertyTypes": {
+                "expandedHeight": "Dp"
+            },
+            "slots": {
+                "title": 1,
+                "navigationIcon": 2,
+                "actions": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "CenterAlignedTopAppBar~b00f901d",
+            "localTag": 4,
+            "properties": {
+                "expandedHeight": 1
+            },
+            "propertyTypes": {
+                "expandedHeight": "Dp"
+            },
+            "slots": {
+                "title": 1,
+                "navigationIcon": 2,
+                "actions": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "MediumTopAppBar~f7301943",
+            "localTag": 5,
+            "properties": {
+                "collapsedHeight": 1,
+                "expandedHeight": 2
+            },
+            "propertyTypes": {
+                "collapsedHeight": "Dp",
+                "expandedHeight": "Dp"
+            },
+            "slots": {
+                "title": 1,
+                "navigationIcon": 2,
+                "actions": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "LargeTopAppBar~f7301943",
+            "localTag": 6,
+            "properties": {
+                "collapsedHeight": 1,
+                "expandedHeight": 2
+            },
+            "propertyTypes": {
+                "collapsedHeight": "Dp",
+                "expandedHeight": "Dp"
+            },
+            "slots": {
+                "title": 1,
+                "navigationIcon": 2,
+                "actions": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "BottomAppBar",
+            "localTag": 7,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2,
+                "tonalElevation": 3,
+                "contentPadding": 4
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "contentPadding": "PaddingValues"
+            },
+            "slots": {
+                "actions": 1,
+                "floatingActionButton": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "BottomAppBar~5acd9818",
+            "localTag": 8,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2,
+                "tonalElevation": 3,
+                "contentPadding": 4
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "contentPadding": "PaddingValues"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "BadgedBox",
+            "localTag": 9,
+            "properties": {},
+            "slots": {
+                "badge": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "Badge",
+            "localTag": 10,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Button",
+            "localTag": 11,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "contentPadding": 3
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ElevatedButton",
+            "localTag": 12,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "contentPadding": 3
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "FilledTonalButton",
+            "localTag": 13,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "contentPadding": 3
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "OutlinedButton",
+            "localTag": 14,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "contentPadding": 3
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "TextButton",
+            "localTag": 15,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "contentPadding": 3
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Card",
+            "localTag": 16,
+            "properties": {
+                "shape": 1
+            },
+            "propertyTypes": {
+                "shape": "Shape"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Card~6ae0a5d2",
+            "localTag": 17,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ElevatedCard",
+            "localTag": 18,
+            "properties": {
+                "shape": 1
+            },
+            "propertyTypes": {
+                "shape": "Shape"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "ElevatedCard~cc5087f1",
+            "localTag": 19,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "OutlinedCard",
+            "localTag": 20,
+            "properties": {
+                "shape": 1
+            },
+            "propertyTypes": {
+                "shape": "Shape"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "OutlinedCard~2c46c5fa",
+            "localTag": 21,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Checkbox",
+            "localTag": 22,
+            "properties": {
+                "checked": 1,
+                "onCheckedChangePresent": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "onCheckedChangePresent": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "((Boolean) -> Unit)?"
+            }
+        },
+        {
+            "name": "AssistChip",
+            "localTag": 23,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "leadingIcon": 2,
+                "trailingIcon": 3
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ElevatedAssistChip",
+            "localTag": 24,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "leadingIcon": 2,
+                "trailingIcon": 3
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "FilterChip",
+            "localTag": 25,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "leadingIcon": 2,
+                "trailingIcon": 3
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ElevatedFilterChip",
+            "localTag": 26,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "leadingIcon": 2,
+                "trailingIcon": 3
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "InputChip",
+            "localTag": 27,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "leadingIcon": 2,
+                "avatar": 3,
+                "trailingIcon": 4
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "SuggestionChip",
+            "localTag": 28,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "icon": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ElevatedSuggestionChip",
+            "localTag": 29,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "label": 1,
+                "icon": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "DatePickerDialog",
+            "localTag": 30,
+            "properties": {
+                "shape": 1,
+                "tonalElevation": 2
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "tonalElevation": "Dp"
+            },
+            "slots": {
+                "confirmButton": 1,
+                "dismissButton": 2,
+                "content": 3
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "HorizontalDivider",
+            "localTag": 31,
+            "properties": {
+                "thickness": 1,
+                "color": 2
+            },
+            "propertyTypes": {
+                "thickness": "Dp",
+                "color": "Color"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "VerticalDivider",
+            "localTag": 32,
+            "properties": {
+                "thickness": 1,
+                "color": 2
+            },
+            "propertyTypes": {
+                "thickness": "Dp",
+                "color": "Color"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "VerticalDragHandle",
+            "localTag": 33,
+            "properties": {},
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "ExposedDropdownMenuBox",
+            "localTag": 34,
+            "properties": {
+                "expanded": 1
+            },
+            "propertyTypes": {
+                "expanded": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onExpandedChange": 1
+            },
+            "eventTypes": {
+                "onExpandedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "FloatingActionButton",
+            "localTag": 35,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "SmallFloatingActionButton",
+            "localTag": 36,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "LargeFloatingActionButton",
+            "localTag": 37,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ExtendedFloatingActionButton",
+            "localTag": 38,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ExtendedFloatingActionButton~76dd3930",
+            "localTag": 39,
+            "properties": {
+                "expanded": 1,
+                "shape": 2,
+                "containerColor": 3,
+                "contentColor": 4
+            },
+            "propertyTypes": {
+                "expanded": "Boolean",
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "text": 1,
+                "icon": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "FilledIconButton",
+            "localTag": 40,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "FilledIconToggleButton",
+            "localTag": 41,
+            "properties": {
+                "checked": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "FilledTonalIconButton",
+            "localTag": 42,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "FilledTonalIconToggleButton",
+            "localTag": 43,
+            "properties": {
+                "checked": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "OutlinedIconButton",
+            "localTag": 44,
+            "properties": {
+                "enabled": 1,
+                "shape": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "OutlinedIconToggleButton",
+            "localTag": 45,
+            "properties": {
+                "checked": 1,
+                "enabled": 2,
+                "shape": 3
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "Label",
+            "localTag": 46,
+            "properties": {
+                "isPersistent": 1
+            },
+            "propertyTypes": {
+                "isPersistent": "Boolean"
+            },
+            "slots": {
+                "label": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "ListItem",
+            "localTag": 47,
+            "properties": {
+                "tonalElevation": 1,
+                "shadowElevation": 2
+            },
+            "propertyTypes": {
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "slots": {
+                "headlineContent": 1,
+                "overlineContent": 2,
+                "supportingContent": 3,
+                "leadingContent": 4,
+                "trailingContent": 5
+            },
+            "events": {}
+        },
+        {
+            "name": "DropdownMenuItem",
+            "localTag": 48,
+            "properties": {
+                "enabled": 1,
+                "contentPadding": 2
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "contentPadding": "PaddingValues"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "text": 1,
+                "leadingIcon": 2,
+                "trailingIcon": 3
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "ModalBottomSheet",
+            "localTag": 49,
+            "properties": {
+                "sheetMaxWidth": 1,
+                "sheetGesturesEnabled": 2,
+                "shape": 3,
+                "containerColor": 4,
+                "contentColor": 5,
+                "tonalElevation": 6,
+                "scrimColor": 7
+            },
+            "propertyTypes": {
+                "sheetMaxWidth": "Dp",
+                "sheetGesturesEnabled": "Boolean",
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "scrimColor": "Color"
+            },
+            "slots": {
+                "dragHandle": 1,
+                "content": 2
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "ModalNavigationDrawer",
+            "localTag": 50,
+            "properties": {
+                "gesturesEnabled": 1,
+                "scrimColor": 2
+            },
+            "propertyTypes": {
+                "gesturesEnabled": "Boolean",
+                "scrimColor": "Color"
+            },
+            "slots": {
+                "drawerContent": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "DismissibleNavigationDrawer",
+            "localTag": 51,
+            "properties": {
+                "gesturesEnabled": 1
+            },
+            "propertyTypes": {
+                "gesturesEnabled": "Boolean"
+            },
+            "slots": {
+                "drawerContent": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "PermanentNavigationDrawer",
+            "localTag": 52,
+            "properties": {},
+            "slots": {
+                "drawerContent": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "ModalDrawerSheet",
+            "localTag": 53,
+            "properties": {
+                "drawerShape": 1,
+                "drawerContainerColor": 2,
+                "drawerContentColor": 3,
+                "drawerTonalElevation": 4
+            },
+            "propertyTypes": {
+                "drawerShape": "Shape",
+                "drawerContainerColor": "Color",
+                "drawerContentColor": "Color",
+                "drawerTonalElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "DismissibleDrawerSheet",
+            "localTag": 54,
+            "properties": {
+                "drawerShape": 1,
+                "drawerContainerColor": 2,
+                "drawerContentColor": 3,
+                "drawerTonalElevation": 4
+            },
+            "propertyTypes": {
+                "drawerShape": "Shape",
+                "drawerContainerColor": "Color",
+                "drawerContentColor": "Color",
+                "drawerTonalElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "PermanentDrawerSheet",
+            "localTag": 55,
+            "properties": {
+                "drawerShape": 1,
+                "drawerContainerColor": 2,
+                "drawerContentColor": 3,
+                "drawerTonalElevation": 4
+            },
+            "propertyTypes": {
+                "drawerShape": "Shape",
+                "drawerContainerColor": "Color",
+                "drawerContentColor": "Color",
+                "drawerTonalElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "NavigationRail",
+            "localTag": 56,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "header": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "NavigationRailItem",
+            "localTag": 57,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "alwaysShowLabel": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "alwaysShowLabel": "Boolean"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "icon": 1,
+                "label": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "LinearProgressIndicator~0d6d7e83",
+            "localTag": 58,
+            "properties": {
+                "color": 1,
+                "trackColor": 2,
+                "gapSize": 3
+            },
+            "propertyTypes": {
+                "color": "Color",
+                "trackColor": "Color",
+                "gapSize": "Dp"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "CircularProgressIndicator~03d52693",
+            "localTag": 59,
+            "properties": {
+                "color": 1,
+                "strokeWidth": 2,
+                "trackColor": 3,
+                "gapSize": 4
+            },
+            "propertyTypes": {
+                "color": "Color",
+                "strokeWidth": "Dp",
+                "trackColor": "Color",
+                "gapSize": "Dp"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "RadioButton",
+            "localTag": 60,
+            "properties": {
+                "selected": 1,
+                "onClickPresent": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "onClickPresent": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "SingleChoiceSegmentedButtonRow",
+            "localTag": 61,
+            "properties": {
+                "space": 1
+            },
+            "propertyTypes": {
+                "space": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "MultiChoiceSegmentedButtonRow",
+            "localTag": 62,
+            "properties": {
+                "space": 1
+            },
+            "propertyTypes": {
+                "space": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "ShortNavigationBar",
+            "localTag": 63,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "ShortNavigationBarItem",
+            "localTag": 64,
+            "properties": {
+                "selected": 1,
+                "enabled": 2
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "icon": 1,
+                "label": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Slider",
+            "localTag": 65,
+            "properties": {
+                "value": 1,
+                "enabled": 2,
+                "steps": 3,
+                "onValueChangeFinishedPresent": 4
+            },
+            "propertyTypes": {
+                "value": "Float",
+                "enabled": "Boolean",
+                "steps": "Int",
+                "onValueChangeFinishedPresent": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onValueChange": 1,
+                "onValueChangeFinished": 2
+            },
+            "eventTypes": {
+                "onValueChange": "(Float) -> Unit",
+                "onValueChangeFinished": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "Slider~d234905b",
+            "localTag": 66,
+            "properties": {
+                "value": 1,
+                "enabled": 2,
+                "onValueChangeFinishedPresent": 3,
+                "steps": 4
+            },
+            "propertyTypes": {
+                "value": "Float",
+                "enabled": "Boolean",
+                "onValueChangeFinishedPresent": "Boolean",
+                "steps": "Int"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onValueChange": 1,
+                "onValueChangeFinished": 2
+            },
+            "eventTypes": {
+                "onValueChange": "(Float) -> Unit",
+                "onValueChangeFinished": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "Snackbar",
+            "localTag": 67,
+            "properties": {
+                "actionOnNewLine": 1,
+                "shape": 2,
+                "containerColor": 3,
+                "contentColor": 4,
+                "actionContentColor": 5,
+                "dismissActionContentColor": 6
+            },
+            "propertyTypes": {
+                "actionOnNewLine": "Boolean",
+                "shape": "Shape",
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "actionContentColor": "Color",
+                "dismissActionContentColor": "Color"
+            },
+            "slots": {
+                "action": 1,
+                "dismissAction": 2,
+                "content": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "Switch",
+            "localTag": 68,
+            "properties": {
+                "checked": 1,
+                "onCheckedChangePresent": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "onCheckedChangePresent": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "thumbContent": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "((Boolean) -> Unit)?"
+            }
+        },
+        {
+            "name": "Tab",
+            "localTag": 69,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "selectedContentColor": 3,
+                "unselectedContentColor": 4
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "selectedContentColor": "Color",
+                "unselectedContentColor": "Color"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "text": 1,
+                "icon": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "LeadingIconTab",
+            "localTag": 70,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "selectedContentColor": 3,
+                "unselectedContentColor": 4
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "selectedContentColor": "Color",
+                "unselectedContentColor": "Color"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "text": 1,
+                "icon": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Tab~48365473",
+            "localTag": 71,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "selectedContentColor": 3,
+                "unselectedContentColor": 4
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "selectedContentColor": "Color",
+                "unselectedContentColor": "Color"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "PrimaryTabRow",
+            "localTag": 72,
+            "properties": {
+                "selectedTabIndex": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "selectedTabIndex": "Int",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "indicator": 1,
+                "divider": 2,
+                "tabs": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "SecondaryTabRow",
+            "localTag": 73,
+            "properties": {
+                "selectedTabIndex": 1,
+                "containerColor": 2,
+                "contentColor": 3
+            },
+            "propertyTypes": {
+                "selectedTabIndex": "Int",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "indicator": 1,
+                "divider": 2,
+                "tabs": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "PrimaryScrollableTabRow",
+            "localTag": 74,
+            "properties": {
+                "selectedTabIndex": 1,
+                "containerColor": 2,
+                "contentColor": 3,
+                "edgePadding": 4,
+                "minTabWidth": 5
+            },
+            "propertyTypes": {
+                "selectedTabIndex": "Int",
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "edgePadding": "Dp",
+                "minTabWidth": "Dp"
+            },
+            "slots": {
+                "indicator": 1,
+                "divider": 2,
+                "tabs": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "SecondaryScrollableTabRow",
+            "localTag": 75,
+            "properties": {
+                "selectedTabIndex": 1,
+                "containerColor": 2,
+                "contentColor": 3,
+                "edgePadding": 4,
+                "minTabWidth": 5
+            },
+            "propertyTypes": {
+                "selectedTabIndex": "Int",
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "edgePadding": "Dp",
+                "minTabWidth": "Dp"
+            },
+            "slots": {
+                "indicator": 1,
+                "divider": 2,
+                "tabs": 3
+            },
+            "events": {}
+        },
+        {
+            "name": "Text",
+            "localTag": 76,
+            "properties": {
+                "text": 1,
+                "color": 2,
+                "fontSize": 3,
+                "fontWeight": 4,
+                "letterSpacing": 5,
+                "textDecoration": 6,
+                "textAlign": 7,
+                "lineHeight": 8,
+                "overflow": 9,
+                "softWrap": 10,
+                "maxLines": 11,
+                "minLines": 12
+            },
+            "propertyTypes": {
+                "text": "String",
+                "color": "Color",
+                "fontSize": "TextUnit",
+                "fontWeight": "FontWeight?",
+                "letterSpacing": "TextUnit",
+                "textDecoration": "TextDecoration?",
+                "textAlign": "TextAlign?",
+                "lineHeight": "TextUnit",
+                "overflow": "TextOverflow",
+                "softWrap": "Boolean",
+                "maxLines": "Int",
+                "minLines": "Int"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "TimePickerDialog",
+            "localTag": 77,
+            "properties": {
+                "shape": 1,
+                "containerColor": 2
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "containerColor": "Color"
+            },
+            "slots": {
+                "confirmButton": 1,
+                "title": 2,
+                "modeToggleButton": 3,
+                "dismissButton": 4,
+                "content": 5
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "WideNavigationRail",
+            "localTag": 78,
+            "properties": {
+                "shape": 1,
+                "arrangement": 2
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "arrangement": "Arrangement.Vertical"
+            },
+            "slots": {
+                "header": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "ModalWideNavigationRail",
+            "localTag": 79,
+            "properties": {
+                "hideOnCollapse": 1,
+                "collapsedShape": 2,
+                "expandedShape": 3,
+                "expandedHeaderTopPadding": 4,
+                "arrangement": 5
+            },
+            "propertyTypes": {
+                "hideOnCollapse": "Boolean",
+                "collapsedShape": "Shape",
+                "expandedShape": "Shape",
+                "expandedHeaderTopPadding": "Dp",
+                "arrangement": "Arrangement.Vertical"
+            },
+            "slots": {
+                "header": 1,
+                "content": 2
+            },
+            "events": {}
+        },
+        {
+            "name": "WideNavigationRailItem",
+            "localTag": 80,
+            "properties": {
+                "selected": 1,
+                "railExpanded": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "railExpanded": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "icon": 1,
+                "label": 2
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        }
+    ]
+}

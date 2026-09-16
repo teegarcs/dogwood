@@ -61,6 +61,29 @@ class SnackbarHostState internal constructor() {
   /** Presence, for the reason every holder carries it: the host cannot see guest closures. */
   internal val watching: Boolean get() = true
 
+  /**
+   * How many times the guest has asked for the current snackbar to go. A counter, like every
+   * request in this holder: dismissing twice is two requests, and a flag would collapse them.
+   */
+  internal var dismissSequence: Int by mutableStateOf(0)
+    private set
+
+  /**
+   * Takes back the outstanding request, if there is one.
+   *
+   * ADR-051 §4 said a guest could not cancel a snackbar it asked for and that an explicit dismiss
+   * "would be another target property". This is that property. The outstanding `showSnackbar`
+   * resumes as dismissed here, immediately, because that is what the guest decided; the host's own
+   * answer for the same sequence arrives later and is dropped, as every answer for a request this
+   * holder is no longer waiting on is.
+   */
+  fun dismiss() {
+    val outstanding = pending ?: return
+    dismissSequence += 1
+    pending = null
+    outstanding.complete(SnackbarResult.DISMISSED)
+  }
+
   private var pending: CompletableDeferred<SnackbarResult>? = null
   private var pendingSequence: Int = 0
 

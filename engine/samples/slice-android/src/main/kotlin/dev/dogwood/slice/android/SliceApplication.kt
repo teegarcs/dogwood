@@ -24,5 +24,8 @@ class SliceApplication : Application() {
     // The entirety of what a host does to gain a product's design system: one call, with an object
     // the generator emitted from that product's own surface. See `samples/product-design-system`.
     DogwoodRegistry.register(AcmeDesignSystemBinding)
+    // The Material 3 tier (plans/generator-v2.md). Explicit rather than built in, so a host can
+    // leave it out; here, in Application.onCreate, for the reason Acme's is here.
+    DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
   }
 }

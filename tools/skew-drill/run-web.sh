@@ -79,7 +79,7 @@ host_before="$(hash_of "$DIST/app.js")"
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
-version="$(grep -o '"--version", "[0-9]*"' "$CODEGEN" | grep -o '[0-9]*')"
+version="$(grep -o 'val designSystemVersion = [0-9]*' "$CODEGEN" | grep -o '[0-9]*')"
 
 echo "==> rebuilding only the guest Worker script"
 ./gradlew :samples:web-guest:jsBrowserProductionWebpack --console=plain -q || exit 1

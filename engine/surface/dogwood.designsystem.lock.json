@@ -2,7 +2,7 @@
     "segmentName": "dogwoodDesignSystem",
     "wireName": "dogwood.designsystem",
     "segmentId": 1,
-    "version": 14,
+    "version": 15,
     "components": [
         {
             "name": "PrimaryButton",
@@ -259,13 +259,15 @@
                 "snackbarsMessage": 1,
                 "snackbarsActionLabel": 2,
                 "snackbarsSequence": 3,
-                "snackbarsWatching": 4
+                "snackbarsWatching": 4,
+                "snackbarsDismissSequence": 5
             },
             "propertyTypes": {
                 "snackbarsMessage": "String",
                 "snackbarsActionLabel": "String",
                 "snackbarsSequence": "Int",
-                "snackbarsWatching": "Boolean"
+                "snackbarsWatching": "Boolean",
+                "snackbarsDismissSequence": "Int"
             },
             "slots": {
                 "content": 1

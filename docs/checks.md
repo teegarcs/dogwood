@@ -32,7 +32,7 @@ Chrome rather than reporting a drill that could not run as one that passed.
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
 | `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.90 MB brotli against 3.77 MB today) | the page grows past the ceiling, or cannot be measured at all |
-| `render-shape/check.py` | every shared render test **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
+| `render-shape/check.py` | every shared render test in `dogwood-host` **and** `dogwood-material3` **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
 | `link-check/check.py` | every relative link in the repository's markdown resolves | a document sends a reader to a file that has moved or never existed. It checks links rather than prose, because that is the part of a document a machine can see is wrong |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
@@ -253,6 +253,8 @@ Worth listing so nobody assumes the matrix covers them.
 | [`web-ttff/run.sh`](../tools/web-ttff/README.md) | time to first frame under throttling. Recorded, not gated: it is a product constraint to know, not a threshold to hold |
 | [`web-slice/run.sh`](../engine/samples/web-slice/run.sh) | the web slice renders real pixels in a real browser, and the refusal path refuses before a Worker exists |
 | `dogwood-codegen` dictionary lock | fails the build if a widget tag moves or a property tag is renumbered. Enforced inside `./gradlew build`, so tier S already covers it |
+| `:dogwood-codegen:generateComposeCoverage` | regenerates [`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md) from the fetched Compose sources: every public composable at the pinned versions, bound or not, with the reason. It is the number `developer-experience.md` §1 quotes, and it is committed so a library upgrade shows as a diff ([ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) |
+| `dogwood-material3` lock and `exclusions.txt` | the generated tier's tags are as permanent as a product's; a component the generator accepts and the host compiler refuses goes into the exclusions file with the compiler's reason and is counted, not hidden |
 
 ## Enforcement — the honest state
 

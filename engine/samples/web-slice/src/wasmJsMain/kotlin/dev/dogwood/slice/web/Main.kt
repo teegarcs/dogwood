@@ -168,6 +168,20 @@ fun main() {
   // placeholders and are reported as skew, which is what the first run of the real Kotlin guest
   // showed: correct behaviour, and the wrong reason.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
+  // The Material 3 tier (plans/generator-v2.md). On the web this line is a page-weight decision,
+  // and it is measured rather than guessed (2026-09-15, three builds, brotli bytes):
+  //
+  //   without the tier at all                                3,770,785
+  //   the tier LINKED but not registered (this file as is)   3,772,894   (+2,109)
+  //   the tier registered (this line uncommented)            3,929,685   (+158,900; G5 ceiling 3,900,000)
+  //
+  // So dead-code elimination does drop an unregistered binding module -- the premise `D1` in the
+  // backlog called unverified -- and registering costs 159 KB, which is 30 KB over the ceiling.
+  // Whether to raise the ceiling with attribution (ADR-066's rule), let the web profile leave the
+  // tier out, or take up per-component binding is the owner's call, put in OPEN-DECISIONS section 7
+  // with these numbers. Until it is taken this line stays commented, so the tier-S gate stays
+  // honest; mobile and desktop register the tier.
+  // dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
 
   // -----------------------------------------------------------------------------------------
   // 1. The correctness gate, before anything else.

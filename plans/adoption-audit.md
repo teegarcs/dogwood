@@ -199,7 +199,17 @@ gap every real deployment has.
 
 ## Part B — Friction a production team hits in the first month
 
-### B1. ◐ Two of the named gaps closed, and the fifth holder shape proven
+### B1. ◐ → mostly closed by the generated Material 3 tier (2026-09-15)
+
+The finding was "the catalogue is a slice, and a product design system is fifty to two hundred".
+[ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
+binds **80 of Material 3's 186 composables** with the library's own signatures, plus the layout and
+UI tiers, generated from the pinned sources rather than declared by hand — every button and card
+variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, chips, tabs, app bars, navigation, drawers,
+dialogs and sheets. What stays open is what the coverage report says stays open: the components
+that need a holder shape (`M5` of the plan), and the `*Colors`/elevation parameters a payload
+cannot set yet (`M4`). The row below is the state before that.
+
 
 `Dialog` and `SheetArea` are in the catalogue (dictionary version 12), and the sheet is the one
 that mattered structurally: it is the **fifth holder shape**, and adding it cost exactly what
@@ -380,7 +390,11 @@ anything, quarantined after two launches on a real emulator, recovered through `
 pre-flight check is [ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md),
 graded as `B3` on Android and iOS.
 
-`J2`/`J4` on iOS remains open, and is a property of that sample rather than of the engine.
+~~`J2`/`J4` on iOS remains open, and is a property of that sample rather than of the engine.~~
+**Closed 2026-09-15**: `slice-ios` wires a navigation service the way the Android sample does, and
+the iOS accessibility drill grades both — `J2 PASS -- the host named 'explore' and the city it
+passed reached the composition`, `J4 PASS -- SkewReport(routes=[experience/nowhere])`. Every cell
+of B5 is now closed.
 
 ---
 

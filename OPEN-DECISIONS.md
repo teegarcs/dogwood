@@ -148,13 +148,23 @@ verifying `dogwood.dev`, which is a recurring cost and a second thing to renew f
 is not yet published. Taken while nobody depended on the old coordinates, which is the only time it
 is free.
 
+**The engineering half is done (2026-09-15).** Every publishing module signs its artifacts when
+`DOGWOOD_GPG_KEY` and `DOGWOOD_GPG_PASSPHRASE` are in the environment and does not require signing
+when they are not — verified both ways: `publishToMavenLocal` with nothing set succeeds unsigned,
+and with a throwaway key it wrote 198 `.asc` signatures beside the artifacts. Every POM carries the
+name, description, URL, Apache-2.0 licence, developer and source-control block Central requires.
+The transport to the Central Portal is deliberately not wired: the `com.vanniktech.maven.publish`
+route is the standard one and it takes over publication setup that this build does by hand, so it
+is a decision to take with the account rather than a line to add now.
+
 **What is left, and it is an afternoon of account work rather than a decision:**
 
 - A Sonatype Central account for `io.github.teegarcs`, verified by the namespace-ownership check.
 - A GPG signing key for the artifacts, which Central requires and which is **not** the Ed25519
-  payload signing key of §6. Two different keys for two different jobs.
-- Credentials a build can use, and a publish step that is reviewable rather than a developer's
-  Gradle invocation.
+  payload signing key of §6. Two different keys for two different jobs. There is no `gpg` on the
+  build machine today; the throwaway key used to verify signing was generated with BouncyCastle.
+- Credentials a build can use, the Portal transport, and a publish step that is reviewable rather
+  than a developer's Gradle invocation.
 - Then `samples-standalone/umbra/settings.gradle.kts` points at Central instead of `mavenLocal()`,
   and the plugin gets a marker on the Gradle Plugin Portal if it is to be applied by identifier
   without a `pluginManagement` block.
@@ -211,7 +221,35 @@ against. [`docs/operating.md`](docs/operating.md) §5 and §6 are written for wh
 
 ## 7. The web profile's first-visit trade is a product judgement
 
-**Status:** open, and it is the one item here that changes what gets built.
+**Status:** open, and it is the one item here that changes what gets built. **Reopened 2026-09-15
+with a larger number**, because the generated Material 3 tier
+([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md))
+is the first thing that does not fit under the ceiling:
+
+| Web slice build | Bytes brotli | Against the 3,900,000 ceiling |
+|---|---:|---|
+| without the tier | 3,770,785 | 129,215 under |
+| tier linked, not registered | 3,772,894 | 127,106 under — dead-code elimination drops what nothing references |
+| **tier registered** | **3,929,685** | **29,685 over** |
+
+Registering the tier on the web costs 159 KB, about a second on Fast 3G. Three ways to take it,
+none chosen here:
+
+1. **Raise the ceiling to 3,950,000 with this attribution**, under ADR-066's rule that components
+   cost every client globally and a raise arrives with its three builds. Consistent with the
+   decision taken for the pickers; the web pays what mobile pays.
+2. **Let the web profile leave the tier out.** The line is one registration in the page, and the
+   measurement shows leaving it out costs nothing. A payload using Material 3 would then render
+   placeholders on the web and be refused pre-flight if it declared the segment — a profile
+   asymmetry, which is what ADR-066 declined for the catalogue, at a different size.
+3. **Per-component binding** — the backlog's `D1`, whose unverified premise this measurement
+   verified. Its cost is written there: a third skew state and a finer pre-flight declaration.
+
+**Until one is taken, the web sample leaves the registration commented out with these numbers
+beside it**, so the tier-S gate stays green and honest; the mobile and desktop samples register
+the tier. That is a pending asymmetry, not a chosen one.
+
+The rest of this section is the earlier measurement, unchanged.
 
 The web page is **3,766,502 bytes brotli**, and roughly seven tenths of it is Skiko — a prebuilt
 binary this project cannot shrink, configure or defer. Every engineering lever has now been measured

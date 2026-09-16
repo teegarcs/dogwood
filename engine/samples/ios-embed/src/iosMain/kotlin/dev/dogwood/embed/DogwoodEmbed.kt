@@ -72,13 +72,28 @@ import platform.UIKit.UIViewController
  *   Unit` rather than an exception because Swift cannot catch a Kotlin one, and because a screen
  *   that fails to load is an ordinary product situation rather than a crash.
  */
+private var tiersRegistered = false
+
+/**
+ * The Material 3 tier (plans/generator-v2.md), registered once per process rather than per screen:
+ * the registry refuses a segment registered twice, and a product opens more than one screen.
+ * Explicit rather than built in, so a host can leave the tier out.
+ */
+private fun registerTiersOnce() {
+  if (tiersRegistered) return
+  tiersRegistered = true
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+}
+
 fun dogwoodViewController(
   manifestUrl: String,
   entryPoint: String,
   trustedKeys: Map<String, String>,
   launchParams: JsonObject = JsonObject(emptyMap()),
   onFailure: (String) -> Unit = {},
-): UIViewController = ComposeUIViewController {
+): UIViewController {
+  registerTiersOnce()
+  return ComposeUIViewController {
   val uiScope = rememberCoroutineScope()
   var experience by remember { mutableStateOf<DogwoodExperience?>(null) }
   var failure by remember { mutableStateOf<String?>(null) }
@@ -151,6 +166,7 @@ fun dogwoodViewController(
       }
     }
   }
+}
 }
 
 private fun directory(kind: platform.Foundation.NSSearchPathDirectory): String =

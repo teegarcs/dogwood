@@ -1,4 +1,5 @@
 import java.math.BigInteger
+import java.security.MessageDigest
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.Signature
@@ -42,6 +43,7 @@ kotlin {
         // Acme's design system, so a product's own components render here too. Registered in
         // `main`, exactly as the Android host registers it in `Application.onCreate`.
         implementation(project(":samples:product-design-system"))
+        implementation(project(":dogwood-material3"))
       }
     }
   }
@@ -311,7 +313,32 @@ val signWebSidecars by tasks.registering {
       .orEmpty()
     require(manifests.isNotEmpty()) { "no sidecar manifests in $directory to sign" }
 
+    /*
+     * The script digest, filled in from the built script BEFORE signing, so the signature covers it.
+     *
+     * Read out of the manifest's own `guestScript` field rather than assumed, because the sample
+     * has two guests (a hand-written JavaScript one and the Kotlin one) and a fixture that names the
+     * wrong one is exactly what the signature drill uses. One fixture is left alone on purpose:
+     * `dogwood-manifest-tampered-script.json` carries a digest that is wrong by construction, and
+     * the point of it is that its signature is *valid* over that wrong digest -- a script swapped
+     * after signing, seen from the client.
+     */
+    val digests = MessageDigest.getInstance("SHA-256")
     for (manifest in manifests) {
+      if (!manifest.name.contains("tampered-script")) {
+        val text = manifest.readText()
+        val script = Regex(""""guestScript"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+          ?: error("${manifest.name} names no guestScript")
+        val scriptFile = File(directory, script)
+        require(scriptFile.isFile) { "${manifest.name} names $script, which is not in $directory" }
+        val digest = hex(digests.digest(scriptFile.readBytes()))
+        val stamped = Regex(""""guestScriptSha256"\s*:\s*(null|"[^"]*")""")
+          .replace(text) { "\"guestScriptSha256\": \"$digest\"" }
+        require(stamped != text || text.contains("\"$digest\"")) {
+          "${manifest.name} has no guestScriptSha256 field to fill in; add `\"guestScriptSha256\": null`"
+        }
+        manifest.writeText(stamped)
+      }
       val bytes = manifest.readBytes()
       val lines = signers.map { (name, private, public) ->
         val signer = Signature.getInstance("Ed25519")
@@ -342,3 +369,6 @@ val signWebSidecars by tasks.registering {
 }
 
 tasks.named("wasmJsBrowserDistribution") { finalizedBy(signWebSidecars) }
+// The digest is of the script the distribution actually ships, so the Kotlin guest has to have
+// been copied in before the manifests are stamped and signed.
+signWebSidecars.configure { mustRunAfter(tasks.named("copyKotlinGuest")) }
