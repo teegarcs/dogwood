@@ -1,5 +1,10 @@
 # ADR-062: A signed web sidecar
 
+> **2026-09-15.** The sidecar now also carries `guestScriptSha256`; the client fetches the script
+> bytes, verifies the digest before any Worker exists, and builds the Worker from a `Blob` of the
+> verified bytes. The gap this record left open — "the guest script is still fetched without an
+> integrity check" — is closed and graded as `B5`. See ADR-032's note of the same date.
+
 **Date:** 2026-09-08
 **Status:** Accepted
 

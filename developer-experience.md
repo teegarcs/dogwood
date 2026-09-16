@@ -16,6 +16,7 @@ The host application does not learn about your new screen, and it does not need 
 | Layout primitives (segment 0) | `Text`, `Column`, `Row`, `Box`, `Spacer`, with arrangement and alignment on the containers and font weight, text alignment, overflow, size, decoration and line height on text; `VerticalList`, `HorizontalList`, `Pager` |
 | Modifiers (segment 0) | 27: padding (uniform, per side, symmetric), size, width, height, `widthIn`/`heightIn`, `defaultMinSize`, `fillMaxWidth`/`Height`/`Size`, `wrapContentWidth`/`Height`, `aspectRatio`, weight and align (in scope), offset, alpha, rotate, scale, `clip`, `background`, `border`, `shadow`, **`clickable` on any node**, `contentDescription`, `testTag`; most numeric ones accept an animated target |
 | Dogwood's catalogue (segment 1) | 21 components: button, image, card, badge, divider, chip, price, star rating, section header, icon, text input, presence, scroll area, snackbar area, dialog, sheet, menu and menu item, date and time pickers |
+| **Material 3, generated** (segment 255) | **80 of Material 3's 186 composables**, with the library's exact signatures — every button and card variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, `Text`, chips, tabs, top and bottom app bars, navigation bars, rails and drawers, dividers, progress indicators, `ListItem`, `AlertDialog`, `ModalBottomSheet`, the date and time picker dialogs — plus `Box`, `Column`, `Row`, `Spacer`, `FlowRow`/`FlowColumn`, `Dialog` and `Popup` from the layout and UI tiers. The host quotes the library's own default for anything you do not set; `*Colors`, elevations and interaction sources are not settable from a payload yet. The list, and every parameter's status, is [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md), regenerated from the pinned sources ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) |
 | Yours (segment 2 and up) | whatever your surface declares — see §4b |
 
 **What still requires a host release:** a new *kind* of widget — anything whose implementation must run natively — and ordinary bug fixes. Adding a modifier or a property to the primitive tier is also a release, which is why that tier was grown deliberately ([ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)): the practical test of "no release for a new component" is whether your design system's *compositional* components can be authored in the payload from these primitives, and that is what the tier is now sized for.
@@ -206,7 +207,7 @@ dependencies {
 dogwood {
   segment("acmeDesignSystem") {          // names your Kotlin declarations
     wireName.set("acme.designsystem")    // what a guest sees in LocalSegmentVersions
-    segmentId.set(2)                     // 0 and 1 are Dogwood's. Yours, forever.
+    segmentId.set(2)                     // 2..200 are yours, forever. 0, 1 and 201..255 are Dogwood's.
     version.set(1)
     guestPackage.set("dev.acme.guest")
     hostPackage.set("dev.acme.design")

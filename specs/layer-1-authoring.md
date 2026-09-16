@@ -90,6 +90,20 @@ A `@Composable` a developer writes is a plain function. It executes inside the g
 
 Shared guest component libraries (a `feature-common` module used by several experiences) compile as ordinary Kotlin Multiplatform modules against the Dogwood stubs, and ride [Layer 2](layer-2-compiler.md)'s multi-module manifest so unchanged shared modules are cached once across experiences rather than duplicated per payload.
 
+### What a Registered Surface May Declare
+
+The bindability rule above governs lambdas. Its value half is enforced by the generator since
+[Layer 5 ADR-068](../adrs/layer-5/ADR-068-the-generator-refuses-what-it-cannot-bind.md): a
+parameter that is not a lambda may be `String`, `Int`, `Long`, `Float`, `Double` or `Boolean`; a
+host-resolved `TextValue`, `Color` or `Shape`; `Modifier`; a `@Holder` type with a registered
+shape; or **an enumeration declared on the same surface**. An enumeration is copied to the guest
+stubs and, unless `@Implementation` names the adopter's own type, to the host bindings; its entry
+*name* crosses, so a client that predates an entry renders the parameter's default and reports the
+name as skew, and the lock treats entries as append-only. Anything else fails the build before a
+file is written, naming the parameter and this list. For thirteen days the generator instead
+dropped such a component silently with the build green, which is the reason the rule is now
+enforced at the parse rather than described here.
+
 ### Some Compose Values Are Not Readable in the Guest
 
 `MaterialTheme.colorScheme.primary`, `LocalDensity.current`, and the other Compose-provided composition locals live in Compose UI, which does not run in the guest. A developer may *name* a theme value so the host resolves it, but cannot compute from it — `MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)` has no representation. The dictionary checker rejects these at build time.

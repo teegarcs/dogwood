@@ -49,6 +49,12 @@ enum class SkewKind {
   /** An enter/exit transition name this client does not implement. */
   UNKNOWN_TRANSITION,
 
+  /**
+   * A name from one of Compose's closed sets -- an arrangement, an alignment, a font weight, an
+   * overflow or decoration -- that this client's vocabulary predates. Rendered as the default.
+   */
+  UNKNOWN_NAME,
+
   /** An enumeration entry name absent from this client's surface. Read as the parameter's default. */
   UNKNOWN_ENUM_VALUE,
 
@@ -126,6 +132,7 @@ fun SkewReport.entries(): List<SkewEntry> = buildList {
   add(SkewKind.UNKNOWN_TEXT_STYLE, unknownTextStyles)
   add(SkewKind.UNKNOWN_ICON, unknownIcons)
   add(SkewKind.UNKNOWN_TRANSITION, unknownTransitions)
+  add(SkewKind.UNKNOWN_NAME, unknownNames)
   add(SkewKind.UNKNOWN_ENUM_VALUE, unknownEnumValues)
   add(SkewKind.REJECTED_NUMBER_PATTERN, rejectedNumberPatterns)
   add(SkewKind.UNTRANSLATED_PLURAL, untranslatedPlurals)

@@ -301,6 +301,35 @@ fun AboutScreen() {
 
     Divider(modifier = Modifier.fillMaxWidth())
 
+    var switched by remember { mutableStateOf(true) }
+    var ticked by remember { mutableStateOf(false) }
+    var pressed by remember { mutableStateOf(0) }
+    SectionHeader(
+      title = "Material 3, generated",
+      description = "Segment 255. Nobody wrote these bindings: the generator read the library's " +
+        "own sources and emitted both halves (plans/generator-v2.md). Tap them.",
+    )
+    // Fully qualified, because the primitive tier's `Text` is in scope and Material 3's is a
+    // different component with a different tag. A payload picks by import; this screen uses both.
+    dev.dogwood.compose.material3.Card(modifier = Modifier.fillMaxWidth()) {
+      Column(modifier = Modifier.padding(12)) {
+        Row(verticalAlignment = VerticalAlignment.CenterVertically) {
+          dev.dogwood.compose.material3.Switch(checked = switched, onCheckedChange = { switched = it })
+          Text(if (switched) "switch on" else "switch off")
+        }
+        Row(verticalAlignment = VerticalAlignment.CenterVertically) {
+          dev.dogwood.compose.material3.Checkbox(checked = ticked, onCheckedChange = { ticked = it })
+          Text(if (ticked) "ticked" else "not ticked")
+        }
+        dev.dogwood.compose.material3.Button(onClick = { pressed += 1 }) {
+          dev.dogwood.compose.material3.Text("material button · $pressed")
+        }
+        dev.dogwood.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+      }
+    }
+
+    Divider(modifier = Modifier.fillMaxWidth())
+
     /*
      * Placed after the animation section on purpose.
      *

@@ -13,6 +13,7 @@ kotlin { jvmToolchain(21) }
 dependencies {
   implementation(project(":dogwood-host"))
   implementation(project(":samples:product-design-system"))
+  implementation(project(":dogwood-material3"))
   implementation(compose.desktop.currentOs)
   implementation(libs.coroutines.core)
   add(PLUGIN_CLASSPATH_CONFIGURATION_NAME, "app.cash.zipline:zipline-kotlin-plugin:${libs.versions.zipline.get()}")

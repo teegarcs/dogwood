@@ -146,4 +146,34 @@ class SnackbarMirrorTest {
       assertEquals(0, onAllNodesWithText("Deleted").fetchSemanticsNodes().size)
     }
   }
+
+  @Test
+  fun aDismissTakesTheSnackbarOffTheScreen() = run {
+    // Property five is the holder's DismissSequence, appended to the shape on 2026-09-15. A shown
+    // snackbar, then the guest taking it back: the observable consequence is the message gone.
+    //
+    // **Within one second of virtual time, with the clock held.** The first version of this test
+    // let the harness auto-advance and waited for the message to leave -- and passed with the
+    // dismiss branch deleted, because a `Long` snackbar leaves on its own after ten seconds and
+    // the auto-advancing clock reached them at once. A control that passes without its subject
+    // is the vacuity this repository keeps rediscovering; holding the clock is what makes "gone"
+    // mean "dismissed" rather than "expired".
+    val tree = tree("Deleted", actionLabel = "Undo")
+    show(tree) {
+      waitUntil("the snackbar never appeared", timeoutMillis = WAIT) {
+        onAllNodesWithText("Deleted").fetchSemanticsNodes().isNotEmpty()
+      }
+      mainClock.autoAdvance = false
+      tree.apply(decodePositional("[2,[[1,1,5,1]]]"))
+      mainClock.advanceTimeBy(1_000)
+      assertTrue(
+        onAllNodesWithText("Deleted").fetchSemanticsNodes().isEmpty(),
+        "the snackbar is still on screen a second after the guest dismissed it",
+      )
+      // And the guest is told, with the sequence it asked under, so a caller that did not resume
+      // itself locally would still resume.
+      mainClock.advanceTimeBy(1_000)
+      assertTrue(answers.any { it.sequence == 1 && !it.actionPerformed }, "no dismissal answer: $answers")
+    }
+  }
 }

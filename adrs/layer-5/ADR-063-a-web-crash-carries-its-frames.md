@@ -1,5 +1,14 @@
 # ADR-063: A web crash carries its frames
 
+> **2026-09-15.** The Worker is now constructed from a `Blob` of the verified script bytes
+> (ADR-062's integrity check), so a crash's frames name `blob:http://…/<uuid>:line:column` rather
+> than `guest-kotlin.js:line:column`. The offsets are the same offsets into the same bundle;
+> `tools/symbolicate/resolve.py` parses any `file:line:column` and never keyed on the name. What
+> identifies the build is the release identity the page reports, which since the same change is the
+> script's digest — a better key than a file name, because it names the bytes. The web drill's
+> frame count keyed on the file name and reported zero frames on a crash that carried them; it now
+> counts `:line:column` positions.
+
 **Date:** 2026-09-08
 **Status:** Accepted
 

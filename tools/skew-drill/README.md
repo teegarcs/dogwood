@@ -93,6 +93,14 @@ sit in one directory, so it rebuilds one file and leaves the other alone. It has
 and after and **fails if it changed** — a host rebuilt alongside the guest is a drill that quietly
 tests nothing.
 
+One more file does change: the sidecar manifests. Each signed one carries the SHA-256 of the guest
+script it was signed over ([ADR-062](../../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)), and the
+client verifies the fetched bytes against it before it creates a Worker — so after the swap the
+drill runs `:samples:web-slice:signWebSidecars` again, which re-stamps the digest and re-signs the
+manifests and touches nothing else. The first pull-request run after the integrity check landed is
+what found this: the drill passed locally on a distribution that happened to have been signed over
+a skewed guest, and on a clean runner it was refused for its digest before it ever reached the skew.
+
 ### Two halves, and why they are two scripts
 
 Every client now runs both halves, which was not true before ADR-061: the mobile clients had

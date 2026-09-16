@@ -127,10 +127,25 @@ object DogwoodRegistry {
  */
 const val FIRST_PRODUCT_SEGMENT: Int = 2
 
+/**
+ * The last segment identifier a product may use.
+ *
+ * Above it are Dogwood's generated library tiers, allocated downward from 255 so the two
+ * directions cannot meet (`Segments.MATERIAL3` and its neighbours). A product that picked 255
+ * would collide with the Material 3 tier on every client that registers it -- and the collision
+ * does not fail to render, it renders the wrong widget, which is why this is refused at the call
+ * site rather than discovered on a screen.
+ */
+const val LAST_PRODUCT_SEGMENT: Int = 200
+
 /** A tag in a product's own segment. Sugar for [widgetTag], so a product need not import both. */
 fun productTag(segmentId: Int, localTag: Int): WidgetTag {
   require(segmentId >= FIRST_PRODUCT_SEGMENT) {
     "segment $segmentId is Dogwood's; a product segment starts at $FIRST_PRODUCT_SEGMENT"
+  }
+  require(segmentId <= LAST_PRODUCT_SEGMENT) {
+    "segment $segmentId is reserved for Dogwood's generated library tiers; a product segment " +
+      "ends at $LAST_PRODUCT_SEGMENT"
   }
   return widgetTag(segmentId, localTag)
 }

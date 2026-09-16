@@ -1,0 +1,10 @@
+{
+  "_comment": "The integrity fixture (claim B5). This manifest is signed like every other, and its signature is VALID -- what is wrong is the digest, which does not match guest-kotlin.js. It models a script swapped at the origin after the manifest was signed, which is the one attack a sidecar signature cannot see on its own. `signWebSidecars` leaves this file's digest alone by name; every other manifest gets the real one stamped in.",
+  "envelopeRevision": 1,
+  "guestScript": "guest-kotlin.js",
+  "segmentVersions": {
+    "androidx.layout": 1,
+    "dogwood.designsystem": 9
+  },
+  "guestScriptSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

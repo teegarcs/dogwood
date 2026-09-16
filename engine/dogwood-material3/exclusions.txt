@@ -1,0 +1,6 @@
+# Components the v2 bindability rule accepts and the host compiler did not.
+#
+# One per line: <dictionary name><TAB><reason, in the compiler's words>. The generator skips these
+# and the coverage report counts them under "generable, excluded", so the number stays visible
+# rather than disappearing into a green build. A library upgrade that removes a bound component
+# also goes here, because its tag is retired rather than reused (plans/generator-v2.md, D-C).

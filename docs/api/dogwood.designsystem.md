@@ -4,7 +4,7 @@
 # `dogwood.designsystem` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **14**, segment **1**.
+actually emitted. Version **15**, segment **1**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -325,6 +325,7 @@ Local tag 16, widget tag `16777232`.
 | `snackbarsActionLabel` | `String` | 2 | `""` when absent | from the `snackbars` holder (`actionLabel`) |
 | `snackbarsSequence` | `Int` | 3 | `0` when absent | from the `snackbars` holder (`sequence`) |
 | `snackbarsWatching` | `Boolean` | 4 | `false` when absent | from the `snackbars` holder (`watching`) |
+| `snackbarsDismissSequence` | `Int` | 5 | `0` when absent | from the `snackbars` holder (`dismissSequence`) |
 
 **Content slots**
 

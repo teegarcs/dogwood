@@ -26,6 +26,9 @@ include(":dogwood-protocol")
 include(":dogwood-compose")
 include(":dogwood-host")
 include(":dogwood-codegen")
+// The Material 3 tier, generated from the library's own sources (plans/generator-v2.md). Its own
+// module so a host -- and the web page-weight measurement -- can leave it out.
+include(":dogwood-material3")
 // The sample screens, shared by every guest entry point. See `samples/slice-screens`.
 include(":samples:slice-screens")
 include(":samples:slice-guest")

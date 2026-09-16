@@ -79,6 +79,7 @@ import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSStringFromClass
 import platform.Foundation.NSUserDomainMask
 import platform.UIKit.UIApplication
+import platform.UIKit.accessibilityLabel
 import platform.UIKit.UIApplicationDelegateProtocol
 import platform.UIKit.UIApplicationDelegateProtocolMeta
 import platform.UIKit.UIApplicationMain
@@ -179,6 +180,8 @@ fun main() {
   // product's components arrive as inert placeholders and are reported as skew, which is what the
   // iOS skew drill found: `widgets=[33554433, 33554434, 33554435]` is segment 2, tags 1 to 3.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
+  // The Material 3 tier (plans/generator-v2.md), registered explicitly so a host can leave it out.
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
 
   val args = arrayOf("DogwoodSlice")
   memScoped {
@@ -388,7 +391,34 @@ private fun SliceHost(configuration: HostEnvironment) {
     if (root == null) {
       println("A11Y REFUSED there is no key window to walk")
     } else {
-      val failures = runAccessibilityDrill(root)
+      var failures = runAccessibilityDrill(root)
+      /*
+       * J2 -- launch parameters reach the experience the host named. Graded here, after the walk
+       * has finished with the Diagnostics screen, because it needs a *different* screen: this host
+       * launches `explore` with `city=Tokyo`, and the sandbox has no other route to that word. The
+       * Android drill grades this from a separate instrumented test; on this client the drill runs
+       * inside the application, so switching the tab is the equivalent of the intent extra.
+       *
+       * Until 2026-09-15 this client wired the navigation service (Track E2) but nothing graded
+       * `J2` on it, so the audit's B5 row still called the cell open. By outcome rather than delay:
+       * the payload is fetched and composes, and this waits for the word to appear.
+       */
+      current = "explore"
+      var arrived = false
+      var waited = 0
+      while (!arrived && waited < 60_000) {
+        kotlinx.coroutines.delay(500)
+        waited += 500
+        arrived = collectAccessibilityElements(root).any {
+          (it.accessibilityLabel ?: "").contains("Tokyo")
+        }
+      }
+      if (arrived) {
+        println("CONF J2 PASS -- the host named 'explore' and the city it passed reached the composition")
+      } else {
+        failures += 1
+        println("CONF J2 FAIL -- no launch-parameter text on screen after 60s")
+      }
       println("A11Y DONE failures=$failures")
     }
   }

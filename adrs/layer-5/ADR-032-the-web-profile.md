@@ -1,5 +1,12 @@
 # ADR-032: The Web Profile
 
+> **2026-09-15, later the same day.** The Blob-constructed Worker needs `worker-src blob:` in the
+> page's Content Security Policy. The sample's own policy said `'self'` and the first drill after
+> the change rendered an empty page with `workerCreated=true` and no error — the Worker was created
+> and killed before it ran, and the bridge's failure path was an optional callback nobody wired. The
+> bridge now reports a Worker that dies before it speaks through the listener as well, the sample's
+> policy admits `blob:`, and `docs/getting-started.md` names the requirement.
+
 **Date:** 2026-09-02
 **Status:** Accepted
 
@@ -109,6 +116,20 @@ that a compromised or substituted server cannot make a client run code the signi
 A product wanting parity can fetch the script, verify a hash carried in the signed sidecar, and
 construct the Worker from a blob — `new Worker(url)` supports no Subresource Integrity attribute, so
 the verification has to be explicit. That is left unbuilt and named as the gap.
+
+> **Built, 2026-09-15.** `WebDelivery` now fetches the script's bytes itself, digests them with
+> `crypto.subtle`, compares the result with `guestScriptSha256` on the signed sidecar, and creates
+> the Worker from a `Blob` of the verified bytes rather than from the network address. A mismatch is
+> `DeliveryRefusal.IntegrityRefused` with no Worker created; a host that holds keys refuses a
+> manifest that carries no digest at all, and `signWebSidecars` stamps the digest in before signing
+> so nobody types it. Graded as `B5` by `tools/conformance/run-web.sh` against a fixture whose
+> signature is valid and whose digest is wrong by construction. The decision table on its own is
+> `IntegrityRequirementTest`. The remaining line in this section — origin isolation — is unchanged.
+>
+> **And the transport moved, 2026-09-13.** The Worker side of the envelope, described below as
+> living in the sample, is `runInWorker` in `dogwood-compose` since
+> [ADR-070](ADR-070-every-shipping-platform-is-consumable.md); the sample is the entry-point list
+> plus one call.
 
 ### Isolation, and an honest amendment
 

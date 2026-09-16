@@ -78,7 +78,9 @@ dependencies {
 dogwood {
   segment("umbraDesignSystem") {
     wireName.set("umbra.designsystem")
-    // 0 and 1 are Dogwood's; 2 is Acme's in the in-repository sample. Umbra takes 3.
+    // 0 and 1 are Dogwood's, and so are 201..255 (the generated Compose tiers, allocated downward
+    // from 255 -- ADR-072); products allocate upward from 2. Acme is 2 in the engine's sample; Umbra
+    // takes 3.
     segmentId.set(3)
     // 3 since `UmbraBadge` and `UmbraTone` (2 since `UmbraChip`): the dictionary is append-only
     // and a new component -- or a new enumeration -- is a new version, which is what lets a client

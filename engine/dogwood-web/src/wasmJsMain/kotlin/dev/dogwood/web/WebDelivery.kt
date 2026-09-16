@@ -27,16 +27,15 @@
  * trustworthy as the signing key: the dictionary vector, the release identity, and the kill switch,
  * which until now was only as trustworthy as its origin and said so in its own comment.
  *
- * The other half is not. **The guest script is still fetched by the browser without an integrity
- * check.** A signed sidecar naming a script does not stop a server from serving different bytes at
- * that address. ADR-032 names the parity path -- fetch the script, verify a hash carried in the
- * sidecar, construct the Worker from a blob, because `new Worker(url)` supports no Subresource
- * Integrity attribute -- and it is still unbuilt.
- * [DogwoodWebManifest.guestScriptSha256] exists so that a deployment can *carry* the hash today and
- * a later change can start enforcing it without a manifest migration; [WebDelivery] currently reads
- * it only to report that it was ignored. What signing the sidecar buys is that the hash, once
- * enforced, will arrive on a document an attacker cannot rewrite -- which is the order these two
- * steps have to be taken in.
+ * The other half is built too, since 2026-09-15. **The guest script's bytes are fetched by this
+ * class, digested, and compared with [DogwoodWebManifest.guestScriptSha256] before a Worker
+ * exists**, and the Worker is constructed from a `Blob` of the bytes that were verified -- never
+ * from the network address, because `new Worker(url)` supports no Subresource Integrity attribute
+ * and a second fetch would verify one copy and run another. A signed sidecar that names a script
+ * without its digest signs an address, not the code; so a host that passes keys refuses a manifest
+ * that carries no digest, and a host that passes none ("believe the origin") verifies the digest
+ * when there is one and runs the origin's bytes when there is not. The order matters and is the
+ * order ADR-062 said it had to be: the hash arrives on a document an attacker cannot rewrite.
  */
 package dev.dogwood.web
 
@@ -98,9 +97,11 @@ data class DogwoodWebManifest(
    */
   val disabled: Boolean = false,
   /**
-   * The guest script's SHA-256 digest, hexadecimal, if the deployment publishes one.
+   * The guest script's SHA-256 digest, hexadecimal, lower case.
    *
-   * **Read and reported, not enforced.** See this file's header.
+   * **Enforced** since 2026-09-15: the bytes this page fetches must hash to it or no Worker is
+   * created, and a host that holds keys refuses a manifest that omits it. `signWebSidecars` fills
+   * it in from the built script before signing, so nobody types it.
    */
   val guestScriptSha256: String? = null,
 )
@@ -131,6 +132,16 @@ sealed interface DeliveryRefusal {
    * key never approved, and only one of those is a bad afternoon.
    */
   data class SignatureRefused(override val message: String) : DeliveryRefusal
+
+  /**
+   * The guest script's bytes did not hash to the digest the signed manifest carries -- or the
+   * manifest carries none and this host holds keys, which is the same hole from the other side.
+   *
+   * Distinct from [SignatureRefused] because the operational meaning differs: a bad signature is
+   * a bad manifest, while a bad digest is a good manifest whose *script* was swapped at the origin
+   * or on the way -- the one thing the sidecar signature alone could not see.
+   */
+  data class IntegrityRefused(override val message: String) : DeliveryRefusal
 
   /**
    * The payload names a dictionary this client does not implement.
@@ -323,6 +334,43 @@ class WebDelivery(
     if (skew != null) return refuse(skew, manifest)
 
     /*
+     * The script's own bytes, fetched here and nowhere else.
+     *
+     * Before the release guard, deliberately: a swapped script is not a release that failed, it is
+     * a release that never ran, and counting it as an attempt would let an attacker who controls
+     * the origin drive a client into quarantine by serving wrong bytes twice.
+     */
+    val scriptUrl = resolveRelative(manifestUrl, manifest.guestScript)
+    val requirement = integrityRequirement(manifest.guestScriptSha256, trustedPublicKeys.isNotEmpty())
+    if (requirement is IntegrityRequirement.Refuse) {
+      return refuse(DeliveryRefusal.IntegrityRefused(requirement.reason), manifest)
+    }
+    val scriptBytes = try {
+      val response: Response = window.fetch(scriptUrl).await<Response>()
+      if (!response.ok) {
+        return refuse(
+          DeliveryRefusal.ManifestUnavailable("$scriptUrl answered ${response.status} ${response.statusText}"),
+          manifest,
+        )
+      }
+      response.arrayBuffer().await<JsAny>()
+    } catch (failure: Throwable) {
+      return refuse(DeliveryRefusal.ManifestUnavailable("$scriptUrl could not be fetched: ${failure.message}"), manifest)
+    }
+    if (requirement is IntegrityRequirement.Verify) {
+      val actual = sha256Hex(scriptBytes)
+      if (actual != requirement.expected) {
+        return refuse(
+          DeliveryRefusal.IntegrityRefused(
+            "the bytes at $scriptUrl hash to $actual; the signed manifest says ${requirement.expected}. " +
+              "The script was changed after the manifest was signed, and it will not run.",
+          ),
+          manifest,
+        )
+      }
+    }
+
+    /*
      * The release verdict, and it sits here for the same reason it sits before `start` on mobile:
      * fetching a payload is not the dangerous part, running it is, and everything above this line
      * has fetched without executing a byte of guest code.
@@ -344,8 +392,9 @@ class WebDelivery(
       guard.starting(version)
     }
 
-    // Everything above ran before this line, which is the requirement.
-    val worker = Worker(resolveRelative(manifestUrl, manifest.guestScript))
+    // Everything above ran before this line, which is the requirement. The Worker runs the bytes
+    // that were digested, not whatever the origin would serve a second time.
+    val worker = Worker(blobUrl(scriptBytes))
     return DeliveryOutcome.Started(WorkerBridge(worker, listener), manifest, version)
   }
 
@@ -422,6 +471,55 @@ class WebDelivery(
     return DeliveryOutcome.Refused(refusal, manifest)
   }
 }
+
+/**
+ * What the presence or absence of a digest means, given whether this host holds keys.
+ *
+ * Pure, so the rule can be tested without a browser fetching anything:
+ *
+ *  | digest | keys | outcome |
+ *  |---|---|---|
+ *  | present | any | verify it; a mismatch never runs |
+ *  | absent | held | refuse -- a signed address without its code is the hole the signature left |
+ *  | absent | none | run the origin's bytes; "believe the origin" was the written decision |
+ */
+sealed interface IntegrityRequirement {
+  data class Verify(val expected: String) : IntegrityRequirement
+  data class Refuse(val reason: String) : IntegrityRequirement
+  data object BelieveTheOrigin : IntegrityRequirement
+}
+
+fun integrityRequirement(digest: String?, keysHeld: Boolean): IntegrityRequirement {
+  val expected = digest?.trim()?.lowercase()
+  return when {
+    !expected.isNullOrEmpty() && expected.length == 64 && expected.all { it in "0123456789abcdef" } ->
+      IntegrityRequirement.Verify(expected)
+    !expected.isNullOrEmpty() ->
+      IntegrityRequirement.Refuse("guestScriptSha256 is not a 64-character hexadecimal digest: `$expected`")
+    keysHeld -> IntegrityRequirement.Refuse(
+      "the manifest carries no guestScriptSha256, and this host holds trusted keys. A signed " +
+        "manifest that names a script without its digest signs an address, not the code; the " +
+        "field is required whenever keys are passed. `signWebSidecars` fills it in.",
+    )
+    else -> IntegrityRequirement.BelieveTheOrigin
+  }
+}
+
+/** SHA-256 of an `ArrayBuffer`, lower-case hexadecimal, through `crypto.subtle`. */
+private suspend fun sha256Hex(buffer: JsAny): String =
+  digestHex(buffer).await<JsString>().toString()
+
+private fun digestHex(buffer: JsAny): kotlin.js.Promise<JsAny?> = js(
+  """
+  crypto.subtle.digest('SHA-256', buffer).then(function (d) {
+    return Array.prototype.map.call(new Uint8Array(d), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  })
+  """,
+)
+
+/** A `blob:` address for the verified bytes. Same-origin, and nothing else can be served at it. */
+private fun blobUrl(buffer: JsAny): String =
+  js("URL.createObjectURL(new Blob([buffer], { type: 'text/javascript' }))")
 
 /**
  * Resolves the guest script against the manifest's own address.

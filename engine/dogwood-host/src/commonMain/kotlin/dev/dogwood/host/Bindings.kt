@@ -481,9 +481,10 @@ private fun LazyListMirror(node: WidgetView, listState: LazyListState, events: E
  *
  * Every resolver below follows the one rule every other named thing obeys: the host owns the
  * meaning, an unknown name degrades to the default rather than throwing, and the name is recorded
- * so a team can see that payloads are ahead of devices. They are recorded into the text-style set
- * because that is the set a "style-shaped token the client did not know" belongs in, and because a
- * new `SkewKind` is a new metric name in somebody's dashboard -- a decision, not a side effect.
+ * so a team can see that payloads are ahead of devices. They are recorded as `UNKNOWN_NAME`, their
+ * own kind since 2026-09-15: for a day they rode the text-style set with a prefix, and a dashboard
+ * counting "unknown text style" would have reported a typography drift when a payload had merely
+ * started using an arrangement this client predates.
  */
 
 /** `"spacedBy:8"`, or one of Compose's own names. Negative spacing is clamped, because Compose throws. */
@@ -498,7 +499,7 @@ private fun verticalArrangement(name: String?): Arrangement.Vertical = when {
     "spaceBetween" -> Arrangement.SpaceBetween
     "spaceAround" -> Arrangement.SpaceAround
     "spaceEvenly" -> Arrangement.SpaceEvenly
-    else -> Arrangement.Top.also { LocalSkewReport.current.unknownTextStyles += "arrangement:$name" }
+    else -> Arrangement.Top.also { LocalSkewReport.current.unknownNames += "arrangement:$name" }
   }
 }
 
@@ -513,7 +514,7 @@ private fun horizontalArrangement(name: String?): Arrangement.Horizontal = when 
     "spaceBetween" -> Arrangement.SpaceBetween
     "spaceAround" -> Arrangement.SpaceAround
     "spaceEvenly" -> Arrangement.SpaceEvenly
-    else -> Arrangement.Start.also { LocalSkewReport.current.unknownTextStyles += "arrangement:$name" }
+    else -> Arrangement.Start.also { LocalSkewReport.current.unknownNames += "arrangement:$name" }
   }
 }
 
@@ -556,7 +557,7 @@ private fun textAlign(name: String?): androidx.compose.ui.text.style.TextAlign =
   "end" -> androidx.compose.ui.text.style.TextAlign.End
   "justify" -> androidx.compose.ui.text.style.TextAlign.Justify
   else -> androidx.compose.ui.text.style.TextAlign.Start.also {
-    LocalSkewReport.current.unknownTextStyles += "textAlign:$name"
+    LocalSkewReport.current.unknownNames += "textAlign:$name"
   }
 }
 
@@ -566,7 +567,7 @@ private fun textOverflow(name: String?): TextOverflow = when (name) {
   null, "ellipsis" -> TextOverflow.Ellipsis
   "clip" -> TextOverflow.Clip
   "visible" -> TextOverflow.Visible
-  else -> TextOverflow.Ellipsis.also { LocalSkewReport.current.unknownTextStyles += "overflow:$name" }
+  else -> TextOverflow.Ellipsis.also { LocalSkewReport.current.unknownNames += "overflow:$name" }
 }
 
 @Composable
@@ -580,7 +581,7 @@ private fun fontWeight(name: String): androidx.compose.ui.text.font.FontWeight? 
     // 100..900, and anything else is clamped and reported like any other hostile value.
     val numeric = name.toIntOrNull()
     if (numeric == null) {
-      LocalSkewReport.current.unknownTextStyles += "fontWeight:$name"
+      LocalSkewReport.current.unknownNames += "fontWeight:$name"
       null
     } else {
       if (numeric !in 100..900) LocalSkewReport.current.clampedValues += "fontWeight=$numeric outside 100..900"
@@ -602,7 +603,7 @@ private fun androidx.compose.ui.text.TextStyle.withOverrides(
     null -> null
     "underline" -> TextDecoration.Underline
     "lineThrough" -> TextDecoration.LineThrough
-    else -> null.also { LocalSkewReport.current.unknownTextStyles += "textDecoration:$decoration" }
+    else -> null.also { LocalSkewReport.current.unknownNames += "textDecoration:$decoration" }
   }
   return copy(
     fontWeight = weight ?: this.fontWeight,

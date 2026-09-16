@@ -233,6 +233,12 @@ screen already written for Dogwood and it does nothing at all — which is the c
 
 ## 10. Composing your own components, and when that is not enough
 
+**Look in the generated Material 3 tier first.** Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
+a payload can `import dev.dogwood.compose.material3.*` and call `Button`, `Switch`, `Card`,
+`TopAppBar` and eighty more with the library's own signatures, if the host registered the tier.
+[`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md) is the list. Compose your
+own only for what is not there.
+
 The rule that decides whether a new component needs an app release: **can it be composed from
 pieces the installed client already has?** If yes, write it as an ordinary `@Composable` in the
 payload — it needs no surface entry, no tag, no registration — and it ships and updates with the

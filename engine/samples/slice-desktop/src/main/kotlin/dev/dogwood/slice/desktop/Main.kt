@@ -100,6 +100,10 @@ fun main(args: Array<String>) = application {
   // Acme's design system, registered before anything renders. One call, with an object the
   // generator emitted from Acme's own surface -- see `samples/product-design-system`.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
+  // The Material 3 tier, generated from the library's own sources (plans/generator-v2.md).
+  // Registered explicitly rather than built in, so the web page-weight measurement can build a
+  // host without it: a tier that references every Material 3 composable is a decision about bytes.
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
   Window(
     onCloseRequest = ::exitApplication,
     state = rememberWindowState(width = 420.dp, height = 900.dp),

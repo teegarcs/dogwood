@@ -66,7 +66,8 @@ restore() {
   # Rebuild the guest from the restored surface, so the distribution is not left holding a skewed
   # payload for whoever opens the sample next. The Android drill does the same for the same reason.
   ./gradlew :samples:web-guest:jsBrowserProductionWebpack --console=plain -q >/dev/null 2>&1 \
-    && cp "$GUEST" "$DIST/guest-kotlin.js" 2>/dev/null || true
+    && cp "$GUEST" "$DIST/guest-kotlin.js" 2>/dev/null \
+    && ./gradlew :samples:web-slice:signWebSidecars --console=plain -q >/dev/null 2>&1 || true
 }
 trap restore EXIT
 
@@ -79,19 +80,25 @@ host_before="$(hash_of "$DIST/app.js")"
 
 echo "==> skewing the surface to N+1"
 python3 "$HERE/skew.py" "$SURFACE" "$CODEGEN" || exit 1
-version="$(grep -o '"--version", "[0-9]*"' "$CODEGEN" | grep -o '[0-9]*')"
+version="$(grep -o 'val designSystemVersion = [0-9]*' "$CODEGEN" | grep -o '[0-9]*')"
 
 echo "==> rebuilding only the guest Worker script"
 ./gradlew :samples:web-guest:jsBrowserProductionWebpack --console=plain -q || exit 1
 grep -q "SKEW-CALLOUT" "$GUEST" || { echo "the rebuilt guest carries no skew markers" >&2; exit 1; }
 cp "$GUEST" "$DIST/guest-kotlin.js" || exit 1
+# The signed sidecars carry the digest of the script they were signed over -- the committed guest,
+# not this one -- and the client verifies the fetched bytes against that digest before it creates a
+# Worker. A drill that swaps the script and leaves the sidecars alone is refused for its digest and
+# never reaches the skew; the first CI run of the integrity check found exactly that. Re-stamping
+# and re-signing touches only the manifests, so the host module below is still unchanged.
+./gradlew :samples:web-slice:signWebSidecars --console=plain -q || exit 1
 
 # The declared-skew sidecar, for the second half. Written here rather than committed because the
 # version it names is whatever the patch bumped to, and a committed copy would go stale silently --
 # which is exactly what happened to `dogwood-manifest-kotlin.json`, which still names 9.
-python3 - "$DIST/dogwood-manifest-skewed.json" "$version" <<'PY'
-import json, sys
-path, version = sys.argv[1], int(sys.argv[2])
+python3 - "$DIST/dogwood-manifest-skewed.json" "$version" "$DIST/guest-kotlin.js" <<'PY'
+import hashlib, json, sys
+path, version, script = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 json.dump({
     "_comment": "Written by tools/skew-drill/run-web.sh. The same skewed payload as "
                 "dogwood-manifest-kotlin.json, with its dictionary version declared honestly, so "
@@ -99,7 +106,7 @@ json.dump({
     "envelopeRevision": 1,
     "guestScript": "guest-kotlin.js",
     "segmentVersions": {"androidx.layout": 1, "dogwood.designsystem": version},
-    "guestScriptSha256": None,
+    "guestScriptSha256": hashlib.sha256(open(script, "rb").read()).hexdigest(),
 }, open(path, "w"), indent=2)
 PY
 

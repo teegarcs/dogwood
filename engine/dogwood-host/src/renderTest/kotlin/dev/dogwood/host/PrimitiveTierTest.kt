@@ -237,7 +237,7 @@ class PrimitiveTierTest {
       onNodeWithText("odd").assertExists()
       assertEquals(
         setOf("fontWeight:heavy", "textAlign:middle"),
-        tree.skew.unknownTextStyles,
+        tree.skew.unknownNames,
         "an unknown name degrades and is named in the report",
       )
     }

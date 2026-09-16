@@ -103,12 +103,60 @@ enum class TextDecoration(internal val wire: String) { Underline("underline"), L
  * `enabled` is a property rather than a reason to omit the element, because a disabled control
  * still occupies its slot and still reads as a control to a screen reader.
  */
-fun Modifier.clickable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
-  then(ModifierTags.CLICKABLE, JsonPrimitive(enabled), onClick)
+fun Modifier.clickable(enabled: Boolean = true, role: Role? = null, onClick: () -> Unit): Modifier =
+  if (role == null) {
+    // The version-2 wire form, unchanged, so a payload that names no role keeps working on a host
+    // that predates roles.
+    then(ModifierTags.CLICKABLE, JsonPrimitive(enabled), onClick)
+  } else {
+    then(ModifierTags.CLICKABLE_ROLE, JsonArray(listOf(JsonPrimitive(enabled), JsonPrimitive(role.wire))), onClick)
+  }
+
+/**
+ * What a screen reader calls a tappable node: "button", "switch", "tab".
+ *
+ * The one thing a `clickable` `Box` cannot say for itself. Compose's `Role` is a value class with
+ * companion constants; this is an enumeration crossing by name, so a host that predates a role reads
+ * it as no role and reports the name rather than resolving it to whichever entry sat at that index.
+ */
+enum class Role(internal val wire: String) {
+  Button("button"), Checkbox("checkbox"), Switch("switch"), RadioButton("radioButton"),
+  Tab("tab"), Image("image"), DropdownList("dropdownList"),
+}
 
 /** A border of [widthDp] in [color] -- a recipe, so a token follows the palette. */
 fun Modifier.border(widthDp: Int, color: Color): Modifier =
   then(ModifierTags.BORDER, JsonArray(listOf(JsonPrimitive(widthDp), color.json)))
+
+/** As [border], following [shape] -- a pill, a rounded card. Both arguments are recipes. */
+fun Modifier.border(widthDp: Int, color: Color, shape: Shape): Modifier =
+  then(ModifierTags.BORDER_SHAPE, JsonArray(listOf(JsonPrimitive(widthDp), color.json, shape.json)))
+
+/**
+ * Per-side padding where each side is a target the host animates to.
+ *
+ * One element carries all four, so they retarget together and one completion fires: the guest
+ * asks for the first side that declared an `onFinished` to notify, and the host reports on the
+ * element's own tag once, which is what `applyModifier` routes to that callback. A side left null
+ * is zero, as it is on the plain form.
+ */
+fun Modifier.padding(
+  start: AnimationTarget? = null,
+  top: AnimationTarget? = null,
+  end: AnimationTarget? = null,
+  bottom: AnimationTarget? = null,
+): Modifier {
+  val sides = listOf(start, top, end, bottom)
+  val finished = sides.firstNotNullOfOrNull { it?.onFinished }
+  var notified = false
+  val parts = sides.map { side ->
+    if (side == null) return@map JsonPrimitive(0)
+    val notify = !notified && side.onFinished != null
+    if (notify) notified = true
+    side.toJson(notify = notify)
+  }
+  return then(ModifierTags.PADDING_SIDES_ANIMATED, JsonArray(parts), finished)
+}
 
 /** Moves the node without affecting its siblings' layout, as Compose's `offset` does. */
 fun Modifier.offset(xDp: Int = 0, yDp: Int = 0): Modifier =

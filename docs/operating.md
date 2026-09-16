@@ -118,6 +118,7 @@ kinds worth alerting on, in rough order of seriousness:
 | `REFUSED_IMAGE` | an image origin your policy does not allow |
 | `UNKNOWN_ROUTE` | a payload asked to navigate somewhere this client does not handle. The host stayed where it was, and a control did nothing |
 | `UNKNOWN_ENUM_VALUE` | a payload sent an enumeration entry this client's surface does not carry, as `Component.parameter=Name`. The parameter rendered as its default, which looks plausible and is not what the payload meant |
+| `UNKNOWN_NAME` | a payload used a word from one of Compose's closed sets — an arrangement, a font weight, an overflow — that this client predates, as `kind:name`. Rendered as the default. Almost always a payload ahead of a device, never a typography drift |
 
 The first two are pages. The rest are usually a design-system update that reached payloads before it
 reached devices, which is ordinary and worth a dashboard rather than a page.

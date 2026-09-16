@@ -49,6 +49,18 @@ class SkewReport {
   val unknownTransitions = mutableSetOf<String>()
 
   /**
+   * Names for Compose's closed sets -- arrangements, alignments, font weights, overflow and
+   * decoration -- that this client did not recognise, as `kind:name` (`arrangement:middle`).
+   *
+   * Its own set rather than a prefix inside [unknownTextStyles], where these lived for a day. A
+   * text style is a design-system token the host's typography may or may not carry; an arrangement
+   * name is a word from a closed vocabulary the host either implements or predates. A dashboard
+   * that counted both under "unknown text style" would tell a team their typography had drifted
+   * when a payload had started using `spaceEvenly`.
+   */
+  val unknownNames = mutableSetOf<String>()
+
+  /**
    * Enumeration entries, as `Component.parameter=Name`, that this client's surface does not carry.
    *
    * An enumeration crosses by name, so a payload built against a surface with a newer entry sends
@@ -126,7 +138,7 @@ class SkewReport {
   val isEmpty: Boolean
     get() = unknownWidgetTags.isEmpty() && unknownExpressionFactories.isEmpty() &&
       unknownColorTokens.isEmpty() && unknownTextStyles.isEmpty() && unknownIcons.isEmpty() &&
-      unknownTransitions.isEmpty() && rejectedNumberPatterns.isEmpty() &&
+      unknownTransitions.isEmpty() && unknownNames.isEmpty() && rejectedNumberPatterns.isEmpty() &&
       untranslatedPlurals.isEmpty() && unknownRoutes.isEmpty() && withheldWidgets.isEmpty() &&
       rejectedBatches.isEmpty() && refusedImages.isEmpty() && clampedValues.isEmpty() &&
       rejectedFocusRequests.isEmpty()
@@ -139,6 +151,7 @@ class SkewReport {
     if (unknownTextStyles.isNotEmpty()) append("styles=$unknownTextStyles ")
     if (unknownIcons.isNotEmpty()) append("icons=$unknownIcons ")
     if (unknownTransitions.isNotEmpty()) append("transitions=$unknownTransitions ")
+    if (unknownNames.isNotEmpty()) append("names=$unknownNames ")
     if (rejectedNumberPatterns.isNotEmpty()) append("patterns=$rejectedNumberPatterns ")
     if (untranslatedPlurals.isNotEmpty()) append("plurals=$untranslatedPlurals ")
     if (unknownRoutes.isNotEmpty()) append("routes=$unknownRoutes ")

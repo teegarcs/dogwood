@@ -18,8 +18,13 @@
     Kotlin/WebAssembly -- instantiating a module counts as evaluation -- and `'unsafe-inline'` by
     Skiko, which installs styles for its canvas.
   -->
+  <!-- worker-src must admit blob: since 2026-09-15: the guest script is fetched, its digest
+       checked against the signed sidecar, and the Worker is built from a Blob of the verified
+       bytes rather than from the network address (ADR-062, claim B5). A policy of 'self' alone
+       creates the Worker and then kills it before it runs -- silently, until the bridge learned
+       to report a Worker that dies. Every deployment's policy needs this line. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
   <style>
     html, body { margin: 0; height: 100%; background: #ffffff; }
   </style>

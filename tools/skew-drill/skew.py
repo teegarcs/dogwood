@@ -59,11 +59,13 @@ open(surface_path, "w").write(surface)
 
 # Bump the dictionary version, which is what makes the payload declare itself newer.
 codegen = open(codegen_path).read()
-match = re.search(r'"--version", "(\d+)"', codegen)
+# The named line, not the first `"--version"` literal: the generated Material 3 tier declares one
+# too, first, and patching that bumped the wrong segment (2026-09-15).
+match = re.search(r'val designSystemVersion = (\d+)', codegen)
 if not match:
     sys.exit("could not find the dictionary version in the codegen build file")
 current = int(match.group(1))
-codegen = codegen.replace(f'"--version", "{current}"', f'"--version", "{current + 1}"')
+codegen = codegen.replace(f'val designSystemVersion = {current}', f'val designSystemVersion = {current + 1}')
 open(codegen_path, "w").write(codegen)
 
 # The guest has to actually render the new things, or the client never meets them. A

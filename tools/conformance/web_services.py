@@ -307,6 +307,19 @@ def run(url, chrome, port):
             f"refused={unsigned.get('refused')} workerCreated={unsigned.get('workerCreated')}",
         )
 
+        # B5 -- the script's bytes are covered, not only its address. The fixture's signature is
+        # VALID; its digest is wrong by construction, which is what a script swapped at the origin
+        # after signing looks like from the client. `IntegrityRefused` rather than `SignatureRefused`
+        # is the point: the sidecar was believed, and the bytes it named were not.
+        swapped = load('manifest=dogwood-manifest-tampered-script.json')
+        conform(
+            'B5',
+            swapped.get('refused') == 'IntegrityRefused'
+            and swapped.get('workerCreated') != 'true',
+            f"refused={swapped.get('refused')} workerCreated={swapped.get('workerCreated')} -- "
+            f"{[l for l in swapped.get('log', []) if 'hash to' in l][:1]}",
+        )
+
         # B2 -- rotation. The fixture is signed by the key being rotated *to*, alone. A client
         # holding both keys must accept it, or a rotation would be an outage rather than a
         # roll-forward: publishers sign with both, clients move, then the old key is retired.
@@ -322,12 +335,18 @@ def run(url, chrome, port):
         # web host did before ADR-062, and the drill grades that it still works -- because the point
         # of making it explicit was never to remove it. Read together with `B1`, this pins the
         # refusals above to the signature check rather than to anything else about the fixture.
-        unchecked = load('manifest=dogwood-manifest-tampered.json&trust=none')
+        #
+        # The UNSIGNED fixture, not the tampered one, since 2026-09-15. The tampered fixture alters
+        # `guestScript` and keeps the digest of the script it no longer names, so it is refused for
+        # its digest whatever the key posture -- and that is a property of the integrity check (B5),
+        # not of the signature posture this control exists to pin. The unsigned fixture is the same
+        # consistent manifest with its signature file absent: exactly "no keys, no signature".
+        unchecked = load('manifest=dogwood-manifest-unsigned.json&trust=none')
         conform(
             'B1-unsigned-posture',
             unchecked.get('workerCreated') == 'true',
-            "a host that passes no trusted keys still runs the same altered sidecar: "
-            f"workerCreated={unchecked.get('workerCreated')}",
+            "a host that passes no trusted keys still runs an unsigned but consistent sidecar: "
+            f"workerCreated={unchecked.get('workerCreated')} refused={unchecked.get('refused')}",
         )
 
         # ---------------------------------------------------------------------------------
@@ -380,7 +399,12 @@ def run(url, chrome, port):
         # is expected and stated: what a production webpack build preserves is exact line and column
         # offsets into the bundle, which `tools/symbolicate/resolve.py` turns back into Kotlin files
         # and lines against the source map the build keeps and does not serve. See ADR-063.
-        frames = stack_line.count('guest-kotlin.js:')
+        # Counted as `:line:column` positions rather than by the script's file name: the Worker is
+        # built from a Blob of the verified bytes (B5), so a frame reads `blob:http://…/<uuid>:1:419445`
+        # and the file name is gone. The offsets are the same offsets into the same bundle, which is
+        # all the symbolicator ever used; keying on the name reported zero frames on a crash that
+        # carried ten (2026-09-15).
+        frames = len(re.findall(r':\d+:\d+\)?(?:\s|$)', stack_line))
         conform(
             'A4-web-stack',
             frames >= 3,

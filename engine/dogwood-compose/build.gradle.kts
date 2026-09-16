@@ -50,7 +50,26 @@ kotlin {
 
   sourceSets {
     // Generated guest stubs. Not committed; regenerated from the surface on every build.
-    jsMain.get().kotlin.srcDir(rootProject.layout.buildDirectory.dir("generated/dogwood/guest"))
+    //
+    // Wired through the producing task rather than as a bare directory, for the reason
+    // dogwood-host's build file gives: a sources jar *packages* this directory rather than compiling
+    // it, so a `dependsOn` on the compilations does not reach it, and Gradle refuses a jar that reads
+    // another task's output without saying so. It refused on 2026-09-15, the first publish after the
+    // Material 3 tier joined this source set.
+    jsMain.get().kotlin.srcDir(
+      project(":dogwood-codegen").tasks.named("generateDesignSystem").map {
+        rootProject.layout.buildDirectory.dir("generated/dogwood/guest").get()
+      },
+    )
+    // The Material 3 tier's guest stubs (plans/generator-v2.md, M2), from the tier's own generated
+    // root and wired through its task -- so the sources jar, which packages the directory rather
+    // than compiling it, depends on the generator too. A bare `dependsOn` on the compilations was
+    // not enough for the design-system stubs either; see dogwood-host's build file.
+    jsMain.get().kotlin.srcDir(
+      project(":dogwood-codegen").tasks.named("generateMaterial3").map {
+        rootProject.layout.buildDirectory.dir("generated/dogwood-material3/guest").get()
+      },
+    )
 
     jsTest {
       dependencies {

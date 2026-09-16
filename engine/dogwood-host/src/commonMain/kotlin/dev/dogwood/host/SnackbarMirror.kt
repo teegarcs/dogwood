@@ -40,10 +40,20 @@ fun rememberSnackbarMirror(
   sequence: Int,
   watching: Boolean,
   report: (Int, Boolean) -> Unit = { _, _ -> },
+  /** The guest taking its request back. Zero means it never has; each dismissal is a new number. */
+  dismissSequence: Int = 0,
 ): SnackbarMirror {
   val hostState = remember { SnackbarHostState() }
   val mirror = remember(hostState) { SnackbarMirror(hostState) }
   val currentReport by rememberUpdatedState(report)
+
+  if (dismissSequence > 0) {
+    LaunchedEffect(dismissSequence) {
+      // Whatever is showing, not the request by sequence: the guest has already resumed its own
+      // caller as dismissed, and the only job left is to take the snackbar off the screen.
+      hostState.currentSnackbarData?.dismiss()
+    }
+  }
 
   if (watching && sequence > 0) {
     LaunchedEffect(sequence) {
