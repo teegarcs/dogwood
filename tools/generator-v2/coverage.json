@@ -22,13 +22,13 @@
         },
         "material3": {
             "composables": 186,
-            "bound": 87,
-            "generableExcluded": 12,
-            "bespoke": 40,
+            "bound": 88,
+            "generableExcluded": 13,
+            "bespoke": 38,
             "unreachable": 6,
             "deprecated": 41,
-            "settableParameters": 541,
-            "hostDefaultOnlyParameters": 181
+            "settableParameters": 572,
+            "hostDefaultOnlyParameters": 158
         },
         "ui": {
             "composables": 15,
@@ -43,13 +43,13 @@
     },
     "overall": {
         "composables": 260,
-        "bound": 102,
-        "generableExcluded": 12,
-        "bespoke": 65,
+        "bound": 103,
+        "generableExcluded": 13,
+        "bespoke": 63,
         "unreachable": 11,
         "deprecated": 70,
-        "settableParameters": 597,
-        "hostDefaultOnlyParameters": 189
+        "settableParameters": 628,
+        "hostDefaultOnlyParameters": 166
     },
     "rows": [
         {
@@ -1755,13 +1755,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1779,13 +1779,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1803,13 +1803,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1827,13 +1827,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1851,13 +1851,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1873,12 +1873,12 @@
             "settable": [
                 "modifier",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "elevation",
-                "border"
+                "elevation"
             ],
             "experimental": false
         },
@@ -1895,12 +1895,12 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1957,12 +1957,12 @@
             "settable": [
                 "modifier",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "elevation",
-                "border"
+                "elevation"
             ],
             "experimental": false
         },
@@ -1979,12 +1979,12 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2082,12 +2082,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2132,12 +2132,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2183,12 +2183,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2209,12 +2209,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2236,12 +2236,12 @@
                 "leadingIcon",
                 "avatar",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2260,12 +2260,12 @@
                 "modifier",
                 "enabled",
                 "icon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2308,12 +2308,12 @@
                 "modifier",
                 "enabled",
                 "icon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2849,11 +2849,11 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2872,11 +2872,11 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2957,13 +2957,13 @@
                 "containerColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "offset",
                 "scrollState",
-                "properties",
-                "border"
+                "properties"
             ],
             "experimental": false
         },
@@ -4007,13 +4007,13 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "contentPadding",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4032,13 +4032,13 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "contentPadding",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4057,12 +4057,12 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4081,12 +4081,12 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4179,11 +4179,11 @@
                 "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "steps",
                 "onValueChangeFinished"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors",
                 "interactionSource"
             ],
@@ -4203,14 +4203,14 @@
                 "modifier",
                 "enabled",
                 "onValueChangeFinished",
-                "steps"
+                "steps",
+                "valueRange"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "interactionSource",
                 "thumb",
-                "track",
-                "valueRange"
+                "track"
             ],
             "experimental": true
         },
@@ -4239,17 +4239,19 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
+                "value",
+                "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "steps",
                 "onValueChangeFinished"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors"
             ],
             "experimental": true
@@ -4260,16 +4262,18 @@
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider~0b997a2c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to RangeSlider after erasing host-default-only parameters",
             "settable": [
+                "value",
+                "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "onValueChangeFinished",
                 "steps"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors",
                 "startInteractionSource",
                 "endInteractionSource",
@@ -4376,11 +4380,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "border"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -4400,10 +4403,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4426,10 +4429,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4452,10 +4455,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false

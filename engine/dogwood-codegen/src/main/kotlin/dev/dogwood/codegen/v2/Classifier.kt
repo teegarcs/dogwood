@@ -19,6 +19,7 @@ enum class Kind {
   ARRANGEMENT_H, ARRANGEMENT_V, ARRANGEMENT_HV,
   ALIGNMENT_H, ALIGNMENT_V, ALIGNMENT_2D,
   FONT_WEIGHT, TEXT_ALIGN, TEXT_OVERFLOW, TEXT_DECORATION,
+  BORDER_STROKE, FLOAT_RANGE,
   MODIFIER, SLOT, EVENT,
 }
 
@@ -125,7 +126,16 @@ data class ClassifiedComposable(
 object Classifier {
 
   private val PRIMITIVES = setOf("String", "Boolean", "Int", "Long", "Float", "Double")
-  private val EVENT_ARGUMENTS = PRIMITIVES
+  /**
+   * What a callback may carry back.
+   *
+   * Primitives, and one composite: a closed range of numbers, which is the argument
+   * `RangeSlider.onValueChange` carries and the only reason those components were unbindable. It
+   * crosses as the two numbers it always was — one wire argument each, decoded into one object on
+   * the guest — so nothing about the envelope changes. Anything else is still refused, with the
+   * type named.
+   */
+  private val EVENT_ARGUMENTS = PRIMITIVES + "ClosedFloatingPointRange<Float>"
   private val ASSETS = setOf("Painter", "ImageBitmap", "ImageVector", "Brush")
   private val AFFORDANCE_NAMES = setOf("enabled", "checked", "selected", "readOnly")
   private val CONTROLLED_TEXT_INPUT = setOf(
@@ -142,6 +152,10 @@ object Classifier {
   )
 
   private val SIMPLE_KINDS = mapOf(
+    // Added by M4 (plans/close-the-backlog.md §2.2), in the order the coverage report's
+    // "cannot cross the boundary" reasons ranked them.
+    "BorderStroke" to Kind.BORDER_STROKE,
+    "ClosedFloatingPointRange<Float>" to Kind.FLOAT_RANGE,
     "Dp" to Kind.DP,
     "TextUnit" to Kind.TEXT_UNIT,
     "Color" to Kind.COLOR,

@@ -9,6 +9,7 @@
  */
 package dev.dogwood.host
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -52,3 +54,36 @@ fun WidgetView.paddingValuesOrNull(tag: Int): PaddingValues? {
 
 @Composable
 fun WidgetView.paddingValues(tag: Int, default: PaddingValues): PaddingValues = paddingValuesOrNull(tag) ?: default
+
+/**
+ * A border's width and colour: `[widthDp, colourRecipe]`.
+ *
+ * The colour goes through the expression evaluator like every other colour, so a border follows
+ * the host's palette and its dark mode rather than freezing whatever the payload's author saw.
+ */
+@Composable
+fun WidgetView.borderStrokeOrNull(tag: Int): BorderStroke? {
+  val array = property(tag) as? JsonArray ?: return null
+  if (array.size < 2) return null
+  val width = array[0].jsonPrimitive.floatOrNull ?: return null
+  val colour = resolveColor(array[1].jsonArray)
+  return BorderStroke(clampModifierValue(width, min = 0f, what = "borderStroke").dp, colour)
+}
+
+/**
+ * A closed range of numbers: `[start, end]`.
+ *
+ * Reversed bounds are a crash inside Compose's own layout rather than a strange-looking slider, so
+ * they are ordered here and reported, the way every other hostile value is. A payload delivered
+ * over the air must not be able to take a screen down with two numbers in the wrong order.
+ */
+@Composable
+fun WidgetView.floatRangeOrNull(tag: Int): ClosedFloatingPointRange<Float>? {
+  val array = property(tag) as? JsonArray ?: return null
+  if (array.size < 2) return null
+  val start = array[0].jsonPrimitive.floatOrNull ?: return null
+  val end = array[1].jsonPrimitive.floatOrNull ?: return null
+  if (start <= end) return start..end
+  LocalSkewReport.current.clampedValues += "floatRange $start..$end is reversed; ordered"
+  return end..start
+}

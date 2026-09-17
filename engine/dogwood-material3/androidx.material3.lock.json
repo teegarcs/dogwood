@@ -2,7 +2,7 @@
     "segmentName": "material3",
     "wireName": "androidx.material3",
     "segmentId": 255,
-    "version": 1090001,
+    "version": 1090003,
     "components": [
         {
             "name": "AlertDialog",
@@ -227,11 +227,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -253,11 +255,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -279,11 +283,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -305,11 +311,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -331,11 +339,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -355,10 +365,12 @@
             "name": "Card",
             "localTag": 16,
             "properties": {
-                "shape": 1
+                "shape": 1,
+                "border": 2
             },
             "propertyTypes": {
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "slots": {
                 "content": 1
@@ -370,11 +382,13 @@
             "localTag": 17,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -431,10 +445,12 @@
             "name": "OutlinedCard",
             "localTag": 20,
             "properties": {
-                "shape": 1
+                "shape": 1,
+                "border": 2
             },
             "propertyTypes": {
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke"
             },
             "slots": {
                 "content": 1
@@ -446,11 +462,13 @@
             "localTag": 21,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke"
             },
             "safetyRelevant": [
                 "enabled"
@@ -495,11 +513,13 @@
             "localTag": 23,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -521,11 +541,13 @@
             "localTag": 24,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -548,12 +570,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -577,12 +601,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -606,12 +632,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -635,11 +663,13 @@
             "localTag": 28,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -660,11 +690,13 @@
             "localTag": 29,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -982,11 +1014,13 @@
             "localTag": 44,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -1007,12 +1041,14 @@
             "properties": {
                 "checked": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "checked": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "checked",
@@ -1071,14 +1107,16 @@
                 "shape": 2,
                 "containerColor": 3,
                 "tonalElevation": 4,
-                "shadowElevation": 5
+                "shadowElevation": 5,
+                "border": 6
             },
             "propertyTypes": {
                 "expanded": "Boolean",
                 "shape": "Shape",
                 "containerColor": "Color",
                 "tonalElevation": "Dp",
-                "shadowElevation": "Dp"
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
             },
             "slots": {
                 "content": 1
@@ -1468,12 +1506,14 @@
             "properties": {
                 "value": 1,
                 "enabled": 2,
+                "valueRange": 5,
                 "steps": 3,
                 "onValueChangeFinishedPresent": 4
             },
             "propertyTypes": {
                 "value": "Float",
                 "enabled": "Boolean",
+                "valueRange": "ClosedFloatingPointRange<Float>",
                 "steps": "Int",
                 "onValueChangeFinishedPresent": "Boolean"
             },
@@ -1487,6 +1527,36 @@
             },
             "eventTypes": {
                 "onValueChange": "(Float) -> Unit",
+                "onValueChangeFinished": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "RangeSlider",
+            "localTag": 89,
+            "properties": {
+                "value": 1,
+                "enabled": 2,
+                "valueRange": 3,
+                "steps": 4,
+                "onValueChangeFinishedPresent": 5
+            },
+            "propertyTypes": {
+                "value": "ClosedFloatingPointRange<Float>",
+                "enabled": "Boolean",
+                "valueRange": "ClosedFloatingPointRange<Float>",
+                "steps": "Int",
+                "onValueChangeFinishedPresent": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onValueChange": 1,
+                "onValueChangeFinished": 2
+            },
+            "eventTypes": {
+                "onValueChange": "(FloatRange) -> Unit",
                 "onValueChangeFinished": "(() -> Unit)?"
             }
         },
@@ -1524,14 +1594,16 @@
                 "color": 2,
                 "contentColor": 3,
                 "tonalElevation": 4,
-                "shadowElevation": 5
+                "shadowElevation": 5,
+                "border": 6
             },
             "propertyTypes": {
                 "shape": "Shape",
                 "color": "Color",
                 "contentColor": "Color",
                 "tonalElevation": "Dp",
-                "shadowElevation": "Dp"
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
             },
             "slots": {
                 "content": 1
@@ -1547,7 +1619,8 @@
                 "color": 3,
                 "contentColor": 4,
                 "tonalElevation": 5,
-                "shadowElevation": 6
+                "shadowElevation": 6,
+                "border": 7
             },
             "propertyTypes": {
                 "enabled": "Boolean",
@@ -1555,7 +1628,8 @@
                 "color": "Color",
                 "contentColor": "Color",
                 "tonalElevation": "Dp",
-                "shadowElevation": "Dp"
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -1580,7 +1654,8 @@
                 "color": 4,
                 "contentColor": 5,
                 "tonalElevation": 6,
-                "shadowElevation": 7
+                "shadowElevation": 7,
+                "border": 8
             },
             "propertyTypes": {
                 "selected": "Boolean",
@@ -1589,7 +1664,8 @@
                 "color": "Color",
                 "contentColor": "Color",
                 "tonalElevation": "Dp",
-                "shadowElevation": "Dp"
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -1615,7 +1691,8 @@
                 "color": 4,
                 "contentColor": 5,
                 "tonalElevation": 6,
-                "shadowElevation": 7
+                "shadowElevation": 7,
+                "border": 8
             },
             "propertyTypes": {
                 "checked": "Boolean",
@@ -1624,7 +1701,8 @@
                 "color": "Color",
                 "contentColor": "Color",
                 "tonalElevation": "Dp",
-                "shadowElevation": "Dp"
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "checked",

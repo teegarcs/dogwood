@@ -25,6 +25,10 @@ fun DogwoodDelivery(
   httpClient: OkHttpClient = OkHttpClient(),
   manifestMaxAgeMs: Long = REVALIDATE_EVERY_LAUNCH,
   nowEpochMs: () -> Long = { System.currentTimeMillis() },
+  // Passed through rather than dropped: a parameter the common class accepts and no platform
+  // factory offers is a feature no host on that platform can reach, and every Java-Virtual-Machine
+  // and Android host in this repository calls this overload rather than the constructor.
+  installCohort: InstallCohort? = null,
 ): DogwoodDelivery = DogwoodDelivery(
   dispatcher = dispatcher,
   trustedPublicKeys = trustedPublicKeys,
@@ -32,6 +36,7 @@ fun DogwoodDelivery(
   httpClient = httpClient.asZiplineHttpClient(),
   manifestMaxAgeMs = manifestMaxAgeMs,
   nowEpochMs = nowEpochMs,
+  installCohort = installCohort,
 )
 
 internal actual fun hostEpochMillis(): Long = System.currentTimeMillis()

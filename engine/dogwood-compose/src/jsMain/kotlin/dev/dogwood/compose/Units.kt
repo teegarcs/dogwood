@@ -63,5 +63,40 @@ class PaddingValues(val start: Dp, val top: Dp, val end: Dp, val bottom: Dp) {
 }
 
 fun PaddingValues(all: Dp = 0.dp): PaddingValues = PaddingValues(all, all, all, all)
+
+/**
+ * A border's width and colour, which Compose bundles into one parameter.
+ *
+ * Two values rather than a host-resolved recipe, because neither half needs the host to decide
+ * anything a guest could not: the width is a number and the colour is already a recipe the host
+ * resolves. The wire form is `[widthDp, colourRecipe]`.
+ */
+class BorderStroke(val width: Dp, val color: Color) {
+  @DogwoodGeneratedApi
+  val json: JsonElement get() = JsonArray(listOf(JsonPrimitive(width.value), color.json))
+  override fun equals(other: Any?): Boolean =
+    other is BorderStroke && other.width == width && other.color == color
+  override fun hashCode(): Int = 31 * width.hashCode() + color.hashCode()
+  override fun toString(): String = "BorderStroke($width, $color)"
+}
+
+/**
+ * A closed range of numbers, which is how Compose spells a slider's bounds.
+ *
+ * Kotlin's own `ClosedFloatingPointRange<Float>` cannot cross -- it is an interface with no
+ * serializable form -- and `0f..1f` on the guest would be a range object the recorder cannot
+ * encode. This is the two numbers it always was. The wire form is `[start, end]`.
+ */
+class FloatRange(val start: Float, val end: Float) {
+  @DogwoodGeneratedApi
+  val json: JsonElement get() = JsonArray(listOf(JsonPrimitive(start), JsonPrimitive(end)))
+  override fun equals(other: Any?): Boolean =
+    other is FloatRange && other.start == start && other.end == end
+  override fun hashCode(): Int = 31 * start.hashCode() + end.hashCode()
+  override fun toString(): String = "FloatRange($start, $end)"
+}
+
+/** `0f rangeTo 1f`, so a payload reads the way Compose does. */
+infix fun Float.rangeTo(other: Float): FloatRange = FloatRange(this, other)
 fun PaddingValues(horizontal: Dp = 0.dp, vertical: Dp = 0.dp): PaddingValues =
   PaddingValues(horizontal, vertical, horizontal, vertical)

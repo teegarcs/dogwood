@@ -15,11 +15,11 @@ own default for. Function coverage overstates parameter coverage, and both are h
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `foundation` | 1.10.3 | 47 | **3** | 0 | 17 | 4 | 23 | 9 | 4 |
 | `foundation-layout` | 1.10.3 | 12 | **8** | 0 | 0 | 0 | 4 | 32 | 0 |
-| `material3` | 1.9.0 | 186 | **87** | 12 | 40 | 6 | 41 | 541 | 181 |
+| `material3` | 1.9.0 | 186 | **88** | 13 | 38 | 6 | 41 | 572 | 158 |
 | `ui` | 1.10.3 | 15 | **4** | 0 | 8 | 1 | 2 | 15 | 4 |
-| **all** | | **260** | **102** | 12 | 65 | 11 | 70 | 597 | 189 |
+| **all** | | **260** | **103** | 13 | 63 | 11 | 70 | 628 | 166 |
 
-**102 of 260 bound (39.2%).** Affordance rule for a library tier: a
+**103 of 260 bound (39.6%).** Affordance rule for a library tier: a
 `Boolean` parameter named `enabled`, `checked`, `selected` or `readOnly` withholds the widget on
 unreadable skew, exactly as `@Affordance` does on a product surface.
 
@@ -116,31 +116,31 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `Badge` | ✅ | modifier, containerColor, contentColor, content |  |  |
 | `BadgedBox` | ✅ | badge, modifier, content |  |  |
 | `BottomSheetScaffold` ⚠ | ✅ | sheetContent, modifier, sheetPeekHeight, sheetMaxWidth, sheetShape, sheetContainerColor, sheetContentColor, sheetTonalElevation, sheetShadowElevation, sheetDragHandle, sheetSwipeEnabled, topBar, containerColor, contentColor, content | scaffoldState, snackbarHost |  |
-| `Button` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
-| `ElevatedButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
-| `FilledTonalButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
-| `OutlinedButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
-| `TextButton` | ✅ | onClick, modifier, enabled, shape, contentPadding, content | colors, elevation, border, interactionSource |  |
-| `Card` | ✅ | modifier, shape, content | colors, elevation, border |  |
-| `Card~6ae0a5d2` | ✅ | onClick, modifier, enabled, shape, content | colors, elevation, border, interactionSource |  |
+| `Button` | ✅ | onClick, modifier, enabled, shape, border, contentPadding, content | colors, elevation, interactionSource |  |
+| `ElevatedButton` | ✅ | onClick, modifier, enabled, shape, border, contentPadding, content | colors, elevation, interactionSource |  |
+| `FilledTonalButton` | ✅ | onClick, modifier, enabled, shape, border, contentPadding, content | colors, elevation, interactionSource |  |
+| `OutlinedButton` | ✅ | onClick, modifier, enabled, shape, border, contentPadding, content | colors, elevation, interactionSource |  |
+| `TextButton` | ✅ | onClick, modifier, enabled, shape, border, contentPadding, content | colors, elevation, interactionSource |  |
+| `Card` | ✅ | modifier, shape, border, content | colors, elevation |  |
+| `Card~6ae0a5d2` | ✅ | onClick, modifier, enabled, shape, border, content | colors, elevation, interactionSource |  |
 | `ElevatedCard` | ✅ | modifier, shape, content | colors, elevation |  |
 | `ElevatedCard~cc5087f1` | ✅ | onClick, modifier, enabled, shape, content | colors, elevation, interactionSource |  |
-| `OutlinedCard` | ✅ | modifier, shape, content | colors, elevation, border |  |
-| `OutlinedCard~2c46c5fa` | ✅ | onClick, modifier, enabled, shape, content | colors, elevation, border, interactionSource |  |
+| `OutlinedCard` | ✅ | modifier, shape, border, content | colors, elevation |  |
+| `OutlinedCard~2c46c5fa` | ✅ | onClick, modifier, enabled, shape, border, content | colors, elevation, interactionSource |  |
 | `Checkbox` | ✅ | checked, onCheckedChange, modifier, enabled | colors, interactionSource |  |
 | `Checkbox~609b80d6` |  | checked, onCheckedChange, modifier, enabled | colors, interactionSource | checkmarkStroke: type Stroke cannot cross the boundary |
 | `TriStateCheckbox` |  | onClick, modifier, enabled | colors, interactionSource | state: live-state holder ToggleableState |
 | `TriStateCheckbox~a32797bf` |  | onClick, modifier, enabled | colors, interactionSource | state: live-state holder ToggleableState |
-| `AssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource |  |
+| `AssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
 | `AssistChip~3f28020e` |  | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource | deprecated in the library |
-| `ElevatedAssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource |  |
+| `ElevatedAssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
 | `ElevatedAssistChip~3f28020e` |  | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource | deprecated in the library |
-| `ElevatedFilterChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource |  |
-| `ElevatedSuggestionChip` | ✅ | onClick, label, modifier, enabled, icon, shape | colors, elevation, border, interactionSource |  |
+| `ElevatedFilterChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
+| `ElevatedSuggestionChip` | ✅ | onClick, label, modifier, enabled, icon, shape, border | colors, elevation, interactionSource |  |
 | `ElevatedSuggestionChip~502ac174` |  | onClick, label, modifier, enabled, icon, shape | colors, elevation, border, interactionSource | deprecated in the library |
-| `FilterChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource |  |
-| `InputChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, avatar, trailingIcon, shape | colors, elevation, border, interactionSource |  |
-| `SuggestionChip` | ✅ | onClick, label, modifier, enabled, icon, shape | colors, elevation, border, interactionSource |  |
+| `FilterChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
+| `InputChip` | ✅ | selected, onClick, label, modifier, enabled, leadingIcon, avatar, trailingIcon, shape, border | colors, elevation, interactionSource |  |
+| `SuggestionChip` | ✅ | onClick, label, modifier, enabled, icon, shape, border | colors, elevation, interactionSource |  |
 | `SuggestionChip~502ac174` |  | onClick, label, modifier, enabled, icon, shape | colors, elevation, border, interactionSource | deprecated in the library |
 | `DatePicker` |  | modifier, title, headline, showModeToggle | dateFormatter, colors, focusRequester | title: default names internal `DatePickerTitlePadding` |
 | `DatePickerDialog` | ✅ | onDismissRequest, confirmButton, modifier, dismissButton, shape, tonalElevation, content | colors, properties |  |
@@ -167,12 +167,12 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `IconButton~562a5151` ⚠ |  | onClick, modifier, enabled, shape, content | colors, interactionSource | requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi) |
 | `IconToggleButton` |  | checked, onCheckedChange, modifier, enabled, content | colors, interactionSource | deprecated in the library |
 | `IconToggleButton~ac323557` ⚠ |  | checked, onCheckedChange, modifier, enabled, shape, content | colors, interactionSource | requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi) |
-| `OutlinedIconButton` | ✅ | onClick, modifier, enabled, shape, content | colors, border, interactionSource |  |
-| `OutlinedIconToggleButton` | ✅ | checked, onCheckedChange, modifier, enabled, shape, content | colors, border, interactionSource |  |
+| `OutlinedIconButton` | ✅ | onClick, modifier, enabled, shape, border, content | colors, interactionSource |  |
+| `OutlinedIconToggleButton` | ✅ | checked, onCheckedChange, modifier, enabled, shape, border, content | colors, interactionSource |  |
 | `Label` ⚠ | ✅ | label, modifier, isPersistent, content | interactionSource |  |
 | `ListItem` | ✅ | headlineContent, modifier, overlineContent, supportingContent, leadingContent, trailingContent, tonalElevation, shadowElevation | colors |  |
 | `MaterialTheme` ⚠ |  | content | colorScheme, shapes, typography | requires an opt-in the library keeps internal (ExperimentalMaterial3ExpressiveApi) |
-| `DropdownMenu` | ✅ | expanded, onDismissRequest, modifier, shape, containerColor, tonalElevation, shadowElevation, content | offset, scrollState, properties, border |  |
+| `DropdownMenu` | ✅ | expanded, onDismissRequest, modifier, shape, containerColor, tonalElevation, shadowElevation, border, content | offset, scrollState, properties |  |
 | `DropdownMenuItem` | ✅ | text, onClick, modifier, leadingIcon, trailingIcon, enabled, contentPadding | colors, interactionSource |  |
 | `ModalBottomSheet` ⚠ | ✅ | onDismissRequest, modifier, sheetMaxWidth, sheetGesturesEnabled, shape, containerColor, contentColor, tonalElevation, scrimColor, dragHandle, content | sheetState, contentWindowInsets, properties |  |
 | `ModalBottomSheet~f5ef210f` ⚠ |  | onDismissRequest, modifier, sheetMaxWidth, shape, containerColor, contentColor, tonalElevation, scrimColor, dragHandle, content | sheetState, contentWindowInsets, properties | deprecated in the library |
@@ -219,26 +219,26 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `OutlinedSecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `SecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `MultiChoiceSegmentedButtonRow` | ✅ | modifier, space, content |  |  |
-| `SegmentedButton` |  | checked, onCheckedChange, shape, modifier, enabled, contentPadding, icon, label | colors, border, interactionSource | extension on MultiChoiceSegmentedButtonRowScope; a binding calls by name |
-| `SegmentedButton~0302e58a` |  | selected, onClick, shape, modifier, enabled, contentPadding, icon, label | colors, border, interactionSource | extension on SingleChoiceSegmentedButtonRowScope; a binding calls by name |
-| `SegmentedButton~7124f473` |  | checked, onCheckedChange, shape, modifier, enabled, icon, label | colors, border, interactionSource | deprecated in the library |
-| `SegmentedButton~fbd6e498` |  | selected, onClick, shape, modifier, enabled, icon, label | colors, border, interactionSource | deprecated in the library |
+| `SegmentedButton` |  | checked, onCheckedChange, shape, modifier, enabled, border, contentPadding, icon, label | colors, interactionSource | extension on MultiChoiceSegmentedButtonRowScope; a binding calls by name |
+| `SegmentedButton~0302e58a` |  | selected, onClick, shape, modifier, enabled, border, contentPadding, icon, label | colors, interactionSource | extension on SingleChoiceSegmentedButtonRowScope; a binding calls by name |
+| `SegmentedButton~7124f473` |  | checked, onCheckedChange, shape, modifier, enabled, border, icon, label | colors, interactionSource | deprecated in the library |
+| `SegmentedButton~fbd6e498` |  | selected, onClick, shape, modifier, enabled, border, icon, label | colors, interactionSource | deprecated in the library |
 | `SingleChoiceSegmentedButtonRow` | ✅ | modifier, space, content |  |  |
 | `ShortNavigationBar` | ✅ | modifier, containerColor, contentColor, content | windowInsets, arrangement |  |
 | `ShortNavigationBarItem` | ✅ | selected, onClick, icon, label, modifier, enabled | iconPosition, colors, interactionSource |  |
-| `RangeSlider` ⚠ |  | modifier, enabled, steps, onValueChangeFinished | valueRange, colors | value: type ClosedFloatingPointRange<Float> cannot cross the boundary |
-| `RangeSlider~0b997a2c` ⚠ |  | modifier, enabled, onValueChangeFinished, steps | valueRange, colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | value: type ClosedFloatingPointRange<Float> cannot cross the boundary |
+| `RangeSlider` ⚠ | ✅ | value, onValueChange, modifier, enabled, valueRange, steps, onValueChangeFinished | colors |  |
+| `RangeSlider~0b997a2c` ⚠ |  | value, onValueChange, modifier, enabled, valueRange, onValueChangeFinished, steps | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | guest signature identical to RangeSlider after erasing host-default-only parameters |
 | `RangeSlider~bb1147d1` ⚠ |  | modifier, enabled | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | state: live-state holder RangeSliderState |
-| `Slider` ⚠ | ✅ | value, onValueChange, modifier, enabled, steps, onValueChangeFinished | valueRange, colors, interactionSource |  |
-| `Slider~d234905b` ⚠ |  | value, onValueChange, modifier, enabled, onValueChangeFinished, steps | colors, interactionSource, thumb, track, valueRange | guest signature identical to Slider after erasing host-default-only parameters |
+| `Slider` ⚠ | ✅ | value, onValueChange, modifier, enabled, valueRange, steps, onValueChangeFinished | colors, interactionSource |  |
+| `Slider~d234905b` ⚠ |  | value, onValueChange, modifier, enabled, onValueChangeFinished, steps, valueRange | colors, interactionSource, thumb, track | guest signature identical to Slider after erasing host-default-only parameters |
 | `Slider~e15d63b2` ⚠ |  | modifier, enabled | colors, interactionSource, thumb, track | state: live-state holder SliderState |
 | `Snackbar` | ✅ | modifier, action, dismissAction, actionOnNewLine, shape, containerColor, contentColor, actionContentColor, dismissActionContentColor, content |  |  |
 | `Snackbar~0158ce0b` |  | modifier, actionOnNewLine, shape, containerColor, contentColor, actionColor, actionContentColor, dismissActionContentColor |  | snackbarData: type SnackbarData cannot cross the boundary |
 | `SnackbarHost` |  | modifier | snackbar | hostState: live-state holder SnackbarHostState |
-| `Surface` | ✅ | modifier, shape, color, contentColor, tonalElevation, shadowElevation, content | border |  |
-| `Surface~0b388a87` | ✅ | onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
-| `Surface~819e1863` | ✅ | checked, onCheckedChange, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
-| `Surface~9d901ca7` | ✅ | selected, onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, content | border, interactionSource |  |
+| `Surface` | ✅ | modifier, shape, color, contentColor, tonalElevation, shadowElevation, border, content |  |  |
+| `Surface~0b388a87` | ✅ | onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
+| `Surface~819e1863` | ✅ | checked, onCheckedChange, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
+| `Surface~9d901ca7` | ✅ | selected, onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
 | `SwipeToDismissBox` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content | onDismiss | state: live-state holder SwipeToDismissBoxState |
 | `SwipeToDismissBox~037141c9` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content |  | deprecated in the library |
 | `Switch` | ✅ | checked, onCheckedChange, modifier, thumbContent, enabled | colors, interactionSource |  |

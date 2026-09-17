@@ -106,6 +106,7 @@ fun generateTier(
     components = bound.map { it.component }, wireName = wireName,
     reservedLocalTags = retiredTags,
     existingTags = locked?.components?.associate { it.name to it.localTag }.orEmpty(),
+    previous = locked?.components?.associateBy { it.name }.orEmpty(),
   )
   val surfaceChanged = locked != null && dictionaryAt(locked.version).encode() != lock.readText()
   val revision = when {
@@ -192,7 +193,7 @@ internal fun ClassifiedComposable.toParsedComponent(): ParsedComponent = ParsedC
         Kind.MODIFIER -> listOf(ParsedParameter(p.name, "Modifier", ParameterKind.MODIFIER, hasDefault = true, defaultExpression = "Modifier"))
         Kind.SLOT -> listOf(ParsedParameter(p.name, "@Composable () -> Unit" + if (v.nullable || v.hasDefault) "?" else "", ParameterKind.SLOT, hasDefault = v.hasDefault))
         Kind.EVENT -> {
-          val type = "(${v.eventArguments.joinToString(", ")}) -> Unit"
+          val type = "(${v.eventArguments.joinToString(", ") { guestArgumentType(it) }}) -> Unit"
           val optional = v.nullable || v.hasDefault
           buildList {
             if (optional) add(ParsedParameter(p.name + "Present", "Boolean", ParameterKind.VALUE, hasDefault = true, defaultExpression = "false"))
@@ -239,6 +240,8 @@ private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.COLOR -> "Color"
   Kind.SHAPE -> "Shape"
   Kind.PADDING_VALUES -> "PaddingValues"
+  Kind.BORDER_STROKE -> "BorderStroke"
+  Kind.FLOAT_RANGE -> "FloatRange"
   Kind.ARRANGEMENT_H, Kind.ARRANGEMENT_V, Kind.ARRANGEMENT_HV -> "Arrangement"
   Kind.ALIGNMENT_H -> "HorizontalAlignment"
   Kind.ALIGNMENT_V -> "VerticalAlignment"
@@ -249,20 +252,36 @@ private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.TEXT_DECORATION -> "TextDecoration"
   Kind.MODIFIER -> "Modifier"
   Kind.SLOT -> "@Composable () -> Unit"
-  Kind.EVENT -> "(${v.eventArguments.joinToString(", ")}) -> Unit"
+  Kind.EVENT -> "(${v.eventArguments.joinToString(", ") { guestArgumentType(it) }}) -> Unit"
 }
 
 private fun guestEncode(v: Verdict.Settable): String = when (v.kind) {
   Kind.PRIMITIVE -> "JsonPrimitive(it)"
   Kind.DP -> "JsonPrimitive(it.value)"
-  Kind.TEXT_UNIT, Kind.COLOR, Kind.SHAPE, Kind.PADDING_VALUES -> "it.json"
+  Kind.TEXT_UNIT, Kind.COLOR, Kind.SHAPE, Kind.PADDING_VALUES,
+  Kind.BORDER_STROKE, Kind.FLOAT_RANGE -> "it.json"
   Kind.ARRANGEMENT_H, Kind.ARRANGEMENT_V, Kind.ARRANGEMENT_HV,
   Kind.FONT_WEIGHT, Kind.TEXT_ALIGN, Kind.TEXT_OVERFLOW, Kind.TEXT_DECORATION -> "JsonPrimitive(it.wire)"
   Kind.ALIGNMENT_H, Kind.ALIGNMENT_V, Kind.ALIGNMENT_2D -> "JsonPrimitive(it.ordinal)"
   else -> error("not a value kind: ${v.kind}")
 }
 
+/** Each callback argument paired with the wire index it starts at, since one may occupy two. */
+private fun wireIndexed(types: List<String>): List<Pair<String, Int>> {
+  var at = 0
+  return types.map { type -> (type to at).also { at += wireArity(type) } }
+}
+
+/** How many wire arguments a callback argument of this type occupies. */
+private fun wireArity(type: String): Int = if (type == "ClosedFloatingPointRange<Float>") 2 else 1
+
+/** The guest lambda's parameter type for a callback argument. */
+private fun guestArgumentType(type: String): String =
+  if (type == "ClosedFloatingPointRange<Float>") "FloatRange" else type
+
 private fun guestDecodeArgument(type: String, index: Int): String = when (type) {
+  "ClosedFloatingPointRange<Float>" ->
+    "FloatRange(args[$index].jsonPrimitive.floatOrNull ?: 0f, args[${index + 1}].jsonPrimitive.floatOrNull ?: 0f)"
   "Boolean" -> "args[$index].jsonPrimitive.booleanOrNull ?: false"
   "Int" -> "args[$index].jsonPrimitive.intOrNull ?: 0"
   "Long" -> "args[$index].jsonPrimitive.longOrNull ?: 0L"
@@ -328,7 +347,7 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
         Kind.EVENT -> {
           val tag = entry.events.getValue(p.name)
           val body = if (v.eventArguments.isEmpty()) "{ handler() }" else {
-            "{ args -> handler(${v.eventArguments.mapIndexed { i, t -> guestDecodeArgument(t, i) }.joinToString(", ")}) }"
+            "{ args -> handler(${wireIndexed(v.eventArguments).joinToString(", ") { (t, at) -> guestDecodeArgument(t, at) }}) }"
           }
           if (v.hasDefault || v.nullable) {
             val presence = entry.properties.getValue(p.name + "Present")
@@ -398,6 +417,8 @@ private fun hostReader(kind: Kind, libraryType: String, tag: Int): String {
     Kind.TEXT_ALIGN -> "node.textAlignOrNull($tag)"
     Kind.TEXT_OVERFLOW -> "node.textOverflowOrNull($tag)"
     Kind.TEXT_DECORATION -> "node.textDecorationOrNull($tag)"
+    Kind.BORDER_STROKE -> "node.borderStrokeOrNull($tag)"
+    Kind.FLOAT_RANGE -> "node.floatRangeOrNull($tag)"
     else -> error("not a value kind: $kind")
   }
 }
@@ -424,6 +445,8 @@ private fun hostFallback(kind: Kind, libraryType: String): String {
     Kind.TEXT_ALIGN -> "androidx.compose.ui.text.style.TextAlign.Unspecified"
     Kind.TEXT_OVERFLOW -> "androidx.compose.ui.text.style.TextOverflow.Clip"
     Kind.TEXT_DECORATION -> "androidx.compose.ui.text.style.TextDecoration.None"
+    Kind.BORDER_STROKE -> "androidx.compose.foundation.BorderStroke(0.dp, androidx.compose.ui.graphics.Color.Transparent)"
+    Kind.FLOAT_RANGE -> "0f..1f"
     else -> error("no fallback for $kind")
   }
 }
@@ -502,6 +525,8 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
     "import dev.dogwood.host.shapeOrNull",
     "import dev.dogwood.host.dpOrNull",
     "import dev.dogwood.host.textUnitOrNull",
+    "import dev.dogwood.host.borderStrokeOrNull",
+    "import dev.dogwood.host.floatRangeOrNull",
     "import dev.dogwood.host.paddingValuesOrNull",
     "import dev.dogwood.protocol.EventTag",
     "import dev.dogwood.protocol.widgetTag",
@@ -554,8 +579,15 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
           Kind.EVENT -> {
             val tag = entry.events.getValue(p.name)
             val names = v.eventArguments.indices.map { "a$it" }
+            val parts = v.eventArguments.mapIndexed { i, t ->
+              if (t == "ClosedFloatingPointRange<Float>") {
+                "JsonPrimitive(a$i.start), JsonPrimitive(a$i.endInclusive)"
+              } else {
+                "JsonPrimitive(a$i)"
+              }
+            }
             val send = if (names.isEmpty()) "{ dogwoodEvents.send(dogwoodNode, EventTag($tag)) }" else {
-              "{ ${names.joinToString(", ")} -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf(${names.joinToString(", ") { "JsonPrimitive($it)" }})) }"
+              "{ ${names.joinToString(", ")} -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf(${parts.joinToString(", ")})) }"
             }
             if (v.hasDefault || v.nullable) {
               val presence = entry.properties.getValue(p.name + "Present")

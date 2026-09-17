@@ -4,7 +4,7 @@
 # `androidx.material3` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **1090001**, segment **255**.
+actually emitted. Version **1090003**, segment **255**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -104,6 +104,7 @@ appear in no table below and are not free.
 | [`ShortNavigationBar`](#shortnavigationbar) | 63 | -16777153 |  |
 | [`ShortNavigationBarItem`](#shortnavigationbaritem) | 64 | -16777152 | yes |
 | [`Slider`](#slider) | 65 | -16777151 | yes |
+| [`RangeSlider`](#rangeslider) | 89 | -16777127 | yes |
 | [`Snackbar`](#snackbar) | 67 | -16777149 |  |
 | [`Surface`](#surface) | 85 | -16777131 |  |
 | [`Surface~0b388a87`](#surface~0b388a87) | 86 | -16777130 | yes |
@@ -395,7 +396,8 @@ Local tag 11, widget tag `-16777205`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.shape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -425,7 +427,8 @@ Local tag 12, widget tag `-16777204`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.elevatedShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -455,7 +458,8 @@ Local tag 13, widget tag `-16777203`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.filledTonalShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -485,7 +489,8 @@ Local tag 14, widget tag `-16777202`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.outlinedShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `ButtonDefaults.outlinedButtonBorder(enabled)` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -515,7 +520,8 @@ Local tag 15, widget tag `-16777201`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.textShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.TextButtonContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.TextButtonContentPadding` |  |
 
 **Content slots**
 
@@ -544,6 +550,7 @@ Local tag 16, widget tag `-16777200`.
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
 | `shape` | `Shape` | 1 | `CardDefaults.shape` |  |
+| `border` | `BorderStroke?` | 2 | `null` |  |
 
 **Content slots**
 
@@ -565,6 +572,7 @@ Local tag 17, widget tag `-16777199`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `CardDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -642,6 +650,7 @@ Local tag 20, widget tag `-16777196`.
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
 | `shape` | `Shape` | 1 | `CardDefaults.outlinedShape` |  |
+| `border` | `BorderStroke` | 2 | `CardDefaults.outlinedCardBorder()` |  |
 
 **Content slots**
 
@@ -663,6 +672,7 @@ Local tag 21, widget tag `-16777195`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `CardDefaults.outlinedShape` |  |
+| `border` | `BorderStroke` | 3 | `CardDefaults.outlinedCardBorder(enabled)` |  |
 
 **Content slots**
 
@@ -716,6 +726,7 @@ Local tag 23, widget tag `-16777193`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `AssistChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `AssistChipDefaults.assistChipBorder(enabled)` |  |
 
 **Content slots**
 
@@ -747,6 +758,7 @@ Local tag 24, widget tag `-16777192`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `AssistChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -779,6 +791,7 @@ Local tag 25, widget tag `-16777191`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `FilterChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `FilterChipDefaults.filterChipBorder(enabled, selected)` |  |
 
 **Content slots**
 
@@ -811,6 +824,7 @@ Local tag 26, widget tag `-16777190`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `FilterChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `null` |  |
 
 **Content slots**
 
@@ -843,6 +857,7 @@ Local tag 27, widget tag `-16777189`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `InputChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `InputChipDefaults.inputChipBorder(enabled, selected)` |  |
 
 **Content slots**
 
@@ -875,6 +890,7 @@ Local tag 28, widget tag `-16777188`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `SuggestionChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `SuggestionChipDefaults.suggestionChipBorder(enabled)` |  |
 
 **Content slots**
 
@@ -905,6 +921,7 @@ Local tag 29, widget tag `-16777187`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `SuggestionChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -1288,6 +1305,7 @@ Local tag 44, widget tag `-16777172`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `IconButtonDefaults.outlinedShape` |  |
+| `border` | `BorderStroke?` | 3 | `IconButtonDefaults.outlinedIconButtonBorder(enabled)` |  |
 
 **Content slots**
 
@@ -1318,6 +1336,7 @@ Local tag 45, widget tag `-16777171`.
 | `checked` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `IconButtonDefaults.outlinedShape` |  |
+| `border` | `BorderStroke?` | 4 | `IconButtonDefaults.outlinedIconToggleButtonBorder(enabled, checked)` |  |
 
 **Content slots**
 
@@ -1396,6 +1415,7 @@ Local tag 81, widget tag `-16777135`.
 | `containerColor` | `Color` | 3 | `MenuDefaults.containerColor` |  |
 | `tonalElevation` | `Dp` | 4 | `MenuDefaults.TonalElevation` |  |
 | `shadowElevation` | `Dp` | 5 | `MenuDefaults.ShadowElevation` |  |
+| `border` | `BorderStroke?` | 6 | `null` |  |
 
 **Content slots**
 
@@ -1862,14 +1882,42 @@ Local tag 65, widget tag `-16777151`.
 | --- | --- | ---: | --- | --- |
 | `value` | `Float` | 1 | required |  |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
-| `steps` | `Int` | 3 | `0` |  |
-| `onValueChangeFinishedPresent` | `Boolean` | 4 | `false` |  |
+| `valueRange` | `ClosedFloatingPointRange<Float>` | 3 | `0f..1f` |  |
+| `steps` | `Int` | 4 | `0` |  |
+| `onValueChangeFinishedPresent` | `Boolean` | 5 | `false` |  |
 
 **Events**
 
 | Name | Signature | Tag | Notes |
 | --- | --- | ---: | --- |
 | `onValueChange` | `(Float) -> Unit` | 1 |  |
+| `onValueChangeFinished` | `(() -> Unit)?` | 2 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### RangeSlider
+
+Local tag 89, widget tag `-16777127`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `value` | `ClosedFloatingPointRange<Float>` | 1 | required |  |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `valueRange` | `ClosedFloatingPointRange<Float>` | 3 | `0f..1f` |  |
+| `steps` | `Int` | 4 | `0` |  |
+| `onValueChangeFinishedPresent` | `Boolean` | 5 | `false` |  |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onValueChange` | `(FloatRange) -> Unit` | 1 |  |
 | `onValueChangeFinished` | `(() -> Unit)?` | 2 |  |
 
 Takes a modifier chain.
@@ -1918,6 +1966,7 @@ Local tag 85, widget tag `-16777131`.
 | `contentColor` | `Color` | 3 | `contentColorFor(color)` |  |
 | `tonalElevation` | `Dp` | 4 | `0.dp` |  |
 | `shadowElevation` | `Dp` | 5 | `0.dp` |  |
+| `border` | `BorderStroke?` | 6 | `null` |  |
 
 **Content slots**
 
@@ -1943,6 +1992,7 @@ Local tag 86, widget tag `-16777130`.
 | `contentColor` | `Color` | 4 | `contentColorFor(color)` |  |
 | `tonalElevation` | `Dp` | 5 | `0.dp` |  |
 | `shadowElevation` | `Dp` | 6 | `0.dp` |  |
+| `border` | `BorderStroke?` | 7 | `null` |  |
 
 **Content slots**
 
@@ -1977,6 +2027,7 @@ Local tag 87, widget tag `-16777129`.
 | `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
 | `tonalElevation` | `Dp` | 6 | `0.dp` |  |
 | `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+| `border` | `BorderStroke?` | 8 | `null` |  |
 
 **Content slots**
 
@@ -2011,6 +2062,7 @@ Local tag 88, widget tag `-16777128`.
 | `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
 | `tonalElevation` | `Dp` | 6 | `0.dp` |  |
 | `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+| `border` | `BorderStroke?` | 8 | `null` |  |
 
 **Content slots**
 
@@ -2398,7 +2450,6 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `AlertDialog` | `properties` | `DialogProperties` | `DialogProperties()` |
 | `AssistChip` | `colors` | `ChipColors` | `AssistChipDefaults.assistChipColors()` |
 | `AssistChip` | `elevation` | `ChipElevation?` | `AssistChipDefaults.assistChipElevation()` |
-| `AssistChip` | `border` | `BorderStroke?` | `AssistChipDefaults.assistChipBorder(enabled)` |
 | `AssistChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `BasicAlertDialog` | `properties` | `DialogProperties` | `DialogProperties()` |
 | `BottomAppBar` | `windowInsets` | `WindowInsets` | `BottomAppBarDefaults.windowInsets` |
@@ -2407,14 +2458,11 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `BottomSheetScaffold` | `snackbarHost` | `@Composable (SnackbarHostState) -> Unit` | `{ SnackbarHost(it) }` |
 | `Button` | `colors` | `ButtonColors` | `ButtonDefaults.buttonColors()` |
 | `Button` | `elevation` | `ButtonElevation?` | `ButtonDefaults.buttonElevation()` |
-| `Button` | `border` | `BorderStroke?` | `null` |
 | `Button` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Card` | `colors` | `CardColors` | `CardDefaults.cardColors()` |
 | `Card` | `elevation` | `CardElevation` | `CardDefaults.cardElevation()` |
-| `Card` | `border` | `BorderStroke?` | `null` |
 | `Card~6ae0a5d2` | `colors` | `CardColors` | `CardDefaults.cardColors()` |
 | `Card~6ae0a5d2` | `elevation` | `CardElevation` | `CardDefaults.cardElevation()` |
-| `Card~6ae0a5d2` | `border` | `BorderStroke?` | `null` |
 | `Card~6ae0a5d2` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `CenterAlignedTopAppBar~b00f901d` | `windowInsets` | `WindowInsets` | `TopAppBarDefaults.windowInsets` |
 | `CenterAlignedTopAppBar~b00f901d` | `colors` | `TopAppBarColors` | `TopAppBarDefaults.topAppBarColors()` |
@@ -2429,16 +2477,13 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `DropdownMenu` | `offset` | `DpOffset` | `DpOffset(0.dp, 0.dp)` |
 | `DropdownMenu` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `DropdownMenu` | `properties` | `PopupProperties` | `DefaultMenuProperties` |
-| `DropdownMenu` | `border` | `BorderStroke?` | `null` |
 | `DropdownMenuItem` | `colors` | `MenuItemColors` | `MenuDefaults.itemColors()` |
 | `DropdownMenuItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedAssistChip` | `colors` | `ChipColors` | `AssistChipDefaults.elevatedAssistChipColors()` |
 | `ElevatedAssistChip` | `elevation` | `ChipElevation?` | `AssistChipDefaults.elevatedAssistChipElevation()` |
-| `ElevatedAssistChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedAssistChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedButton` | `colors` | `ButtonColors` | `ButtonDefaults.elevatedButtonColors()` |
 | `ElevatedButton` | `elevation` | `ButtonElevation?` | `ButtonDefaults.elevatedButtonElevation()` |
-| `ElevatedButton` | `border` | `BorderStroke?` | `null` |
 | `ElevatedButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedCard` | `colors` | `CardColors` | `CardDefaults.elevatedCardColors()` |
 | `ElevatedCard` | `elevation` | `CardElevation` | `CardDefaults.elevatedCardElevation()` |
@@ -2447,11 +2492,9 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `ElevatedCard~cc5087f1` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedFilterChip` | `colors` | `SelectableChipColors` | `FilterChipDefaults.elevatedFilterChipColors()` |
 | `ElevatedFilterChip` | `elevation` | `SelectableChipElevation?` | `FilterChipDefaults.elevatedFilterChipElevation()` |
-| `ElevatedFilterChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedFilterChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedSuggestionChip` | `colors` | `ChipColors` | `SuggestionChipDefaults.elevatedSuggestionChipColors()` |
 | `ElevatedSuggestionChip` | `elevation` | `ChipElevation?` | `SuggestionChipDefaults.elevatedSuggestionChipElevation()` |
-| `ElevatedSuggestionChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedSuggestionChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ExtendedFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `ExtendedFloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2463,7 +2506,6 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `FilledIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilledTonalButton` | `colors` | `ButtonColors` | `ButtonDefaults.filledTonalButtonColors()` |
 | `FilledTonalButton` | `elevation` | `ButtonElevation?` | `ButtonDefaults.filledTonalButtonElevation()` |
-| `FilledTonalButton` | `border` | `BorderStroke?` | `null` |
 | `FilledTonalButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilledTonalIconButton` | `colors` | `IconButtonColors` | `IconButtonDefaults.filledTonalIconButtonColors()` |
 | `FilledTonalIconButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2471,13 +2513,11 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `FilledTonalIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilterChip` | `colors` | `SelectableChipColors` | `FilterChipDefaults.filterChipColors()` |
 | `FilterChip` | `elevation` | `SelectableChipElevation?` | `FilterChipDefaults.filterChipElevation()` |
-| `FilterChip` | `border` | `BorderStroke?` | `FilterChipDefaults.filterChipBorder(enabled, selected)` |
 | `FilterChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `FloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `InputChip` | `colors` | `SelectableChipColors` | `InputChipDefaults.inputChipColors()` |
 | `InputChip` | `elevation` | `SelectableChipElevation?` | `InputChipDefaults.inputChipElevation()` |
-| `InputChip` | `border` | `BorderStroke?` | `InputChipDefaults.inputChipBorder(enabled, selected)` |
 | `InputChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Label` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `LargeFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
@@ -2506,25 +2546,21 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `NavigationRailItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedButton` | `colors` | `ButtonColors` | `ButtonDefaults.outlinedButtonColors()` |
 | `OutlinedButton` | `elevation` | `ButtonElevation?` | `null` |
-| `OutlinedButton` | `border` | `BorderStroke?` | `ButtonDefaults.outlinedButtonBorder(enabled)` |
 | `OutlinedButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedCard` | `colors` | `CardColors` | `CardDefaults.outlinedCardColors()` |
 | `OutlinedCard` | `elevation` | `CardElevation` | `CardDefaults.outlinedCardElevation()` |
-| `OutlinedCard` | `border` | `BorderStroke` | `CardDefaults.outlinedCardBorder()` |
 | `OutlinedCard~2c46c5fa` | `colors` | `CardColors` | `CardDefaults.outlinedCardColors()` |
 | `OutlinedCard~2c46c5fa` | `elevation` | `CardElevation` | `CardDefaults.outlinedCardElevation()` |
-| `OutlinedCard~2c46c5fa` | `border` | `BorderStroke` | `CardDefaults.outlinedCardBorder(enabled)` |
 | `OutlinedCard~2c46c5fa` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedIconButton` | `colors` | `IconButtonColors` | `IconButtonDefaults.outlinedIconButtonColors()` |
-| `OutlinedIconButton` | `border` | `BorderStroke?` | `IconButtonDefaults.outlinedIconButtonBorder(enabled)` |
 | `OutlinedIconButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedIconToggleButton` | `colors` | `IconToggleButtonColors` | `IconButtonDefaults.outlinedIconToggleButtonColors()` |
-| `OutlinedIconToggleButton` | `border` | `BorderStroke?` | `IconButtonDefaults.outlinedIconToggleButtonBorder(enabled, checked)` |
 | `OutlinedIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `PermanentDrawerSheet` | `windowInsets` | `WindowInsets` | `DrawerDefaults.windowInsets` |
 | `PrimaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `RadioButton` | `colors` | `RadioButtonColors` | `RadioButtonDefaults.colors()` |
 | `RadioButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `RangeSlider` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
 | `Scaffold` | `floatingActionButtonPosition` | `FabPosition` | `FabPosition.End` |
 | `Scaffold` | `contentWindowInsets` | `WindowInsets` | `ScaffoldDefaults.contentWindowInsets` |
 | `SecondaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
@@ -2533,21 +2569,15 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `ShortNavigationBarItem` | `iconPosition` | `NavigationItemIconPosition` | `NavigationItemIconPosition.Top` |
 | `ShortNavigationBarItem` | `colors` | `NavigationItemColors` | `ShortNavigationBarItemDefaults.colors()` |
 | `ShortNavigationBarItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
-| `Slider` | `valueRange` | `ClosedFloatingPointRange<Float>` | `0f..1f` |
 | `Slider` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
 | `Slider` | `interactionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
 | `SmallFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `SmallFloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `SuggestionChip` | `colors` | `ChipColors` | `SuggestionChipDefaults.suggestionChipColors()` |
 | `SuggestionChip` | `elevation` | `ChipElevation?` | `SuggestionChipDefaults.suggestionChipElevation()` |
-| `SuggestionChip` | `border` | `BorderStroke?` | `SuggestionChipDefaults.suggestionChipBorder(enabled)` |
 | `SuggestionChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
-| `Surface` | `border` | `BorderStroke?` | `null` |
-| `Surface~0b388a87` | `border` | `BorderStroke?` | `null` |
 | `Surface~0b388a87` | `interactionSource` | `MutableInteractionSource?` | `null` |
-| `Surface~819e1863` | `border` | `BorderStroke?` | `null` |
 | `Surface~819e1863` | `interactionSource` | `MutableInteractionSource?` | `null` |
-| `Surface~9d901ca7` | `border` | `BorderStroke?` | `null` |
 | `Surface~9d901ca7` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Switch` | `colors` | `SwitchColors` | `SwitchDefaults.colors()` |
 | `Switch` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2560,7 +2590,6 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `Text` | `style` | `TextStyle` | `LocalTextStyle.current` |
 | `TextButton` | `colors` | `ButtonColors` | `ButtonDefaults.textButtonColors()` |
 | `TextButton` | `elevation` | `ButtonElevation?` | `null` |
-| `TextButton` | `border` | `BorderStroke?` | `null` |
 | `TextButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `TimePickerDialog` | `properties` | `DialogProperties` | `DialogProperties(usePlatformDefaultWidth = false)` |
 | `TopAppBar~b00f901d` | `windowInsets` | `WindowInsets` | `TopAppBarDefaults.windowInsets` |
