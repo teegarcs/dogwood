@@ -437,12 +437,28 @@ class MaterialConformanceTest {
      * not moved, open the menu and choose again.
      */
     var chosen: String? = null
-    repeat(3) {
+    var menuNotes = ""
+    repeat(3) { round ->
       if (chosen != null) return@repeat
-      act(reach("Cabin class"))
-      if (!awaitLabel("Business", timeoutMs = 5_000)) return@repeat
+      /*
+       * **The anchor is only tapped when the menu is shut**, and that is the correction to the
+       * first version of this retry. `Cabin class` is a toggle: tapping it with the menu already
+       * open closes it again. The first attempt re-tapped it every round, so a round that opened
+       * the menu too late for its own deadline was followed by a round that shut it, and the
+       * retry alternated instead of converging. It passed here on the first round, where the bug
+       * is invisible, and failed on a hosted emulator where the first round is the slow one.
+       */
+      if (find("Business") == null) {
+        act(reach("Cabin class"))
+        awaitLabel("Business", timeoutMs = 5_000)
+      }
+      if (find("Business") == null) {
+        menuNotes += " [round $round: the menu never opened]"
+        return@repeat
+      }
       act(reach("Business"))
       chosen = awaitWitness("m3.menu=", menuWas, timeoutMs = 5_000)
+      if (chosen == null) menuNotes += " [round $round: chose, witness unmoved]"
     }
 
     val sheetWas = witnessAnywhere("m3.sheet=")
@@ -453,7 +469,7 @@ class MaterialConformanceTest {
     conform(
       "M5",
       chosen != null && sheetShown,
-      "menu=$chosen, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
+      "menu=$chosen$menuNotes, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
     )
 
     emit("CONF RESULT client=android passed=$passed failed=$failed skipped=$skipped")
