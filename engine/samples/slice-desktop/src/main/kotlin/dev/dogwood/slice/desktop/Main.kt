@@ -104,6 +104,11 @@ fun main(args: Array<String>) = application {
   // Registered explicitly rather than built in, so the web page-weight measurement can build a
   // host without it: a tier that references every Material 3 composable is a decision about bytes.
   dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  // The foundation, layout and ui tiers (plans/close-the-backlog.md 2.3): three segments in one
+  // module, registered explicitly for the same reason the Material 3 tier is.
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationLayoutBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.UiBinding)
   Window(
     onCloseRequest = ::exitApplication,
     state = rememberWindowState(width = 420.dp, height = 900.dp),
