@@ -28,7 +28,10 @@ Re-create it by pasting the three lines above into `AboutScreen.kt`, restarting
 `:samples:slice-guest:serveProductionWebpackZipline`, and confirming the served payload carries them:
 
 ```
-curl -s http://localhost:8080/slice-guest.zipline | strings | grep -c HOSTILE   # 3
+# The module address carries its own digest (ADR-077), so it is read from the manifest.
+addr=$(curl -s http://localhost:8080/manifest.zipline.json \
+  | python3 -c 'import json,sys; print(next(iter(json.load(sys.stdin)["modules"].values()))["url"])')
+curl -s "http://localhost:8080/$addr" | strings | grep -c HOSTILE   # 3
 ```
 
 ## Before: both hosts die

@@ -74,3 +74,20 @@ zipline {
     },
   )
 }
+
+/*
+ * Each module renamed for its own content, and the manifest re-signed over the new name.
+ *
+ * The same step `slice-guest` applies and for the same reason (ADR-077): an address that is the
+ * same string in every release leaves a module request with nothing to say which release it wants.
+ * This payload is only ever served one release at a time today, and it gets the step anyway --
+ * a property that holds only where somebody remembered to arrange it is not a property.
+ *
+ * One key here rather than two, matching the `signingKeys` block above: this payload is not part of
+ * the rotation drill.
+ */
+extra["dogwoodSigningKeys"] = linkedMapOf(
+  "dogwood-development" to
+    providers.gradleProperty("dogwoodSigningKey").getOrElse(developmentSigningKey),
+)
+apply(from = rootProject.file("gradle/content-addressed-modules.gradle.kts"))
