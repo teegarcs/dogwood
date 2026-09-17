@@ -328,6 +328,47 @@ per-component binding `D1` (resolved by measurement — the tier is registered w
 
 ---
 
+## 8b. What landed, 2026-09-16
+
+Written after the work rather than before it, because a plan nobody marks up is a plan nobody can
+audit. Every number here is measured; the commits carry the evidence.
+
+| Group | State | What is different |
+|---|---|---|
+| 1 — the proof plan's leftovers | done | iOS `M4`/`M5` chased to their real cause (a walk capped at 250 nodes and a scroll offered to every element, which is why the drill looked hung); `B6` graded on Android and iOS; `G6` gives the guest script a budget it never had; the promised document notes written |
+| 2 — M4 | done | 111 of 260 bound, up from 93. Bindings omit a host-default argument rather than quoting it; a name is internal only when nothing public claims it; `BorderStroke`, a float range and per-corner shapes cross; the foundation, layout and ui tiers exist as a module |
+| 3 — M5 | done | Library live state is mirrorable by type name. Seven shapes bound; `CarouselState` and `SubcomposeLayoutState` are recorded as unbindable **with the measurement**, not assumed |
+| 4 — M6 | done, desktop half | A payload's own screens compile for the Java Virtual Machine unedited and render against real Compose, no protocol in between. The Android Studio pane is not built and says so |
+| 5 — M7 | done | The manuals teach the generated tiers first; the guest check names `TextInput` and reads the classpath |
+| 6 — delivery | done | Portal bundle assembled and graded without an account; a rotation runbook with a drill that performs it; publish as one workflow; a canary that stays a canary |
+| 7 — verification | done | Tier C runs nightly on free runners; `K3`/`K4` grade two engine versions meeting, which needed a tag to exist and now has one |
+| 8 — the owner's | prepared | Each item has what engineering can do for it done, and what only the owner can do named |
+
+**Five things this plan got wrong, all corrected by running rather than by arguing.**
+
+1. **"Most of the 26 will return."** Two did. The other twenty-four had a deeper reason the
+   internal-default check was reporting over. The report's reasons are a chain and reading the first
+   link as the whole story overstated a fix — twice now (ADR-074 §3).
+2. **`*Colors` is not a mapping-table row.** It is a subsystem: a colour bundle is built by a
+   library factory whose parameter names differ per component. Recorded in ADR-074 with what it
+   would take, and with the observation that it is worth less than it looks because the components
+   that matter already expose `containerColor` and `contentColor` separately.
+3. **`GridCells` unlocks nothing.** Every lazy container is unbound because its content lambda is
+   invoked inside a frame. The parameter was never the blocker.
+4. **`TextField` does not give an author "unresolved reference".** `dev.dogwood.compose.TextField`
+   exists and is the supported wrapper; the engine's own screens call it. The check now rejects the
+   *controlled* form by its arguments rather than the name.
+5. **Layer B could not be Zipline inside a test**, and did not need to be. The guest composes on
+   Node and writes its change batches; the Java Virtual Machine replays those exact bytes through
+   the real host bindings. Everything between a payload and a pixel, with no device.
+
+**And three defects in the work itself**, each found by running it: a holder parameter appended
+after a content slot silently rebound every trailing lambda; a drill whose `conform` took zero for a
+pass reported a refusal as its control succeeding; `kill "${server:-0}"` signals the whole process
+group, so two drills could end by killing the shell that ran them.
+
+---
+
 ## 9. Order, gates and estimate
 
 **Order.** Group 1 first, because it closes a plan already merged and the iOS drill is a defect.
