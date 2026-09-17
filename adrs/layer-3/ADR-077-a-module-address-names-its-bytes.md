@@ -111,6 +111,15 @@ ignored `publish`'s exit status. It no longer does.
 - **Assumes `ManifestSigner.sign` replaces signatures rather than adding to them.** Read from the
   bytecode — it builds its signature map from its signer set — and asserted by `SignatureTest`,
   which checks both key names and both verifications on the produced manifest.
+- **A payload built by an older toolchain cannot be published by this server, and must be rebuilt.**
+  `publish` refuses unconditionally rather than only when a second release is already staged, and
+  that is deliberate: the first publish is the last moment at which the bad state can still be
+  prevented. Refusing only the *second* publish would mean the first release is already out, already
+  immutable, and already holding a name the second one needs. The refusal message says to rebuild.
+  This does not affect loading an old payload — `K1`/`K2` serve the committed
+  `tools/conformance/fixtures/payload-*` fixture straight from `python3 -m http.server`, never
+  through `publish`, and a client still loads a payload whose module has any address its manifest
+  names.
 - **Assumes the guest's bundle is not byte-reproducible across unrelated builds.** Not assumed
   anywhere that matters: `B7-distinct` measures it rather than trusting it.
 
