@@ -100,7 +100,7 @@ case "$CLIENT" in
       named=0
     fi
     conform "B6" "$named" \
-      "$(echo "$without" | grep -oE '(refused|does not implement)[^"]{0,120}' | head -1 | tr -d '\n')"
+      "$(echo "$without" | grep -oE '(refused|does not have|does not implement)[^"]{0,140}' | head -1 | tr -d '\n')"
 
     echo "==> restoring the ordinary client"
     ./gradlew :samples:slice-android:installDebug --console=plain -q --max-workers=2 || true
@@ -146,7 +146,7 @@ case "$CLIENT" in
       named=0
     fi
     conform "B6" "$named" \
-      "$(echo "$without" | grep -oE '(refused|does not implement)[^"]{0,120}' | head -1 | tr -d '\n')"
+      "$(echo "$without" | grep -oE '(refused|does not have|does not implement)[^"]{0,140}' | head -1 | tr -d '\n')"
     ;;
 
   *) echo "usage: $0 android|ios" >&2; exit 2 ;;

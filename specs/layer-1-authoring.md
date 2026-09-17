@@ -131,7 +131,30 @@ This layer has no Foreign Function Interface (FFI) boundary. It runs entirely on
 
 1. **Milestone 1 — Multiplatform module skeleton.** Create a KMP module with `js(IR)` and `jvm` targets sharing one `commonMain`, with the Compose compiler plugin applied. Prove that a trivial `@Composable` compiles for both.
 2. **Milestone 2 — Hand-written stub vertical slice.** Before any generator exists, hand-write stubs for the roadmap Phase 1 slice — five layout primitives (`Text`, `Column`, `Row`, `Box`, `Spacer`) plus five registered design-system components, with a few value-class modifiers — matching the segment/tag assignments in [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1. This de-risks the recording mechanism against Layer 4 without waiting on `dogwood-codegen`.
-3. **Milestone 3 — Preview path decision and implementation.** Choose between an `androidTarget()` driving the standard Android Studio pane and the Compose Multiplatform desktop preview. Implement the preview `actual`s for the same ten composables. Note this is **not** a straight delegation: because Dogwood declares its own value types and `Modifier`, the preview path needs a type-conversion layer between Dogwood types and androidx types. Budget for it as a third generated surface. Registered design-system components preview by delegating to the real design-system module — which the host build already depends on — so their preview `actual`s are generated alongside the stubs from the same registration.
+3. ~~**Milestone 3 — Preview path decision and implementation.**~~ **Done for the desktop half,
+   2026-09-16 ([ADR-076](../adrs/layer-1/ADR-076-the-preview-is-a-second-back-end-not-a-translation.md)), and
+   not by `expect`/`actual`.** The decision this milestone framed as a choice turned out to have a
+   third answer. `engine/dogwood-compose-preview` is a **separate module publishing the same
+   package and the same signatures** with bodies that call real Compose, and a payload module
+   compiles twice by pointing a second target at the same source directory — so nothing in a
+   payload's own source is marked `expect`, which is what would otherwise have forced every
+   author's module into a multiplatform layout. `./gradlew :samples:slice-screens:preview -Pscreen=material`
+   opens the payload's own catalogue in a Compose Desktop window; `-Pheadless` composes it and
+   exits non-zero if it throws, which is how it is verified, and `-Pout=<path>` writes the frame.
+
+   The milestone's own prediction held: it is **not a straight delegation**, because Dogwood
+   declares its own value types and `Modifier`. What it did not predict is that the conversion
+   layer need not be a third generated surface — the 84 Material 3 delegates were derived from the
+   two surfaces the generator already emits (the guest stub gives the signature, the host binding
+   gives the argument mapping and the library's own defaults) and committed as source. They are
+   therefore frozen at the dictionary they were derived from, and a payload calling a newer
+   component fails the preview compile loudly. Registered design-system components preview by
+   delegating to the real design-system module, exactly as this milestone said they would.
+
+   **The Android Studio pane is not built**, and the note above is why: that pane renders through
+   Layoutlib and needs an Android module. `developer-experience.md` §4 says plainly that it has not
+   been seen.
+
 4. **Milestone 4 — Generated stubs.** Replace the hand-written slice with `dogwood-compose` emitted by `dogwood-codegen`, and confirm the vertical slice still behaves identically.
 5. **Milestone 5 — Dictionary checker.** Implement the best-effort build-time check, with error messages naming the API, the client versions that lack it, and the earliest version that has it. Document explicitly what it cannot see.
 6. **Milestone 6 — Build ordering.** The dictionary flows *backwards* from Layer 5 to Layers 1 and 2. Establish the publish ordering: the client build must complete and publish its dictionary before any server build can resolve against it, and a client-side Compose upgrade invalidates every server payload built against the previous dictionary.
