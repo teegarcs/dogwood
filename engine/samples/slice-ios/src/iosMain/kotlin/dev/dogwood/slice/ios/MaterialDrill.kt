@@ -118,7 +118,7 @@ private fun witnessOf(root: UIView, prefix: String): String? =
  * by the element that scrolls rather than by the window above it -- the lesson
  * `AccessibilityDrill.kt` records.
  */
-private suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
+internal suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
   if (predicate()) return true
   /*
    * The page, not whatever answers first, and found once rather than per attempt.

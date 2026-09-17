@@ -430,6 +430,19 @@ private fun SliceHost(configuration: HostEnvironment) {
       var arrived = false
       var waited = 0
       /*
+       * **Scrolled for, not just waited for.** `ExploreScreen` composes the country into the screen
+       * title -- `Explore ${params.country}` -- and the city into a *section* title further down,
+       * `Stays in ${params.city}`. The accessibility walk reads the current viewport, so on a
+       * simulator whose window is shorter than the development machine's the city is below the fold
+       * and no amount of waiting brings it into view.
+       *
+       * Three nightly runs reported `no launch-parameter text on screen`, and the fourth -- once the
+       * failure printed what it *had* seen -- showed 25 labels beginning `Explore Japan`, `Kyoto`,
+       * `Reykjavík`. The country parameter had crossed the boundary the whole time. This is the same
+       * mistake as `M2` in the Material drill, which read a witness that `reach` had scrolled off
+       * the screen, and it is worth noticing that both were reported as the payload failing.
+       */
+      /*
        * Sixty seconds, stretched for a slower machine. `J2` waits on a network fetch and a
        * composition, and on a hosted simulator it was the last claim in this drill still failing --
        * `no launch-parameter text on screen after 60s` -- while everything around it passed. Every
@@ -441,6 +454,11 @@ private fun SliceHost(configuration: HostEnvironment) {
         waited += 500
         arrived = collectAccessibilityElements(root).any {
           (it.accessibilityLabel ?: "").contains("Tokyo")
+        }
+        if (!arrived && waited >= 5_000) {
+          arrived = scrollUntil(root) {
+            collectAccessibilityElements(root).any { (it.accessibilityLabel ?: "").contains("Tokyo") }
+          }
         }
       }
       if (arrived) {
