@@ -24,6 +24,7 @@ rootProject.name = "dogwood"
 include(":dogwood-wire")
 include(":dogwood-protocol")
 include(":dogwood-compose")
+include(":dogwood-compose-preview") // the same guest API, delegating to real Compose on the JVM (Group 4)
 include(":dogwood-host")
 include(":dogwood-codegen")
 // The Material 3 tier, generated from the library's own sources (plans/generator-v2.md). Its own
