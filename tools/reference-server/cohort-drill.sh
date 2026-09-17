@@ -64,7 +64,14 @@ conform() { # id, condition(1|0), detail
 # which signals the whole process GROUP, taking the drill and its caller down with exit 144 and no
 # output. Watched: a guest-build failure in this script produced exactly that, twice, and looked
 # like the drill hanging rather than like a build error.
-cleanup() { [ -n "${server:-}" ] && kill "$server" 2>/dev/null; rm -rf "$SERVE_ROOT"; return 0; }
+cleanup() {
+  [ -n "${server:-}" ] && kill "$server" 2>/dev/null
+  # The canary patch, put back on every exit path including an interrupt. A drill that
+  # dies mid-build must not leave a patched screen in somebody's working tree.
+  [ -n "${CANARY_SAVED:-}" ] && [ -f "$CANARY_SAVED" ] && cp "$CANARY_SAVED" "$CANARY_SOURCE"
+  rm -rf "$SERVE_ROOT"
+  return 0
+}
 trap cleanup EXIT
 
 [ -n "${JAVA_HOME:-}" ] || { echo "JAVA_HOME is not set" >&2; exit 1; }
@@ -75,7 +82,15 @@ build() { # version
     echo "the guest build failed for $1; see $LOG" >&2; exit 1; }
   rm -rf "$SERVE_ROOT/src"
   cp -R "$ENGINE/samples/slice-guest/build/zipline/ProductionWebpack" "$SERVE_ROOT/src"
-  "$HERE/server.py" publish --root "$SERVE_ROOT" --from "$SERVE_ROOT/src" --version "$1" >>"$LOG"
+  # Checked, not ignored. A refused publish used to fall through to "the reference server never
+  # answered on :$PORT", which names the symptom three steps downstream of the cause -- watched
+  # while disabling the content-addressing step on purpose. `publish` refuses a payload whose module
+  # addresses do not name their bytes, and that refusal is the most likely one to be seen here.
+  "$HERE/server.py" publish --root "$SERVE_ROOT" --from "$SERVE_ROOT/src" --version "$1" 2>&1 | tee -a "$LOG"
+  if [ "${PIPESTATUS[0]}" != "0" ]; then
+    echo "publishing $1 was refused -- see the reason above and in $LOG" >&2
+    exit 1
+  fi
 }
 
 echo "==> publishing 1.0.0-good to everyone"
@@ -83,7 +98,44 @@ build 1.0.0-good
 "$HERE/server.py" rollout --root "$SERVE_ROOT" --version 1.0.0-good --percent 100 >>"$LOG"
 
 echo "==> publishing 1.1.0-bad, and pinning it to buckets $RANGE and nothing else"
+# ---------------------------------------------------------------------------------------------
+# The canary is built from DIFFERENT SOURCE, and this is load-bearing rather than decorative.
+#
+# `-PdogwoodVersion` is a build input that reaches the manifest and not the bundle, so two releases
+# built with nothing else changed have byte-identical modules. `quarantine-drill.sh` says so
+# outright: "the two payloads are otherwise identical". That is fine for the quarantine guard, whose
+# only input is whether a version started and reported success, and it is fatal here: two releases
+# with identical modules share one content address, and `B7` -- each cohort loads its own release's
+# modules -- would pass while exercising nothing at all.
+#
+# `B7-distinct` below is the assertion that keeps this honest, and it is the check that caught the
+# hollow pass the first time this claim was written. If somebody removes the patch, `B7-distinct`
+# fails rather than `B7` quietly becoming meaningless.
+#
+# Saved and restored by copy rather than by `git checkout`, for the reason `tools/skew-drill/run.sh`
+# records: `git checkout --` restores the committed content and throws away uncommitted work in the
+# same file, which is not what "restore" means to the person running this. Restored on every exit
+# path, including an interrupt.
+# ---------------------------------------------------------------------------------------------
+CANARY_SOURCE="$ENGINE/samples/slice-screens/src/jsMain/kotlin/dev/dogwood/slice/AboutScreen.kt"
+CANARY_SAVED="$(mktemp -d)/AboutScreen.kt"
+cp "$CANARY_SOURCE" "$CANARY_SAVED"
+restore_canary() {
+  [ -f "$CANARY_SAVED" ] && cp "$CANARY_SAVED" "$CANARY_SOURCE"
+  return 0
+}
+python3 - "$CANARY_SOURCE" <<'PATCH'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+t = p.read_text()
+old = 'title = "Diagnostics",'
+if old not in t:
+    sys.exit(f"cohort-drill: {p} no longer contains {old!r}; the canary would be byte-identical "
+             "to the live release and B7 would test nothing")
+p.write_text(t.replace(old, 'title = "Diagnostics (canary)",', 1))
+PATCH
 build 1.1.0-bad
+restore_canary
 # Explicitly at zero percent. The pin is then the ONLY thing that can deliver this release, so a
 # bucket seeing it is evidence about `cohorts.json` rather than about the percentage -- and `C5`
 # below says so directly.
@@ -159,21 +211,23 @@ conform "C5" "$([ "$staged_percent" = "0" ] && [ "$inside_bad" -gt 0 ] && echo 1
 
 # ---------------------------------------------------------------------------------------------
 # And a real client, because everything above is a header this server chose to send. The client
-# fetches the manifest for the bucket it is in and verifies its Ed25519 signature, which is the
-# whole of what "this installation was offered this release" means.
+# fetches the manifest for the bucket it is in, verifies its Ed25519 signature, and then fetches
+# every module that manifest names and checks each digest -- which is the whole of what "this
+# installation was offered this release, and could run it" means.
 #
-# **It stops at `verified` rather than `updated`, and the reason is a defect this drill found.** A
-# module request carries no release identity -- the loader resolves each module address relative to
-# the manifest, and the address is whatever the build wrote, which is `slice-guest.zipline` in
-# every release this project produces. With two releases live at once, the server cannot know which
-# release's bytes a module request wants, and the first run of this drill watched a client pinned to
-# 1.1.0-bad fetch 1.0.0-good's module and refuse the load on the digest the signed manifest named.
-# The signature caught it, which is the right direction; the fix belongs in publishing, and
-# `server.py`'s `publish` now warns loudly with what a real deployment must do instead.
+# **It used to stop at `verified`, and the reason was a defect this drill found.** A module request
+# carried no release identity: the loader resolves each module address relative to the manifest, and
+# the address was whatever the build wrote, which was `slice-guest.zipline` in every release this
+# project produced. With two releases live at once the server could not know which release's bytes a
+# module request wanted, and the first run of this drill watched a client pinned to 1.1.0-bad fetch
+# 1.0.0-good's module and refuse the load on the digest the signed manifest named. The signature
+# caught it, which is the right direction, but the outcome is a device that cannot start.
 #
-# So the module half of the claim is graded where the question is well posed:
-# `publish-check.sh` `P6` fetches every module against a server holding ONE release and checks each
-# digest. Asserting it here would be asserting the ambiguity rather than the routing.
+# That is now fixed at the only place it could be fixed -- in the build, before the manifest is
+# signed (ADR-077). A module's address carries the first sixteen hex digits of its own SHA-256, so
+# the request names the bytes and there is no guess left to make. `B7` below is that claim, and it
+# is asserted HERE rather than in `publish-check.sh` because this is the only drill that holds two
+# releases live at once, which is the only condition under which the question is even askable.
 # ---------------------------------------------------------------------------------------------
 echo
 echo "==> a real client, in a pinned bucket and outside one"
@@ -200,6 +254,32 @@ conform "C3" \
 conform "C3-spared" \
   "$(printf '%s' "$spared_client" | grep -q "CLIENT verified version=1.0.0-good" && echo 1 || echo 0)" \
   "a real client in bucket 99 fetched and verified the good release: $(printf '%s' "$spared_client" | grep -E 'CLIENT (verified|refused)' | head -1)"
+
+# ---------------------------------------------------------------------------------------------
+# B7: with two releases live, each cohort loads ITS OWN release's modules.
+#
+# `updated` rather than `verified` is the whole point. `verified` says the manifest was authentic;
+# `updated` says every module it names arrived with the digest it named, which is the step that used
+# to fail here. The two releases genuinely differ in module bytes -- asserted below rather than
+# assumed, because if a build produced identical bytes for both this claim would pass while testing
+# nothing.
+# ---------------------------------------------------------------------------------------------
+address_of() { # version
+  python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['modules'].popitem()[1]['url'])" \
+    "$SERVE_ROOT/releases/$1/manifest.zipline.json"
+}
+good_address="$(address_of 1.0.0-good)"
+bad_address="$(address_of 1.1.0-bad)"
+
+conform "B7-distinct" \
+  "$([ -n "$good_address" ] && [ "$good_address" != "$bad_address" ] && echo 1 || echo 0)" \
+  "the two live releases publish their modules at different addresses ($good_address vs $bad_address)"
+conform "B7" \
+  "$(printf '%s' "$pinned_client" | grep -q "CLIENT updated version=1.1.0-bad" && echo 1 || echo 0)" \
+  "the pinned client loaded the pinned release's own modules: $(printf '%s' "$pinned_client" | grep -cE '^CLIENT module .* ok') module(s) matched the digest its manifest named"
+conform "B7-spared" \
+  "$(printf '%s' "$spared_client" | grep -q "CLIENT updated version=1.0.0-good" && echo 1 || echo 0)" \
+  "the client outside the pin loaded the live release's own modules at the same time: $(printf '%s' "$spared_client" | grep -cE '^CLIENT module .* ok') module(s) matched"
 
 printf '%s\n' "${lines[@]}" > "$OUT"
 echo "CONF RESULT client=cohort passed=$passed failed=$failed skipped=0" >> "$OUT"

@@ -100,7 +100,14 @@ has_marker() {
   grep -q "SKEW-CALLOUT" "$markers"
 }
 for _ in $(seq 1 30); do
-  curl -fs -m 3 -o "$served" http://localhost:8080/slice-guest.zipline 2>/dev/null
+  # The module address carries the first sixteen hex digits of its own SHA-256 now (ADR-077), so it
+  # is READ out of the manifest the server is offering rather than spelled out here. A literal name
+  # would 404 on every attempt and this loop would then report "the skewed payload never reached the
+  # server" -- a product failure that did not happen, which is the most expensive kind of wrong.
+  address="$(curl -fs -m 3 http://localhost:8080/manifest.zipline.json 2>/dev/null \
+    | python3 -c 'import json,sys; print(next(iter(json.load(sys.stdin)["modules"].values()))["url"])' \
+    2>/dev/null || true)"
+  [ -n "$address" ] && curl -fs -m 3 -o "$served" "http://localhost:8080/$address" 2>/dev/null
   if has_marker; then break; fi
   sleep 2
 done

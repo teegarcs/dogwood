@@ -22,6 +22,7 @@ import platform.UIKit.UIAccessibilityScrollDirectionDown
 import platform.UIKit.UIAccessibilityScrollDirectionUp
 import platform.UIKit.UIAccessibilityIsVoiceOverRunning
 import platform.Foundation.NSDate
+import platform.Foundation.NSProcessInfo
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIView
 import platform.UIKit.accessibilityActivate
@@ -55,6 +56,34 @@ private val MATERIAL_SECTIONS = listOf(
  * until somebody noticed. A drill that hangs is worse than one that fails.
  */
 private var deadline: Double = Double.MAX_VALUE
+
+/**
+ * How long to wait for the payload to do something, as a multiple of what a development machine
+ * needs.
+ *
+ * Every wait here was tuned on a development machine, and on a hosted simulator `M2` failed with
+ * `[20s] section=true, activated=true, m3.buttons=0/0/0/0/0 -> null`: the section opened, the button
+ * was activated, and fifteen seconds was not enough for the payload's own witness to come back. A
+ * hosted runner renders this through a software rasteriser on shared cores and is simply slower.
+ *
+ * A multiplier rather than bigger numbers, because a development machine should not wait three times
+ * as long to learn the same thing. Passed as `--dogwood-patience <n>` beside the drill's own launch
+ * argument, which is how every other switch reaches this application.
+ */
+internal var patience: Double = 1.0
+
+/**
+ * Reads `--dogwood-patience <n>` off the launch arguments, once, for whichever drill asked.
+ *
+ * Shared by the Material drill and the accessibility drill rather than parsed twice: both are
+ * launched by `xcrun simctl launch` with the same switch, and two readers of one argument is two
+ * places to forget it.
+ */
+internal fun readPatience(): Double {
+  val arguments = NSProcessInfo.processInfo.arguments.map { it.toString() }
+  val at = arguments.indexOf("--dogwood-patience")
+  return arguments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toDoubleOrNull()?.coerceIn(1.0, 10.0) ?: 1.0
+}
 private var startedAt: Double = 0.0
 
 /**
@@ -89,7 +118,7 @@ private fun witnessOf(root: UIView, prefix: String): String? =
  * by the element that scrolls rather than by the window above it -- the lesson
  * `AccessibilityDrill.kt` records.
  */
-private suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
+internal suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
   if (predicate()) return true
   /*
    * The page, not whatever answers first, and found once rather than per attempt.
@@ -136,15 +165,73 @@ private suspend fun reach(root: UIView, label: String): NSObject? {
   return elementNamed(root, label)
 }
 
-/** Waits for a witness to say something other than [was]: the consequence, not the activation. */
+/**
+ * Waits for a witness to say something other than [was]: the consequence, not the activation.
+ *
+ * **Scrolls to find the witness if it is not in view**, which is the fix for a failure that looked
+ * like a dead button. `M2` reported `section=true, activated=true, m3.buttons=0/0/0/0/0 -> null` on
+ * a hosted simulator, three activations deep and fifty seconds in, while `M3`, `M6` and `M7` all
+ * passed two seconds later. The button was found and activated; what was missing was the *reading*.
+ *
+ * `reach` scrolls the view to bring its target on screen, and on a shorter viewport that pushes the
+ * witness line off the bottom. `witnessOf` reads the current viewport only, so it answered null
+ * forever and the drill reported a payload that had not responded. The payload had responded; the
+ * drill was looking at the wrong part of the screen.
+ *
+ * `tools/conformance/run-android.sh`'s instrumented counterpart has scrolled here since it was
+ * written -- "if the witness is not in the viewport, go and find it once" -- and this is the same
+ * rule. Once per call rather than every attempt, because scrolling costs a tree walk and the point
+ * is to relocate the line, not to hunt for it repeatedly.
+ */
 private suspend fun awaitWitness(root: UIView, prefix: String, was: String?, attempts: Int = 60): String? {
-  repeat(attempts) {
+  var searched = false
+  repeat((attempts * patience).toInt().coerceAtLeast(1)) {
     if (outOfTime()) return null
     val now = witnessOf(root, prefix)
     if (now != null && now != was) return now
+    if (now == null && !searched) {
+      searched = true
+      scrollUntil(root) { witnessOf(root, prefix) != null }
+      witnessOf(root, prefix)?.let { if (it != was) return it }
+    }
     delay(250)
   }
   return null
+}
+
+/**
+ * Activates a control and waits for a consequence, **activating again** if none arrives.
+ *
+ * One activation and a long wait is not the same thing as this, and the difference was measured.
+ * On a hosted simulator `M2` -- the first claim in this drill that activates anything -- failed
+ * with `[50s] section=true, activated=true, m3.buttons=0/0/0/0/0 -> null` while `M3`, `M6` and `M7`
+ * all passed three seconds later. So the button reported that it had been activated, forty-five
+ * seconds of waiting changed nothing, and every activation *after* it worked immediately.
+ *
+ * That is not a slow payload, it is a first activation landing before the guest is listening, and
+ * no amount of extra waiting fixes it -- the tap is already gone. Acting again is what fixes it.
+ * `accessibilityActivate` returning true says the platform delivered the activation to the element;
+ * it says nothing about whether the payload was ready to hear it, which is exactly the proxy that
+ * AGENTS.md section 1.5 warns about. The witness is the consequence, so the witness decides.
+ */
+private suspend fun activateUntil(
+  root: UIView,
+  label: String,
+  prefix: String,
+  was: String?,
+  rounds: Int = 3,
+): Pair<Boolean, String?> {
+  var everActivated = false
+  repeat(rounds) {
+    if (outOfTime()) return everActivated to null
+    val activated = reach(root, label)?.accessibilityActivate() ?: false
+    everActivated = everActivated || activated
+    // A short wait per round rather than one long one, so a missed first activation costs a few
+    // seconds instead of the whole budget.
+    val now = awaitWitness(root, prefix, was, attempts = 20)
+    if (now != null) return everActivated to now
+  }
+  return everActivated to null
 }
 
 private suspend fun witnessAnywhere(root: UIView, prefix: String): String? {
@@ -190,8 +277,11 @@ suspend fun runMaterialDrill(root: UIView): Int {
    */
   // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
   // by the drill rather than cut off by the harness.
+  patience = readPatience()
   startedAt = NSDate().timeIntervalSince1970
-  deadline = startedAt + 300.0
+  // The overall budget stretches with the per-wait patience, or a patient run would simply spend
+  // its extra seconds and then be cut off by the budget that was sized for an impatient one.
+  deadline = startedAt + 300.0 * patience
 
   var passed = 0
   var failed = 0
@@ -221,8 +311,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
   // M2 -- a button is operable through VoiceOver and the payload's own state changes.
   val opened = openSection(root, "Buttons")
   val buttonsWere = witnessAnywhere(root, "m3.buttons=")
-  val activated = reach(root, "Filled")?.accessibilityActivate() ?: false
-  val buttonsNow = awaitWitness(root, "m3.buttons=", buttonsWere)
+  val (activated, buttonsNow) = activateUntil(root, "Filled", "m3.buttons=", buttonsWere)
   conform("M2", activated && buttonsNow != null, "section=$opened, activated=$activated, $buttonsWere -> $buttonsNow")
 
   // M6 -- an icon inside a Material component announces its description. The icon is segment 0's

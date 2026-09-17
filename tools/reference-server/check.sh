@@ -23,10 +23,20 @@ check() { # name, condition-output, expectation
 }
 
 # Two releases, each a plausible payload directory.
+#
+# The module is named for its own content, because that is what a real payload looks like since
+# ADR-077 and what `publish` now requires: the first sixteen hex digits of the module's SHA-256 are
+# part of its address, so two releases cannot publish different bytes under one name. The fixture
+# used to be `{"modules":{}}` beside a file the manifest never mentioned, which is a shape no build
+# produces and which let this check pass while the server guessed.
 for v in 1.0.0 1.1.0; do
   mkdir -p "$ROOT/src-$v"
-  printf '{"version":"%s","modules":{}}' "$v" > "$ROOT/src-$v/manifest.zipline.json"
-  printf 'payload bytes for %s' "$v" > "$ROOT/src-$v/module-$v.zipline"
+  printf 'payload bytes for %s' "$v" > "$ROOT/src-$v/module.bytes"
+  digest=$(shasum -a 256 "$ROOT/src-$v/module.bytes" | cut -c1-64)
+  mv "$ROOT/src-$v/module.bytes" "$ROOT/src-$v/module-${digest:0:16}.zipline"
+  printf '{"version":"%s","modules":{"./module.js":{"url":"module-%s.zipline","sha256":"%s","dependsOnIds":[]}}}' \
+    "$v" "${digest:0:16}" "$digest" > "$ROOT/src-$v/manifest.zipline.json"
+  eval "module_$(echo "$v" | tr . _)=module-${digest:0:16}.zipline"
 done
 
 echo "==> publish"
@@ -37,6 +47,24 @@ echo "==> publish"
 check "a new publish is staged, not live" \
   "$("$HERE/server.py" status --root "$ROOT" | python3 -c 'import json,sys; s=json.load(sys.stdin); print(s["live"], s["staged"], s["percent"])')" \
   "1.0.0 1.1.0 0"
+
+# The negative control for the content address, and the reason `publish` refuses rather than warns.
+#
+# This is the exact payload shape every release had before ADR-077: a module named the same thing
+# in every release. Published beside another release it makes the `immutable` promise false and
+# leaves a module request with nothing to say which release it wants -- `cohort-drill.sh` watched a
+# pinned client fetch the wrong release's bytes and refuse the load. It used to print a warning and
+# publish anyway, which is how `quarantine-drill.sh` published straight past it.
+mkdir -p "$ROOT/src-unaddressed"
+printf 'payload bytes that do not name themselves' > "$ROOT/src-unaddressed/guest.zipline"
+printf '{"version":"9.9.9","modules":{"./guest.js":{"url":"guest.zipline","sha256":"%s","dependsOnIds":[]}}}' \
+  "$(shasum -a 256 "$ROOT/src-unaddressed/guest.zipline" | cut -c1-64)" \
+  > "$ROOT/src-unaddressed/manifest.zipline.json"
+"$HERE/server.py" publish --root "$ROOT" --from "$ROOT/src-unaddressed" --version 9.9.9 >/dev/null 2>&1
+check "a payload whose module address does not name its bytes is refused" "$?" "1"
+check "...and the refusal left nothing published" \
+  "$("$HERE/server.py" status --root "$ROOT" | python3 -c 'import json,sys; print("9.9.9" in json.load(sys.stdin)["releases"])')" \
+  "False"
 
 "$HERE/server.py" serve --root "$ROOT" --port "$PORT" >/dev/null 2>&1 &
 server=$!
@@ -51,7 +79,7 @@ done
 
 echo "==> the cache split"
 manifest_cache=$(curl -fsS -D - -o /dev/null "http://127.0.0.1:$PORT/manifest.zipline.json" | tr -d '\r' | awk -F': ' '/^Cache-Control/{print $2}')
-module_cache=$(curl -fsS -D - -o /dev/null "http://127.0.0.1:$PORT/module-1.0.0.zipline" | tr -d '\r' | awk -F': ' '/^Cache-Control/{print $2}')
+module_cache=$(curl -fsS -D - -o /dev/null "http://127.0.0.1:$PORT/$module_1_0_0" | tr -d '\r' | awk -F': ' '/^Cache-Control/{print $2}')
 # The manifest is the only mutable thing here. A cached one is a fleet that can neither be updated
 # nor rolled back -- the failure that outlasts the outage.
 check "the manifest is never cached" "$manifest_cache" "no-store"
@@ -110,7 +138,11 @@ if [ -f "$payload/manifest.zipline.json" ] && [ -n "${JAVA_HOME:-}" ]; then
   pkill -f "slice.desktop.MainKt" 2>/dev/null || true
   kill $client_server 2>/dev/null || true
   loaded=$(grep -c "loaded version 1.0.0, verified by" "$live/client.log" || true)
-  modules=$(grep -c "GET /slice-guest.zipline" "$live/serve.log" || true)
+  # Matched by SHAPE rather than by name: the address carries the module's own digest now, so a
+  # literal name here would have to be updated every time the guest changes a byte -- and a grep
+  # that no longer matches reports "the client fetched nothing", which is the failure this line is
+  # supposed to detect. Asserting the shape also asserts the content address is there at all.
+  modules=$(grep -cE "GET /slice-guest-[0-9a-f]{16}\.zipline" "$live/serve.log" || true)
   check "the client loaded and verified the signed manifest" "$loaded" "1"
   check "the client fetched a module from this server" "$modules" "1"
   rm -rf "$live"

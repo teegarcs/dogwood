@@ -150,4 +150,30 @@ class SignatureTest {
       verifier.verify(reformatted.encodeUtf8(), ZiplineManifest.decodeJson(reformatted)),
     )
   }
+
+  @Test
+  fun movingTheModuleAddressIsRejected() {
+    val text = manifestText()
+    // **The reason a module cannot be re-addressed after it is signed**, which is the fact
+    // ADR-077 turns on. A module's `url` sits beside its `sha256` inside the signed region, so a
+    // publishing step that renamed modules to make their addresses unique per release would
+    // invalidate every signature it touched, and every client would refuse to start.
+    //
+    // That is why the content address is written by the build, before signing, rather than by
+    // `server.py`'s `publish` where the first reading of the defect put it.
+    val original = ZiplineManifest.decodeJson(text).modules.values.single().url
+    val tampered = text.replace("\"$original\"", "\"pool/$original\"")
+    check(tampered != text) { "the tamper did not change the manifest; the test proves nothing" }
+
+    val verifier = ManifestVerifier.Builder()
+      .addEd25519("dogwood-development", TRUSTED_PUBLIC_KEY.decodeHex())
+      .build()
+
+    try {
+      verifier.verify(tampered.encodeUtf8(), ZiplineManifest.decodeJson(tampered))
+      fail("a manifest whose module address was moved must be rejected, and was not")
+    } catch (expected: IllegalStateException) {
+      // The failure is the pass.
+    }
+  }
 }

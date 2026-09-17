@@ -277,14 +277,27 @@ The behaviours it exists to demonstrate, each easy to get wrong and expensive to
   [`cohort-drill.sh`](../tools/reference-server/cohort-drill.sh) publishes a bad release to buckets
   0–9 and sweeps all one hundred: ten get it and ninety are untouched. The ninety-row half is the
   one a server that ignored the parameter could not satisfy.
-- **Module addresses must be unique per release.** The manifest names each module by whatever
-  address the build wrote, and this project's Zipline configuration writes the same name in every
-  release. Two releases live at once — which is what a canary *is* — then publish different bytes at
-  one address, and a module request carries nothing that says which release it wants. The signature
-  catches it (the manifest names each module's SHA-256, so the client refuses the load rather than
-  rendering the wrong screen), but the outcome is an outage. Put a content hash in the module file
-  name, or serve each release from its own path prefix with the manifest inside it. The reference
-  server warns at `publish` when it is about to create that situation.
+- **Module addresses name their own bytes, and the build is the only place that can write them.**
+  The manifest names each module by whatever address the build wrote. When every release wrote the
+  same name, two releases live at once — which is what a canary *is* — published different bytes at
+  one address, and a module request carried nothing saying which release it wanted. The signature
+  caught it, so the client refused the load rather than rendering the wrong screen, but the outcome
+  was a device that could not start.
+
+  Each module is now renamed for the first sixteen hex digits of its own SHA-256, and that name goes
+  into the manifest **before the manifest is signed**
+  (`engine/gradle/content-addressed-modules.gradle.kts`, ADR-077). It has to happen there: a module's
+  address sits inside the signed region, so a publishing step that renamed modules would invalidate
+  every signature it touched, and the loader resolves modules against the URL it asked for — it
+  discards any base the server declares and never learns it was redirected. So neither `publish` nor
+  a redirect can fix this after the fact.
+
+  **What a deployment owes you here.** Serve modules from one pool shared across releases, keyed by
+  that address, and keep `Cache-Control: immutable` on them — it is now true rather than aspirational,
+  and two releases sharing an unchanged module share one file. Refuse a payload whose addresses do
+  not carry their digests rather than warning about it: the reference server's `publish` used to
+  warn, and `quarantine-drill.sh` published straight past the warning every time. `B7` in
+  `tools/reference-server/cohort-drill.sh` is the claim, graded with two releases genuinely live.
 
 **Rolling back is `resume`, and it needs nothing from the client.** A device that quarantined a bad
 release is refusing a *version*; a different version is not refused. That is why recovery is one

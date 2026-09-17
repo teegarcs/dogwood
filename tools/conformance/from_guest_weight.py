@@ -26,12 +26,24 @@ Brotli at quality 11, matching ADR-030's table and `from_web_weight.py`, so the 
 comparable and can be added.
 """
 import pathlib
+import re
 import subprocess
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 DIST = HERE / '../../engine/samples/web-slice/build/dist/wasmJs/productionExecutable'
-GUEST = 'guest-kotlin.js'
+
+# The guest script is CONTENT-ADDRESSED since ADR-078: `guest-kotlin-<first 16 hex of its
+# SHA-256>.js`, so that two live releases name two different scripts rather than one. Its name
+# therefore changes whenever the payload does, and a budget that looked it up by a fixed string
+# would stop finding it on the next guest build -- reporting a pass having measured nothing, which
+# is the exact failure this file's comment below already exists about.
+#
+# The plain name is still matched: `signWebSidecars` is what does the addressing, and a
+# distribution assembled without it (a raw `wasmJsBrowserDistribution` from an older tree, or a
+# directory a drill is halfway through rewriting) still ships one.
+GUEST = 'guest-kotlin[-<16 hex>].js'
+GUEST_PATTERN = re.compile(r'guest-kotlin(-[0-9a-f]{16})?\.js')
 
 
 def budget() -> int:
@@ -49,12 +61,26 @@ def brotli_size(path: pathlib.Path) -> int:
     return len(out.stdout)
 
 
-def measure() -> tuple[int, int] | None:
-    script = (DIST / GUEST).resolve()
-    if not script.is_file():
+def locate() -> pathlib.Path | None:
+    """The one guest script in the distribution, or nothing.
+
+    Nothing rather than a guess when there are several. Two content addresses in one directory
+    means a build step left a stale payload behind, and picking one of them would measure a file
+    the distribution may not even serve -- a wrong number reported confidently, which is worse
+    than the refusal below.
+    """
+    if not DIST.is_dir():
+        return None
+    found = sorted(p for p in DIST.iterdir() if GUEST_PATTERN.fullmatch(p.name))
+    return found[0] if len(found) == 1 else None
+
+
+def measure() -> tuple[int, int, str] | None:
+    script = locate()
+    if script is None:
         return None
     try:
-        return brotli_size(script), script.stat().st_size
+        return brotli_size(script), script.stat().st_size, script.name
     except FileNotFoundError:
         return None
 
@@ -66,14 +92,16 @@ if measured is None:
     # grader ran as a SKIP once in continuous integration because `brotli` was absent, and the
     # workflow went green having graded nothing. An environment asked to grade a budget and unable
     # to is broken, and saying so is the only way that gets fixed.
+    present = sorted(p.name for p in DIST.iterdir()
+                     if GUEST_PATTERN.fullmatch(p.name)) if DIST.is_dir() else []
     print(f'CONF G6 FAIL -- no measurement. Is the web-slice distribution built '
-          f'(`:samples:web-slice:wasmJsBrowserDistribution`), does it contain {GUEST}, '
-          f'and is `brotli` on PATH?')
+          f'(`:samples:web-slice:wasmJsBrowserDistribution`), does it contain exactly one '
+          f'{GUEST}, and is `brotli` on PATH? Found {present or "none"}.')
     print('CONF RESULT client=web passed=0 failed=1 skipped=0')
     sys.exit(1)
 
-total, raw = measured
-detail = f'{GUEST} {total:,} bytes brotli of {limit:,} ({raw:,} uncompressed)'
+total, raw, name = measured
+detail = f'{name} {total:,} bytes brotli of {limit:,} ({raw:,} uncompressed)'
 if total <= limit:
     print(f'CONF G6 PASS -- {detail}')
     print('CONF RESULT client=web passed=1 failed=0 skipped=0')

@@ -1,5 +1,5 @@
 {
-  "_comment": "The integrity fixture (claim B5). This manifest is signed like every other, and its signature is VALID -- what is wrong is the digest, which does not match guest-kotlin.js. It models a script swapped at the origin after the manifest was signed, which is the one attack a sidecar signature cannot see on its own. `signWebSidecars` leaves this file's digest alone by name; every other manifest gets the real one stamped in.",
+  "_comment": "The integrity fixture (claim B5). This manifest is signed like every other, and its signature is VALID -- what is wrong is the digest, which does not match the guest script it names. It models a script swapped at the origin after the manifest was signed, which is the one attack a sidecar signature cannot see on its own. `signWebSidecars` leaves this file's DIGEST alone by name; every other manifest gets the real one stamped in. Its `guestScript` is rewritten like every other sidecar's, to the script's content address, because a fixture naming a file the distribution does not have would be refused for the 404 rather than for the digest -- and B5 would be grading nothing.",
   "envelopeRevision": 1,
   "guestScript": "guest-kotlin.js",
   "segmentVersions": {

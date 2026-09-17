@@ -134,6 +134,12 @@ cell below is a claim about what a user would install, not about a debug build
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
 | B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
 | B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control; android and ios by `tools/skew-drill/run-material-preflight.sh` |
+| B7 | With two releases live at once, a client in each cohort loads **its own release's** modules and reaches `updated`, not merely `verified` | C | ✅ `tools/reference-server/cohort-drill.sh` (2026-09-17; ADR-077) |
+| B7-distinct | …and the two live releases genuinely publish their modules at different addresses, so `B7` is grading routing rather than a coincidence | C | ✅ same drill; it caught `B7` passing hollow on its first run |
+| B7-spared | …and the client outside the pin loads the live release's modules at the same time | C | ✅ same drill |
+| B8 | The web profile's counterpart: with two releases live, a page loads **its own release's** guest script rather than whichever was published last | C | ✅ `tools/conformance/run-web.sh` (2026-09-17; ADR-077) |
+| B8-distinct | …and the two releases genuinely publish their scripts at different addresses | C | ✅ same drill; watched to fail with the addressing disabled |
+| B8-canary | …and the cohort that would have kept working by luck is named, because with one shared address it is whichever published last | C | ✅ same drill |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -379,7 +385,7 @@ the window covered; retiring one is either a compatibility fix or a documented s
 | G3 | Collection pause p99 | 16.7 ms | C | Android, iOS, desktop |
 | G4 | Cold start to first composition | 500 ms | C | Android, iOS, desktop |
 | G5 | The host's weight: the WebAssembly modules, `app.js` and `index.html`, brotli | 4,060,000 bytes | C | web only |
-| G6 | The guest payload script's weight: `guest-kotlin.js`, brotli | 252,000 bytes | C | web only |
+| G6 | The guest payload script's weight: the content-addressed `guest-kotlin-<digest>.js`, brotli | 252,000 bytes | C | web only |
 
 `G5` and `G6` are bytes rather than milliseconds, and they are two budgets rather than one for a
 reason that is about *when* each is paid. The host is downloaded once and then held behind an
@@ -426,14 +432,18 @@ repository's own rule, broken at its own finish line -- so regeneration belongs 
 as the claims it grades, and now has a machine that does it.
 
 <!-- conformance-matrix:begin -->
-*Generated 2026-09-14 on branch `production-review` (pull request #62), by `tools/conformance/run-all.sh` with `SKIP_ENGINE_BUILD=1` grading the build that had just run green.*
+*Generated 2026-09-17 at `9a0b734` on branch `close-the-open-items` (pull request #67), from three sources and no others: the shared-code claims from this machine's green engine build of 1,326 tests, the desktop drills from this machine, and every device drill from tier-C run [35258075837](https://github.com/teegarcs/dogwood/actions/runs/35258075837), which was green on all four jobs. Composed rather than produced by `run-all.sh`, because the full local gate needs a simulator, an emulator, Chrome and Gradle at once and this machine cannot hold them — see `plans/close-the-open-items.md`.*
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
-| A1 | ✅ | ✅ | ✅ | ✅ |
+| K1 | ✅ | ✅ | — | — |
+| K2 | ✅ | ✅ | — | — |
 | A2 | ✅ | ✅ | ✅ | ✅ |
 | A3 | ✅ | ✅ | ✅ | ✅ |
 | A4 | ✅ | ✅ | ✅ | ✅ |
+| K3 | — | ✅ | — | — |
+| K4 | — | ✅ | — | — |
+| A1 | ✅ | ✅ | ✅ | ✅ |
 | A5 | ✅ | ✅ | ✅ | ✅ |
 | A6 | ✅ | ✅ | ✅ | ✅ |
 | A7 | ✅ | ✅ | ✅ | ✅ |
@@ -479,16 +489,21 @@ as the claims it grades, and now has a machine that does it.
 | D4 | ✅ | n/a | ✅ | ✅ |
 | D7 | ✅ | n/a | ✅ | n/a |
 | J4 | ✅ | n/a | ✅ | ✅ |
-| J2 | ✅ | n/a | — | ✅ |
-| K1 | ✅ | ✅ | ✅ | — |
-| K2 | ✅ | ✅ | ✅ | — |
-| G1 | · | n/a | · | — |
-| G2 | · | n/a | · | — |
-| G3 | · | n/a | · | — |
-| G4 | · | n/a | · | — |
+| J2 | ✅ | n/a | ✅ | ✅ |
+| M1 | ✅ | — | ✅ | ✅ |
+| M2 | ✅ | — | ✅ | ✅ |
+| M6 | ✅ | — | ✅ | ✅ |
+| M3 | ✅ | — | · | · |
+| M7 | ✅ | — | ✅ | · |
+| M4 | ✅ | — | — | · |
+| M5 | ✅ | — | — | ✅ |
+| B6 | ✅ | — | ✅ | ✅ |
 | B3 | ✅ | — | ✅ | ✅ |
 | E4 | n/a | n/a | ✅ | n/a |
 | H5 | — | — | — | ✅ |
+| B5 | — | — | — | ✅ |
+| B8 | — | — | — | ✅ |
+| G6 | — | n/a | — | ✅ |
 | G5 | — | n/a | — | ✅ |
 
 ✅ met · · nothing here to judge · n/a exempt, see `exempt.tsv` · ❌ failed · — gap
@@ -505,10 +520,10 @@ as the claims it grades, and now has a machine that does it.
 - `desktop` is not graded on J3: desktop is a development loop, not a shipping target
 - `desktop` is not graded on J4: desktop is a development loop, not a shipping target
 
-- **android**: pass 65, skip 4
-- **desktop**: pass 44
-- **ios**: pass 64, skip 4
-- **web**: pass 59, skip 1
+- **android**: pass 75
+- **desktop**: pass 46
+- **ios**: pass 69, skip 1
+- **web**: pass 72, skip 4
 
 <!-- conformance-matrix:end -->
 

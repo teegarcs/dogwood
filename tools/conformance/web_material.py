@@ -22,6 +22,7 @@ clients with four different instruments.
 Run by `tools/conformance/run-web.sh` alongside the other two web modules.
 """
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -32,7 +33,10 @@ import urllib.request
 sys.path.insert(0, __file__.rsplit('/', 2)[0] + '/web-ttff')
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from cdp import Devtools  # noqa: E402
-from web_accessibility import ax_nodes  # noqa: E402
+# `patiently` lives beside `ax_nodes` rather than being defined again here: two copies of a
+# timeout policy is two timeout policies. See docs/checks.md for what sets it and why.
+from web_accessibility import ax_nodes, patiently  # noqa: E402
+
 
 passed = failed = skipped = 0
 
@@ -77,7 +81,7 @@ def witness(devtools, session, prefix):
 
 def await_witness(devtools, session, prefix, was, timeout=15):
     """Waits for a witness to say something other than [was]. The consequence, not the click."""
-    deadline = time.time() + timeout
+    deadline = time.time() + patiently(timeout)
     while time.time() < deadline:
         now = witness(devtools, session, prefix)
         if now is not None and now != was:
@@ -158,7 +162,7 @@ def open_page(devtools, url, query):
 
 
 def await_first_frame(devtools, session, timeout=60):
-    deadline = time.time() + timeout
+    deadline = time.time() + patiently(timeout)
     while time.time() < deadline:
         raw = devtools.call('Runtime.evaluate', {
             'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
@@ -199,7 +203,7 @@ def run(url, chrome, port):
         # ---------------------------------------------------------------------------------
         tierless = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&tier=none')
         refused = None
-        deadline = time.time() + 45
+        deadline = time.time() + patiently(45)
         while time.time() < deadline:
             current = read_report(devtools, tierless)
             if current.get('refused'):
@@ -229,7 +233,7 @@ def run(url, chrome, port):
         if not await_first_frame(devtools, session):
             print('CONF REFUSED the page never reported a first frame', flush=True)
             return 2
-        time.sleep(1.5)
+        time.sleep(patiently(1.5))
 
         conform(
             'B6-control',
@@ -270,25 +274,39 @@ def run(url, chrome, port):
 
         # M3 -- selection controls are operable and the payload's state changes.
         #
-        # **How the controls are found is itself the finding.** On this client Compose publishes
-        # Material 3's `Checkbox`, `Switch` and `RadioButton` as `button` nodes with no name and no
-        # properties -- not as `checkbox`, `switch` or `radio`, and with no checked state -- so
-        # there is nothing to match on but position among the unnamed controls. That is recorded
-        # rather than worked around: `M3-announced` below is the claim it breaks, and the
-        # observation is in plans/material3-proof.md section 5.
+        # **The controls are found by name, and that is a correction to this drill rather than a
+        # change in the client.** This claim used to take the first and second of the section's
+        # *unnamed* `button` nodes, because when it was written Compose published Material 3's
+        # `Checkbox`, `Switch` and `RadioButton` with no name at all. The catalogue then gave each
+        # control a `contentDescription` -- recorded in plans/material3-proof.md section 5 as the
+        # fix for a real user as well as for the drill -- and nobody came back to this lookup. So
+        # the section's controls publish `Send me the summary`, `Background refresh` and the three
+        # fare names, exactly what the Android drill has always matched on, and searching for
+        # unnamed nodes found none.
+        #
+        # Left alone, the claim failed with "0 unnamed controls on the section" -- a red cell
+        # reporting that the catalogue had been FIXED. Position among anonymous nodes was always a
+        # proxy; a name is the thing itself, it says in the output which control was operated, and
+        # it survives the section gaining a control. What did not change is the assertion: the
+        # payload's own witness has to move, which is the claim rather than the lookup.
+        #
+        # `M3-announced` below is still the gap, and it is now a narrower and more useful one: these
+        # publish as `button` with a name and no checked state, rather than as `checkbox`/`switch`/
+        # `radio` with one.
         open_section(devtools, session, 'Selection')
-        anonymous = [n for n in ax_nodes(devtools, session)
-                     if n['role'] == 'button' and not n['name']]
         results = []
-        for index, prefix in ((0, 'm3.checkbox='), (1, 'm3.switch=')):
-            if index >= len(anonymous):
-                results.append((prefix, 'no control', None))
+        for label, prefix in (('Send me the summary', 'm3.checkbox='),
+                              ('Background refresh', 'm3.switch='),
+                              ('Business', 'm3.radio=')):
+            node = find(devtools, session, label)
+            if node is None:
+                results.append((label, prefix, 'no such control', None))
                 continue
             was = witness(devtools, session, prefix)
-            activate(devtools, session, anonymous[index])
-            results.append((prefix, was, await_witness(devtools, session, prefix, was)))
-        conform('M3', all(now is not None for _, _, now in results),
-                f'{len(anonymous)} unnamed controls on the section; {results}')
+            activate(devtools, session, node)
+            results.append((label, prefix, was, await_witness(devtools, session, prefix, was)))
+        conform('M3', bool(results) and all(now is not None for *_, now in results),
+                f'{results}')
 
         # M3-announced -- and what a screen reader would be told about them.
         #
@@ -305,9 +323,11 @@ def run(url, chrome, port):
         else:
             skipped += 1
             print('CONF M3-announced SKIP -- this client publishes Material 3\'s selection '
-                  'controls as unnamed `button` nodes with no state: a screen reader is told '
-                  'neither what the control is nor whether it is on. Compose\'s web accessibility '
-                  'bridge, not the generated binding; see tools/upstream-reports/README.md',
+                  'controls as `button` nodes carrying a name but no role and no checked state: a '
+                  'screen reader is told what the control is FOR but not what it is or whether it '
+                  'is on. Narrower than when this was written, when they carried no name either. '
+                  'Compose\'s web accessibility bridge, not the generated binding; see '
+                  'tools/upstream-reports/README.md',
                   flush=True)
 
         # M7 -- the slider.
@@ -350,17 +370,17 @@ def run(url, chrome, port):
         open_section(devtools, session, 'Sheets')
         was_menu = witness(devtools, session, 'm3.menu=')
         activate(devtools, session, find(devtools, session, 'Cabin class'))
-        time.sleep(1.0)
+        time.sleep(patiently(1.0))
         activate(devtools, session, find(devtools, session, 'Business'))
         chosen = await_witness(devtools, session, 'm3.menu=', was_menu)
 
         sheet_session = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&entry=material')
         opened = None
         if await_first_frame(devtools, sheet_session):
-            time.sleep(1.5)
+            time.sleep(patiently(1.5))
             open_section(devtools, sheet_session, 'Sheets')
             activate(devtools, sheet_session, find(devtools, sheet_session, 'Open the sheet'))
-            deadline = time.time() + 15
+            deadline = time.time() + patiently(15)
             while time.time() < deadline:
                 if 'Fare conditions' in names(devtools, sheet_session):
                     opened = 'Fare conditions'
@@ -388,10 +408,10 @@ def run(url, chrome, port):
         dialog_session = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&entry=material')
         announced = None
         if await_first_frame(devtools, dialog_session):
-            time.sleep(1.5)
+            time.sleep(patiently(1.5))
             open_section(devtools, dialog_session, 'Dialogs')
             activate(devtools, dialog_session, find(devtools, dialog_session, 'Open alert'))
-            deadline = time.time() + 15
+            deadline = time.time() + patiently(15)
             while time.time() < deadline:
                 current = set(names(devtools, dialog_session))
                 if {'Cancel this booking?', 'Cancel booking', 'Keep it'} <= current:

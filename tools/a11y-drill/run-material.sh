@@ -59,16 +59,54 @@ xcrun simctl terminate booted dev.dogwood.slice.ios 2>/dev/null || true
 xcrun simctl install booted samples/slice-ios/build/DogwoodSlice.app
 
 echo "==> running the drill"
-xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-material > "$LOG" 2>&1 &
+# `DOGWOOD_DRILL_PATIENCE` stretches every wait inside the drill, for a machine slower than the one
+# the numbers were tuned on. The nightly's first run failed `M2` with `[20s] ... -> null`: the
+# section opened, the button was activated, and fifteen seconds was not enough for the payload's own
+# witness to come back on a hosted simulator. Unset here, so a development machine waits what it
+# always did; `tier-c.yml` sets it.
+PATIENCE="${DOGWOOD_DRILL_PATIENCE:-1}"
+# The shell's arithmetic below is integer-only, and a fractional patience would make it a syntax
+# error rather than a slower wait. The drill itself takes the fractional value; only the harness
+# loop rounds.
+PATIENCE_WHOLE="${PATIENCE%%.*}"
+case "$PATIENCE_WHOLE" in ''|*[!0-9]*) PATIENCE_WHOLE=1 ;; esac
+[ "$PATIENCE_WHOLE" -ge 1 ] 2>/dev/null || PATIENCE_WHOLE=1
+xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-material \
+  --dogwood-patience "$PATIENCE" > "$LOG" 2>&1 &
 launcher=$!
-# Generous: the drill walks ten sections and waits on a consequence after each activation.
-for _ in $(seq 1 240); do
+# Generous: the drill walks ten sections and waits on a consequence after each activation. Scaled
+# with the drill's own budget, because a harness that gives up first turns a slow drill into a
+# missing result -- and a missing result renders as a gap, which a matrix must never invent.
+for _ in $(seq 1 $((240 * PATIENCE_WHOLE))); do
   tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^MATERIAL DONE\|^CONF REFUSED" && break
   sleep 2
 done
 kill "$launcher" 2>/dev/null || true
 pkill -f "simctl launch --console-pty booted dev.dogwood.slice.ios" 2>/dev/null || true
 xcrun simctl terminate booted dev.dogwood.slice.ios 2>/dev/null || true
+
+# **The result line is synthesised here when the drill did not print one**, the same way
+# `tools/conformance/run-android.sh` synthesises its own and for a sharper reason.
+#
+# This drill cannot always finish. Activating a Material 3 overlay blocks the application on this
+# client -- recorded in `tools/upstream-reports/README.md` and the reason `M4`/`M5` are not
+# established on iOS -- so the drill grades everything before the first overlay and then stops
+# without reaching its own `MATERIAL DONE`. The claims it *did* grade are real and were watched.
+#
+# Without this the nightly threw them away. The fold step drops any result file with no
+# `CONF RESULT` line, correctly, because a file that never named its client cannot be attributed --
+# and the first run on this branch reported exactly that: `dropped ios-material.conf: 6 claim lines
+# and no CONF RESULT line`. Six graded claims, discarded, rendering as gaps in the matrix. A gap
+# means nobody looked; these were looked at.
+# Appended to the LOG, not just printed: every collector reads the log file rather than this
+# script's output -- `tier-c.yml` and `run-all.sh` both `grep '^CONF ' < the log` -- so a line that
+# only reached stdout would be a line nothing gathers.
+if ! tr -d '\r' < "$LOG" | grep -q "^CONF RESULT"; then
+  p=$(tr -d '\r' < "$LOG" | grep -cE "^CONF [A-Z][0-9A-Za-z-]* PASS" || true)
+  f=$(tr -d '\r' < "$LOG" | grep -cE "^CONF [A-Z][0-9A-Za-z-]* FAIL" || true)
+  s=$(tr -d '\r' < "$LOG" | grep -cE "^CONF [A-Z][0-9A-Za-z-]* SKIP" || true)
+  echo "CONF RESULT client=ios passed=$p failed=$f skipped=$s" >> "$LOG"
+fi
 
 tr -d '\r' < "$LOG" | grep -E "^(CONF|A11Y) " || true
 

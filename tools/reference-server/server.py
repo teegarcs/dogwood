@@ -82,6 +82,18 @@ def release_dir(root: pathlib.Path, version: str) -> pathlib.Path:
     return root / "releases" / version
 
 
+def module_pool(root: pathlib.Path) -> pathlib.Path:
+    """Where modules live: one flat pool shared by every release, keyed by content.
+
+    Not inside a release directory, and that is the point. A module's address now carries the
+    first sixteen hex digits of its own SHA-256 (`gradle/content-addressed-modules.gradle.kts`),
+    so two releases that share an unchanged module share one file, and a canary that changes one
+    module adds exactly one file. The pool is what makes `Cache-Control: immutable` true: an
+    address in it can only ever hold the bytes it is named for.
+    """
+    return root / "modules"
+
+
 def state_versions(root: pathlib.Path) -> list:
     """Every version published so far. Read fresh: `publish` is called between server lifetimes."""
     return load_state(root).get("releases", [])
@@ -103,40 +115,65 @@ def publish(root: pathlib.Path, source: pathlib.Path, version: str) -> int:
         # would be a lie told to every client that already cached it.
         print(f"release {version} already exists; publish a new version", file=sys.stderr)
         return 1
+    manifest = json.loads((source / MANIFEST).read_text())
+    modules = manifest.get("modules", {})
+
+    # Every module address must name its own bytes, and a publish that finds one that does not is
+    # refused rather than warned about.
+    #
+    # This is the gate for `gradle/content-addressed-modules.gradle.kts`. Before that step existed,
+    # every release named its module `slice-guest.zipline` -- the same string every time -- and a
+    # server holding two live releases could not tell which release a module request wanted. It
+    # guessed newest, and `cohort-drill.sh` watched a client pinned to the canary fetch the live
+    # release's bytes and refuse the load on the digest its signed manifest named. The signature
+    # caught it, which is the right direction, but the outcome is a device that cannot start.
+    #
+    # Refusing here rather than warning is the difference between a property and a hope. A warning
+    # was what this used to print, and `quarantine-drill.sh` published straight past it.
+    unaddressed = []
+    for module_id, module in sorted(modules.items()):
+        url, digest = module.get("url", ""), module.get("sha256", "")
+        if not digest or digest[:16] not in url:
+            unaddressed.append(f"{module_id} at {url!r} (sha256 begins {digest[:16] or '?'})")
+    if unaddressed:
+        print(
+            "this payload's module addresses do not name their bytes:\n  "
+            + "\n  ".join(unaddressed)
+            + "\n  Two releases live at once would both publish different bytes under one address,\n"
+            "  and a module request cannot say which it wants. Build with the content-addressing\n"
+            "  step (engine/gradle/content-addressed-modules.gradle.kts) and publish again.",
+            file=sys.stderr,
+        )
+        return 1
+
     target.mkdir(parents=True)
-    collisions = []
+    pool = module_pool(root)
+    pool.mkdir(parents=True, exist_ok=True)
+    module_names = {module.get("url", "") for module in modules.values()}
+
     for item in source.iterdir():
         if not item.is_file():
             continue
-        if item.name != MANIFEST:
-            # A module path reused across releases with DIFFERENT bytes is a broken deployment, and
-            # a silent one: this server answers module requests with `Cache-Control: immutable`,
-            # which promises the bytes at that address never change. Two releases publishing
-            # different content at one address make that promise false for every client and every
-            # cache in between.
-            #
-            # Found by `cohort-drill.sh`, which is the first thing here to serve two releases of the
-            # same guest to different cohorts at the same time: a client pinned to the new release
-            # fetched the OLD release's module and refused the load on the digest the signed
-            # manifest named. The signature caught it -- the outcome is an outage, not a wrong
-            # screen -- and the fix is not in the server.
-            #
-            # A real deployment makes the address unique per release: a content hash in the module
-            # file name, or a per-release path prefix with the manifest served from inside it.
-            for other in sorted(state_versions(root)):
-                existing = release_dir(root, other) / item.name
-                if existing.is_file() and existing.read_bytes() != item.read_bytes():
-                    collisions.append(f"{item.name} (differs from release {other})")
-        shutil.copy2(item, target / item.name)
-    if collisions:
-        print(
-            "WARNING: this release reuses module addresses that already hold different bytes:\n  "
-            + "\n  ".join(collisions)
-            + "\n  Modules are served `immutable`, so that promise is now false. Publish modules at\n"
-            "  an address unique to the release -- a content hash in the name, or a per-release\n"
-            "  path prefix -- before serving two releases at once.",
-            file=sys.stderr,
-        )
+        if item.name in module_names:
+            # Into the shared pool. An address that is already there must already hold these exact
+            # bytes -- which content addressing makes true by construction, so a mismatch means
+            # something bypassed the build step and the release is not publishable.
+            existing = pool / item.name
+            if existing.is_file():
+                if existing.read_bytes() != item.read_bytes():
+                    print(
+                        f"{item.name} is already in the module pool with different bytes. An "
+                        "address that names its content cannot do this; something rewrote a module "
+                        "without renaming it.",
+                        file=sys.stderr,
+                    )
+                    return 1
+            else:
+                shutil.copy2(item, existing)
+        else:
+            # The manifest, and the sample's data files beside it. Not code and not
+            # content-addressed, so they stay with their release rather than joining the pool.
+            shutil.copy2(item, target / item.name)
 
     state = load_state(root)
     state["releases"] = sorted(set(state["releases"] + [version]))
@@ -305,30 +342,40 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.respond(body, "application/json", cache="no-store", extra={"X-Dogwood-Release": version})
             return
 
-        # Everything else is a module, and this is the one place the reference has a limit worth
-        # knowing about before you copy it.
+        # Everything else is a module, and it is served out of the pool by the name it asks for.
         #
-        # A module request carries no release identity. The loader resolves each module address
-        # relative to the manifest it just verified, and the address is whatever the BUILD put in
-        # the manifest -- for this project's Zipline configuration, `slice-guest.zipline`, the same
-        # string in every release. So when two releases are live at once and both publish different
-        # bytes under that one name, nothing in the request says which is wanted, and the newest is
-        # the least surprising answer rather than the correct one. `publish` warns when it creates
-        # that situation, and the warning says what a real deployment must do about it.
+        # There used to be a search here -- newest release first, take whatever matched -- with a
+        # long comment explaining that a module request carries no release identity and the newest
+        # answer was "the least surprising rather than the correct one". That was true while every
+        # release named its module `slice-guest.zipline`. It is not true now: an address carries
+        # the first sixteen hex digits of its own SHA-256, written into the manifest before the
+        # manifest was signed (`engine/gradle/content-addressed-modules.gradle.kts`,
+        # `adrs/layer-3/ADR-077`), and `publish` refuses a payload whose addresses do not.
         #
-        # What saves a client from the wrong bytes is the signature: the manifest names each
-        # module's SHA-256, so a mismatched module is a refused load rather than a wrong screen.
-        # Loud, and in the right direction -- but it is an outage, so the fix belongs in publishing.
-        for version in reversed(state["releases"]):
-            candidate = release_dir(self.root, version) / path
-            if candidate.is_file() and candidate.resolve().is_relative_to(self.root.resolve()):
-                self.respond(
-                    candidate.read_bytes(),
-                    "application/octet-stream",
-                    cache="public, max-age=31536000, immutable",
-                )
+        # So there is no guess left to make. The name in the request determines the bytes, the
+        # `immutable` header below is true rather than aspirational, and two releases sharing an
+        # unchanged module share one file.
+        candidate = module_pool(self.root) / path
+        if candidate.is_file() and candidate.resolve().is_relative_to(module_pool(self.root).resolve()):
+            self.respond(
+                candidate.read_bytes(),
+                "application/octet-stream",
+                cache="public, max-age=31536000, immutable",
+            )
+            return
+
+        # Not a module: the sample's data files, which are published beside their manifest rather
+        # than into the pool because they are not code and are not content-addressed. Served from
+        # the live release, and that IS a choice rather than a fact -- a deployment serving assets
+        # this way with two releases live has the problem the modules above no longer have, and
+        # should content-address them too.
+        live = state.get("live")
+        if live:
+            asset = release_dir(self.root, live) / path
+            if asset.is_file() and asset.resolve().is_relative_to(self.root.resolve()):
+                self.respond(asset.read_bytes(), "application/json", cache="no-store")
                 return
-        self.send_error(404, "no such module in any published release")
+        self.send_error(404, "no such module in the pool and no such asset in the live release")
 
     def respond(self, body: bytes, content_type: str, cache: str, extra: dict | None = None):
         accepted = self.headers.get("Accept-Encoding", "")

@@ -62,7 +62,7 @@ restore() {
     cp "$SAVED/$file" "$file" 2>/dev/null || true
   done
   rm -rf "$SAVED"
-  rm -f "$DIST/dogwood-manifest-skewed.json"
+  rm -f "$DIST/dogwood-manifest-skewed.json" "$DIST/dogwood-manifest-skewed.json.sig"
   # Rebuild the guest from the restored surface, so the distribution is not left holding a skewed
   # payload for whoever opens the sample next. The Android drill does the same for the same reason.
   ./gradlew :samples:web-guest:jsBrowserProductionWebpack --console=plain -q >/dev/null 2>&1 \
@@ -90,25 +90,51 @@ cp "$GUEST" "$DIST/guest-kotlin.js" || exit 1
 # not this one -- and the client verifies the fetched bytes against that digest before it creates a
 # Worker. A drill that swaps the script and leaves the sidecars alone is refused for its digest and
 # never reaches the skew; the first CI run of the integrity check found exactly that. Re-stamping
-# and re-signing touches only the manifests, so the host module below is still unchanged.
+# and re-signing touches only the manifests and the guest, so the host module below is still
+# unchanged.
+#
+# The `cp` above deliberately writes the PLAIN name. Since ADR-078 the script's address carries the
+# first sixteen hexadecimal digits of its own SHA-256, and `signWebSidecars` is what computes it --
+# so the drill hands it the new bytes under the name the webpack build uses and lets the task do
+# the addressing, rather than keeping a second copy of the scheme in a shell script. The skewed
+# guest lands at its own address and the committed guest's address is removed with it, which is
+# the point: a skewed payload is a different release and does not get to sit at the old one's URL.
 ./gradlew :samples:web-slice:signWebSidecars --console=plain -q || exit 1
 
 # The declared-skew sidecar, for the second half. Written here rather than committed because the
 # version it names is whatever the patch bumped to, and a committed copy would go stale silently --
 # which is exactly what happened to `dogwood-manifest-kotlin.json`, which still names 9.
-python3 - "$DIST/dogwood-manifest-skewed.json" "$version" "$DIST/guest-kotlin.js" <<'PY'
-import hashlib, json, sys
-path, version, script = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+#
+# It names `guest-kotlin.js` and leaves the digest null on purpose, and then `signWebSidecars` runs
+# a SECOND time over the directory. That task is what turns both into the truth: it rewrites
+# `guestScript` to the script's content address (ADR-078) and stamps the digest of the bytes at
+# that address, exactly as it does for every committed sidecar. Spelling either out here would be a
+# second copy of the build's addressing scheme, in a shell script, going stale silently.
+#
+# The second run is also what SIGNS this sidecar, and that matters more than it looks. Until now
+# the drill wrote it after the only signing pass, so it had no `.sig`, and the page -- which holds
+# keys by default -- refused it for the missing signature. `B3` asserts `workerCreated == false`,
+# which that satisfies, so the claim was passing on the signature check while claiming to grade the
+# dictionary check. Signed, it is refused for `DictionarySkew`, which is the claim.
+python3 - "$DIST/dogwood-manifest-skewed.json" "$version" <<'PY'
+import json, sys
+path, version = sys.argv[1], int(sys.argv[2])
 json.dump({
     "_comment": "Written by tools/skew-drill/run-web.sh. The same skewed payload as "
                 "dogwood-manifest-kotlin.json, with its dictionary version declared honestly, so "
-                "the client must refuse it before creating the Worker.",
+                "the client must refuse it before creating the Worker. `guestScript` and "
+                "`guestScriptSha256` are placeholders that signWebSidecars fills in and signs.",
     "envelopeRevision": 1,
     "guestScript": "guest-kotlin.js",
     "segmentVersions": {"androidx.layout": 1, "dogwood.designsystem": version},
-    "guestScriptSha256": hashlib.sha256(open(script, "rb").read()).hexdigest(),
+    "guestScriptSha256": None,
 }, open(path, "w"), indent=2)
 PY
+./gradlew :samples:web-slice:signWebSidecars --console=plain -q || exit 1
+grep -q '"guestScriptSha256": "[0-9a-f]\{64\}"' "$DIST/dogwood-manifest-skewed.json" \
+  || { echo "the skewed sidecar was not stamped with a digest" >&2; exit 1; }
+[ -f "$DIST/dogwood-manifest-skewed.json.sig" ] \
+  || { echo "the skewed sidecar was not signed" >&2; exit 1; }
 
 host_after="$(hash_of "$DIST/app.js")"
 if [ "$host_before" != "$host_after" ]; then

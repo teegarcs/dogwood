@@ -49,11 +49,24 @@ echo "==> running the drill"
 # run ended, and the loop below reads it while it fills. The carriage returns `--console-pty` adds
 # are stripped at parse time instead -- see the `tr -d` on each read. An anchored pattern that
 # forgets them never matches, which once made a passing check look like a missing one.
-xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-a11y > "$LOG" 2>&1 &
+# `DOGWOOD_DRILL_PATIENCE` stretches every wait inside the drill, for a machine slower than the
+# one the numbers were tuned on. Unset here, so a development machine waits what it always did;
+# `tier-c.yml` sets it. See docs/checks.md.
+xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-a11y \
+  --dogwood-patience "${DOGWOOD_DRILL_PATIENCE:-1}" > "$LOG" 2>&1 &
 launcher=$!
 # Bounded by the clock rather than by the launcher's exit: `--console-pty` stays attached to a
 # running application, so waiting for it would wait forever.
-for _ in $(seq 1 60); do
+# **Scaled with the drill's own budget.** This was a flat 120 seconds, and stretching `J2`'s wait
+# for a slow runner without stretching this one turned a claim that *failed* into a drill that
+# "never reported" -- strictly worse, because a failure is a sentence and a missing report is a gap.
+# Introduced and caught in the same afternoon; recorded so the pairing is obvious to the next person
+# who lengthens a deadline inside the application.
+PATIENCE_WHOLE="${DOGWOOD_DRILL_PATIENCE:-1}"
+PATIENCE_WHOLE="${PATIENCE_WHOLE%%.*}"
+case "$PATIENCE_WHOLE" in ''|*[!0-9]*) PATIENCE_WHOLE=1 ;; esac
+[ "$PATIENCE_WHOLE" -ge 1 ] 2>/dev/null || PATIENCE_WHOLE=1
+for _ in $(seq 1 $((60 * PATIENCE_WHOLE))); do
   tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^A11Y DONE\|^A11Y REFUSED" && break
   sleep 2
 done

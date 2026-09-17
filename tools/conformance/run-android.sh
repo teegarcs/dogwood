@@ -44,7 +44,13 @@ adb logcat -c
 set +e
 # `Release`, not `Debug`: the application under test is the minified build, so every claim below
 # is graded against what a user would install. See A1 in `plans/adoption-audit.md`.
-./gradlew :samples:slice-android:connectedReleaseAndroidTest --console=plain > "$HERE/build/gradle.log" 2>&1
+# `dogwoodPatience` reaches the instrumented tests as an instrumentation argument, because an
+# application on a device does not inherit this shell's environment. Unset it is 1 and nothing
+# changes; `tier-c.yml` sets `DOGWOOD_DRILL_PATIENCE` for a hosted emulator, which is a much
+# slower machine than the one these timeouts were tuned on.
+./gradlew :samples:slice-android:connectedReleaseAndroidTest --console=plain \
+  -Pandroid.testInstrumentationRunnerArguments.dogwoodPatience="${DOGWOOD_DRILL_PATIENCE:-1}" \
+  > "$HERE/build/gradle.log" 2>&1
 gradle_status=$?
 set -e
 

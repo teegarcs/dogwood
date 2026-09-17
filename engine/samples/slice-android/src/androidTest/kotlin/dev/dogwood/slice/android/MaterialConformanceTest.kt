@@ -57,6 +57,16 @@ class MaterialConformanceTest {
   private val automation get() = instrumentation.uiAutomation
   private val device: UiDevice = UiDevice.getInstance(instrumentation)
 
+  /**
+   * How long to wait, as a multiple of what a development machine needs. See
+   * `AccessibilityConformanceTest` for the reason; `tier-c.yml` sets it for a hosted emulator.
+   */
+  private val patience: Double =
+    InstrumentationRegistry.getArguments().getString("dogwoodPatience")?.toDoubleOrNull()
+      ?.coerceIn(1.0, 10.0) ?: 1.0
+
+  private fun patiently(ms: Long): Long = (ms * patience).toLong()
+
   private var passed = 0
   private var failed = 0
   private var skipped = 0
@@ -158,7 +168,7 @@ class MaterialConformanceTest {
 
   /** Waits for a witness to say something other than [was]: the consequence, not the click. */
   private fun awaitWitness(prefix: String, was: String?, timeoutMs: Long = 15_000): String? {
-    val deadline = System.currentTimeMillis() + timeoutMs
+    val deadline = System.currentTimeMillis() + patiently(timeoutMs)
     var scrolled = false
     while (System.currentTimeMillis() < deadline) {
       val now = witness(prefix)
@@ -411,10 +421,60 @@ class MaterialConformanceTest {
     // M5 -- a sheet and a menu open and choose.
     openSection("Sheets")
     val menuWas = witnessAnywhere("m3.menu=")
-    act(reach("Cabin class"))
-    Thread.sleep(800)
-    act(reach("Business"))
-    val chosen = awaitWitness("m3.menu=", menuWas)
+    /*
+     * Opened and chosen from until the witness moves, rather than once with a sleep between.
+     *
+     * This was `act(reach("Cabin class"))`, `Thread.sleep(800)`, `act(reach("Business"))`. Eight
+     * hundred milliseconds is a guess about how long a dropdown takes to compose, and under load it
+     * is wrong: the item is not on screen yet, `reach` finds nothing, the click goes nowhere and the
+     * claim reports `menu=null`. Watched on a loaded development machine after passing 27 of 27 on
+     * the same machine an hour earlier, which is what a guess about a schedule looks like when the
+     * schedule changes.
+     *
+     * The same shape as `M2` on iOS, where the drill's first activation failed while every later one
+     * worked: an activation that lands before the target is ready is gone, and waiting longer does
+     * not bring it back. So wait for the item to exist, act, and if the payload's own witness has
+     * not moved, open the menu and choose again.
+     */
+    var chosen: String? = null
+    var menuNotes = ""
+    repeat(3) { round ->
+      if (chosen != null) return@repeat
+      /*
+       * **The anchor is only tapped when the menu is shut**, and that is the correction to the
+       * first version of this retry. `Cabin class` is a toggle: tapping it with the menu already
+       * open closes it again. The first attempt re-tapped it every round, so a round that opened
+       * the menu too late for its own deadline was followed by a round that shut it, and the
+       * retry alternated instead of converging. It passed here on the first round, where the bug
+       * is invisible, and failed on a hosted emulator where the first round is the slow one.
+       */
+      if (find("Business") == null) {
+        act(reach("Cabin class"))
+        awaitLabel("Business", timeoutMs = 5_000)
+      }
+      if (find("Business") == null) {
+        menuNotes += " [round $round: the menu never opened]"
+        return@repeat
+      }
+      act(reach("Business"))
+      /*
+       * **The full budget, not a short one per round**, and this is the correction to my own first
+       * retry rather than to the original code.
+       *
+       * That retry gave each round five seconds instead of the default fifteen, reasoning that
+       * three quick attempts beat one slow one. On a hosted emulator the run then read
+       * `[round 0: chose, witness unmoved] [round 1: the menu never opened] [round 2: the menu
+       * never opened]` -- round zero opened the menu and chose correctly and the witness simply had
+       * not caught up in five seconds, and by then the choice had closed the menu and renamed its
+       * anchor, so nothing could open it again. The original single attempt with a generous wait
+       * passed this emulator twice; the retry failed it twice. It was a worse drill.
+       *
+       * A choice that registers slowly is still a choice. Retry only what can genuinely be missed --
+       * the *opening* -- and never cut short the wait on a consequence that is already in flight.
+       */
+      chosen = awaitWitness("m3.menu=", menuWas)
+      if (chosen == null) menuNotes += " [round $round: chose, witness unmoved]"
+    }
 
     val sheetWas = witnessAnywhere("m3.sheet=")
     act(reach("Open the sheet"))
@@ -424,7 +484,7 @@ class MaterialConformanceTest {
     conform(
       "M5",
       chosen != null && sheetShown,
-      "menu=$chosen, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
+      "menu=$chosen$menuNotes, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
     )
 
     emit("CONF RESULT client=android passed=$passed failed=$failed skipped=$skipped")

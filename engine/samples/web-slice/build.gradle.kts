@@ -239,8 +239,8 @@ val signWebSidecars by tasks.registering {
   val trustFile = rootProject.file("dogwood-wire/src/commonMain/kotlin/dev/dogwood/protocol/Trust.kt")
   inputs.file(trustFile)
   outputs.dir(distribution)
-  // Never up to date: the digest it stamps is of whatever `guest-kotlin.js` is in the distribution
-  // right now, and the skew drill swaps that file in without Gradle's knowledge.
+  // Never up to date: the address and the digest it stamps are of whatever guest script is in the
+  // distribution right now, and the skew drill swaps that file in without Gradle's knowledge.
   outputs.upToDateWhen { false }
   doLast {
     /*
@@ -322,10 +322,12 @@ val signWebSidecars by tasks.registering {
      *
      * Read out of the manifest's own `guestScript` field rather than assumed, because the sample
      * has two guests (a hand-written JavaScript one and the Kotlin one) and a fixture that names the
-     * wrong one is exactly what the signature drill uses. One fixture is left alone on purpose:
+     * wrong one is exactly what the signature drill uses. One fixture keeps its digest on purpose:
      * `dogwood-manifest-tampered-script.json` carries a digest that is wrong by construction, and
      * the point of it is that its signature is *valid* over that wrong digest -- a script swapped
-     * after signing, seen from the client.
+     * after signing, seen from the client. Its *address* is rewritten like every other sidecar's,
+     * because a fixture that names a file the distribution does not have would be refused for the
+     * 404 rather than for the digest.
      */
     /*
      * The dictionary a sidecar declares, stamped from the generators' own output before signing.
@@ -363,12 +365,110 @@ val signWebSidecars by tasks.registering {
     }
 
     val digests = MessageDigest.getInstance("SHA-256")
+
+    /*
+     * The guest script's ADDRESS names its own bytes, written into every sidecar before signing.
+     *
+     * ADR-078, and the web half of ADR-077. Every release this sample has ever produced named its
+     * payload `guest-kotlin.js` -- the webpack output name, and nothing varies it. That is
+     * invisible while one release is live and is a defect the moment two are: `WebDelivery`
+     * resolves `guestScript` against the sidecar's own address, and a canary is served by
+     * returning different sidecar *content* at one sidecar address (`tools/reference-server`,
+     * ADR-049), so both releases' scripts resolve to the same absolute URL and only one file can
+     * be there. A client holding the other release's signed sidecar fetches the wrong bytes and
+     * refuses on the digest. Watched, in a real browser, before this was written:
+     *
+     *     the bytes at http://127.0.0.1:8931/guest-kotlin.js hash to 2bda3a2c...;
+     *     the signed manifest says ad168810...
+     *
+     * The integrity check catching it is the right direction -- a refused load rather than a wrong
+     * screen -- but a refused load is a page that cannot start, and which visitors it happens to is
+     * decided by which cohort somebody pinned.
+     *
+     * **Why the build and not the deployment.** `guestScript` is inside the signed region: the
+     * detached signature below covers the manifest's whole bytes, and `WebDelivery.verifySidecar`
+     * verifies over the whole document it fetched. A deployment that renamed the script and
+     * rewrote the address would invalidate the signature, and every client holding keys would
+     * refuse. That is not inferred -- it is claim `B1`, which alters exactly this field in the
+     * build's own signed output and grades the refusal in a browser. So the address has to be
+     * written before the signature, which is here.
+     *
+     * Sixteen hexadecimal digits of the SHA-256, matching
+     * `engine/gradle/content-addressed-modules.gradle.kts` so the two profiles address payloads the
+     * same way. The full digest is still carried in `guestScriptSha256` and still checked, so a
+     * collision would cost a refused load rather than wrong code.
+     *
+     * Idempotent, because it has to be: the task is `upToDateWhen { false }` and
+     * `tools/skew-drill/run-web.sh` swaps a script in behind Gradle's back and runs it again.
+     */
+    val guestBase = "guest-kotlin"
+    val guestExtension = "js"
+    val addressed = Regex(
+      "^" + Regex.escape(guestBase) + "-[0-9a-f]{16}\\." + Regex.escape(guestExtension) + "$",
+    )
+    val plainGuest = File(directory, "$guestBase.$guestExtension")
+    val alreadyAddressed = directory.listFiles { file: File -> addressed.matches(file.name) }
+      ?.sortedBy { it.name }.orEmpty()
+    /*
+     * The freshly copied plain file wins when it is there, because that is what `copyKotlinGuest`
+     * -- and the skew drill's `cp` -- just put down. Falling back to an existing address covers a
+     * re-run over a directory this task already addressed. Neither present is not an error here:
+     * the sidecars that name no Kotlin guest are still perfectly signable, and a sidecar that does
+     * name one runs into the `require` below with a message about the file rather than about a
+     * pattern.
+     */
+    val guestSource = when {
+      plainGuest.isFile -> plainGuest
+      alreadyAddressed.size == 1 -> alreadyAddressed.single()
+      alreadyAddressed.size > 1 -> error(
+        "$directory holds ${alreadyAddressed.size} content-addressed guest scripts " +
+          "(${alreadyAddressed.joinToString { it.name }}) and no plain $guestBase.$guestExtension, " +
+          "so there is no way to tell which one this distribution ships",
+      )
+      else -> null
+    }
+    val guestAddress = guestSource?.let { source ->
+      val address = "$guestBase-${hex(digests.digest(source.readBytes())).take(16)}.$guestExtension"
+      if (source.name != address) {
+        source.copyTo(File(directory, address), overwrite = true)
+        if (source == plainGuest) source.delete()
+      }
+      /*
+       * Earlier addresses of this same script are deleted rather than left behind. They are stale
+       * bytes under an address that is supposed to be immutable, and a distribution that
+       * accumulated them would serve payloads nothing can ever ask for.
+       */
+      directory.listFiles()?.forEach { file ->
+        if (file.name != address && addressed.matches(file.name)) file.delete()
+      }
+      address
+    }
+
     for (manifest in manifests) {
+      var text = manifest.readText()
+
+      /*
+       * The address goes into EVERY sidecar, the integrity fixture included. That fixture is
+       * skipped below so its deliberately wrong digest survives, but an address it cannot resolve
+       * would turn it into a 404 -- `ManifestUnavailable` instead of `IntegrityRefused` -- and
+       * claim `B5` would be grading a missing file rather than a swapped script. What that fixture
+       * models is a script swapped at the origin *after* signing, and it can only model it while
+       * the script it names is actually there.
+       */
+      if (guestAddress != null) {
+        text = Regex(""""guestScript"\s*:\s*"([^"]+)"""").replace(text) { match ->
+          val named = match.groupValues[1]
+          if (named == "$guestBase.$guestExtension" || addressed.matches(named)) {
+            "\"guestScript\": \"$guestAddress\""
+          } else {
+            match.value
+          }
+        }
+      }
+
       if (!manifest.name.contains("tampered-script")) {
-        val withVersions = Regex(""""segmentVersions"\s*:\s*null""")
-          .replace(manifest.readText()) { "\"segmentVersions\": $declaredVersions" }
-        manifest.writeText(withVersions)
-        val text = manifest.readText()
+        text = Regex(""""segmentVersions"\s*:\s*null""")
+          .replace(text) { "\"segmentVersions\": $declaredVersions" }
         val script = Regex(""""guestScript"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
           ?: error("${manifest.name} names no guestScript")
         val scriptFile = File(directory, script)
@@ -379,8 +479,9 @@ val signWebSidecars by tasks.registering {
         require(stamped != text || text.contains("\"$digest\"")) {
           "${manifest.name} has no guestScriptSha256 field to fill in; add `\"guestScriptSha256\": null`"
         }
-        manifest.writeText(stamped)
+        text = stamped
       }
+      manifest.writeText(text)
       val bytes = manifest.readBytes()
       val lines = signers.map { (name, private, public) ->
         val signer = Signature.getInstance("Ed25519")
