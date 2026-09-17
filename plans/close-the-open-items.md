@@ -319,3 +319,25 @@ recorded together.
 The general lesson, which is AGENTS.md §1.5 read from the other end: **a claim that passes is also a
 hypothesis.** Three of them were wrong in one day, and each was caught by asking what the drill was
 actually looking at rather than whether it was green.
+
+### Group 3's last step is a machine constraint, and the answer is the mechanism already built
+
+The write-back is implemented and rehearsed: fed the four committed runs, it regenerates Part 3
+byte-identical to the committed table apart from the provenance banner, and the guard refuses a
+partial set by name. What has not happened is a **full local run** to regenerate it from today's
+evidence, and the reason is memory rather than correctness.
+
+The gate needs a booted simulator, an attached emulator, Chrome, a served payload and Gradle at
+once. On this machine that is over the ceiling: the run was killed twice in the Android section,
+with the emulator alone holding a gigabyte and roughly three free. `docs/checks.md` and the machine
+notes already record `--max-workers=2` for the same reason, and this is the same wall one step
+further out.
+
+**This is what `tier-c.yml` is for**, and it is the shape Group 2 just gave it: one job per device
+family on its own runner, artifacts collected, one fold. So the matrix comes from a nightly run
+against this branch, downloaded and committed by a person — which is exactly the arrangement Group 3
+chose when it decided the workflow must not commit to `main` itself. The decision and the constraint
+point the same way, which is the only reason this is a sequencing note rather than an open item.
+
+Individually, every claim was re-verified here against the new addresses; the table above lists each
+drill and its result. What the nightly adds is one matrix over all four clients at one commit.
