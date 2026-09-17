@@ -25,8 +25,13 @@ package dev.dogwood.material3
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -90,6 +95,25 @@ private const val CONTENT_TAB = 71
 private const val PRIMARY_TAB_ROW = 72
 private const val M3_TEXT = 76
 private const val TIME_PICKER_DIALOG = 77
+private const val TIME_PICKER = 90
+private const val TRI_STATE_CHECKBOX = 92
+private const val TOP_SEARCH_BAR = 93
+private const val STATE_SLIDER = 94
+private const val STATE_RANGE_SLIDER = 95
+private const val SNACKBAR_HOST = 96
+private const val SWIPE_TO_DISMISS_BOX = 97
+
+/**
+ * How long a holder's report may take to arrive.
+ *
+ * Compose's default is one second, which is a development machine's second. Every wait here is on
+ * an outcome that takes several frames -- a drawer animating open, a snackbar reaching the front of
+ * a queue, a search bar finishing an expansion -- and a two-processor continuous-integration runner
+ * under load does not have the same second. Generous rather than tuned: a wait that ends when the
+ * outcome arrives costs nothing extra by being allowed to wait longer, and a test that fails for
+ * want of a second teaches a team to rerun the build rather than to read it.
+ */
+private const val HOLDER_WAIT = 10_000L
 private const val LINEAR_PROGRESS = 58
 private const val CIRCULAR_PROGRESS = 59
 
@@ -690,6 +714,44 @@ class Material3FamiliesTest {
     }
   }
 
+  /**
+   * A live-state holder, mirrored.
+   *
+   * The generated binding does not receive a `TimePickerState` — it *builds* one, from four
+   * properties the guest wrote, and hands the library the real object (ADR-043, ADR-074). What this
+   * pins is that the plumbing on the host side is wired to the right tags: a picker asked to show
+   * 09:30 shows 09:30, which it can only do if `stateInitial` reached the mirror and the mirror
+   * reached the library's state.
+   *
+   * The time crosses as `HH:MM` in twenty-four-hour clock whatever the dial displays, because a
+   * client's locale must not be baked into the wire.
+   */
+  @Test
+  fun aTimePickerIsBuiltFromTheGuestsMirroredState() = run {
+    val wire = Wire()
+    val picker = wire.create(TIME_PICKER)
+    wire.property(picker, 1, "true")
+    wire.property(picker, 2, "1")
+    wire.property(picker, 3, "\"09:30\"")
+    wire.property(picker, 4, "true")
+    wire.tagged(picker, "picker")
+    wire.insert(0, 1, picker, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithTag("picker").assertIsDisplayed()
+      // The report carries the sequence it answers, so two requests in flight cannot be confused.
+      assertTrue(
+        reported.any { it.startsWith("1:1,09:30") },
+        "the picker never reported the time it was asked for: $reported",
+      )
+    }
+  }
+
   @Test
   fun aSnackbarComposesItsMessageItsActionAndItsDismissAction() = run {
     val wire = Wire()
@@ -709,6 +771,261 @@ class Material3FamiliesTest {
       onNodeWithText("Dismiss").assertIsDisplayed()
       onNodeWithTag("undo").performClick()
       assertEquals(1, undone)
+    }
+  }
+
+  // -----------------------------------------------------------------------------------------
+  // Live-state holders
+  //
+  // A holder is not a property: the payload writes a target and a sequence, the host owns the real
+  // object, and what comes back is an event (ADR-043). What a compile cannot see is whether the
+  // two halves of that agree -- a mirror whose effect reads a field the stub never writes renders a
+  // perfectly good widget that does nothing, which is the failure the whole shape table exists to
+  // make loud. Each test below drives one holder across the wire and reads its report back.
+  // -----------------------------------------------------------------------------------------------
+
+  /**
+   * The three answers a tri-state control can give, and a fourth a client has never heard of.
+   *
+   * `ToggleableState` is crossed as a **value**, not as a holder -- `TriStateCheckbox` takes it the
+   * way `Checkbox` takes `checked`, and only the type's `State` suffix ever made it look otherwise.
+   * So what this asks is a value question: does each name reach the control as the right one of
+   * three, and does a name this client does not carry degrade to the empty box rather than to
+   * whichever entry happens to sit at that index?
+   */
+  @Test
+  fun aTriStateCheckboxDrawsEachAnswerAndDegradesOneItCannotRead() = run {
+    val wire = Wire()
+    val asked = listOf(
+      "on" to ToggleableState.On,
+      "off" to ToggleableState.Off,
+      "indeterminate" to ToggleableState.Indeterminate,
+      // A name from a dictionary version this client does not have. `Off` is the conservative
+      // reading: a box showing less than the payload meant, never more.
+      "mostly" to ToggleableState.Off,
+    )
+    asked.forEachIndexed { index, (name, _) ->
+      val box = wire.create(TRI_STATE_CHECKBOX)
+      wire.property(box, 1, """"$name"""")
+      // The presence flag beside the event, as every optional callback carries.
+      wire.property(box, 2, "true")
+      wire.tagged(box, name)
+      wire.insert(0, 1, box, index)
+    }
+    val clicked = mutableListOf<Int>()
+    rendered(wire.build(), EventSink { _, tag, _ -> clicked += tag.value }) {
+      for ((name, expected) in asked) {
+        onNodeWithTag(name).assert(
+          SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, expected),
+          messagePrefixOnError = { "the checkbox asked for '$name'" },
+        )
+      }
+      onNodeWithTag("indeterminate").performClick()
+      assertEquals(listOf(1), clicked, "a tri-state checkbox sends its click on its own event tag")
+    }
+  }
+
+  /**
+   * A snackbar asked for over the wire, and the answer the guest is waiting on.
+   *
+   * The first report in this tier that is a **reply** rather than an observation: the guest's
+   * `showSnackbar` is suspended, and what comes back decides whether a row is restored. It carries
+   * the sequence it answers, so two requests in flight cannot be confused -- asserted here with a
+   * sequence that is deliberately not 1.
+   */
+  @Test
+  fun aSnackbarHostShowsTheGuestsMessageAndAnswersWithWhatTheUserDid() = run {
+    val wire = Wire()
+    val host = wire.create(SNACKBAR_HOST)
+    wire.property(host, 1, """"Seat released"""")
+    wire.property(host, 2, """"Undo"""")
+    wire.property(host, 3, "7")
+    wire.property(host, 4, "true")
+    wire.insert(0, 1, host, 0)
+    val answers = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        answers += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      waitUntil("the snackbar never appeared", HOLDER_WAIT) {
+        onAllNodesWithText("Undo").fetchSemanticsNodes().isNotEmpty()
+      }
+      onNodeWithText("Seat released").assertIsDisplayed()
+      onNodeWithText("Undo").performClick()
+      waitUntil("the guest was never answered", HOLDER_WAIT) { answers.isNotEmpty() }
+      assertEquals(listOf("1:7,true"), answers, "the reply carries the sequence it answers")
+    }
+  }
+
+  /**
+   * A row swept away by the payload rather than by a finger, and the direction reported back.
+   *
+   * The direction is the whole reason this holder reports a name: a row swiped one way and a row
+   * swiped the other mean different things in every inbox ever built, and `byUser` is false here
+   * because this dismissal was the guest's own request landing -- which is exactly the distinction
+   * a guest cannot make from "the row is gone".
+   */
+  @Test
+  fun aSwipeToDismissBoxActsOnTheGuestsTargetAndReportsTheDirection() = run {
+    val wire = Wire()
+    val box = wire.create(SWIPE_TO_DISMISS_BOX)
+    wire.property(box, 1, """"startToEnd"""")
+    wire.property(box, 2, "1")
+    wire.property(box, 3, "true")
+    wire.text(box, 1, "background")
+    wire.text(box, 2, "row")
+    wire.insert(0, 1, box, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithText("row").assertIsDisplayed()
+      waitUntil("the row never went anywhere", HOLDER_WAIT) { reported.isNotEmpty() }
+      assertEquals(
+        listOf("1:startToEnd,false"),
+        reported,
+        "the guest's own dismissal must not come back as the user's",
+      )
+    }
+  }
+
+  /**
+   * A navigation drawer opened by the payload, and where it lands reported back.
+   *
+   * This one is worth having for a reason the bound count does not show: `DrawerState` binds no new
+   * component at all -- the two drawer-sheet overloads that take one have guest signatures identical
+   * to the stateless ones already bound, so the overload dedupe drops them. What it does is turn
+   * this drawer's `drawerState`, already on the widget but frozen at the library's default, into
+   * something a payload can drive. Nothing but a render test says whether that worked.
+   */
+  @Test
+  fun aNavigationDrawerOpensOnTheGuestsTargetAndReportsWhereItLands() = run {
+    val wire = Wire()
+    val drawer = wire.create(MODAL_NAVIGATION_DRAWER)
+    wire.property(drawer, 3, """"open"""")
+    wire.property(drawer, 4, "1")
+    wire.property(drawer, 5, "true")
+    wire.text(drawer, 1, "menu")
+    wire.text(drawer, 2, "page")
+    wire.insert(0, 1, drawer, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithText("page").assertIsDisplayed()
+      waitUntil("the drawer never opened", HOLDER_WAIT) { reported.isNotEmpty() }
+      assertEquals(
+        listOf("1:open,false"),
+        reported,
+        "the drawer opened because the guest asked, which is not the user opening it",
+      )
+      onNodeWithText("menu").assertIsDisplayed()
+    }
+  }
+
+  /**
+   * A search bar expanded by the payload, and where it lands reported back.
+   *
+   * The holder carries whether the bar is open and deliberately nothing about what is typed in it:
+   * a search field's text is a versioned round trip with its own protocol (ADR-019), and a second
+   * copy riding on this holder would be a field that drops keystrokes under load.
+   */
+  @Test
+  fun aSearchBarExpandsOnTheGuestsTargetAndReportsWhereItLands() = run {
+    val wire = Wire()
+    val bar = wire.create(TOP_SEARCH_BAR)
+    wire.property(bar, 1, """"expanded"""")
+    wire.property(bar, 2, "1")
+    wire.property(bar, 3, "true")
+    wire.text(bar, 1, "Search seats")
+    wire.insert(0, 1, bar, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithText("Search seats").assertIsDisplayed()
+      waitUntil("the search bar never expanded", HOLDER_WAIT) { reported.isNotEmpty() }
+      assertEquals(listOf("1:expanded,false"), reported)
+    }
+  }
+
+  /**
+   * A slider that owns its own value, moved by the payload and reporting where the thumb ended up.
+   *
+   * Two things at once, and the second is the reason this test is worth more than the first. The
+   * value round trip is ordinary. The `steps` beside it is **negative**, which is a number
+   * `Slider(state)` answers with `require(state.steps >= 0)` -- an exception inside composition,
+   * which takes the screen down on every client that received the payload at the same moment
+   * (ADR-035). It is clamped, so the slider renders and the value still crosses.
+   */
+  @Test
+  fun aStateDrivenSliderTakesTheGuestsValueAndSurvivesAHostileStepCount() = run {
+    val wire = Wire()
+    val slider = wire.create(STATE_SLIDER)
+    wire.property(slider, 1, "0.75")
+    wire.property(slider, 2, "1")
+    wire.property(slider, 3, "true")
+    // Negative, on purpose. See the note above.
+    wire.property(slider, 4, "-4")
+    wire.property(slider, 5, "0.0")
+    wire.property(slider, 6, "1.0")
+    wire.tagged(slider, "slider")
+    wire.insert(0, 1, slider, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithTag("slider").assertIsDisplayed()
+      waitUntil("the thumb never moved to the guest's value", HOLDER_WAIT) { reported.isNotEmpty() }
+      assertEquals(listOf("1:0.75,false"), reported)
+    }
+  }
+
+  /**
+   * Both thumbs of a range slider, taken from the payload and reported back together.
+   *
+   * One request and one report, because a selection is one thing the user sees -- and the report
+   * carries both numbers rather than one per thumb, so a guest never holds half a selection.
+   */
+  @Test
+  fun aRangeSliderTakesBothThumbsFromTheGuestAndReportsThem() = run {
+    val wire = Wire()
+    val slider = wire.create(STATE_RANGE_SLIDER)
+    wire.property(slider, 1, "0.25")
+    wire.property(slider, 2, "0.75")
+    wire.property(slider, 3, "1")
+    wire.property(slider, 4, "true")
+    wire.property(slider, 5, "0")
+    wire.property(slider, 6, "0.0")
+    wire.property(slider, 7, "1.0")
+    wire.tagged(slider, "range")
+    wire.insert(0, 1, slider, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithTag("range").assertIsDisplayed()
+      waitUntil("the thumbs never moved to the guest's selection", HOLDER_WAIT) {
+        reported.isNotEmpty()
+      }
+      assertEquals(listOf("1:0.25,0.75,false"), reported)
     }
   }
 }

@@ -37,6 +37,14 @@ data class LibraryComposable(
   val deprecated: Boolean,
   /** Opt-in markers this function needs, by simple name: from `@OptIn(...)`, `@file:OptIn(...)` and direct `@Experimental*` annotations. */
   val optIns: Set<String>,
+  /**
+   * Every annotation on the function, by simple name.
+   *
+   * Recorded because an annotation can say which *applier* a composable belongs to, and a
+   * composable for a different applier is not bindable at all — it compiles into a host tree and
+   * throws `Invalid applier` when something composes it (ADR-077).
+   */
+  val annotations: Set<String> = emptySet(),
   val isExpect: Boolean,
   val isInline: Boolean,
   val typeParameters: List<String>,
@@ -58,6 +66,16 @@ data class LibrarySurface(
   val internalNames: Set<String> = emptySet(),
   /** Opt-in markers the module declares publicly; a binding file opts in to all of them. */
   val publicMarkers: Set<String> = emptySet(),
+  /**
+   * Where each opt-in marker is declared, by simple name.
+   *
+   * A generated file names its markers by simple name and imports the *component's* package, which
+   * is enough only while a library declares its markers beside its components. Material 3 does;
+   * `androidx.compose.foundation` does not — `ExperimentalFoundationApi` sits in
+   * `androidx.compose.foundation` while `BasicText` is in `androidx.compose.foundation.text`, and
+   * the first compile of those tiers failed on eight unresolved markers.
+   */
+  val markerPackages: Map<String, String> = emptyMap(),
   /** Opt-in markers the module declares `internal`; a function requiring one cannot be called from outside. */
   val internalMarkers: Set<String> = emptySet(),
 )

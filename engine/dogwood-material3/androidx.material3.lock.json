@@ -2,7 +2,7 @@
     "segmentName": "material3",
     "wireName": "androidx.material3",
     "segmentId": 255,
-    "version": 10900,
+    "version": 1090006,
     "components": [
         {
             "name": "AlertDialog",
@@ -187,16 +187,53 @@
             "events": {}
         },
         {
+            "name": "BottomSheetScaffold",
+            "localTag": 82,
+            "properties": {
+                "sheetPeekHeight": 1,
+                "sheetMaxWidth": 2,
+                "sheetShape": 3,
+                "sheetContainerColor": 4,
+                "sheetContentColor": 5,
+                "sheetTonalElevation": 6,
+                "sheetShadowElevation": 7,
+                "sheetSwipeEnabled": 8,
+                "containerColor": 9,
+                "contentColor": 10
+            },
+            "propertyTypes": {
+                "sheetPeekHeight": "Dp",
+                "sheetMaxWidth": "Dp",
+                "sheetShape": "Shape",
+                "sheetContainerColor": "Color",
+                "sheetContentColor": "Color",
+                "sheetTonalElevation": "Dp",
+                "sheetShadowElevation": "Dp",
+                "sheetSwipeEnabled": "Boolean",
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "sheetContent": 1,
+                "sheetDragHandle": 2,
+                "topBar": 3,
+                "content": 4
+            },
+            "events": {}
+        },
+        {
             "name": "Button",
             "localTag": 11,
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -218,11 +255,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -244,11 +283,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -270,11 +311,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -296,11 +339,13 @@
             "properties": {
                 "enabled": 1,
                 "shape": 2,
+                "border": 4,
                 "contentPadding": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
                 "shape": "Shape",
+                "border": "BorderStroke?",
                 "contentPadding": "PaddingValues"
             },
             "safetyRelevant": [
@@ -320,10 +365,12 @@
             "name": "Card",
             "localTag": 16,
             "properties": {
-                "shape": 1
+                "shape": 1,
+                "border": 2
             },
             "propertyTypes": {
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "slots": {
                 "content": 1
@@ -335,11 +382,13 @@
             "localTag": 17,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -396,10 +445,12 @@
             "name": "OutlinedCard",
             "localTag": 20,
             "properties": {
-                "shape": 1
+                "shape": 1,
+                "border": 2
             },
             "propertyTypes": {
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke"
             },
             "slots": {
                 "content": 1
@@ -411,11 +462,13 @@
             "localTag": 21,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke"
             },
             "safetyRelevant": [
                 "enabled"
@@ -456,15 +509,41 @@
             }
         },
         {
+            "name": "TriStateCheckbox",
+            "localTag": 92,
+            "properties": {
+                "state": 1,
+                "onClickPresent": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "state": "ToggleableState",
+                "onClickPresent": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "(() -> Unit)?"
+            }
+        },
+        {
             "name": "AssistChip",
             "localTag": 23,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -486,11 +565,13 @@
             "localTag": 24,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -513,12 +594,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -542,12 +625,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -571,12 +656,14 @@
             "properties": {
                 "selected": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "selected": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "selected",
@@ -600,11 +687,13 @@
             "localTag": 28,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -625,11 +714,13 @@
             "localTag": 29,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -947,11 +1038,13 @@
             "localTag": 44,
             "properties": {
                 "enabled": 1,
-                "shape": 2
+                "shape": 2,
+                "border": 3
             },
             "propertyTypes": {
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "enabled"
@@ -972,12 +1065,14 @@
             "properties": {
                 "checked": 1,
                 "enabled": 2,
-                "shape": 3
+                "shape": 3,
+                "border": 4
             },
             "propertyTypes": {
                 "checked": "Boolean",
                 "enabled": "Boolean",
-                "shape": "Shape"
+                "shape": "Shape",
+                "border": "BorderStroke?"
             },
             "safetyRelevant": [
                 "checked",
@@ -1027,6 +1122,35 @@
                 "trailingContent": 5
             },
             "events": {}
+        },
+        {
+            "name": "DropdownMenu",
+            "localTag": 81,
+            "properties": {
+                "expanded": 1,
+                "shape": 2,
+                "containerColor": 3,
+                "tonalElevation": 4,
+                "shadowElevation": 5,
+                "border": 6
+            },
+            "propertyTypes": {
+                "expanded": "Boolean",
+                "shape": "Shape",
+                "containerColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
         },
         {
             "name": "DropdownMenuItem",
@@ -1087,13 +1211,37 @@
             }
         },
         {
+            "name": "NavigationBar",
+            "localTag": 83,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2,
+                "tonalElevation": 3
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
             "name": "ModalNavigationDrawer",
             "localTag": 50,
             "properties": {
+                "drawerStateTarget": 3,
+                "drawerStateSequence": 4,
+                "drawerStateWatching": 5,
                 "gesturesEnabled": 1,
                 "scrimColor": 2
             },
             "propertyTypes": {
+                "drawerStateTarget": "String",
+                "drawerStateSequence": "Int",
+                "drawerStateWatching": "Boolean",
                 "gesturesEnabled": "Boolean",
                 "scrimColor": "Color"
             },
@@ -1101,22 +1249,38 @@
                 "drawerContent": 1,
                 "content": 2
             },
-            "events": {}
+            "events": {
+                "drawerStateReport": 1
+            },
+            "eventTypes": {
+                "drawerStateReport": "(String, Boolean) -> Unit"
+            }
         },
         {
             "name": "DismissibleNavigationDrawer",
             "localTag": 51,
             "properties": {
+                "drawerStateTarget": 2,
+                "drawerStateSequence": 3,
+                "drawerStateWatching": 4,
                 "gesturesEnabled": 1
             },
             "propertyTypes": {
+                "drawerStateTarget": "String",
+                "drawerStateSequence": "Int",
+                "drawerStateWatching": "Boolean",
                 "gesturesEnabled": "Boolean"
             },
             "slots": {
                 "drawerContent": 1,
                 "content": 2
             },
-            "events": {}
+            "events": {
+                "drawerStateReport": 1
+            },
+            "eventTypes": {
+                "drawerStateReport": "(String, Boolean) -> Unit"
+            }
         },
         {
             "name": "PermanentNavigationDrawer",
@@ -1293,6 +1457,55 @@
             }
         },
         {
+            "name": "Scaffold",
+            "localTag": 84,
+            "properties": {
+                "containerColor": 1,
+                "contentColor": 2
+            },
+            "propertyTypes": {
+                "containerColor": "Color",
+                "contentColor": "Color"
+            },
+            "slots": {
+                "topBar": 1,
+                "bottomBar": 2,
+                "snackbarHost": 3,
+                "floatingActionButton": 4,
+                "content": 5
+            },
+            "events": {}
+        },
+        {
+            "name": "TopSearchBar",
+            "localTag": 93,
+            "properties": {
+                "stateTarget": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "shape": 4,
+                "tonalElevation": 5,
+                "shadowElevation": 6
+            },
+            "propertyTypes": {
+                "stateTarget": "String",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "shape": "Shape",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "slots": {
+                "inputField": 1
+            },
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(String, Boolean) -> Unit"
+            }
+        },
+        {
             "name": "SingleChoiceSegmentedButtonRow",
             "localTag": 61,
             "properties": {
@@ -1368,12 +1581,14 @@
             "properties": {
                 "value": 1,
                 "enabled": 2,
+                "valueRange": 5,
                 "steps": 3,
                 "onValueChangeFinishedPresent": 4
             },
             "propertyTypes": {
                 "value": "Float",
                 "enabled": "Boolean",
+                "valueRange": "ClosedFloatingPointRange<Float>",
                 "steps": "Int",
                 "onValueChangeFinishedPresent": "Boolean"
             },
@@ -1388,6 +1603,102 @@
             "eventTypes": {
                 "onValueChange": "(Float) -> Unit",
                 "onValueChangeFinished": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "Slider~e15d63b2",
+            "localTag": 94,
+            "properties": {
+                "stateValue": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "stateSteps": 4,
+                "stateRangeStart": 5,
+                "stateRangeEnd": 6,
+                "enabled": 7
+            },
+            "propertyTypes": {
+                "stateValue": "Float",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "stateSteps": "Int",
+                "stateRangeStart": "Float",
+                "stateRangeEnd": "Float",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Float, Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "RangeSlider",
+            "localTag": 89,
+            "properties": {
+                "value": 1,
+                "enabled": 2,
+                "valueRange": 3,
+                "steps": 4,
+                "onValueChangeFinishedPresent": 5
+            },
+            "propertyTypes": {
+                "value": "ClosedFloatingPointRange<Float>",
+                "enabled": "Boolean",
+                "valueRange": "ClosedFloatingPointRange<Float>",
+                "steps": "Int",
+                "onValueChangeFinishedPresent": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onValueChange": 1,
+                "onValueChangeFinished": 2
+            },
+            "eventTypes": {
+                "onValueChange": "(FloatRange) -> Unit",
+                "onValueChangeFinished": "(() -> Unit)?"
+            }
+        },
+        {
+            "name": "RangeSlider~bb1147d1",
+            "localTag": 95,
+            "properties": {
+                "stateStart": 1,
+                "stateEnd": 2,
+                "stateSequence": 3,
+                "stateWatching": 4,
+                "stateSteps": 5,
+                "stateRangeStart": 6,
+                "stateRangeEnd": 7,
+                "enabled": 8
+            },
+            "propertyTypes": {
+                "stateStart": "Float",
+                "stateEnd": "Float",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "stateSteps": "Int",
+                "stateRangeStart": "Float",
+                "stateRangeEnd": "Float",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Float, Float, Boolean) -> Unit"
             }
         },
         {
@@ -1415,6 +1726,193 @@
                 "content": 3
             },
             "events": {}
+        },
+        {
+            "name": "SnackbarHost",
+            "localTag": 96,
+            "properties": {
+                "hostStateMessage": 1,
+                "hostStateActionLabel": 2,
+                "hostStateSequence": 3,
+                "hostStateWatching": 4,
+                "hostStateDismissSequence": 5
+            },
+            "propertyTypes": {
+                "hostStateMessage": "String",
+                "hostStateActionLabel": "String",
+                "hostStateSequence": "Int",
+                "hostStateWatching": "Boolean",
+                "hostStateDismissSequence": "Int"
+            },
+            "slots": {},
+            "events": {
+                "hostStateReport": 1
+            },
+            "eventTypes": {
+                "hostStateReport": "(Int, Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "Surface",
+            "localTag": 85,
+            "properties": {
+                "shape": 1,
+                "color": 2,
+                "contentColor": 3,
+                "tonalElevation": 4,
+                "shadowElevation": 5,
+                "border": 6
+            },
+            "propertyTypes": {
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Surface~0b388a87",
+            "localTag": 86,
+            "properties": {
+                "enabled": 1,
+                "shape": 2,
+                "color": 3,
+                "contentColor": 4,
+                "tonalElevation": 5,
+                "shadowElevation": 6,
+                "border": 7
+            },
+            "propertyTypes": {
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Surface~9d901ca7",
+            "localTag": 87,
+            "properties": {
+                "selected": 1,
+                "enabled": 2,
+                "shape": 3,
+                "color": 4,
+                "contentColor": 5,
+                "tonalElevation": 6,
+                "shadowElevation": 7,
+                "border": 8
+            },
+            "propertyTypes": {
+                "selected": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
+            },
+            "safetyRelevant": [
+                "selected",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "() -> Unit"
+            }
+        },
+        {
+            "name": "Surface~819e1863",
+            "localTag": 88,
+            "properties": {
+                "checked": 1,
+                "enabled": 2,
+                "shape": 3,
+                "color": 4,
+                "contentColor": 5,
+                "tonalElevation": 6,
+                "shadowElevation": 7,
+                "border": 8
+            },
+            "propertyTypes": {
+                "checked": "Boolean",
+                "enabled": "Boolean",
+                "shape": "Shape",
+                "color": "Color",
+                "contentColor": "Color",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp",
+                "border": "BorderStroke?"
+            },
+            "safetyRelevant": [
+                "checked",
+                "enabled"
+            ],
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onCheckedChange": 1
+            },
+            "eventTypes": {
+                "onCheckedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "SwipeToDismissBox",
+            "localTag": 97,
+            "properties": {
+                "stateTarget": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "enableDismissFromStartToEnd": 4,
+                "enableDismissFromEndToStart": 5,
+                "gesturesEnabled": 6
+            },
+            "propertyTypes": {
+                "stateTarget": "String",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "enableDismissFromStartToEnd": "Boolean",
+                "enableDismissFromEndToStart": "Boolean",
+                "gesturesEnabled": "Boolean"
+            },
+            "slots": {
+                "backgroundContent": 1,
+                "content": 2
+            },
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(String, Boolean) -> Unit"
+            }
         },
         {
             "name": "Switch",
@@ -1653,6 +2151,52 @@
             },
             "slots": {},
             "events": {}
+        },
+        {
+            "name": "TimePicker",
+            "localTag": 90,
+            "properties": {
+                "stateVisible": 1,
+                "stateSequence": 2,
+                "stateInitial": 3,
+                "stateWatching": 4
+            },
+            "propertyTypes": {
+                "stateVisible": "Boolean",
+                "stateSequence": "Int",
+                "stateInitial": "String",
+                "stateWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Int, String) -> Unit"
+            }
+        },
+        {
+            "name": "TimeInput",
+            "localTag": 91,
+            "properties": {
+                "stateVisible": 1,
+                "stateSequence": 2,
+                "stateInitial": 3,
+                "stateWatching": 4
+            },
+            "propertyTypes": {
+                "stateVisible": "Boolean",
+                "stateSequence": "Int",
+                "stateInitial": "String",
+                "stateWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Int, String) -> Unit"
+            }
         },
         {
             "name": "TimePickerDialog",

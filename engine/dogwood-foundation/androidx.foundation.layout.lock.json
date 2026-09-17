@@ -1,0 +1,130 @@
+{
+    "segmentName": "foundationLayout",
+    "wireName": "androidx.foundation.layout",
+    "segmentId": 253,
+    "version": 1100300,
+    "components": [
+        {
+            "name": "Box",
+            "localTag": 1,
+            "properties": {
+                "contentAlignment": 1,
+                "propagateMinConstraints": 2
+            },
+            "propertyTypes": {
+                "contentAlignment": "Alignment",
+                "propagateMinConstraints": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Box~890fe8b6",
+            "localTag": 2,
+            "properties": {},
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "BoxWithConstraints",
+            "localTag": 3,
+            "properties": {
+                "contentAlignment": 1,
+                "propagateMinConstraints": 2
+            },
+            "propertyTypes": {
+                "contentAlignment": "Alignment",
+                "propagateMinConstraints": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Column",
+            "localTag": 4,
+            "properties": {
+                "verticalArrangement": 1,
+                "horizontalAlignment": 2
+            },
+            "propertyTypes": {
+                "verticalArrangement": "Arrangement.Vertical",
+                "horizontalAlignment": "Alignment.Horizontal"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "FlowRow~cd63def4",
+            "localTag": 5,
+            "properties": {
+                "horizontalArrangement": 1,
+                "verticalArrangement": 2,
+                "itemVerticalAlignment": 3,
+                "maxItemsInEachRow": 4,
+                "maxLines": 5
+            },
+            "propertyTypes": {
+                "horizontalArrangement": "Arrangement.Horizontal",
+                "verticalArrangement": "Arrangement.Vertical",
+                "itemVerticalAlignment": "Alignment.Vertical",
+                "maxItemsInEachRow": "Int",
+                "maxLines": "Int"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "FlowColumn~4f8a3c9f",
+            "localTag": 6,
+            "properties": {
+                "verticalArrangement": 1,
+                "horizontalArrangement": 2,
+                "itemHorizontalAlignment": 3,
+                "maxItemsInEachColumn": 4,
+                "maxLines": 5
+            },
+            "propertyTypes": {
+                "verticalArrangement": "Arrangement.Vertical",
+                "horizontalArrangement": "Arrangement.Horizontal",
+                "itemHorizontalAlignment": "Alignment.Horizontal",
+                "maxItemsInEachColumn": "Int",
+                "maxLines": "Int"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Row",
+            "localTag": 7,
+            "properties": {
+                "horizontalArrangement": 1,
+                "verticalAlignment": 2
+            },
+            "propertyTypes": {
+                "horizontalArrangement": "Arrangement.Horizontal",
+                "verticalAlignment": "Alignment.Vertical"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Spacer",
+            "localTag": 8,
+            "properties": {},
+            "slots": {},
+            "events": {}
+        }
+    ]
+}

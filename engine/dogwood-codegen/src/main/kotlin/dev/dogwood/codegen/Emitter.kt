@@ -47,6 +47,21 @@ fun buildDictionary(
    * here, keeps them, and allocates only for names the lock has never seen (ADR-073).
    */
   existingTags: Map<String, Int> = emptyMap(),
+  /**
+   * The entries a previous run published, by component name.
+   *
+   * Component tags are not the only ones that follow declaration order. A property's tag is its
+   * position among the properties that cross, so **teaching the generator to cross one more type
+   * renumbers every property after it** — which is the same silent-wrong-widget failure one level
+   * down, and the lock caught it the first time the mapping table grew: `Button.contentPadding`
+   * moved from 3 to 4 because `border` became settable and sits before it in the library's
+   * signature.
+   *
+   * So a generated tier passes its lock's entries in here and keeps every number it has already
+   * published; anything new is numbered above everything taken. Slots and events are numbered the
+   * same way and for the same reason.
+   */
+  previous: Map<String, DictionaryEntry> = emptyMap(),
 ): Dictionary {
   val taken = (existingTags.values + reservedLocalTags).toMutableSet()
   var next = 1
@@ -69,11 +84,11 @@ fun buildDictionary(
       localTag = allocated[index],
       // Holders expand here, in declaration order with everything else, so appending a holder to
       // a surface appends tags rather than renumbering the properties around it.
-      properties = component.wireProperties.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      properties = keepingTags(component.wireProperties.map { it.name }, previous[component.name]?.properties),
       propertyTypes = component.wireProperties.associate { it.name to it.type },
       safetyRelevant = component.affordances.mapTo(mutableSetOf()) { it.name },
-      slots = component.slots.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
-      events = component.wireEvents.mapIndexed { i, p -> p.name to i + 1 }.toMap(),
+      slots = keepingTags(component.slots.map { it.name }, previous[component.name]?.slots),
+      events = keepingTags(component.wireEvents.map { it.name }, previous[component.name]?.events),
       eventTypes = component.wireEvents.associate { it.name to it.type },
       rejected = component.parameters
         .filter { it.kind == ParameterKind.UNSUPPORTED }
@@ -81,6 +96,20 @@ fun buildDictionary(
     )
   },
   )
+}
+
+/**
+ * The tags for [names], reusing whatever [locked] already published and appending the rest.
+ *
+ * Position is the rule when there is nothing to keep faith with, and the lock is the record of what
+ * there is. A name the lock knows keeps its number wherever the library moved it; a name the lock
+ * has never seen takes the next one above every number in use, so nothing an older client resolves
+ * numerically can ever mean something new.
+ */
+private fun keepingTags(names: List<String>, locked: Map<String, Int>?): Map<String, Int> {
+  if (locked.isNullOrEmpty()) return names.mapIndexed { i, name -> name to i + 1 }.toMap()
+  var next = (locked.values.maxOrNull() ?: 0) + 1
+  return names.associateWith { name -> locked[name] ?: next++ }
 }
 
 fun Dictionary.encode(): String = json.encodeToString(Dictionary.serializer(), this)

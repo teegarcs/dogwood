@@ -44,6 +44,7 @@ kotlin {
         // `main`, exactly as the Android host registers it in `Application.onCreate`.
         implementation(project(":samples:product-design-system"))
         implementation(project(":dogwood-material3"))
+        implementation(project(":dogwood-foundation"))
       }
     }
   }

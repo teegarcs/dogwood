@@ -105,8 +105,14 @@ internal fun childrenOf(obj: NSObject): List<Any?> {
  * it scrolls, so a depth limit alone does not bound the traversal. Printing as it goes and
  * stopping at a fixed count is both bounded and useful -- the first couple of hundred nodes of a
  * screen are the screen.
+ *
+ * **Raised from 250 to 600 on 2026-09-16**, because "the first couple of hundred nodes are the
+ * screen" stopped being true. The generated Material catalogue composes seventy-odd components in
+ * a section, and the Material drill's controls sat past the cap: the walk returned before reaching
+ * them, so the drill searched for elements this function had decided not to look at. The number is
+ * still a bound rather than a budget -- it exists so a cyclic container cannot hang a drill.
  */
-internal const val MAX_NODES = 250
+internal const val MAX_NODES = 600
 
 private fun describe(node: Any?, depth: Int, seen: MutableSet<Long>, sink: (String) -> Unit) {
   val obj = node as? NSObject ?: return

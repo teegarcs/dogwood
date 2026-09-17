@@ -105,9 +105,9 @@ fun MaterialScreen() {
     Column(modifier = Modifier.padding(12), verticalArrangement = Arrangement.spacedBy(10)) {
       SectionHeader(
         title = "Material 3, generated",
-        description = "Segment 255, version 10900 — Material 3 1.9.0, the version this host " +
-          "resolves. Every control below was generated from the library's own sources. Pick a " +
-          "section; each one names what it changed.",
+        description = "Segment 255 — Material 3, the version this host resolves, generated from " +
+          "the library's own sources. The number is the generator's to know and is not repeated " +
+          "here. Pick a section; each one names what it changed.",
       )
 
       /*

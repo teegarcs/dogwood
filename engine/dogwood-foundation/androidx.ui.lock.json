@@ -1,0 +1,52 @@
+{
+    "segmentName": "ui",
+    "wireName": "androidx.ui",
+    "segmentId": 252,
+    "version": 1100300,
+    "components": [
+        {
+            "name": "LookaheadScope",
+            "localTag": 1,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "Dialog",
+            "localTag": 2,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "() -> Unit"
+            }
+        },
+        {
+            "name": "Popup",
+            "localTag": 3,
+            "properties": {
+                "alignment": 1,
+                "onDismissRequestPresent": 2
+            },
+            "propertyTypes": {
+                "alignment": "Alignment",
+                "onDismissRequestPresent": "Boolean"
+            },
+            "slots": {
+                "content": 1
+            },
+            "events": {
+                "onDismissRequest": 1
+            },
+            "eventTypes": {
+                "onDismissRequest": "(() -> Unit)?"
+            }
+        }
+    ]
+}

@@ -4,7 +4,7 @@
 # `androidx.material3` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **10900**, segment **255**.
+actually emitted. Version **1090006**, segment **255**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -45,6 +45,7 @@ appear in no table below and are not free.
 | [`BottomAppBar~5acd9818`](#bottomappbar~5acd9818) | 8 | -16777208 |  |
 | [`BadgedBox`](#badgedbox) | 9 | -16777207 |  |
 | [`Badge`](#badge) | 10 | -16777206 |  |
+| [`BottomSheetScaffold`](#bottomsheetscaffold) | 82 | -16777134 |  |
 | [`Button`](#button) | 11 | -16777205 | yes |
 | [`ElevatedButton`](#elevatedbutton) | 12 | -16777204 | yes |
 | [`FilledTonalButton`](#filledtonalbutton) | 13 | -16777203 | yes |
@@ -57,6 +58,7 @@ appear in no table below and are not free.
 | [`OutlinedCard`](#outlinedcard) | 20 | -16777196 |  |
 | [`OutlinedCard~2c46c5fa`](#outlinedcard~2c46c5fa) | 21 | -16777195 | yes |
 | [`Checkbox`](#checkbox) | 22 | -16777194 | yes |
+| [`TriStateCheckbox`](#tristatecheckbox) | 92 | -16777124 | yes |
 | [`AssistChip`](#assistchip) | 23 | -16777193 | yes |
 | [`ElevatedAssistChip`](#elevatedassistchip) | 24 | -16777192 | yes |
 | [`FilterChip`](#filterchip) | 25 | -16777191 | yes |
@@ -82,8 +84,10 @@ appear in no table below and are not free.
 | [`OutlinedIconToggleButton`](#outlinedicontogglebutton) | 45 | -16777171 | yes |
 | [`Label`](#label) | 46 | -16777170 |  |
 | [`ListItem`](#listitem) | 47 | -16777169 |  |
+| [`DropdownMenu`](#dropdownmenu) | 81 | -16777135 |  |
 | [`DropdownMenuItem`](#dropdownmenuitem) | 48 | -16777168 | yes |
 | [`ModalBottomSheet`](#modalbottomsheet) | 49 | -16777167 |  |
+| [`NavigationBar`](#navigationbar) | 83 | -16777133 |  |
 | [`ModalNavigationDrawer`](#modalnavigationdrawer) | 50 | -16777166 |  |
 | [`DismissibleNavigationDrawer`](#dismissiblenavigationdrawer) | 51 | -16777165 |  |
 | [`PermanentNavigationDrawer`](#permanentnavigationdrawer) | 52 | -16777164 |  |
@@ -95,12 +99,23 @@ appear in no table below and are not free.
 | [`LinearProgressIndicator~0d6d7e83`](#linearprogressindicator~0d6d7e83) | 58 | -16777158 |  |
 | [`CircularProgressIndicator~03d52693`](#circularprogressindicator~03d52693) | 59 | -16777157 |  |
 | [`RadioButton`](#radiobutton) | 60 | -16777156 | yes |
+| [`Scaffold`](#scaffold) | 84 | -16777132 |  |
+| [`TopSearchBar`](#topsearchbar) | 93 | -16777123 |  |
 | [`SingleChoiceSegmentedButtonRow`](#singlechoicesegmentedbuttonrow) | 61 | -16777155 |  |
 | [`MultiChoiceSegmentedButtonRow`](#multichoicesegmentedbuttonrow) | 62 | -16777154 |  |
 | [`ShortNavigationBar`](#shortnavigationbar) | 63 | -16777153 |  |
 | [`ShortNavigationBarItem`](#shortnavigationbaritem) | 64 | -16777152 | yes |
 | [`Slider`](#slider) | 65 | -16777151 | yes |
+| [`Slider~e15d63b2`](#slider~e15d63b2) | 94 | -16777122 | yes |
+| [`RangeSlider`](#rangeslider) | 89 | -16777127 | yes |
+| [`RangeSlider~bb1147d1`](#rangeslider~bb1147d1) | 95 | -16777121 | yes |
 | [`Snackbar`](#snackbar) | 67 | -16777149 |  |
+| [`SnackbarHost`](#snackbarhost) | 96 | -16777120 |  |
+| [`Surface`](#surface) | 85 | -16777131 |  |
+| [`Surface~0b388a87`](#surface~0b388a87) | 86 | -16777130 | yes |
+| [`Surface~9d901ca7`](#surface~9d901ca7) | 87 | -16777129 | yes |
+| [`Surface~819e1863`](#surface~819e1863) | 88 | -16777128 | yes |
+| [`SwipeToDismissBox`](#swipetodismissbox) | 97 | -16777119 |  |
 | [`Switch`](#switch) | 68 | -16777148 | yes |
 | [`Tab`](#tab) | 69 | -16777147 | yes |
 | [`LeadingIconTab`](#leadingicontab) | 70 | -16777146 | yes |
@@ -110,6 +125,8 @@ appear in no table below and are not free.
 | [`PrimaryScrollableTabRow`](#primaryscrollabletabrow) | 74 | -16777142 |  |
 | [`SecondaryScrollableTabRow`](#secondaryscrollabletabrow) | 75 | -16777141 |  |
 | [`Text`](#text) | 76 | -16777140 |  |
+| [`TimePicker`](#timepicker) | 90 | -16777126 |  |
+| [`TimeInput`](#timeinput) | 91 | -16777125 |  |
 | [`TimePickerDialog`](#timepickerdialog) | 77 | -16777139 |  |
 | [`WideNavigationRail`](#widenavigationrail) | 78 | -16777138 |  |
 | [`ModalWideNavigationRail`](#modalwidenavigationrail) | 79 | -16777137 |  |
@@ -345,6 +362,38 @@ Takes a modifier chain.
 
 ---
 
+### BottomSheetScaffold
+
+Local tag 82, widget tag `-16777134`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `sheetPeekHeight` | `Dp` | 1 | `BottomSheetDefaults.SheetPeekHeight` |  |
+| `sheetMaxWidth` | `Dp` | 2 | `BottomSheetDefaults.SheetMaxWidth` |  |
+| `sheetShape` | `Shape` | 3 | `BottomSheetDefaults.ExpandedShape` |  |
+| `sheetContainerColor` | `Color` | 4 | `BottomSheetDefaults.ContainerColor` |  |
+| `sheetContentColor` | `Color` | 5 | `contentColorFor(sheetContainerColor)` |  |
+| `sheetTonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `sheetShadowElevation` | `Dp` | 7 | `BottomSheetDefaults.Elevation` |  |
+| `sheetSwipeEnabled` | `Boolean` | 8 | `true` |  |
+| `containerColor` | `Color` | 9 | host |  |
+| `contentColor` | `Color` | 10 | `contentColorFor(containerColor)` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `sheetContent` | 1 |
+| `sheetDragHandle` | 2 |
+| `topBar` | 3 |
+| `content` | 4 |
+
+Takes a modifier chain.
+
+---
+
 ### Button
 
 Local tag 11, widget tag `-16777205`.
@@ -355,7 +404,8 @@ Local tag 11, widget tag `-16777205`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.shape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -385,7 +435,8 @@ Local tag 12, widget tag `-16777204`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.elevatedShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -415,7 +466,8 @@ Local tag 13, widget tag `-16777203`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.filledTonalShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -445,7 +497,8 @@ Local tag 14, widget tag `-16777202`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.outlinedShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.ContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `ButtonDefaults.outlinedButtonBorder(enabled)` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.ContentPadding` |  |
 
 **Content slots**
 
@@ -475,7 +528,8 @@ Local tag 15, widget tag `-16777201`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `ButtonDefaults.textShape` |  |
-| `contentPadding` | `PaddingValues` | 3 | `ButtonDefaults.TextButtonContentPadding` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
+| `contentPadding` | `PaddingValues` | 4 | `ButtonDefaults.TextButtonContentPadding` |  |
 
 **Content slots**
 
@@ -504,6 +558,7 @@ Local tag 16, widget tag `-16777200`.
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
 | `shape` | `Shape` | 1 | `CardDefaults.shape` |  |
+| `border` | `BorderStroke?` | 2 | `null` |  |
 
 **Content slots**
 
@@ -525,6 +580,7 @@ Local tag 17, widget tag `-16777199`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `CardDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -602,6 +658,7 @@ Local tag 20, widget tag `-16777196`.
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
 | `shape` | `Shape` | 1 | `CardDefaults.outlinedShape` |  |
+| `border` | `BorderStroke` | 2 | `CardDefaults.outlinedCardBorder()` |  |
 
 **Content slots**
 
@@ -623,6 +680,7 @@ Local tag 21, widget tag `-16777195`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `CardDefaults.outlinedShape` |  |
+| `border` | `BorderStroke` | 3 | `CardDefaults.outlinedCardBorder(enabled)` |  |
 
 **Content slots**
 
@@ -666,6 +724,30 @@ Takes a modifier chain.
 
 ---
 
+### TriStateCheckbox
+
+Local tag 92, widget tag `-16777124`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `state` | `ToggleableState` | 1 | required |  |
+| `onClickPresent` | `Boolean` | 2 | `false` |  |
+| `enabled` | `Boolean` | 3 | `true` | **affordance** |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `(() -> Unit)?` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
 ### AssistChip
 
 Local tag 23, widget tag `-16777193`.
@@ -676,6 +758,7 @@ Local tag 23, widget tag `-16777193`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `AssistChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `AssistChipDefaults.assistChipBorder(enabled)` |  |
 
 **Content slots**
 
@@ -707,6 +790,7 @@ Local tag 24, widget tag `-16777192`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `AssistChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -739,6 +823,7 @@ Local tag 25, widget tag `-16777191`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `FilterChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `FilterChipDefaults.filterChipBorder(enabled, selected)` |  |
 
 **Content slots**
 
@@ -771,6 +856,7 @@ Local tag 26, widget tag `-16777190`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `FilterChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `null` |  |
 
 **Content slots**
 
@@ -803,6 +889,7 @@ Local tag 27, widget tag `-16777189`.
 | `selected` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `InputChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 4 | `InputChipDefaults.inputChipBorder(enabled, selected)` |  |
 
 **Content slots**
 
@@ -835,6 +922,7 @@ Local tag 28, widget tag `-16777188`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `SuggestionChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `SuggestionChipDefaults.suggestionChipBorder(enabled)` |  |
 
 **Content slots**
 
@@ -865,6 +953,7 @@ Local tag 29, widget tag `-16777187`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `SuggestionChipDefaults.shape` |  |
+| `border` | `BorderStroke?` | 3 | `null` |  |
 
 **Content slots**
 
@@ -1248,6 +1337,7 @@ Local tag 44, widget tag `-16777172`.
 | --- | --- | ---: | --- | --- |
 | `enabled` | `Boolean` | 1 | `true` | **affordance** |
 | `shape` | `Shape` | 2 | `IconButtonDefaults.outlinedShape` |  |
+| `border` | `BorderStroke?` | 3 | `IconButtonDefaults.outlinedIconButtonBorder(enabled)` |  |
 
 **Content slots**
 
@@ -1278,6 +1368,7 @@ Local tag 45, widget tag `-16777171`.
 | `checked` | `Boolean` | 1 | required | **affordance** |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
 | `shape` | `Shape` | 3 | `IconButtonDefaults.outlinedShape` |  |
+| `border` | `BorderStroke?` | 4 | `IconButtonDefaults.outlinedIconToggleButtonBorder(enabled, checked)` |  |
 
 **Content slots**
 
@@ -1338,6 +1429,37 @@ Local tag 47, widget tag `-16777169`.
 | `supportingContent` | 3 |
 | `leadingContent` | 4 |
 | `trailingContent` | 5 |
+
+Takes a modifier chain.
+
+---
+
+### DropdownMenu
+
+Local tag 81, widget tag `-16777135`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `expanded` | `Boolean` | 1 | required |  |
+| `shape` | `Shape` | 2 | `MenuDefaults.shape` |  |
+| `containerColor` | `Color` | 3 | `MenuDefaults.containerColor` |  |
+| `tonalElevation` | `Dp` | 4 | `MenuDefaults.TonalElevation` |  |
+| `shadowElevation` | `Dp` | 5 | `MenuDefaults.ShadowElevation` |  |
+| `border` | `BorderStroke?` | 6 | `null` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onDismissRequest` | `() -> Unit` | 1 |  |
 
 Takes a modifier chain.
 
@@ -1407,6 +1529,28 @@ Takes a modifier chain.
 
 ---
 
+### NavigationBar
+
+Local tag 83, widget tag `-16777133`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `containerColor` | `Color` | 1 | `NavigationBarDefaults.containerColor` |  |
+| `contentColor` | `Color` | 2 | host |  |
+| `tonalElevation` | `Dp` | 3 | `NavigationBarDefaults.Elevation` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+Takes a modifier chain.
+
+---
+
 ### ModalNavigationDrawer
 
 Local tag 50, widget tag `-16777166`.
@@ -1415,8 +1559,11 @@ Local tag 50, widget tag `-16777166`.
 
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
-| `gesturesEnabled` | `Boolean` | 1 | `true` |  |
-| `scrimColor` | `Color` | 2 | `DrawerDefaults.scrimColor` |  |
+| `drawerStateTarget` | `String` | 1 | `"closed"` when absent | from the `drawerState` holder (`targetState`) |
+| `drawerStateSequence` | `Int` | 2 | `0` when absent | from the `drawerState` holder (`targetSequence`) |
+| `drawerStateWatching` | `Boolean` | 3 | `false` when absent | from the `drawerState` holder (`watching`) |
+| `gesturesEnabled` | `Boolean` | 4 | `true` |  |
+| `scrimColor` | `Color` | 5 | `DrawerDefaults.scrimColor` |  |
 
 **Content slots**
 
@@ -1424,6 +1571,12 @@ Local tag 50, widget tag `-16777166`.
 | --- | ---: |
 | `drawerContent` | 1 |
 | `content` | 2 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `drawerStateReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `drawerState` holder |
 
 Takes a modifier chain.
 
@@ -1437,7 +1590,10 @@ Local tag 51, widget tag `-16777165`.
 
 | Name | Type | Tag | Default | Notes |
 | --- | --- | ---: | --- | --- |
-| `gesturesEnabled` | `Boolean` | 1 | `true` |  |
+| `drawerStateTarget` | `String` | 1 | `"closed"` when absent | from the `drawerState` holder (`targetState`) |
+| `drawerStateSequence` | `Int` | 2 | `0` when absent | from the `drawerState` holder (`targetSequence`) |
+| `drawerStateWatching` | `Boolean` | 3 | `false` when absent | from the `drawerState` holder (`watching`) |
+| `gesturesEnabled` | `Boolean` | 4 | `true` |  |
 
 **Content slots**
 
@@ -1445,6 +1601,12 @@ Local tag 51, widget tag `-16777165`.
 | --- | ---: |
 | `drawerContent` | 1 |
 | `content` | 2 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `drawerStateReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `drawerState` holder |
 
 Takes a modifier chain.
 
@@ -1644,6 +1806,62 @@ Takes a modifier chain.
 
 ---
 
+### Scaffold
+
+Local tag 84, widget tag `-16777132`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `containerColor` | `Color` | 1 | host |  |
+| `contentColor` | `Color` | 2 | `contentColorFor(containerColor)` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `topBar` | 1 |
+| `bottomBar` | 2 |
+| `snackbarHost` | 3 |
+| `floatingActionButton` | 4 |
+| `content` | 5 |
+
+Takes a modifier chain.
+
+---
+
+### TopSearchBar
+
+Local tag 93, widget tag `-16777123`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateTarget` | `String` | 1 | `"collapsed"` when absent | from the `state` holder (`targetState`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`targetSequence`) |
+| `stateWatching` | `Boolean` | 3 | `false` when absent | from the `state` holder (`watching`) |
+| `shape` | `Shape` | 4 | `SearchBarDefaults.inputFieldShape` |  |
+| `tonalElevation` | `Dp` | 5 | `SearchBarDefaults.TonalElevation` |  |
+| `shadowElevation` | `Dp` | 6 | `SearchBarDefaults.ShadowElevation` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `inputField` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+---
+
 ### SingleChoiceSegmentedButtonRow
 
 Local tag 61, widget tag `-16777155`.
@@ -1745,8 +1963,9 @@ Local tag 65, widget tag `-16777151`.
 | --- | --- | ---: | --- | --- |
 | `value` | `Float` | 1 | required |  |
 | `enabled` | `Boolean` | 2 | `true` | **affordance** |
-| `steps` | `Int` | 3 | `0` |  |
-| `onValueChangeFinishedPresent` | `Boolean` | 4 | `false` |  |
+| `valueRange` | `ClosedFloatingPointRange<Float>` | 3 | `0f..1f` |  |
+| `steps` | `Int` | 4 | `0` |  |
+| `onValueChangeFinishedPresent` | `Boolean` | 5 | `false` |  |
 
 **Events**
 
@@ -1754,6 +1973,90 @@ Local tag 65, widget tag `-16777151`.
 | --- | --- | ---: | --- |
 | `onValueChange` | `(Float) -> Unit` | 1 |  |
 | `onValueChangeFinished` | `(() -> Unit)?` | 2 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### Slider~e15d63b2
+
+Local tag 94, widget tag `-16777122`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateValue` | `Float` | 1 | `0f` when absent | from the `state` holder (`targetValue`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`targetSequence`) |
+| `stateWatching` | `Boolean` | 3 | `false` when absent | from the `state` holder (`watching`) |
+| `stateSteps` | `Int` | 4 | `0` when absent | from the `state` holder (`steps`) |
+| `stateRangeStart` | `Float` | 5 | `0f` when absent | from the `state` holder (`rangeStart`) |
+| `stateRangeEnd` | `Float` | 6 | `1f` when absent | from the `state` holder (`rangeEnd`) |
+| `enabled` | `Boolean` | 7 | `true` | **affordance** |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Float, Boolean) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### RangeSlider
+
+Local tag 89, widget tag `-16777127`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `value` | `ClosedFloatingPointRange<Float>` | 1 | required |  |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `valueRange` | `ClosedFloatingPointRange<Float>` | 3 | `0f..1f` |  |
+| `steps` | `Int` | 4 | `0` |  |
+| `onValueChangeFinishedPresent` | `Boolean` | 5 | `false` |  |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onValueChange` | `(FloatRange) -> Unit` | 1 |  |
+| `onValueChangeFinished` | `(() -> Unit)?` | 2 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### RangeSlider~bb1147d1
+
+Local tag 95, widget tag `-16777121`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateStart` | `Float` | 1 | `0f` when absent | from the `state` holder (`targetStart`) |
+| `stateEnd` | `Float` | 2 | `1f` when absent | from the `state` holder (`targetEnd`) |
+| `stateSequence` | `Int` | 3 | `0` when absent | from the `state` holder (`targetSequence`) |
+| `stateWatching` | `Boolean` | 4 | `false` when absent | from the `state` holder (`watching`) |
+| `stateSteps` | `Int` | 5 | `0` when absent | from the `state` holder (`steps`) |
+| `stateRangeStart` | `Float` | 6 | `0f` when absent | from the `state` holder (`rangeStart`) |
+| `stateRangeEnd` | `Float` | 7 | `1f` when absent | from the `state` holder (`rangeEnd`) |
+| `enabled` | `Boolean` | 8 | `true` | **affordance** |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Float, Float, Boolean) -> Unit` | 1 | the host's report back into the `state` holder |
 
 Takes a modifier chain.
 
@@ -1783,6 +2086,191 @@ Local tag 67, widget tag `-16777149`.
 | `action` | 1 |
 | `dismissAction` | 2 |
 | `content` | 3 |
+
+Takes a modifier chain.
+
+---
+
+### SnackbarHost
+
+Local tag 96, widget tag `-16777120`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `hostStateMessage` | `String` | 1 | `""` when absent | from the `hostState` holder (`message`) |
+| `hostStateActionLabel` | `String` | 2 | `""` when absent | from the `hostState` holder (`actionLabel`) |
+| `hostStateSequence` | `Int` | 3 | `0` when absent | from the `hostState` holder (`sequence`) |
+| `hostStateWatching` | `Boolean` | 4 | `false` when absent | from the `hostState` holder (`watching`) |
+| `hostStateDismissSequence` | `Int` | 5 | `0` when absent | from the `hostState` holder (`dismissSequence`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `hostStateReport` | `(Int, Boolean) -> Unit` | 1 | the host's report back into the `hostState` holder |
+
+Takes a modifier chain.
+
+---
+
+### Surface
+
+Local tag 85, widget tag `-16777131`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `shape` | `Shape` | 1 | `RectangleShape` |  |
+| `color` | `Color` | 2 | host |  |
+| `contentColor` | `Color` | 3 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 4 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 5 | `0.dp` |  |
+| `border` | `BorderStroke?` | 6 | `null` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+Takes a modifier chain.
+
+---
+
+### Surface~0b388a87
+
+Local tag 86, widget tag `-16777130`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `enabled` | `Boolean` | 1 | `true` | **affordance** |
+| `shape` | `Shape` | 2 | `RectangleShape` |  |
+| `color` | `Color` | 3 | host |  |
+| `contentColor` | `Color` | 4 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 5 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 6 | `0.dp` |  |
+| `border` | `BorderStroke?` | 7 | `null` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### Surface~9d901ca7
+
+Local tag 87, widget tag `-16777129`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `selected` | `Boolean` | 1 | required | **affordance** |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `shape` | `Shape` | 3 | `RectangleShape` |  |
+| `color` | `Color` | 4 | host |  |
+| `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+| `border` | `BorderStroke?` | 8 | `null` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onClick` | `() -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`enabled`, `selected`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### Surface~819e1863
+
+Local tag 88, widget tag `-16777128`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `checked` | `Boolean` | 1 | required | **affordance** |
+| `enabled` | `Boolean` | 2 | `true` | **affordance** |
+| `shape` | `Shape` | 3 | `RectangleShape` |  |
+| `color` | `Color` | 4 | host |  |
+| `contentColor` | `Color` | 5 | `contentColorFor(color)` |  |
+| `tonalElevation` | `Dp` | 6 | `0.dp` |  |
+| `shadowElevation` | `Dp` | 7 | `0.dp` |  |
+| `border` | `BorderStroke?` | 8 | `null` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `content` | 1 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `onCheckedChange` | `(Boolean) -> Unit` | 1 |  |
+
+Takes a modifier chain.
+
+**Owns an affordance** (`checked`, `enabled`), so a client that meets a property it cannot read on this component withholds it entirely.
+
+---
+
+### SwipeToDismissBox
+
+Local tag 97, widget tag `-16777119`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateTarget` | `String` | 1 | `"settled"` when absent | from the `state` holder (`targetState`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`targetSequence`) |
+| `stateWatching` | `Boolean` | 3 | `false` when absent | from the `state` holder (`watching`) |
+| `enableDismissFromStartToEnd` | `Boolean` | 4 | `true` |  |
+| `enableDismissFromEndToStart` | `Boolean` | 5 | `true` |  |
+| `gesturesEnabled` | `Boolean` | 6 | `true` |  |
+
+**Content slots**
+
+| Name | Tag |
+| --- | ---: |
+| `backgroundContent` | 1 |
+| `content` | 2 |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(String, Boolean) -> Unit` | 1 | the host's report back into the `state` holder |
 
 Takes a modifier chain.
 
@@ -2038,6 +2526,52 @@ Takes a modifier chain.
 
 ---
 
+### TimePicker
+
+Local tag 90, widget tag `-16777126`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateVisible` | `Boolean` | 1 | `false` when absent | from the `state` holder (`requested`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`requestSequence`) |
+| `stateInitial` | `String` | 3 | `""` when absent | from the `state` holder (`initialTime`) |
+| `stateWatching` | `Boolean` | 4 | `false` when absent | from the `state` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+---
+
+### TimeInput
+
+Local tag 91, widget tag `-16777125`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateVisible` | `Boolean` | 1 | `false` when absent | from the `state` holder (`requested`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`requestSequence`) |
+| `stateInitial` | `String` | 3 | `""` when absent | from the `state` holder (`initialTime`) |
+| `stateWatching` | `Boolean` | 4 | `false` when absent | from the `state` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+---
+
 ### TimePickerDialog
 
 Local tag 77, widget tag `-16777139`.
@@ -2156,21 +2690,19 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `AlertDialog` | `properties` | `DialogProperties` | `DialogProperties()` |
 | `AssistChip` | `colors` | `ChipColors` | `AssistChipDefaults.assistChipColors()` |
 | `AssistChip` | `elevation` | `ChipElevation?` | `AssistChipDefaults.assistChipElevation()` |
-| `AssistChip` | `border` | `BorderStroke?` | `AssistChipDefaults.assistChipBorder(enabled)` |
 | `AssistChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `BasicAlertDialog` | `properties` | `DialogProperties` | `DialogProperties()` |
 | `BottomAppBar` | `windowInsets` | `WindowInsets` | `BottomAppBarDefaults.windowInsets` |
 | `BottomAppBar~5acd9818` | `windowInsets` | `WindowInsets` | `BottomAppBarDefaults.windowInsets` |
+| `BottomSheetScaffold` | `scaffoldState` | `BottomSheetScaffoldState` | `rememberBottomSheetScaffoldState()` |
+| `BottomSheetScaffold` | `snackbarHost` | `@Composable (SnackbarHostState) -> Unit` | `{ SnackbarHost(it) }` |
 | `Button` | `colors` | `ButtonColors` | `ButtonDefaults.buttonColors()` |
 | `Button` | `elevation` | `ButtonElevation?` | `ButtonDefaults.buttonElevation()` |
-| `Button` | `border` | `BorderStroke?` | `null` |
 | `Button` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Card` | `colors` | `CardColors` | `CardDefaults.cardColors()` |
 | `Card` | `elevation` | `CardElevation` | `CardDefaults.cardElevation()` |
-| `Card` | `border` | `BorderStroke?` | `null` |
 | `Card~6ae0a5d2` | `colors` | `CardColors` | `CardDefaults.cardColors()` |
 | `Card~6ae0a5d2` | `elevation` | `CardElevation` | `CardDefaults.cardElevation()` |
-| `Card~6ae0a5d2` | `border` | `BorderStroke?` | `null` |
 | `Card~6ae0a5d2` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `CenterAlignedTopAppBar~b00f901d` | `windowInsets` | `WindowInsets` | `TopAppBarDefaults.windowInsets` |
 | `CenterAlignedTopAppBar~b00f901d` | `colors` | `TopAppBarColors` | `TopAppBarDefaults.topAppBarColors()` |
@@ -2181,16 +2713,16 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `DatePickerDialog` | `colors` | `DatePickerColors` | `DatePickerDefaults.colors()` |
 | `DatePickerDialog` | `properties` | `DialogProperties` | `DialogProperties(usePlatformDefaultWidth = false)` |
 | `DismissibleDrawerSheet` | `windowInsets` | `WindowInsets` | `DrawerDefaults.windowInsets` |
-| `DismissibleNavigationDrawer` | `drawerState` | `DrawerState` | `rememberDrawerState(DrawerValue.Closed)` |
+| `DropdownMenu` | `offset` | `DpOffset` | `DpOffset(0.dp, 0.dp)` |
+| `DropdownMenu` | `scrollState` | `ScrollState` | `rememberScrollState()` |
+| `DropdownMenu` | `properties` | `PopupProperties` | `DefaultMenuProperties` |
 | `DropdownMenuItem` | `colors` | `MenuItemColors` | `MenuDefaults.itemColors()` |
 | `DropdownMenuItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedAssistChip` | `colors` | `ChipColors` | `AssistChipDefaults.elevatedAssistChipColors()` |
 | `ElevatedAssistChip` | `elevation` | `ChipElevation?` | `AssistChipDefaults.elevatedAssistChipElevation()` |
-| `ElevatedAssistChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedAssistChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedButton` | `colors` | `ButtonColors` | `ButtonDefaults.elevatedButtonColors()` |
 | `ElevatedButton` | `elevation` | `ButtonElevation?` | `ButtonDefaults.elevatedButtonElevation()` |
-| `ElevatedButton` | `border` | `BorderStroke?` | `null` |
 | `ElevatedButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedCard` | `colors` | `CardColors` | `CardDefaults.elevatedCardColors()` |
 | `ElevatedCard` | `elevation` | `CardElevation` | `CardDefaults.elevatedCardElevation()` |
@@ -2199,11 +2731,9 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `ElevatedCard~cc5087f1` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedFilterChip` | `colors` | `SelectableChipColors` | `FilterChipDefaults.elevatedFilterChipColors()` |
 | `ElevatedFilterChip` | `elevation` | `SelectableChipElevation?` | `FilterChipDefaults.elevatedFilterChipElevation()` |
-| `ElevatedFilterChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedFilterChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ElevatedSuggestionChip` | `colors` | `ChipColors` | `SuggestionChipDefaults.elevatedSuggestionChipColors()` |
 | `ElevatedSuggestionChip` | `elevation` | `ChipElevation?` | `SuggestionChipDefaults.elevatedSuggestionChipElevation()` |
-| `ElevatedSuggestionChip` | `border` | `BorderStroke?` | `null` |
 | `ElevatedSuggestionChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `ExtendedFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `ExtendedFloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2215,7 +2745,6 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `FilledIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilledTonalButton` | `colors` | `ButtonColors` | `ButtonDefaults.filledTonalButtonColors()` |
 | `FilledTonalButton` | `elevation` | `ButtonElevation?` | `ButtonDefaults.filledTonalButtonElevation()` |
-| `FilledTonalButton` | `border` | `BorderStroke?` | `null` |
 | `FilledTonalButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilledTonalIconButton` | `colors` | `IconButtonColors` | `IconButtonDefaults.filledTonalIconButtonColors()` |
 | `FilledTonalIconButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2223,13 +2752,11 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `FilledTonalIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FilterChip` | `colors` | `SelectableChipColors` | `FilterChipDefaults.filterChipColors()` |
 | `FilterChip` | `elevation` | `SelectableChipElevation?` | `FilterChipDefaults.filterChipElevation()` |
-| `FilterChip` | `border` | `BorderStroke?` | `FilterChipDefaults.filterChipBorder(enabled, selected)` |
 | `FilterChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `FloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `FloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `InputChip` | `colors` | `SelectableChipColors` | `InputChipDefaults.inputChipColors()` |
 | `InputChip` | `elevation` | `SelectableChipElevation?` | `InputChipDefaults.inputChipElevation()` |
-| `InputChip` | `border` | `BorderStroke?` | `InputChipDefaults.inputChipBorder(enabled, selected)` |
 | `InputChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Label` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `LargeFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
@@ -2247,50 +2774,87 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `ModalBottomSheet` | `contentWindowInsets` | `@Composable () -> WindowInsets` | `{ BottomSheetDefaults.windowInsets }` |
 | `ModalBottomSheet` | `properties` | `ModalBottomSheetProperties` | `ModalBottomSheetProperties()` |
 | `ModalDrawerSheet` | `windowInsets` | `WindowInsets` | `DrawerDefaults.windowInsets` |
-| `ModalNavigationDrawer` | `drawerState` | `DrawerState` | `rememberDrawerState(DrawerValue.Closed)` |
 | `ModalWideNavigationRail` | `state` | `WideNavigationRailState` | `rememberWideNavigationRailState()` |
 | `ModalWideNavigationRail` | `colors` | `WideNavigationRailColors` | `WideNavigationRailDefaults.colors()` |
 | `ModalWideNavigationRail` | `windowInsets` | `WindowInsets` | `WideNavigationRailDefaults.windowInsets` |
 | `ModalWideNavigationRail` | `expandedProperties` | `ModalWideNavigationRailProperties` | `WideNavigationRailDefaults.ModalExpandedProperties` |
+| `NavigationBar` | `windowInsets` | `WindowInsets` | `NavigationBarDefaults.windowInsets` |
 | `NavigationRail` | `windowInsets` | `WindowInsets` | `NavigationRailDefaults.windowInsets` |
 | `NavigationRailItem` | `colors` | `NavigationRailItemColors` | `NavigationRailItemDefaults.colors()` |
 | `NavigationRailItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedButton` | `colors` | `ButtonColors` | `ButtonDefaults.outlinedButtonColors()` |
 | `OutlinedButton` | `elevation` | `ButtonElevation?` | `null` |
-| `OutlinedButton` | `border` | `BorderStroke?` | `ButtonDefaults.outlinedButtonBorder(enabled)` |
 | `OutlinedButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedCard` | `colors` | `CardColors` | `CardDefaults.outlinedCardColors()` |
 | `OutlinedCard` | `elevation` | `CardElevation` | `CardDefaults.outlinedCardElevation()` |
-| `OutlinedCard` | `border` | `BorderStroke` | `CardDefaults.outlinedCardBorder()` |
 | `OutlinedCard~2c46c5fa` | `colors` | `CardColors` | `CardDefaults.outlinedCardColors()` |
 | `OutlinedCard~2c46c5fa` | `elevation` | `CardElevation` | `CardDefaults.outlinedCardElevation()` |
-| `OutlinedCard~2c46c5fa` | `border` | `BorderStroke` | `CardDefaults.outlinedCardBorder(enabled)` |
 | `OutlinedCard~2c46c5fa` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedIconButton` | `colors` | `IconButtonColors` | `IconButtonDefaults.outlinedIconButtonColors()` |
-| `OutlinedIconButton` | `border` | `BorderStroke?` | `IconButtonDefaults.outlinedIconButtonBorder(enabled)` |
 | `OutlinedIconButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `OutlinedIconToggleButton` | `colors` | `IconToggleButtonColors` | `IconButtonDefaults.outlinedIconToggleButtonColors()` |
-| `OutlinedIconToggleButton` | `border` | `BorderStroke?` | `IconButtonDefaults.outlinedIconToggleButtonBorder(enabled, checked)` |
 | `OutlinedIconToggleButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `PermanentDrawerSheet` | `windowInsets` | `WindowInsets` | `DrawerDefaults.windowInsets` |
 | `PrimaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `RadioButton` | `colors` | `RadioButtonColors` | `RadioButtonDefaults.colors()` |
 | `RadioButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `RangeSlider` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
+| `RangeSlider~bb1147d1` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
+| `RangeSlider~bb1147d1` | `startInteractionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
+| `RangeSlider~bb1147d1` | `endInteractionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
+| `RangeSlider~bb1147d1` | `startThumb` | `@Composable (RangeSliderState) -> Unit` | `{
+        SliderDefaults.Thumb(
+            interactionSource = startInteractionSource,
+            colors = colors,
+            enabled = enabled,
+        )
+    }` |
+| `RangeSlider~bb1147d1` | `endThumb` | `@Composable (RangeSliderState) -> Unit` | `{
+        SliderDefaults.Thumb(
+            interactionSource = endInteractionSource,
+            colors = colors,
+            enabled = enabled,
+        )
+    }` |
+| `RangeSlider~bb1147d1` | `track` | `@Composable (RangeSliderState) -> Unit` | `{ rangeSliderState ->
+        SliderDefaults.Track(
+            colors = colors,
+            enabled = enabled,
+            rangeSliderState = rangeSliderState,
+        )
+    }` |
+| `Scaffold` | `floatingActionButtonPosition` | `FabPosition` | `FabPosition.End` |
+| `Scaffold` | `contentWindowInsets` | `WindowInsets` | `ScaffoldDefaults.contentWindowInsets` |
 | `SecondaryScrollableTabRow` | `scrollState` | `ScrollState` | `rememberScrollState()` |
 | `ShortNavigationBar` | `windowInsets` | `WindowInsets` | `ShortNavigationBarDefaults.windowInsets` |
 | `ShortNavigationBar` | `arrangement` | `ShortNavigationBarArrangement` | `ShortNavigationBarDefaults.arrangement` |
 | `ShortNavigationBarItem` | `iconPosition` | `NavigationItemIconPosition` | `NavigationItemIconPosition.Top` |
 | `ShortNavigationBarItem` | `colors` | `NavigationItemColors` | `ShortNavigationBarItemDefaults.colors()` |
 | `ShortNavigationBarItem` | `interactionSource` | `MutableInteractionSource?` | `null` |
-| `Slider` | `valueRange` | `ClosedFloatingPointRange<Float>` | `0f..1f` |
 | `Slider` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
 | `Slider` | `interactionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
+| `Slider~e15d63b2` | `colors` | `SliderColors` | `SliderDefaults.colors()` |
+| `Slider~e15d63b2` | `interactionSource` | `MutableInteractionSource` | `remember { MutableInteractionSource() }` |
+| `Slider~e15d63b2` | `thumb` | `@Composable (SliderState) -> Unit` | `{
+        SliderDefaults.Thumb(
+            interactionSource = interactionSource,
+            colors = colors,
+            enabled = enabled,
+        )
+    }` |
+| `Slider~e15d63b2` | `track` | `@Composable (SliderState) -> Unit` | `{ sliderState ->
+        SliderDefaults.Track(colors = colors, enabled = enabled, sliderState = sliderState)
+    }` |
 | `SmallFloatingActionButton` | `elevation` | `FloatingActionButtonElevation` | `FloatingActionButtonDefaults.elevation()` |
 | `SmallFloatingActionButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `SnackbarHost` | `snackbar` | `@Composable (SnackbarData) -> Unit` | `{ Snackbar(it) }` |
 | `SuggestionChip` | `colors` | `ChipColors` | `SuggestionChipDefaults.suggestionChipColors()` |
 | `SuggestionChip` | `elevation` | `ChipElevation?` | `SuggestionChipDefaults.suggestionChipElevation()` |
-| `SuggestionChip` | `border` | `BorderStroke?` | `SuggestionChipDefaults.suggestionChipBorder(enabled)` |
 | `SuggestionChip` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface~0b388a87` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface~819e1863` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `Surface~9d901ca7` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `SwipeToDismissBox` | `onDismiss` | `(SwipeToDismissBoxValue) -> Unit` | `{}` |
 | `Switch` | `colors` | `SwitchColors` | `SwitchDefaults.colors()` |
 | `Switch` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `Tab` | `interactionSource` | `MutableInteractionSource?` | `null` |
@@ -2302,12 +2866,19 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `Text` | `style` | `TextStyle` | `LocalTextStyle.current` |
 | `TextButton` | `colors` | `ButtonColors` | `ButtonDefaults.textButtonColors()` |
 | `TextButton` | `elevation` | `ButtonElevation?` | `null` |
-| `TextButton` | `border` | `BorderStroke?` | `null` |
 | `TextButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `TimeInput` | `colors` | `TimePickerColors` | `TimePickerDefaults.colors()` |
+| `TimePicker` | `colors` | `TimePickerColors` | `TimePickerDefaults.colors()` |
+| `TimePicker` | `layoutType` | `TimePickerLayoutType` | `TimePickerDefaults.layoutType()` |
 | `TimePickerDialog` | `properties` | `DialogProperties` | `DialogProperties(usePlatformDefaultWidth = false)` |
 | `TopAppBar~b00f901d` | `windowInsets` | `WindowInsets` | `TopAppBarDefaults.windowInsets` |
 | `TopAppBar~b00f901d` | `colors` | `TopAppBarColors` | `TopAppBarDefaults.topAppBarColors()` |
 | `TopAppBar~b00f901d` | `scrollBehavior` | `TopAppBarScrollBehavior?` | `null` |
+| `TopSearchBar` | `colors` | `SearchBarColors` | `SearchBarDefaults.colors()` |
+| `TopSearchBar` | `windowInsets` | `WindowInsets` | `SearchBarDefaults.windowInsets` |
+| `TopSearchBar` | `scrollBehavior` | `SearchBarScrollBehavior?` | `null` |
+| `TriStateCheckbox` | `colors` | `CheckboxColors` | `CheckboxDefaults.colors()` |
+| `TriStateCheckbox` | `interactionSource` | `MutableInteractionSource?` | `null` |
 | `VerticalDragHandle` | `sizes` | `DragHandleSizes` | `VerticalDragHandleDefaults.sizes()` |
 | `VerticalDragHandle` | `colors` | `DragHandleColors` | `VerticalDragHandleDefaults.colors()` |
 | `VerticalDragHandle` | `shapes` | `DragHandleShapes` | `VerticalDragHandleDefaults.shapes()` |

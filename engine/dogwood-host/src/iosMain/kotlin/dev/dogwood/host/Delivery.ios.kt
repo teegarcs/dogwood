@@ -48,6 +48,9 @@ fun DogwoodDelivery(
   urlSession: NSURLSession = NSURLSession.sharedSession,
   manifestMaxAgeMs: Long = REVALIDATE_EVERY_LAUNCH,
   nowEpochMs: () -> Long = ::hostEpochMillis,
+  // See the Java-Virtual-Machine factory: the parameter shape matches exactly, so an iOS host
+  // reaches staged rollout with the same line a desktop one writes.
+  installCohort: InstallCohort? = null,
 ): DogwoodDelivery = DogwoodDelivery(
   dispatcher = dispatcher,
   trustedPublicKeys = trustedPublicKeys,
@@ -55,6 +58,7 @@ fun DogwoodDelivery(
   httpClient = urlSession.asZiplineHttpClient(),
   manifestMaxAgeMs = manifestMaxAgeMs,
   nowEpochMs = nowEpochMs,
+  installCohort = installCohort,
 )
 
 internal actual fun hostEpochMillis(): Long = (NSDate().timeIntervalSince1970 * 1000.0).toLong()

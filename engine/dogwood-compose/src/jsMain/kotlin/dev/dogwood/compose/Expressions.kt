@@ -68,6 +68,21 @@ class Shape internal constructor(private val recipe: Recipe) {
     fun roundedCorner(dp: Int): Shape =
       Shape(Recipe(ExpressionFactories.ROUNDED_CORNER, listOf(JsonPrimitive(dp))))
 
+    /**
+     * Four corners, in Compose's own order.
+     *
+     * A separate factory rather than four optional arguments on the one above: a payload that
+     * means one radius should send one number, and a client that predates per-corner shapes reads
+     * that unchanged rather than reading four numbers it has no rule for.
+     */
+    fun roundedCorner(topStart: Int, topEnd: Int, bottomEnd: Int, bottomStart: Int): Shape =
+      Shape(
+        Recipe(
+          ExpressionFactories.ROUNDED_CORNER_EACH,
+          listOf(topStart, topEnd, bottomEnd, bottomStart).map { JsonPrimitive(it) },
+        ),
+      )
+
     val Circle: Shape = Shape(Recipe(ExpressionFactories.CIRCLE, emptyList()))
   }
 }

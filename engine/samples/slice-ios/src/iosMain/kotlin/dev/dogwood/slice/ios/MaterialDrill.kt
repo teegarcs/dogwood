@@ -55,6 +55,15 @@ private val MATERIAL_SECTIONS = listOf(
  * until somebody noticed. A drill that hangs is worse than one that fails.
  */
 private var deadline: Double = Double.MAX_VALUE
+private var startedAt: Double = 0.0
+
+/**
+ * Seconds since the drill began, printed at each claim.
+ *
+ * A drill that is merely slow and a drill that has stopped look identical from outside, and this
+ * one has been mistaken for the second twice. The timestamps are what tell them apart.
+ */
+private fun elapsedSeconds(): Int = (NSDate().timeIntervalSince1970 - startedAt).toInt()
 
 private fun outOfTime(): Boolean = NSDate().timeIntervalSince1970 > deadline
 
@@ -83,18 +92,30 @@ private fun witnessOf(root: UIView, prefix: String): String? =
 private suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
   if (predicate()) return true
   /*
-   * The page, not whatever answers first.
+   * The page, not whatever answers first, and found once rather than per attempt.
    *
-   * Offering the scroll to every published element in turn takes a tree walk per attempt and, worse,
-   * stops at whichever element accepts it -- on the Selection section that is the slider, which
-   * takes the scroll and moves nothing. The window first, then the elements once.
+   * Offering the scroll to every published element in turn takes a whole tree walk per element --
+   * on this screen that is hundreds of walks per scroll, each crossing the Kotlin/Objective-C
+   * bridge thousands of times, and the first complete run of this drill spent minutes inside one
+   * `scrollUntil` looking, from outside, exactly like a hang. It also stops at whichever element
+   * accepts the scroll, which on the Selection section is a slider: it takes the scroll and moves
+   * nothing.
+   *
+   * So the scrolling element is found once, remembered, and reused until it stops working.
    */
+  var scroller: NSObject? = null
   fun scroll(direction: platform.UIKit.UIAccessibilityScrollDirection): Boolean {
+    scroller?.let { if (it.accessibilityScroll(direction)) return true }
     if (root.accessibilityScroll(direction)) return true
-    val elements = elementsOf(root)
-    for (element in elements) if (element.accessibilityScroll(direction)) return true
+    for (element in elementsOf(root)) {
+      if (element !== scroller && element.accessibilityScroll(direction)) {
+        scroller = element
+        return true
+      }
+    }
     return false
   }
+
   repeat(steps) {
     if (outOfTime()) return false
     if (!scroll(UIAccessibilityScrollDirectionUp)) return@repeat
@@ -169,14 +190,15 @@ suspend fun runMaterialDrill(root: UIView): Int {
    */
   // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
   // by the drill rather than cut off by the harness.
-  deadline = NSDate().timeIntervalSince1970 + 300.0
+  startedAt = NSDate().timeIntervalSince1970
+  deadline = startedAt + 300.0
 
   var passed = 0
   var failed = 0
   var skipped = 0
   fun conform(id: String, condition: Boolean, detail: String) {
     if (condition) passed++ else failed++
-    println("CONF $id ${if (condition) "PASS" else "FAIL"} -- $detail")
+    println("CONF $id ${if (condition) "PASS" else "FAIL"} -- [${elapsedSeconds()}s] $detail")
   }
   fun skip(id: String, reason: String) {
     skipped++
@@ -249,8 +271,19 @@ suspend fun runMaterialDrill(root: UIView): Int {
     )
   }
 
-  // M7 -- the slider, moved the way VoiceOver moves one: a swipe up on the focused element, which
-  // is `accessibilityIncrement`.
+  println("A11Y NOTE every claim that does not open an overlay is graded; at ${elapsedSeconds()}s")
+  /*
+   * M7 -- the slider, moved the way VoiceOver moves one: a swipe up on the focused element, which
+   * is `accessibilityIncrement`.
+   *
+   * **Last, and that is a finding rather than an ordering preference.** In its original place --
+   * before the dialogs -- this drill graded five claims in six seconds and then stopped making
+   * progress entirely, past the point its own deadline could reach, which is what a blocked main
+   * thread looks like from outside a process. Moved here, the claims that were unreachable are
+   * graded. Whatever a slider increment leaves this simulator in, it is not a state the drill can
+   * drive afterwards, and `plans/conformance.md`'s M family records that rather than hiding it
+   * behind an ordering that happens to work.
+   */
   val slider = reach(root, "Volume slider")
   if (slider == null) {
     skip("M7", "no element on this screen announces itself as the volume slider")
@@ -271,31 +304,20 @@ suspend fun runMaterialDrill(root: UIView): Int {
     }
   }
 
-  // M4 -- a dialog opens, is announced, and confirms.
-  if (outOfTime()) {
-    conform("M4", false, "the drill ran out of its budget before reaching the dialogs")
-    conform("M5", false, "the drill ran out of its budget before reaching the sheets")
-    println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
-    return failed
-  }
-  openSection(root, "Dialogs")
-  reach(root, "Open alert")?.accessibilityActivate()
-  var announced = false
-  repeat(60) {
-    if (outOfTime()) return@repeat
-    if (labelsOf(root).any { it.contains("Cancel this booking?") }) {
-      announced = true
-      return@repeat
-    }
-    delay(250)
-  }
-  var outcome: String? = null
-  if (announced) {
-    elementNamed(root, "Cancel booking")?.accessibilityActivate()
-    outcome = awaitWitness(root, "m3.dialog.outcome=", "m3.dialog.outcome=none")
-  }
-  conform("M4", announced && outcome == "m3.dialog.outcome=confirmed", "announced=$announced, outcome=$outcome")
-
+  /*
+   * M5 -- a sheet and a menu open and choose.
+   *
+   * **This is where the drill stops, and that is the finding.** Every claim above is graded in
+   * about five seconds; the first activation of a Material 3 overlay -- this section's dropdown
+   * menu, and in an earlier ordering the dialog below -- blocks the application and nothing after
+   * it is ever graded. Not slowly: past the point this drill's own deadline can fire, which from
+   * outside a process is what a blocked main thread looks like. The web drill met the same shape
+   * from the other side, where a client with a dialog open answers no input at all.
+   *
+   * Left in this order deliberately, so a run grades everything it can and then stops at the
+   * thing that is actually wrong. `plans/conformance.md`'s M family says which cells that leaves
+   * empty, and tools/upstream-reports/README.md carries the observation.
+   */
   // M5 -- a sheet and a menu open and choose.
   openSection(root, "Sheets")
   val menuWas = witnessAnywhere(root, "m3.menu=")
@@ -316,6 +338,40 @@ suspend fun runMaterialDrill(root: UIView): Int {
   }
   if (sheetShown) elementNamed(root, "Close the sheet")?.accessibilityActivate()
   conform("M5", chosen != null && sheetShown, "menu=$chosen, sheet shown=$sheetShown")
+
+  /*
+   * M4 -- a dialog opens, is announced, and confirms.
+   *
+   * **Last, after everything else, and that ordering is the finding.** Wherever this claim sat, the
+   * drill graded the claims before it and then stopped making progress entirely -- not slowly, and
+   * past the point its own deadline could reach, which from outside a process is what a blocked
+   * main thread looks like. Moving the slider claim away from it changed nothing; moving *this* one
+   * to the end let every other claim through. So it is the dialog, and the web drill found the same
+   * shape from the other side: with a Compose dialog open, that client answers no input at all.
+   * Recorded in tools/upstream-reports/README.md rather than worked around.
+   */
+  if (outOfTime()) {
+    conform("M4", false, "the drill ran out of its budget before reaching the dialogs")
+    println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
+    return failed
+  }
+  openSection(root, "Dialogs")
+  reach(root, "Open alert")?.accessibilityActivate()
+  var announced = false
+  repeat(60) {
+    if (outOfTime()) return@repeat
+    if (labelsOf(root).any { it.contains("Cancel this booking?") }) {
+      announced = true
+      return@repeat
+    }
+    delay(250)
+  }
+  var outcome: String? = null
+  if (announced) {
+    elementNamed(root, "Cancel booking")?.accessibilityActivate()
+    outcome = awaitWitness(root, "m3.dialog.outcome=", "m3.dialog.outcome=none")
+  }
+  conform("M4", announced && outcome == "m3.dialog.outcome=confirmed", "announced=$announced, outcome=$outcome")
 
   println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
   return failed

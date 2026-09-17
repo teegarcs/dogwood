@@ -75,14 +75,21 @@ import platform.UIKit.UIViewController
 private var tiersRegistered = false
 
 /**
- * The Material 3 tier (plans/generator-v2.md), registered once per process rather than per screen:
- * the registry refuses a segment registered twice, and a product opens more than one screen.
- * Explicit rather than built in, so a host can leave the tier out.
+ * The generated tiers, registered once per process rather than per screen: the registry refuses a
+ * segment registered twice, and a product opens more than one screen. Explicit rather than built
+ * in, so a host can leave them out.
+ *
+ * Four segments now -- Material 3 (plans/generator-v2.md) and the foundation, layout and ui tiers
+ * that arrived with it (plans/close-the-backlog.md 2.3). One function, because "once per process"
+ * is the property that matters and it is easier to hold for one call site than for four.
  */
 private fun registerTiersOnce() {
   if (tiersRegistered) return
   tiersRegistered = true
   dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationLayoutBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.UiBinding)
 }
 
 fun dogwoodViewController(

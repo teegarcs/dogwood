@@ -255,6 +255,19 @@ so where they used to be, and the coverage count is two lower.
 and the button trait, and an empty `accessibilityValue`. It can be activated and it does toggle --
 the payload's own state changes -- but VoiceOver is not told whether it is on.
 
+**g. iOS: activating a Material 3 overlay blocks the application.** Sending `accessibilityActivate`
+to the control that opens an `ExposedDropdownMenuBox`'s menu — or to the button that opens an
+`AlertDialog` — stops the application making any further progress. Not slowly: an in-process drill's
+own `NSDate`-based deadline never fires afterwards, which is what a blocked main thread looks like
+from inside. Reproduced on the iOS simulator with VoiceOver running, Compose Multiplatform 1.10.3
+and Material 3 1.9.0, with the claims reordered three ways to rule out the slider and the dialog
+individually: whichever overlay comes first is where it stops.
+
+This is the same behaviour report (c) describes on the web from the other side, and the pair is
+what makes it worth writing down. Neither is a statement about the generated bindings: the same
+dialog and the same menu are driven successfully by Compose's own test framework on the Java
+Virtual Machine, WebAssembly **and the iOS simulator**.
+
 Each of these is a `SKIP` carrying its observation in `plans/conformance.md`'s `M` family, on the
 precedent report 3 set for Android's disabled-state announcements: a red cell that can never go
 green teaches people to ignore the column.

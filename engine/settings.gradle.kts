@@ -24,11 +24,16 @@ rootProject.name = "dogwood"
 include(":dogwood-wire")
 include(":dogwood-protocol")
 include(":dogwood-compose")
+include(":dogwood-compose-preview") // the same guest API, delegating to real Compose on the JVM (Group 4)
 include(":dogwood-host")
 include(":dogwood-codegen")
 // The Material 3 tier, generated from the library's own sources (plans/generator-v2.md). Its own
 // module so a host -- and the web page-weight measurement -- can leave it out.
 include(":dogwood-material3")
+// The foundation, layout and ui tiers, generated the same way and kept in ONE module: they share a
+// classpath, they share the page-weight decision registering a tier makes on the web, and a host
+// that wants either of the other two wants the layout one. The module's build file says more.
+include(":dogwood-foundation")
 // The sample screens, shared by every guest entry point. See `samples/slice-screens`.
 include(":samples:slice-screens")
 include(":samples:slice-guest")

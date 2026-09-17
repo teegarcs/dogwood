@@ -133,7 +133,7 @@ cell below is a claim about what a user would install, not about a debug build
 | B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
 | B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
-| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control |
+| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control; android and ios by `tools/skew-drill/run-material-preflight.sh` |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -197,15 +197,29 @@ below ends at the witness rather than at a property that ought to imply it (AGEN
 | M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
 | M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
 | M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead, as skips carrying the observation |
-| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS not established** |
-| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS not established** |
+| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS blocked by the overlay itself** |
+| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS blocked by the overlay itself** |
 | M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
 | M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
 
-**Two cells say "not established", which is neither a pass nor a failure.** The iOS drill grades
-`M1`, `M2`, `M3`, `M6` and `M7` and then stops making progress before the dialogs section — twice,
-reproducibly, and not at a point its own deadline reaches, so the cause is in the drill or in what
-the platform does to it rather than in anything it has measured. Nothing has been observed to fail: the same two claims pass on
+**Two cells say "not established", which is neither a pass nor a failure — and 2026-09-16's runs
+found out why.** The iOS drill grades `M1`, `M2`, `M3`, `M6` and `M7` in about six seconds and then
+stops, entirely, at the first activation of a Material 3 **overlay**: a dropdown menu, or a dialog
+when the claims are reordered so that one comes first. Moving the slider claim away changed nothing;
+moving the dialog to the end simply moved the stop to the menu. It is not slowness — it is past the
+point the drill's own deadline can fire, which from outside a process is what a blocked main thread
+looks like.
+
+The web drill met the same shape from the other side: with a Compose dialog open, that client
+answers no input at all — not an accessibility click, not a mouse event at the node's own box, not
+Escape. Two clients, two instruments, one behaviour. Both are recorded in
+`tools/upstream-reports/README.md` and neither is a statement about a generated binding: the tier's
+own render tests confirm this dialog and this menu on the Java Virtual Machine, WebAssembly **and
+the iOS simulator**, where Compose's test framework drives the composition rather than the
+platform's accessibility layer.
+
+The claims are ordered so that a run grades everything it can before it stops at the thing that is
+actually wrong, rather than hiding the stop behind an order that happens to work. Nothing has been observed to fail: the same two claims pass on
 Android, and the dialog and sheet bindings pass in the tier's own render tests *on the iOS
 simulator*. An empty cell here means the drill has not settled the question, which is the rule this
 matrix has always used and the reason its empty cells mean something.
@@ -323,6 +337,15 @@ signed payload fixture** to a host built from current sources.
 |---|---|---|---|
 | K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop, android, ios |
 | K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop, android, ios |
+| K3 | A host built from an **earlier engine** refuses a payload built today that declares more than it implements, before `start` and naming the segment | C | desktop, `tools/conformance/engine-skew.sh` |
+| K4 | …and a host built today **runs** a payload the earlier engine built | C | desktop, `tools/conformance/engine-skew.sh` |
+
+`K1` and `K2` serve a **frozen payload artifact** to a host built today, which covers a payload that
+is merely old. `K3` and `K4` are the pairing that needed a second *engine* version to exist and so
+read "blocked" in the audit until one did: `tools/conformance/engine-skew.sh` builds the host in a
+worktree at a tag, builds the payload at `HEAD`, and serves each to the other. The `K3` direction is
+the one a deployment reaches by shipping a payload faster than a store review, and it must end in a
+refusal rather than a degraded screen.
 
 The fixture is an artifact rather than a rebuild, and `tools/conformance/fixtures/README.md` says
 why: a rebuild is today's toolchain, which is the pairing already covered by every other drill here.
@@ -355,7 +378,28 @@ the window covered; retiring one is either a compatibility fix or a documented s
 | G2 | Batch crossing, per-frame | 4 ms | C | Android, iOS, desktop |
 | G3 | Collection pause p99 | 16.7 ms | C | Android, iOS, desktop |
 | G4 | Cold start to first composition | 500 ms | C | Android, iOS, desktop |
-| G5 | Time to first frame, throttled | recorded, not gated | C | web only |
+| G5 | The host's weight: the WebAssembly modules, `app.js` and `index.html`, brotli | 4,060,000 bytes | C | web only |
+| G6 | The guest payload script's weight: `guest-kotlin.js`, brotli | 252,000 bytes | C | web only |
+
+`G5` and `G6` are bytes rather than milliseconds, and they are two budgets rather than one for a
+reason that is about *when* each is paid. The host is downloaded once and then held behind an
+immutable content hash, so its bytes cost a visitor once. The guest script is the Over-The-Air
+(OTA) payload and is re-fetched whenever a product publishes, so its bytes cost a visitor once per
+release. Adding them together would average two different prices, and it would make a payload
+change read as a client regression.
+
+Both rows read as a number rather than as "recorded, not gated", because both are compared to
+`tools/conformance/budgets.tsv` by a grader that fails: `tools/conformance/from_web_weight.py` for
+`G5` and `tools/conformance/from_guest_weight.py` for `G6`. `G5` runs on every pull request
+(`.github/workflows/conformance.yml`) and `G6` runs nightly
+(`.github/workflows/tier-c.yml`); both measure a property of the build rather than of the machine,
+so `G6` belongs beside `G5` in the per-pull-request job and moving it there is one step in
+`conformance.yml`.
+
+`G6` exists because `G5` deliberately excludes the guest script and therefore nothing bounded it:
+the generated Material 3 tier grew the guest as well as the host, and only the host half was
+caught. Both ceilings carry the attribution rule that `budgets.tsv` states -- **a raise arrives
+with three builds in the commit that makes it**, or it is a number nobody has to defend.
 
 ## Part 3 — The matrix
 
@@ -366,13 +410,23 @@ reality is worse than none, because it is a document asserting that something is
 tools/conformance/run-all.sh
 ```
 
-Last generated 2026-09-14 on branch `production-review` (pull request #62), by
-`tools/conformance/run-all.sh` with `SKIP_ENGINE_BUILD=1` grading the build that had just run green;
-the raw runs are committed beside the tools as `result-<client>-2026-09-14.conf`. The run before it,
-2026-09-09 at commit `ce8e8cb`, is `result-<client>-2026-09-09.conf`. The second framework
-grading flagged that this matrix had gone stale against prose totals -- the repo's own rule,
-broken at its own finish line -- so regeneration now belongs to the same commit as the claims
-it grades.
+Two things write it. `tools/conformance/run-all.sh` on a machine holding every device, and the
+nightly `.github/workflows/tier-c.yml`, which boots an iOS simulator on a macOS runner and an
+Android emulator on an ubuntu one and grades the same claims. Either way the writing is done by
+`aggregate.py --update-plan`, which replaces everything between the two markers below and
+**refuses** if they are not both there -- an appended second matrix, one of them stale, is worse
+than the drift this replaces.
+
+The raw runs are committed beside the tools as `result-<client>-<date>.conf`: the newest are
+`result-<client>-2026-09-14.conf` and the run before, 2026-09-09 at commit `ce8e8cb`, is
+`result-<client>-2026-09-09.conf`. The nightly publishes the same files as a build artifact.
+
+The second framework grading flagged that this matrix had gone stale against prose totals -- the
+repository's own rule, broken at its own finish line -- so regeneration belongs to the same commit
+as the claims it grades, and now has a machine that does it.
+
+<!-- conformance-matrix:begin -->
+*Generated 2026-09-14 on branch `production-review` (pull request #62), by `tools/conformance/run-all.sh` with `SKIP_ENGINE_BUILD=1` grading the build that had just run green.*
 
 | Claim | android | desktop | ios | web |
 |---|---|---|---|---|
@@ -455,6 +509,8 @@ it grades.
 - **desktop**: pass 44
 - **ios**: pass 64, skip 4
 - **web**: pass 59, skip 1
+
+<!-- conformance-matrix:end -->
 
 **`G5` moved, and the attribution is why it was allowed to.** The catalogue work took the shipped
 web slice from 3,643,599 to 3,766,502 bytes brotli, past the old 3,700,000 ceiling. Three builds
@@ -790,10 +846,27 @@ Three things, each recorded where somebody will meet it rather than left to be r
   a device found and reasoning did not, the item-granular throttle, and the re-report a replacement
   guest depends on — each watched to fail with the line it covers removed. All three mirrors are now
   asserted rather than demonstrated.
-- **Tier C does not gate in continuous integration**, and cannot: it needs a booted simulator with
-  VoiceOver, an attached device, a browser with a graphics stack and the guest being served. It
-  gates locally and before a release. If this project ever acquires a device lab, the command to
-  point at it is `tools/conformance/run-all.sh` and nothing else changes.
+- ~~**Tier C does not gate in continuous integration**, and cannot.~~ ✅ **Closed on 2026-09-16.**
+  The sentence was about a private repository's runner minutes rather than about the machines.
+  This repository is public, so GitHub's macOS runners cost nothing and its ubuntu runners expose
+  `/dev/kvm`, which is what lets an Android emulator run in minutes instead of hours.
+  [`.github/workflows/tier-c.yml`](../.github/workflows/tier-c.yml) boots one of each nightly: a
+  macOS job for the iOS accessibility, Material, skew and pre-flight drills plus the web drills in
+  headless Chrome, an ubuntu job for the Android drills on an emulator, and a third job that folds
+  the `result-*.conf` runs into one per client and regenerates Part 3 above. Nightly and on demand
+  rather than per pull request, because it is roughly forty minutes of device time and tier S
+  already blocks the merge.
+
+  Every step in it invokes one of the drill scripts rather than reimplementing it, and where a
+  script hard-codes a macOS path for Chrome it already reads `CHROME` first, so the workflow sets
+  the variable instead of forking the script. `run-all.sh` remains the local gate and the run whose
+  results are committed; the nightly publishes its own as an artifact and does not commit them.
+
+  **What still cannot be graded is `G1`–`G4`, and the reason has not changed.** They need the
+  low-end 2022-tier device the bullet above names. A hosted x86-64 emulator on a shared virtual
+  machine is not it: a timing number measured there says which runner the job landed on. They read
+  `SKIP` in the nightly for the same reason they read `SKIP` locally. `G5` and `G6` are graded,
+  because bytes are a property of the build rather than of the machine.
 
 ## Part 8 — What the rollout actually found
 

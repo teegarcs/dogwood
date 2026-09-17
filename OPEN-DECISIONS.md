@@ -148,26 +148,63 @@ verifying `dogwood.dev`, which is a recurring cost and a second thing to renew f
 is not yet published. Taken while nobody depended on the old coordinates, which is the only time it
 is free.
 
-**The engineering half is done (2026-09-15).** Every publishing module signs its artifacts when
-`DOGWOOD_GPG_KEY` and `DOGWOOD_GPG_PASSPHRASE` are in the environment and does not require signing
-when they are not — verified both ways: `publishToMavenLocal` with nothing set succeeds unsigned,
-and with a throwaway key it wrote 198 `.asc` signatures beside the artifacts. Every POM carries the
-name, description, URL, Apache-2.0 licence, developer and source-control block Central requires.
-The transport to the Central Portal is deliberately not wired: the `com.vanniktech.maven.publish`
-route is the standard one and it takes over publication setup that this build does by hand, so it
-is a decision to take with the account rather than a line to add now.
+**The engineering half is done, and since 2026-09-16 that includes the transport.** Every
+publishing module signs its artifacts when `DOGWOOD_GPG_KEY` and `DOGWOOD_GPG_PASSPHRASE` are in
+the environment and does not require signing when they are not — verified both ways:
+`publishToMavenLocal` with nothing set succeeds unsigned, and with a throwaway key it wrote 198
+`.asc` signatures beside the artifacts. Every POM carries the name, description, URL, Apache-2.0
+licence, developer and source-control block Central requires.
 
-**What is left, and it is an afternoon of account work rather than a decision:**
+**`com.vanniktech.maven.publish.base` is now applied**, and the `.base` variant is the whole trick:
+the full plugin takes over publication creation for Kotlin Multiplatform modules, which would
+replace the hand-configured publications [ADR-047](adrs/layer-5/ADR-047-the-generator-ships-as-a-plugin.md)
+and [ADR-071](adrs/layer-5/ADR-071-the-coordinates-are-a-namespace-somebody-owns.md) pin the module
+names of. The base plugin adds only the credentials, the bundle and the upload; `publishToMavenCentral`
+exists, and signing stays where it was.
+
+**And the bundle is checked without an account.** `publishToMavenCentral` refuses to run without
+credentials, by design, which would have left "is the bundle actually complete?" answerable only by
+whoever eventually has the account. So every publication is also written to a plain file repository
+and archived:
+
+```
+cd engine && ./gradlew assembleMavenCentralBundle     # no credentials, no network
+python3 tools/reference-server/portal-bundle-check.py
+```
+
+Six requirements graded on the zip a person would upload — POM completeness, a sources jar and a
+javadoc jar per jar-packaged coordinate, a PGP signature beside every deployable file, md5 and sha1
+recomputed, and nothing in the archive that does not belong. **43 coordinates, 2420 files, all
+green** on 2026-09-16 — a figure that grows on its own, because the bundle is assembled from every
+module that applies `maven-publish` rather than from a written list, which is how `dogwood-foundation`
+joined it the day it was added.
+
+The check found a real defect on its first run: `dogwood-codegen` published no sources jar, which
+Central refuses a deployment for. Watched to fail: rebuilt with no `DOGWOOD_GPG_KEY`, `M4` goes red
+on every deployable file and says so; one `.sha1` overwritten with zeroes, `M5` names the file. The
+script says on every run what it cannot do, which is ask the Portal.
+
+**What is left, and it is account work rather than a decision:**
 
 - A Sonatype Central account for `io.github.teegarcs`, verified by the namespace-ownership check.
 - A GPG signing key for the artifacts, which Central requires and which is **not** the Ed25519
-  payload signing key of §6. Two different keys for two different jobs. There is no `gpg` on the
-  build machine today; the throwaway key used to verify signing was generated with BouncyCastle.
-- Credentials a build can use, the Portal transport, and a publish step that is reviewable rather
-  than a developer's Gradle invocation.
+  payload signing key of §6. Two different keys for two different jobs — [`docs/keys.md`](docs/keys.md)
+  §1 is the table. There is no `gpg` on the build machine today; the throwaway key used to verify
+  signing was generated with BouncyCastle.
+- The two credentials, as **Gradle properties**. `MAVEN_CENTRAL_USERNAME` cannot be read by the
+  build itself: the plugin reads `providers.gradleProperty`, and Gradle computes its property set
+  before any build script runs — measured, not assumed, by setting
+  `org.gradle.project.mavenCentralUsername` from the root build and watching the task still report
+  it missing. Use `ORG_GRADLE_PROJECT_mavenCentralUsername` / `...Password` in the environment, or
+  `-PmavenCentralUsername`; the build fails with that instruction if only the plain environment
+  variable is set.
 - Then `samples-standalone/umbra/settings.gradle.kts` points at Central instead of `mavenLocal()`,
   and the plugin gets a marker on the Gradle Plugin Portal if it is to be applied by identifier
   without a `pluginManagement` block.
+
+**Still open, and it is the owner's:** nothing has been uploaded, because nothing can be until the
+account exists. A green bundle check means complete by Sonatype's published rules, not accepted by
+Central.
 
 **Until that is done, `docs/getting-started.md` says so in its first paragraph** rather than letting
 a reader discover it at the first failed resolution.
@@ -180,7 +217,9 @@ take *before* anyone depends on it rather than after.
 
 ## 6. The signing keys, and where payloads are served from
 
-**Status:** open, and it is the last thing between this and a first ship.
+**Status:** open on the two things only the owner can do — **a production key somewhere it can be
+held, and a place to serve from**. Everything a mechanism can do before those exist was built on
+2026-09-16 and is listed below.
 **Cost of leaving it:** payloads can be signed and served on a developer's machine and nowhere else.
 
 Two halves of one decision, and neither is engineering work — the mechanism is built and verified.
@@ -198,13 +237,49 @@ build for anyone who clones it, and labelled as such where they sit. A real one 
 written rotation procedure, and a revocation answer. Rotation is roll-forward: publish manifests
 carrying both signatures until every client trusts the new key, *then* delete the old entry — a
 client holding only the old key stops accepting updates at that moment, which makes the second step
-something to finish rather than to start. Nobody has written that procedure down.
+something to finish rather than to start.
+
+**The procedure is now written, and run.** [`docs/keys.md`](docs/keys.md) is the runbook:
+generating a key, what the ownership answer has to satisfy, the three-step rotation with a sequence
+diagram, and the revocation answer — which is that there is no revocation list and never will be,
+because a remotely mutable trust anchor is not a trust anchor, so "revoke" decomposes into three
+different actions and the useful thing is knowing which one you need.
+
+`tools/reference-server/rotation-drill.sh` runs the whole rotation rather than describing it: two
+real payloads, published through the reference server, met by a client holding only the old key and
+a client holding only the new one. Seven claims, and the pair that matters is `R1` and `R5` — the
+same client under the same procedure, one release apart, updating and then stopping **at exactly
+the publish that drops its signature**. `R3` asserts the thing the runbook rests on: dropping a
+signature is a publish, not a rebuild, because Zipline signs the manifest with its `unsigned`
+object excluded. Watched to fail with `--dual-at-step-3`, which starts step 3 without finishing it:
+`R5` goes red and the other six stay green.
+
+The two clients cannot be the samples — every host here compiles in both development keys, so a
+rotation drilled against one would pass every step without testing the step that matters.
+`tools/reference-server/rotation-client/` is the delivery path's decision with the key set as an
+argument, built on Zipline's own `ManifestVerifier`.
+
+`tools/reference-server/new-payload-key.sh --prove` generates a pair **and proves it**: it builds a
+payload signed by the private half and points a client holding only the derived public half at it,
+because a transposed pair produces artifacts that look correct and a fleet that silently refuses
+every update.
+
+**Still the owner's, and neither is engineering:** where a production key lives, and who is named
+as its owner. One piece of key hygiene is worth doing before either: ship hosts that trust *two*
+keys from the start, with the second held somewhere the first is not. That collapses step 2 of an
+emergency rotation — the weeks-long one — to zero. The samples sit mid-rotation deliberately for
+that reason.
 
 **Where payloads are served from.** Today: `./gradlew :samples:slice-guest:serveProductionWebpackZipline`
 on `localhost:8080`. A production deployment needs three things and two of them are silent when
 wrong:
 
 - **Build, sign and upload as one reviewable step**, rather than a developer's Gradle invocation.
+  **Built:** [`.github/workflows/publish-payload.yml`](.github/workflows/publish-payload.yml),
+  manual dispatch with a version and a dry-run input. It stamps the version as a build input, signs
+  from `DOGWOOD_SIGNING_KEY` / `DOGWOOD_ROTATION_KEY`, runs the checks below on the bytes that would
+  ship, and uploads the signed bundle. The committed throwaway keys are a fallback **only** on a dry
+  run and the job summary leads with it; a real run without the secret fails.
 - **Cache headers that match immutability.** Payload files are content-addressed and may be cached
   forever; **the manifest is not** and must not be. Backwards gives you either stale clients or no
   caching at all, and neither announces itself.
@@ -212,17 +287,60 @@ wrong:
   seconds** on a slow connection ([ADR-045](adrs/layer-5/ADR-045-web-page-weight-where-the-levers-are.md)).
   Nothing on the device can detect it.
 
-Two capabilities wait on the server rather than on code: **resuming a previous payload** needs a
-manifest that still serves it, and **staged rollout** needs somebody to decide which cohorts get
-which manifest — `InstallCohort` already gives each installation a stable bucket 0–99 to stage
-against. [`docs/operating.md`](docs/operating.md) §5 and §6 are written for whoever picks this up.
+The last two are graded on the artifact rather than described: `tools/reference-server/publish-check.sh`
+serves the payload a build just produced and asserts the stamped version, both signatures accepted
+by a client holding one key at a time, `Cache-Control: no-store` on the manifest, `immutable` on the
+modules, `Content-Encoding: br`, and every module fetched with the digest the signed manifest names.
+Watched to fail on a wrong version, a key that signed nothing, and an interpreter without the brotli
+module — which is the failure the `br` claim exists for, and the reason a missing module is a red
+claim here rather than a shrug.
+
+**Staged rollout is no longer waiting on code.** `InstallCohort` gave every installation a stable
+bucket 0–99 and nothing consumed it; the delivery path now sends it as `?cohort=N` on every manifest
+request (a query parameter, so a static server ignores it and nothing has to change before this
+ships), and the reference server routes on it through `cohorts.json`.
+`tools/reference-server/cohort-drill.sh` publishes a bad release to buckets 0–9 and sweeps all one
+hundred: ten get it, **ninety are untouched**. The ninety-row half is the one a server ignoring the
+parameter could not satisfy. Watched to fail by widening the pin to 0–99.
+
+**Resuming a previous payload** still needs a manifest that still serves it, which is `resume` and
+is already drilled. [`docs/operating.md`](docs/operating.md) §5 and §6 are written for whoever picks
+this up.
+
+**Found while drilling, and it is a publishing rule rather than a server one:** module addresses
+must be unique per release. The manifest names each module by whatever address the build wrote, and
+this project's Zipline configuration writes the same name in every release — so two releases live at
+once, which is what a canary *is*, publish different bytes at one address. A module request carries
+nothing that says which release it wants. The signature catches it (the client refuses the load on
+the digest the signed manifest names rather than rendering the wrong screen), but the outcome is an
+outage. Put a content hash in the module file name, or serve each release from its own path prefix.
+The reference server now warns at `publish` when it is about to create that situation.
+
+**Still the owner's:** where payloads are served from. The workflow ends at a signed, checked bundle
+that somebody can put anywhere.
 
 ---
 
 ## 7. The web profile's first-visit trade is a product judgement
 
-**Status:** open, and it is the one item here that changes what gets built. **Reopened 2026-09-15
-with a larger number**, because the generated Material 3 tier
+**Status:** ✅ **closed, 2026-09-16, by taking option 1.** The tier is registered on the web, `G5`
+rose from 3,900,000 to 4,060,000 with the three-build attribution written into
+`tools/conformance/budgets.tsv` as ADR-066's rule requires, and the page measured 3,929,095 bytes
+brotli after. The reason recorded at the time: the alternative makes the web a second-class profile
+for the one capability the tier exists to provide — a payload could call `Button` everywhere except
+in a browser — and a profile difference that large is worse than about a second of first load on
+Fast 3G.
+
+Two things followed from closing it, and both are now true rather than planned. The guest payload
+has a budget of its own (`G6`, 252,000 bytes), because `G5` measures the page and never measured
+the script the page fetches, and the Material catalogue grew that script by a quarter of a
+megabyte under nothing. And the further tiers — `androidx.foundation`, `androidx.foundation.layout`
+and `androidx.ui` — were measured against the same rule when they landed rather than assumed to
+fit.
+
+**The measurement that closed it**, kept because the next raise has to argue against it. The
+generated Material 3 tier ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md))
+was the first thing that did not fit under the old ceiling:
 ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md))
 is the first thing that does not fit under the ceiling:
 
@@ -232,8 +350,8 @@ is the first thing that does not fit under the ceiling:
 | tier linked, not registered | 3,772,894 | 127,106 under — dead-code elimination drops what nothing references |
 | **tier registered** | **3,929,685** | **29,685 over** |
 
-Registering the tier on the web costs 159 KB, about a second on Fast 3G. Three ways to take it,
-none chosen here:
+Registering the tier on the web costs 159 KB, about a second on Fast 3G. Three ways were open, and
+the first was taken:
 
 1. **Raise the ceiling to 3,950,000 with this attribution**, under ADR-066's rule that components
    cost every client globally and a raise arrives with its three builds. Consistent with the
@@ -245,9 +363,11 @@ none chosen here:
 3. **Per-component binding** — the backlog's `D1`, whose unverified premise this measurement
    verified. Its cost is written there: a third skew state and a finer pre-flight declaration.
 
-**Until one is taken, the web sample leaves the registration commented out with these numbers
-beside it**, so the tier-S gate stays green and honest; the mobile and desktop samples register
-the tier. That is a pending asymmetry, not a chosen one.
+**Taken: option 1.** The web sample registers the tier like every other client, and the pending
+asymmetry is gone. `engine/samples/web-slice/src/wasmJsMain/kotlin/dev/dogwood/slice/web/Main.kt`
+carries the three numbers beside the registration, and `?tier=none` on that page is what claim `B6`
+uses to grade a client that does *not* have the tier — the case that used to be the sample's
+ordinary state is now a deliberate control.
 
 The rest of this section is the earlier measurement, unchanged.
 

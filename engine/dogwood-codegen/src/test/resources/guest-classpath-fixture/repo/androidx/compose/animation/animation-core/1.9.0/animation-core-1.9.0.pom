@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stand-in metadata for the real androidx.compose.animation:animation-core. The check matches on
+  group and module and never opens the artifact, so the coordinate is the whole of what it needs.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>androidx.compose.animation</groupId>
+  <artifactId>animation-core</artifactId>
+  <version>1.9.0</version>
+  <packaging>jar</packaging>
+</project>

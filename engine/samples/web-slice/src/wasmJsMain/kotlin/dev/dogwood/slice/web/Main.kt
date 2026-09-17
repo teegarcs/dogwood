@@ -198,6 +198,48 @@ fun main() {
   if (tierParameter() != "none") {
     dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
   }
+  /*
+   * The foundation, layout and ui tiers (plans/close-the-backlog.md 2.3), registered here too --
+   * and on the web that is a page-weight decision, so it arrives with the three builds ADR-066's
+   * attribution rule demands. Brotli bytes of the shipped web slice. The branch was moving under
+   * other agents' commits while these ran, so the two that form the delta were built back to back
+   * at commit 7481191, and the unlinked build minutes later at e68caaa returned byte-identical
+   * output -- the same WebAssembly content hashes -- which is what makes the three comparable:
+   *
+   *   without the tiers at all                  3,968,335
+   *   the tiers linked but not registered       3,968,335   (+0)
+   *   the tiers registered                      3,995,617   (+27,282)
+   *
+   * As committed, at 52122d9, the page measures **3,996,605** -- 988 bytes above the figure in the
+   * table, which is what the rest of the branch moved between 7481191 and here. The delta above is
+   * still the delta: it is the only pair of builds that differ in one thing.
+   *
+   * **`G5` does not move.** 3,995,617 against a ceiling of 4,060,000 leaves 64,383 bytes of
+   * headroom, 1.59%, so this is a measurement that did not become a raise -- which is the outcome
+   * the rule is supposed to make possible and the reason it is worth running when the answer
+   * looks obvious.
+   *
+   * Two facts fall out. The **+0** is stronger than the Material 3 tier's +2,109 for mere presence:
+   * the two WebAssembly modules came back under the *same content hashes* with the module on the
+   * classpath and nothing calling it, so dead-code elimination drops an unregistered binding module
+   * completely when no other reference reaches into it. And **27,282 bytes is what fourteen
+   * generated composables cost every web client**, against 158,310 for Material 3's eighty-eight --
+   * about 1.8 to 1.9 KB each either way, which is the first evidence that the cost scales with the number
+   * of bound components rather than with the size of the library behind them.
+   *
+   * `G6`, the guest script's own budget, did not move at all: 245,158 bytes in every one of the
+   * three builds. The guest stubs for these tiers compile into `dogwood-compose`, and no payload
+   * calls them yet, so the payload's optimiser drops them.
+   *
+   * Behind the same `?tier=none` switch as the Material 3 tier, so the drill that builds "a client
+   * that does not have the tier" produces a client without any of the four rather than one with
+   * three of them.
+   */
+  if (tierParameter() != "none") {
+    dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationBinding)
+    dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationLayoutBinding)
+    dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.UiBinding)
+  }
 
   // -----------------------------------------------------------------------------------------
   // 1. The correctness gate, before anything else.

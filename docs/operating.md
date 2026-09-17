@@ -227,15 +227,42 @@ through it.
 ```
 tools/reference-server/server.py publish --root /srv/dogwood --from build/zipline/ProductionWebpack --version 1.4.0
 tools/reference-server/server.py rollout --root /srv/dogwood --version 1.4.0 --percent 10
+tools/reference-server/server.py cohorts --root /srv/dogwood --range 0-9 --version 1.4.0
 tools/reference-server/server.py resume  --root /srv/dogwood --version 1.3.0
 ```
 
-The four behaviours it exists to demonstrate, each easy to get wrong and expensive to get wrong
-late:
+**Two rollout controls, because they answer different questions.** `rollout --percent` widens one
+release towards the whole fleet, which is what an ordinary rollout is. `cohorts --range` pins named
+buckets to a named release in `cohorts.json`, which is what a canary is — "buckets 0 to 9, and
+nobody else, until we have looked at it". A percentage cannot express a canary: `--percent 10` also
+means buckets 0 to 9, but the next `--percent 20` moves the boundary, so a canary would silently
+widen when somebody widened a different rollout. A range is the more specific statement and wins;
+buckets no range names fall through to the percentage.
 
-- **Build, sign and upload as one reviewable step.** Signing stays in the build, where the key is;
-  the server never holds one. The key must not be the one in this repository — those are throwaway
-  development keys, committed on purpose and labelled as such.
+The buckets are `InstallCohort`'s, and since 2026-09-16 the client actually sends its own: the
+delivery path appends `?cohort=N` to every manifest request. A static server ignores an unknown
+query parameter and serves the same manifest to everybody, exactly as before, so nothing has to
+change on the serving side before this ships.
+
+The behaviours it exists to demonstrate, each easy to get wrong and expensive to get wrong late:
+
+- **Build, sign and upload as one reviewable step.**
+  [`.github/workflows/publish-payload.yml`](../.github/workflows/publish-payload.yml) is that step:
+  manual dispatch with a version and a dry-run input, which builds the payload, stamps the version
+  as a **build input** (it sits inside the signed body — a publishing step that edited it afterwards
+  would invalidate every signature over it), signs from `DOGWOOD_SIGNING_KEY` and
+  `DOGWOOD_ROTATION_KEY`, runs the checks below on the bytes that would ship, and uploads the signed
+  bundle. Signing stays in the build, where the key is; the server never holds one. The throwaway
+  development keys in this repository are a fallback **only** on a dry run, and the job summary
+  leads with it; a real run without the secret fails rather than signing with keys anybody can read.
+  Locally the same checks are
+  [`publish-check.sh`](../tools/reference-server/publish-check.sh), which grades seven claims on one
+  particular build. **Where the bundle is served from is still open** — see
+  [`OPEN-DECISIONS.md`](../OPEN-DECISIONS.md) §6.
+- **Rotating the signing key** is [`docs/keys.md`](keys.md): three steps, roll-forward, and the
+  second one is the step to *finish* rather than to start.
+  [`rotation-drill.sh`](../tools/reference-server/rotation-drill.sh) runs the whole thing against
+  this server with a client on each side of the rotation.
 - **Cache headers that match immutability.** Payload modules are content-addressed and served
   `immutable` for a year; **the manifest is `no-store`**. Backwards gives you either stale clients
   or no caching, and — worse — a cached manifest is a fleet you can neither update nor roll back,
@@ -245,8 +272,19 @@ late:
   Nothing on the device can detect it, so the reference server warns loudly at startup when the
   brotli module is missing rather than quietly serving gzip.
 - **A publish does not go live.** It lands staged at 0%; `rollout` widens it by cohort against the
-  stable bucket `InstallCohort` already gives every installation. Widening only ever *adds*
-  devices, so nobody is moved back off a release they already have.
+  stable bucket `InstallCohort` gives every installation and the client now sends. Widening only
+  ever *adds* devices, so nobody is moved back off a release they already have.
+  [`cohort-drill.sh`](../tools/reference-server/cohort-drill.sh) publishes a bad release to buckets
+  0–9 and sweeps all one hundred: ten get it and ninety are untouched. The ninety-row half is the
+  one a server that ignored the parameter could not satisfy.
+- **Module addresses must be unique per release.** The manifest names each module by whatever
+  address the build wrote, and this project's Zipline configuration writes the same name in every
+  release. Two releases live at once — which is what a canary *is* — then publish different bytes at
+  one address, and a module request carries nothing that says which release it wants. The signature
+  catches it (the manifest names each module's SHA-256, so the client refuses the load rather than
+  rendering the wrong screen), but the outcome is an outage. Put a content hash in the module file
+  name, or serve each release from its own path prefix with the manifest inside it. The reference
+  server warns at `publish` when it is about to create that situation.
 
 **Rolling back is `resume`, and it needs nothing from the client.** A device that quarantined a bad
 release is refusing a *version*; a different version is not refused. That is why recovery is one
@@ -262,8 +300,8 @@ Written down so nobody discovers it during an incident.
   refuses the bad one; running the old payload again means serving its manifest again — which is
   your server's job, and which `tools/reference-server`'s `resume` shows in full.
 - **Staged rollout is a server decision, and the reference server makes it** against
-  `InstallCohort`'s buckets. Your deployment still has to decide the policy; nothing here decides
-  it for you.
+  `InstallCohort`'s buckets, which the client now sends on every manifest request. Your deployment
+  still has to decide the policy; nothing here decides it for you.
 - **Nothing reports refusals to you.** A fleet-wide quarantine is visible only if your host wires
   the refusal callback to telemetry, exactly as with `SkewReport`.
 - **Performance budgets are ungraded.** `G1`–`G4` read `·` on every client because the gate device

@@ -10,20 +10,32 @@ grades them.
 | Tier | Grades | Runs | Needs |
 |---|---|---|---|
 | **S** | claims about code every client compiles, plus page weight | **every pull request**, `.github/workflows/conformance.yml` | a Java Development Kit and a browser |
-| **C** | accessibility, network policy, skew containment, timing budgets | **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device, Chrome, and the guest served on `:8080` |
+| **C** | accessibility, network policy, skew containment, byte budgets | **nightly and on demand**, `.github/workflows/tier-c.yml`; **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device or emulator, Chrome, and the guest served on `:8080` |
 
 **The Android drills run against the minified release build** (`testBuildType = "release"`), so every Android cell is graded against what a user would install — R8 on, shrinking and optimization included. See ADR-056 for why the sample's keep rules exist and why an adopter needs none of them.
 
-Tier C is not in continuous integration because a hosted runner has none of what it needs. Wiring
-it in anyway would produce a green tick that means less than it appears to, which is the failure the
-conformance plan exists to avoid.
+**Tier C used to say "not in continuous integration, and cannot", and that is no longer true.**
+The sentence was about a private repository's runner minutes, not about the machines. This
+repository is public, so GitHub's macOS runners cost nothing, and its ubuntu runners expose
+`/dev/kvm` — which is what an Android emulator needs to run in minutes rather than hours. Both
+device families are therefore available, and `.github/workflows/tier-c.yml` boots one of each
+**nightly**: a macOS job for the iOS drills and the web drills in headless Chrome, an ubuntu job for
+the Android drills on an emulator, and a third job that folds every `result-*.conf` into one run per
+client and regenerates the matrix in [`plans/conformance.md`](../plans/conformance.md) Part 3.
 
-**One tier-C run is in continuous integration, and it is an exception on the evidence rather than on
-the rule.** `tools/skew-drill/run-web.sh` puts a real web client in front of a real payload built
-against a newer dictionary, and needs no device to do it: the host is a WebAssembly module in a
-directory and the guest is a script beside it. It is its own job in the workflow so that it does not
+Nightly and on demand rather than per pull request, and that is a deliberate boundary rather than a
+limitation: it is roughly forty minutes of device time and tier S already blocks merges, so putting
+it on pull requests would buy a slower review loop for a signal that changes about as often as the
+drills themselves.
+
+**One tier-C run is *also* in the per-pull-request workflow, and it is an exception on the evidence
+rather than on the rule.** `tools/skew-drill/run-web.sh` puts a real web client in front of a real
+payload built against a newer dictionary, and needs no device to do it: the host is a WebAssembly
+module in a directory and the guest is a script beside it. It is its own job so that it does not
 compete with the tier-S build for one two-processor runner, and it fails loudly if the runner has no
-Chrome rather than reporting a drill that could not run as one that passed.
+Chrome rather than reporting a drill that could not run as one that passed. It runs in the nightly
+as well, for the reason `run-all.sh` keeps it: a client graded in one place and not the other is how
+a matrix starts lying.
 
 ## Tier S — on every pull request
 
@@ -31,8 +43,8 @@ Chrome rather than reporting a drill that could not run as one that passed.
 |---|---|---|
 | `./gradlew build` | every target compiles and every shared test passes, on Java Virtual Machine, Android, three iOS targets, JavaScript and WebAssembly | a compile error or a failing test anywhere |
 | `from_tests.py --have jvm,js,wasm` | the shared-code conformance claims — groups A, B, C, E, F, and the shared halves of D — are backed by tests that **actually ran** | a claim's evidence failed, **or did not run at all**: deleting a test must not silently drop a claim to green |
-| `from_web_weight.py` | the **shipped web slice** is within its byte budget (3.90 MB brotli against 3.77 MB today) | the page grows past the ceiling, or cannot be measured at all |
-| `render-shape/check.py` | every shared render test in `dogwood-host` **and** `dogwood-material3` **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
+| `from_web_weight.py` | the **host** the browser downloads — the WebAssembly modules, `app.js` and `index.html` — is within its byte budget, `G5` (4.06 MB brotli against 3.93 MB measured on 2026-09-16) | the page grows past the ceiling, or cannot be measured at all |
+| `render-shape/check.py` | every shared render test in `dogwood-host`, `dogwood-material3` **and** `dogwood-foundation` **returns** its `runComposeUiTest` result, which is the only thing that makes it compose on Kotlin/WebAssembly | a render test has a block body, or does anything after the render block — either way it is green on the web while composing nothing |
 | `link-check/check.py` | every relative link in the repository's markdown resolves | a document sends a reader to a file that has moved or never existed. It checks links rather than prose, because that is the part of a document a machine can see is wrong |
 
 The run summary prints the graded claims into the pull request, so a reviewer sees them without
@@ -67,10 +79,35 @@ Recorded because each is a category rather than a one-off.
   runner** with `exit code 143`, nineteen minutes in. CI-sized limits go in `GRADLE_USER_HOME`,
   which takes precedence over the project file and leaves a development machine alone.
 
-## Tier C — locally, `tools/conformance/run-all.sh`
+## Tier C — nightly on hosted runners, and locally before a release
+
+Two runners of the same drills, and the drills themselves have one implementation. `run-all.sh` is
+the local gate; `.github/workflows/tier-c.yml` is the nightly, and every step in it invokes one of
+the scripts below rather than reimplementing it — a drill with two implementations is a drill with
+two behaviours, and the one that runs unattended is the one nobody reads. Where a script hard-codes
+a macOS path for Chrome it already reads `CHROME` first, so the workflow sets the variable instead
+of forking the script.
 
 Each drill refuses rather than fails when its prerequisite is missing, so a partial run reports what
-it could not do instead of reporting green.
+it could not do instead of reporting green. The nightly records each drill's exit code and fails at
+the end rather than at the first red one, for the same reason `run-all.sh` accumulates `status=1`: a
+drill that stops the run takes the remaining drills with it, and the matrix that comes out then has
+gaps where the evidence was never collected rather than where it failed.
+
+**What the nightly still cannot grade, and this is the part worth being precise about.** `G1`–`G4`
+are the timing budgets, and the Phase 0 gate names a low-end 2022-tier Android device
+([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)) that this project decided
+not to acquire. A hosted x86-64 emulator on a shared virtual machine is not that device: a timing
+number measured there says which runner the job landed on and nothing about the product, and a
+budget graded against it would be a green tick that means less than it appears to — the exact
+failure the tier split exists to avoid. They read `SKIP` in the nightly, correctly, and for the same
+reason they read `SKIP` locally. `G5` and `G6`, the byte budgets, are different in kind: bytes are a
+property of the build rather than of the machine, so they are graded and they fail.
+
+Two more things also stay out of it, and neither is about devices: the standalone check publishes
+into a local Maven repository (a check that mutates a shared location on a build agent fails
+somebody else's build) and the reference-server check opens a windowed client. Both are listed with
+their reasons further down this page.
 
 **It is memory-bound on a developer's machine, and that was learned by being killed.** With an
 emulator, a booted simulator and Chrome alive, the gate's own engine build tipped the machine over
@@ -93,10 +130,17 @@ which is a Gradle daemon and a webpack watcher holding a gigabyte for the durati
 | [`reference-server/quarantine-drill.sh`](../tools/reference-server/quarantine-drill.sh) | `H2`, `H3` | a payload that throws before the host can mount anything, published twice, quarantined on a device, recovered through `resume` |
 | [`two-payloads/measure.sh`](multi-team.md) | — | two independently shipped payloads in one application, and what the second costs ([ADR-065](../adrs/layer-5/ADR-065-two-teams-need-two-shells-and-nothing-else.md)) |
 | [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
+| [`skew-drill/run-material-preflight.sh`](../tools/skew-drill/README.md) | `B6` | an Android or iOS client built **without** the generated Material 3 tier, meeting a payload that declares it: refused before `start`, naming the segment, with the ordinary build as the control |
+| [`engine-skew.sh`](../tools/conformance/engine-skew.sh) | `K3`, `K4` | two **engine** versions meeting: the host built at a tag in a worktree and the payload built at `HEAD`, each served to the other |
+| [`reference-server/rotation-drill.sh`](keys.md) | `R1`–`R5` | a signing key rotated through a real server, with two clients differing only in which key they hold — the one holding the old key stops at exactly the publish that drops its signature |
+| [`reference-server/cohort-drill.sh`](operating.md) | `C1`–`C3` | a bad release published to buckets 0–9 only, and the other ninety installations untouched |
+| [`reference-server/publish-check.sh`](../tools/reference-server/publish-check.sh) | `P1`–`P7` | the bytes a publish would ship: the version stamped, the signature over them, the cache split, and `Content-Encoding: br` |
 | [`cross-version.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | a **frozen, signed** payload from an earlier toolchain served to a desktop host built from current sources |
 | [`cross-version-mobile.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | the same fixture served to an installed Android or iOS build, pointed at it by `--es manifest` / `--dogwood-manifest` |
 | [`symbolicate/resolve.py`](../tools/symbolicate/resolve.py) | — | resolves a minified guest stack against the build's source map; run by hand on a crash report, not part of a gate |
-| [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv` |
+| [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv`. Reads `SKIP` everywhere until the gate device exists, on hosted runners included |
+| [`from_web_weight.py`](../tools/conformance/from_web_weight.py) | `G5` | the host's brotli weight. Also tier S, because bytes are a property of the build |
+| [`from_guest_weight.py`](../tools/conformance/from_guest_weight.py) | `G6` | the guest payload script's brotli weight — the half `G5` deliberately excludes, and therefore the half nothing bounded until it existed |
 | [`phase0/scaling-sensitivity.sh`](../tools/phase0/results/scaling-sensitivity.md) | — | the same emulator at 4 cores and 1; **sensitivity, never gate evidence** ([ADR-064](../adrs/layer-4/ADR-064-the-tail-budgets-headroom-was-parallelism.md)) |
 | [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
 
@@ -117,10 +161,23 @@ version moves" is one the same commit already has to think about, because the lo
 Add, never replace: each fixture widens the window, and replacing one narrows it back to a point.
 The drills serve the newest by default, so this costs nothing per run.
 
-## Raising the page-weight budget — a rule, not a run
+## Raising a byte budget — a rule, not a run
 
-**Every raise of `G5` arrives with an attribution, in the commit that makes it.** Three builds:
-before the change, after it, and the split across whatever components were added.
+**Every raise of `G5` or `G6` arrives with an attribution, in the commit that makes it.** Three
+builds: before the change, after it, and the split across whatever components were added.
+
+There are two budgets because there are two schedules. `G5` bounds the **host** — the WebAssembly
+modules, `app.js` and `index.html` — which a visitor downloads once and a browser then holds behind
+an immutable content hash. `G6` bounds the **guest payload script**, which is re-fetched whenever a
+product publishes. A kilobyte in the host is paid once per visitor; a kilobyte in the guest is paid
+once per visitor per release. Folding them into one number would average two different prices, and
+would make a payload change read as a client regression.
+
+`G6` exists because `G5` deliberately excludes the guest and nothing else bounded it. The generated
+Material 3 tier put a large vocabulary into both halves; `G5` caught the host half and the guest
+half grew unobserved. Its first number, 252,000 bytes against 243,951 measured on 2026-09-16, is an
+establishment rather than a raise — there is no before-and-after to attribute, because the
+measurement had never been taken. From here it obeys the rule below like `G5`.
 
 The web bundle grows when the catalogue does, and that is the accepted policy
 ([ADR-066](../adrs/layer-5/ADR-066-the-pickers-cost-half-a-second.md)) — components cost every
@@ -165,6 +222,26 @@ release **and one outside it does not**; `resume` puts the earlier release back.
 the desktop host against it with a cold cache and asserts the client loaded and *verified* a signed
 manifest and fetched a module — because everything before it is the server agreeing with itself.
 Not in continuous integration: it starts servers and a windowed client.
+
+## Rotating a key, and publishing — three drills that are procedures
+
+```
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+tools/reference-server/rotation-drill.sh     # R1-R5, the roll-forward, both clients
+tools/reference-server/cohort-drill.sh       # C1-C3, a canary that stays a canary
+tools/reference-server/publish-check.sh      # P1-P7, on the bytes that would ship
+```
+
+[`docs/keys.md`](keys.md) is the runbook these execute. The rotation one is the reason that document
+is worth trusting: a procedure nobody has performed is a paragraph, and this one publishes two real
+releases through the reference server to two clients that differ only in which key they hold. `R5`
+is the step people skip — the client holding only the old key stops updating at exactly the publish
+that drops its signature, which is why the last step of a rotation is something to *finish* rather
+than to start.
+
+Each carries its own negative: `--dual-at-step-3` republishes without dropping the old signature and
+`R5` must then fail, `--range 0-99` puts every bucket in the canary and the spared claim must fail.
+A drill that cannot fail on purpose is not evidence.
 
 ## The standalone check — can anyone outside this repository use it?
 
@@ -256,21 +333,40 @@ Worth listing so nobody assumes the matrix covers them.
 | `dogwood-codegen` dictionary lock | fails the build if a widget tag moves or a property tag is renumbered. Enforced inside `./gradlew build`, so tier S already covers it |
 | `:dogwood-codegen:generateComposeCoverage` | regenerates [`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md) from the fetched Compose sources: every public composable at the pinned versions, bound or not, with the reason. It is the number `developer-experience.md` §1 quotes, and it is committed so a library upgrade shows as a diff ([ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) |
 | `:dogwood-codegen:checkGeneratedTierVersions` | refuses a committed tier lock whose version is not the one this checkout resolves. A Compose Multiplatform bump moves the Material 3 version the plugin maps to, which is not in anybody's diff; without this the generator would read one version's sources for a host linking another (ADR-073). Runs in `check`, so tier S covers it |
-| `dogwood-material3` lock and `exclusions.txt` | the generated tier's tags are as permanent as a product's; a component the generator accepts and the host compiler refuses goes into the exclusions file with the compiler's reason and is counted, not hidden |
+| the tier locks and exclusion lists (`dogwood-material3`, and `dogwood-foundation`'s three) | the generated tier's tags are as permanent as a product's; a component the generator accepts and the host compiler refuses goes into the exclusions file with the compiler's reason and is counted, not hidden |
 
 ## Enforcement — the honest state
 
-The workflow **runs** on every pull request. It cannot yet **block** a merge: branch protection and
-auto-merge both return `403 Upgrade to GitHub Pro or make this repository public` on this
-repository's plan. Two ways to close that, both decisions for the repository owner rather than
-defaults to assume:
+**Tier S blocks the merge.** The repository is public, branch protection on `main` is on, and two
+checks are required: `Tier S — shared-code claims and budgets` and `Skew containment — the web
+client`. That is the whole of what a pull request has to clear, and it clears automatically — no
+procedural "remember to wait" is left in it. This section used to say the opposite, because branch
+protection and auto-merge returned `403 Upgrade to GitHub Pro or make this repository public` on
+the plan the repository was then on; making it public closed that, and closed
+[`OPEN-DECISIONS.md`](../OPEN-DECISIONS.md) item 1 with it.
 
-- make the repository public, or
-- upgrade the plan,
+**Tier C gates nightly, and does not block a merge.** `.github/workflows/tier-c.yml` runs on a
+schedule and on `workflow_dispatch`, boots an iOS simulator on a macOS runner and an Android
+emulator on an ubuntu one, and fails on a red claim exactly as `run-all.sh` does. It is not a
+required check and should not be: a required check has to run on the pull request, and this is
+forty minutes of device time for a signal that moves about as often as the drills do. What it buys
+instead is that a tier-C regression is found the night it lands rather than the next time somebody
+happens to run the full gate by hand — which, before this, was the only way any of it was found.
 
-after which requiring the `Tier S — shared-code claims and budgets` check on `main` is one setting.
+The nightly is therefore a **detector**, not a gate on the merge button, and the difference is
+worth stating rather than blurring: a red nightly means `main` is already broken, and the work is
+to fix `main`, not to block something.
 
-Until then the rule is procedural and written here so it is not merely remembered: **wait for the
-tier-S check to pass before merging a pull request, and run `tools/conformance/run-all.sh` before a
-release.** A check that runs and nobody waits for is the same thing as no check — which this project
-has now demonstrated six times in other forms.
+**What is still procedural, and there is only one thing left.** Run `tools/conformance/run-all.sh`
+before a release. The nightly grades the same claims, but a release wants a run against the exact
+tree being released rather than against last night's `main`, and it is also the run whose
+`result-*.conf` files get committed as the record. The nightly's own runs are published as the
+`tier-c-matrix` artifact, and it does not commit them: a workflow that pushes to `main` unattended
+is a different decision from a workflow that measures, and only the second one was taken here.
+
+**And what nothing enforces.** The checks that are deliberately not automated anywhere — the iOS
+embed check, the reference-server check, the standalone check, and serving the web page with
+`Content-Encoding: br` — are listed above with the reason each is out. A check that runs and nobody
+waits for is the same thing as no check, which this project has now demonstrated six times in other
+forms; a check that nobody runs is the same thing again, which is why each of those four says when
+it must be run rather than only that it exists.

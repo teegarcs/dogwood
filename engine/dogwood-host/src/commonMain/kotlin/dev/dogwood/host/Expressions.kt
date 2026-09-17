@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
@@ -71,6 +72,19 @@ class ExpressionEvaluator(
     val built = when (val factory = args[0].jsonPrimitive.intOrNull) {
       ExpressionFactories.ROUNDED_CORNER -> RoundedCornerShape((args[1].jsonPrimitive.intOrNull ?: 0).dp)
       ExpressionFactories.CIRCLE -> CircleShape
+      // Compose's own order: top-start, top-end, bottom-end, bottom-start. Each radius is clamped
+      // the way every other modifier value is -- a negative corner throws inside layout, and a
+      // payload delivered over the air must not be able to take a screen down with a sign.
+      ExpressionFactories.ROUNDED_CORNER_EACH -> {
+        // Clamped here rather than reported: this evaluator is not a composition and the skew
+        // report is a composition local. A negative corner throws inside layout, so the floor is
+        // the part that must not be skipped; the report already carries every clamp a *binding*
+        // makes, which is where a payload's numbers otherwise arrive.
+        val corners = (1..4).map {
+          (args.getOrNull(it)?.jsonPrimitive?.floatOrNull ?: 0f).coerceAtLeast(0f)
+        }
+        RoundedCornerShape(corners[0].dp, corners[1].dp, corners[2].dp, corners[3].dp)
+      }
       else -> {
         if (factory != null) unknownFactories += factory
         fallback

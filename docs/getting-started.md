@@ -252,10 +252,102 @@ their own consumer rules ([ADR-056](../adrs/layer-5/ADR-056-the-engine-survives-
 The keep rules you will find in the sample serve its *test harness*, not the engine; do not copy
 them into a product.
 
-## 2. Your own components
+## 2. Your vocabulary
 
-Dogwood's design system is not the point; **your** components are. You declare a *surface* — a file
-of empty `@Composable` signatures — and the generator emits both halves of the boundary from it.
+A payload can call exactly what the host binds, and there are two ways for something to be bound.
+
+**Start with the generated library tiers.** Material 3, and the Compose foundation, layout and user
+interface (UI) modules, are generated into guest stubs and host bindings from the libraries' **own
+sources**, at the version your host resolves. Nothing is declared by hand and no signature is
+maintained by anybody: the binding for `Button` is derived from the `Button` your host compiles
+against.
+
+**Then add your own components, for what a library does not have.** A surface file of empty
+`@Composable` signatures, which the generator turns into both halves of the boundary. That is
+where your brand's components live, and where a component that wraps something native lives.
+
+This order is the inversion generator v2 made, and it is worth saying plainly because this page
+taught the opposite one until today: it presented a hand-written surface as the way to get a
+vocabulary and the Material 3 tier as an addition. A hand-written surface entry for a button is a
+signature somebody has to keep in step with a library that already has one, forever.
+
+```mermaid
+flowchart TD
+    Need["A component your screen needs"] --> Tier{"Is it in a generated<br/>library tier?"}
+    Tier -->|yes| Import["Import the guest stub.<br/>Nothing to declare"]
+    Tier -->|no| Compose{"Can it be composed from<br/>what the client already binds?"}
+    Compose -->|yes| Payload["An ordinary @Composable<br/>in the payload.<br/>Ships with the payload"]
+    Compose -->|no| Surface["A surface entry in your<br/>own segment.<br/>Rides an app release"]
+```
+
+Every node in that flowchart, in order:
+
+- **A component your screen needs** — the question a payload author actually has, several times a
+  day. Everything below is the answer to it.
+- **Is it in a generated library tier?** — a lookup in
+  [`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md), which lists every
+  composable in the pinned sources and says bound or not bound, with the reason when not.
+- **Import the guest stub** — `import dev.dogwood.compose.material3.*` and call it, if the host
+  registered that tier. No surface entry, no tag, no lock file, nothing to keep in step.
+- **Can it be composed from what the client already binds?** — the test that decides whether
+  something needs an application release, and the one worth learning. A status pill, a stat tile, a
+  two-line list item are compositions of things that are already bound.
+- **An ordinary `@Composable` in the payload** — no registration and no version: it is your code,
+  and it ships when your payload ships. [`authoring.md`](authoring.md) §10 is the worked example.
+- **A surface entry in your own segment** — for a component that owns real drawing, a gesture, a
+  live state holder or a platform integration. This is §2.2, and it is the path that costs a
+  release, which is why it is the second question rather than the first.
+
+### 2.1 The generated library tiers
+
+Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
+the host binds **Material 3 itself**, generated from the library's own sources at the version the
+host resolves. It is a separate artifact, registered explicitly, because on the web it is a
+page-weight decision (it references every bound Material 3 composable):
+
+```kotlin
+// host
+implementation("io.github.teegarcs:dogwood-material3:0.1.0")
+DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)   // beside your own binding
+```
+
+```kotlin
+// payload
+import dev.dogwood.compose.material3.*
+Card { Column { Switch(checked = on, onCheckedChange = { on = it }); Button(onClick = {}) { Text("Go") } } }
+```
+
+The same generator emits three more tiers from the same parse — `androidx.foundation`,
+`androidx.foundation.layout` and `androidx.ui` — which live in one module and register the same
+way, as `FoundationBinding`, `FoundationLayoutBinding` and `UiBinding`. A host registers the tiers
+it wants; a payload that calls one the host did not register meets the ordinary skew rules rather
+than a crash.
+
+**What is bound, and what you can set on it, is one generated report:**
+[`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md). Read it there rather than
+trusting a number quoted in prose — it is regenerated from the pinned sources by
+`./gradlew :dogwood-codegen:generateComposeCoverage`, and it moves when the libraries move or the
+generator learns a type. Its shape, which does not move:
+
+- Roughly two components in five, across the four modules, are bound; the rest are accounted for
+  one by one, with the reason beside each — a scope invoked inside a frame, an asset-backed type, a
+  live-state holder, a controlled text input, or deprecation in the library itself.
+- **Every optional parameter you do not set is the host's**, which passes the library's own default
+  for it. That is what makes a partly-bound component useful rather than crippled.
+- Colours, elevations and interaction sources are not settable from a payload; shapes, paddings,
+  numbers, booleans, text and content slots are.
+
+`samples/slice-screens/MaterialScreen.kt` is the catalogue: a screen that composes the tier's bound
+components section by section, with a test asserting a **floor** so that a number in the report
+cannot outrun what has actually been rendered. It is what the conformance claims are graded against
+on a device.
+
+### 2.2 Your own components, for what a library does not have
+
+A library tier gives you the library's components. It does not give you *yours* — the pill with
+your brand's radius, the component that wraps something native. For those you declare a *surface*
+— a file of empty `@Composable` signatures — and the generator emits both halves of the boundary
+from it, exactly as it does for a library, from a text you own instead of one JetBrains owns.
 
 ```kotlin
 // surface/dev/yourco/surface/DesignSystemSurface.kt
@@ -343,31 +435,6 @@ handling; those are generated. Three things to get right the first time:
   and a moved tag does not fail to render — it renders the wrong widget on a client one version
   behind.
 
-### The Material 3 tier, if you want the library rather than a catalogue
-
-Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
-the host can also bind **Material 3 itself**, generated from the library's own sources at the
-version the host resolves. It is a separate artifact, registered explicitly, because on the web it
-is a page-weight decision (it references every Material 3 composable):
-
-```kotlin
-// host
-implementation("io.github.teegarcs:dogwood-material3:0.1.0")
-DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)   // beside your own binding
-```
-
-```kotlin
-// payload
-import dev.dogwood.compose.material3.*
-Card { Column { Switch(checked = on, onCheckedChange = { on = it }); Button(onClick = {}) { Text("Go") } } }
-```
-
-Every optional parameter is `null` on the payload side and the host passes the library's own
-default. What you can and cannot set on each component is
-[`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md); the short version is that
-colours, elevations and interaction sources are not settable from a payload yet, and the shapes,
-paddings, booleans, text and slots are.
-
 ## 3. The payload
 
 A Kotlin/JavaScript module that depends on the generated guest stubs and on `dogwood-compose`. Its
@@ -392,8 +459,17 @@ names which one it wants and hands it launch parameters; a name the payload does
 reported back with the names it does, rather than rendering nothing.
 
 **Run the authoring check on this module.** Applying `io.github.teegarcs.dogwood.guest` fails the build on the
-handful of APIs that do not work in a sandbox — per-frame animation, resource loaders — and names
-the replacement. Finding those at build time rather than on a device is the whole point.
+handful of Application Programming Interfaces (APIs) that do not work in a sandbox — per-frame
+animation, resource loaders, controlled text fields — and names the replacement for each. Finding
+those at build time rather than on a device is the whole point, and for the animation family it is
+the *only* point at which they can be found: they compile, they run, and the screen looks correct.
+
+The plugin adds two tasks and both join `check`. `dogwoodGuestCheck` reads this module's source for
+those names. `dogwoodGuestClasspathCheck` reads its **resolved dependency graph** and refuses the
+artifacts those APIs live in, which is the case source cannot see: a payload that depends on some
+helper library which itself depends on `animation-core` has every frame-clock API one import away,
+with nothing in its own code to show for it. When it fails it names the route the artifact took and
+where to put the `exclude`.
 
 ## 4. Signing, serving, and the first run
 

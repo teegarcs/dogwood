@@ -113,6 +113,10 @@ The checker carries two further **hard rejection obligations**, added after adve
 - **Animation-state APIs** (`animateFloatAsState`, `Animatable`, `updateTransition`, `rememberInfiniteTransition`, and relatives). The failure mode of *not* rejecting them is the dangerous one: the guest has a working frame clock, so these APIs would compile and run — silently ticking the boundary every frame, which is exactly what the Layer 4 invariant forbids. **The rejection is permanent, not temporary**, and [ADR-020](../adrs/layer-5/ADR-020-animation.md) is what makes that acceptable: the replacement is `DogwoodModifier.alpha(animate(target, spec))` and its relatives, where the guest declares a *target* and the host runs the frames. A whole animation costs one crossing, whatever its duration. Compose's own animation APIs are not the way to reach that and never will be, because they are per-frame state by construction.
 - **Resource-loader APIs** (`painterResource`, `stringResource`, `imageResource`, and relatives), which have no meaning in a sandbox with no resources; images are named by Uniform Resource Locator (URL) through the resources subsystem instead.
 
+The check rejects a **third family it was never obliged to**, for a reason worth stating separately: the **controlled text fields**. `OutlinedTextField`, `BasicTextField`, `SecureTextField` and the search bars that contain one are excluded by name from every generated tier ([`layer-5-host.md`](layer-5-host.md); [ADR-019](../adrs/layer-5/ADR-019-text-input.md)), because a controlled text field asks the guest what the text should be after every keystroke across a latent boundary. Unlike the two obligations above, **these do not compile** — nothing a guest can see declares them — so the check is not stopping a build that would otherwise succeed. It is replacing "unresolved reference", which names no replacement and reads like a missing dependency, with the name of the component that does exist. `TextField` is deliberately *not* rejected by name: `dev.dogwood.compose.TextField(state = …)` is the supported wrapper over `TextInput` and the sample screens call it, so only the controlled overload — the one carrying `onValueChange` — is refused.
+
+The check has a **second half that reads dependencies rather than source**. `dogwoodGuestClasspathCheck` inspects the guest module's resolved runtime configurations and refuses the artifacts these APIs live in — `androidx.compose.animation:animation-core` and its kin, in both the androidx and the Compose Multiplatform coordinate families. It exists because a source scan cannot see an artifact that arrived transitively, which is the failure worth catching: a guest that depends on a helper library which itself depends on `animation-core` has every frame-clock API one import away with nothing in its own source to show for it. The two halves do not subsume each other in either direction — `withFrameNanos` lives in `androidx.compose.runtime:runtime`, which every guest must have, so that call can only be caught as a *call*; and `animation-core` carries far more names than a source list should ever try to enumerate. Neither half is a guarantee, and the spec does not claim one.
+
 Developer-declared `CompositionLocal`s, by contrast, work normally, because they live entirely in the guest's own composition.
 
 ## 4. Interfaces & Boundary
@@ -127,7 +131,30 @@ This layer has no Foreign Function Interface (FFI) boundary. It runs entirely on
 
 1. **Milestone 1 — Multiplatform module skeleton.** Create a KMP module with `js(IR)` and `jvm` targets sharing one `commonMain`, with the Compose compiler plugin applied. Prove that a trivial `@Composable` compiles for both.
 2. **Milestone 2 — Hand-written stub vertical slice.** Before any generator exists, hand-write stubs for the roadmap Phase 1 slice — five layout primitives (`Text`, `Column`, `Row`, `Box`, `Spacer`) plus five registered design-system components, with a few value-class modifiers — matching the segment/tag assignments in [Layer 4 ADR-004](../adrs/layer-4/ADR-004-change-event-protocol-v0.md) §2.1. This de-risks the recording mechanism against Layer 4 without waiting on `dogwood-codegen`.
-3. **Milestone 3 — Preview path decision and implementation.** Choose between an `androidTarget()` driving the standard Android Studio pane and the Compose Multiplatform desktop preview. Implement the preview `actual`s for the same ten composables. Note this is **not** a straight delegation: because Dogwood declares its own value types and `Modifier`, the preview path needs a type-conversion layer between Dogwood types and androidx types. Budget for it as a third generated surface. Registered design-system components preview by delegating to the real design-system module — which the host build already depends on — so their preview `actual`s are generated alongside the stubs from the same registration.
+3. ~~**Milestone 3 — Preview path decision and implementation.**~~ **Done for the desktop half,
+   2026-09-16 ([ADR-076](../adrs/layer-1/ADR-076-the-preview-is-a-second-back-end-not-a-translation.md)), and
+   not by `expect`/`actual`.** The decision this milestone framed as a choice turned out to have a
+   third answer. `engine/dogwood-compose-preview` is a **separate module publishing the same
+   package and the same signatures** with bodies that call real Compose, and a payload module
+   compiles twice by pointing a second target at the same source directory — so nothing in a
+   payload's own source is marked `expect`, which is what would otherwise have forced every
+   author's module into a multiplatform layout. `./gradlew :samples:slice-screens:preview -Pscreen=material`
+   opens the payload's own catalogue in a Compose Desktop window; `-Pheadless` composes it and
+   exits non-zero if it throws, which is how it is verified, and `-Pout=<path>` writes the frame.
+
+   The milestone's own prediction held: it is **not a straight delegation**, because Dogwood
+   declares its own value types and `Modifier`. What it did not predict is that the conversion
+   layer need not be a third generated surface — the 84 Material 3 delegates were derived from the
+   two surfaces the generator already emits (the guest stub gives the signature, the host binding
+   gives the argument mapping and the library's own defaults) and committed as source. They are
+   therefore frozen at the dictionary they were derived from, and a payload calling a newer
+   component fails the preview compile loudly. Registered design-system components preview by
+   delegating to the real design-system module, exactly as this milestone said they would.
+
+   **The Android Studio pane is not built**, and the note above is why: that pane renders through
+   Layoutlib and needs an Android module. `developer-experience.md` §4 says plainly that it has not
+   been seen.
+
 4. **Milestone 4 — Generated stubs.** Replace the hand-written slice with `dogwood-compose` emitted by `dogwood-codegen`, and confirm the vertical slice still behaves identically.
 5. **Milestone 5 — Dictionary checker.** Implement the best-effort build-time check, with error messages naming the API, the client versions that lack it, and the earliest version that has it. Document explicitly what it cannot see.
 6. **Milestone 6 — Build ordering.** The dictionary flows *backwards* from Layer 5 to Layers 1 and 2. Establish the publish ordering: the client build must complete and publish its dictionary before any server build can resolve against it, and a client-side Compose upgrade invalidates every server payload built against the previous dictionary.

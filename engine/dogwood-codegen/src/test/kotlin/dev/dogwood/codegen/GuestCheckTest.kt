@@ -137,9 +137,105 @@ class GuestCheckTest {
   @Test
   fun everyForbiddenApiCarriesAReplacement() {
     // A rejection with no alternative is a rejection somebody works around.
-    for (api in dev.dogwood.codegen.guest.FORBIDDEN_GUEST_APIS) {
+    val all = dev.dogwood.codegen.guest.FORBIDDEN_GUEST_APIS +
+      dev.dogwood.codegen.guest.CONTROLLED_TEXT_FIELD
+    for (api in all) {
       assertTrue(api.because.isNotBlank(), api.name)
       assertTrue(api.instead.isNotBlank(), "${api.name} has no replacement")
     }
+  }
+
+  // --- The controlled text fields (ADR-019). ------------------------------------------------
+  //
+  // These do not compile: nothing a guest can see declares `OutlinedTextField`. The check is not
+  // stopping a build that would otherwise pass -- it is replacing "unresolved reference" with the
+  // name of the component that does exist.
+
+  @Test
+  fun anOutlinedTextFieldIsRejectedAndNamesTextInput() {
+    val found = violations("OutlinedTextField(value = name, onValueChange = { name = it })")
+    assertEquals(listOf("OutlinedTextField"), found.map { it.api.name })
+    assertTrue("TextInput" in found.single().api.instead, found.single().api.instead)
+    assertTrue("keystroke" in found.single().api.because, found.single().api.because)
+  }
+
+  @Test
+  fun aBasicTextFieldIsRejected() {
+    val found = violations("BasicTextField(value = q, onValueChange = ::set)")
+    assertEquals(listOf("BasicTextField"), found.map { it.api.name })
+  }
+
+  @Test
+  fun aSearchBarIsRejected() {
+    // Excluded in the same set by generator v2's classifier, and for the same reason: the thing
+    // inside it is a controlled text field.
+    val found = violations("SearchBar(inputField = { }, expanded = false, onExpandedChange = { })")
+    assertEquals(listOf("SearchBar"), found.map { it.api.name })
+  }
+
+  @Test
+  fun theSupportedWrapperIsNotAViolation() {
+    // `dev.dogwood.compose.TextField(state = ...)` is what a guest is *supposed* to write, and
+    // `ExploreScreen.kt` and `AboutScreen.kt` both write it. A check that rejected the API the
+    // engine recommends would be uninstalled faster than one that rejected a comment.
+    val source = """
+      val card = rememberTextFieldState()
+      TextField(
+        state = card,
+        modifier = Modifier.fillMaxWidth(),
+        label = TextValue("Card number"),
+        mask = "#### #### #### ####",
+        showCounter = true,
+      )
+    """.trimIndent()
+    assertEquals(emptyList(), violations(source))
+  }
+
+  @Test
+  fun theControlledOverloadOfTheSameNameIsRejected() {
+    // The marker is an argument, not a name, and it is never on the line the name is on: a real
+    // call spans five lines. The check balances parentheses rather than reading one line.
+    val source = """
+      TextField(
+        value = query,
+        onValueChange = { query = it },
+        label = { Text("Search") },
+      )
+    """.trimIndent()
+    val found = violations(source)
+    assertEquals(1, found.size, found.toString())
+    assertEquals(1, found.single().line)
+    assertTrue("TextInput" in found.single().api.instead, found.single().api.instead)
+  }
+
+  @Test
+  fun theControlledOverloadIsReportedOnItsOwnLine() {
+    val source = """
+      @Composable
+      fun Screen() {
+
+        TextField(
+          value = query,
+          onValueChange = { query = it },
+        )
+      }
+    """.trimIndent()
+    assertEquals(4, violations(source).single().line)
+  }
+
+  @Test
+  fun aWrapperCallWithALambdaArgumentIsNotAViolation() {
+    // Parenthesis balancing has to survive a nested call in the argument list, or the scan would
+    // run past the end of this call and find the next call's `onValueChange`.
+    val source = """
+      TextField(state = card, label = TextValue(strings("cardNumber")))
+      TextInput(text = t, version = v, onValueChange = { a, b -> set(a, b) })
+    """.trimIndent()
+    assertEquals(emptyList(), violations(source))
+  }
+
+  @Test
+  fun aStateHolderFactoryIsNotAViolation() {
+    assertEquals(emptyList(), violations("val q = rememberTextFieldState(initialText = \"\")"))
   }
 }

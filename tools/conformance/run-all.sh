@@ -96,6 +96,15 @@ echo "==> a bad publish, quarantined on a device and recovered"
 # recording a start without a success; this one publishes a payload that genuinely fails to mount.
 "$HERE/../reference-server/quarantine-drill.sh" "$HERE/build/android-quarantine.conf" >/dev/null 2>&1 || status=1
 
+# The operational drills that are procedures rather than product behaviour: a key rotated through a
+# real server, a canary that stays a canary, and the bytes a publish would ship. They need no
+# device -- only the reference server and a client that verifies -- so they run here rather than
+# waiting for hardware. `docs/keys.md` is the runbook they execute.
+echo "==> rotating a signing key, publishing, and staging a canary"
+"$HERE/../reference-server/rotation-drill.sh" "$HERE/build/rotation.conf" >/dev/null 2>&1 || status=1
+"$HERE/../reference-server/cohort-drill.sh" "$HERE/build/cohort.conf" >/dev/null 2>&1 || status=1
+"$HERE/../reference-server/publish-check.sh" "$HERE/build/publish-check.conf" >/dev/null 2>&1 || status=1
+
 echo "==> web skew containment"
 # Needs no device, so this one also runs in continuous integration (`conformance.yml`). It is kept
 # here too because this script is the whole-matrix run, and a client graded in one place and not the
@@ -126,6 +135,11 @@ echo "==> performance budgets"
 python3 "$HERE/from_phase0.py" > "$HERE/build/phase0.raw" || status=1
 split_by_client "$HERE/build/phase0.raw" "-perf"
 python3 "$HERE/from_web_weight.py" > "$HERE/build/web-perf.conf" || status=1
+# The guest script is a separate download from the page that fetches it, and until `G6` nothing
+# bounded it -- the Material catalogue grew the guest by a quarter of a megabyte under a budget
+# that only ever looked at the host. Appended rather than a second file, because both are the same
+# client's bytes.
+python3 "$HERE/from_guest_weight.py" >> "$HERE/build/web-perf.conf" || status=1
 
 # Fold every per-drill file into its client's, so the aggregator sees one run per client.
 python3 - "$HERE/build" <<'PY'

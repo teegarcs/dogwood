@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-06
 **Status:** Accepted
+**Amended:** 2026-09-16 — the controlled text fields joined the list, and §4's "it does not check
+dependencies" stopped being true. Both changes are marked below.
 
 ## 1. Context & Problem Statement
 
@@ -50,6 +52,52 @@ whoever writes the next entry. A rejection with no alternative is a rejection so
 would also reject a guest that merely named one of its enum values, and a check that cries wolf is
 one people learn to suppress.
 
+### Amended 2026-09-16: the controlled text fields
+
+**Controlled text fields** — `OutlinedTextField`, `BasicTextField`, `SecureTextField`,
+`BasicSecureTextField`, `OutlinedSecureTextField`, `CoreTextField`, and the search bars that contain
+one. `specs/layer-5-host.md` excludes them by name and generator v2's classifier excludes the same
+set, because a controlled text field asks the guest what the text should be after every keystroke;
+[ADR-019](ADR-019-text-input.md) replaced them with a versioned `TextInput`.
+
+**These are on the list for a different reason from everything above them.** The animation APIs are
+rejected because they compile and run. These do not compile at all — nothing a guest's classpath
+declares is called `OutlinedTextField` — so the check is not stopping a build that would otherwise
+succeed. It is replacing "unresolved reference", which names no replacement and reads like a missing
+dependency, with the name of the component that does exist. That makes this half of the list a
+*documentation* mechanism that happens to live in a build, and it is worth being honest that the
+failure message says so.
+
+**`TextField` is deliberately not on the list, and that was a correction to the plan.** The plan for
+this work assumed a guest author reaching for `TextField` gets "unresolved reference" today. They do
+not: `dev.dogwood.compose.TextField(state = …)` exists, is the supported wrapper over `TextInput`,
+and is what `ExploreScreen.kt` and `AboutScreen.kt` call. A blanket rejection of the name was tried
+and watched — it rejected the engine's own two guest screens, at `ExploreScreen.kt:332` and
+`AboutScreen.kt:134`, for using the API the engine recommends. So the rejection is a name **plus an
+argument**: a `TextField(...)` call whose argument list carries `onValueChange`, which Compose's
+overloads all have and the wrapper does not. Balancing parentheses rather than reading one line is
+required for that, because a real call spans five lines and the line naming `TextField` is never the
+line naming `onValueChange`.
+
+### Amended 2026-09-16: the classpath half
+
+**`dogwoodGuestClasspathCheck`, a second task in the same plugin, reads the module's resolved
+runtime configurations and refuses the artifacts these APIs live in** —
+`androidx.compose.animation:animation-core`, its `animation` sibling, the Compose Multiplatform
+coordinates for both, and `org.jetbrains.compose.components:components-resources`. It reads the
+**resolved** graph rather than the declarations in the build file, because the declarations are the
+set that was never the problem.
+
+**The two halves do not subsume each other, in either direction.** `withFrameNanos` lives in
+`androidx.compose.runtime:runtime`, which every guest must have — banning the artifact would ban the
+guest — so the frame loop stays on the source list, where it can be rejected as a *call*. And
+`animation-core` carries far more than the names on the source list; a list that tried to enumerate
+them would be the package pattern this ADR refused, one name at a time.
+
+**Group and module, never a group prefix.** `androidx.compose.animation:animation-graphics` draws
+animated vector drawables and has no frame clock of its own; a group-wide ban would reject it for
+the company it keeps.
+
 ## 3. Rationale & Research
 
 **Half the tests are about false positives, and that is the right proportion.** A check that rejects
@@ -83,7 +131,38 @@ src/jsMain/kotlin/dev/dogwood/slice/FeedScreen.kt:60  animateFloatAsState — pe
     instead: Modifier.alpha(animate(target, spec)) — declare a target, the host runs the frames
 ```
 
-Twelve tests, and capability group **I** in the catalogue.
+Twelve tests, and capability group **I** in the catalogue. Thirty-five after the 2026-09-16
+amendment: twenty over the source list, ten over the classpath decision and its report, and five
+that run the fixture build.
+
+### Watched to fail, 2026-09-16
+
+**The text-field half.** The real check, run as a command over a copy of `samples/slice-screens`
+with one file added that calls `OutlinedTextField`, the controlled `TextField` overload and
+`SearchBar`, reports all three with their lines and their replacements. The same check over the
+three real guest modules — `slice-screens`, `slice-guest`, `web-guest` — reports nothing, which is
+the assertion that matters more: those screens call `TextField(state = …)` twice and contain the
+comment about `animateFloatAsState` that this check must not trip on.
+
+**The classpath half.** A fixture build lives in
+`engine/dogwood-codegen/src/test/resources/guest-classpath-fixture`: a module with no source, a
+repository of two Project Object Model (POM) files, and `-PfixtureDependency=` to add one
+dependency. With `com.example:helper:1.0` — whose POM depends on `animation-core` — the build fails
+with the route:
+
+```
+runtimeClasspath: androidx.compose.animation:animation-core:1.9.0 — the frame-clock animation
+    APIs: a guest animating one of these crosses the boundary every frame
+      reached by: com.example:helper:1.0 -> androidx.compose.animation:animation-core:1.9.0
+      instead: declare a target and let the host run the frames; see ADR-020
+```
+
+With the graph walk neutered so the check inspected an empty resolution — the shape a check that
+inspects nothing would have — the three failing-case tests reported `UnexpectedBuildSuccess` and
+the two negative ones still passed. That is the gate watched failing without the fix, which is the
+only thing that makes a green one mean anything. A hand-built graph was deliberately not used for
+this: whether a `compile`-scoped POM dependency lands on `runtimeClasspath` is a fact about Gradle,
+and asserting the author's belief about it would be a second thing able to be wrong.
 
 ## 4. Unstated Assumptions
 
@@ -92,10 +171,19 @@ Twelve tests, and capability group **I** in the catalogue.
   directly-named forbidden API — which is *the* case, because nobody reaches for
   `rememberInfiniteTransition` by accident through an alias — and it must never be described as a
   guarantee.
-- **It does not check dependencies.** A guest that puts `androidx.compose.animation` on its
-  classpath and calls nothing from it passes, correctly; one that calls something reachable only
-  from there and not on this list passes too, incorrectly. A classpath check would catch the second
-  and is not built.
+- **~~It does not check dependencies.~~ Resolved 2026-09-16.** The original text read: "A guest that
+  puts `androidx.compose.animation` on its classpath and calls nothing from it passes, correctly;
+  one that calls something reachable only from there and not on this list passes too, incorrectly. A
+  classpath check would catch the second and is not built." It is built, and it changed the first
+  half of that sentence too: a guest that resolves `animation-core` and calls nothing from it now
+  **fails**, on purpose. Calling nothing from it today is not a property anybody is maintaining, and
+  the artifact is one import away from a hundred names the source list does not have.
+- **The classpath check is only as good as what is resolved.** A dependency added at runtime, a jar
+  on a flat file-dependency classpath, or a module with no coordinate contributes no group and name
+  to match against. It reads runtime classpath configurations and skips test ones deliberately: a
+  test source set is not shipped in a payload.
+- **It fails when it finds no classpath at all.** A check that inspected nothing and said nothing
+  would read as "no forbidden artifacts", which is a different claim.
 - **The list is Layer 1's two obligations and nothing more.** The other things a guest cannot
   usefully do — computing from `MaterialTheme.colorScheme`, naming a `Painter` — are compile errors
   already, because the stubs a guest can call do not offer them.
@@ -113,3 +201,10 @@ Twelve tests, and capability group **I** in the catalogue.
 - [`plans/conformance.md`](../../plans/conformance.md) — capability group **I**.
 - [`plans/production-readiness.md`](../../plans/production-readiness.md) — §4.2 and the order.
 - [`adrs/README.md`](../README.md) — index entry.
+
+Added by the 2026-09-16 amendment:
+
+- [`specs/layer-1-authoring.md`](../../specs/layer-1-authoring.md) — the third rejected family, and
+  the classpath half, in §3.
+- [`docs/authoring.md`](../../docs/authoring.md) — §2's table of what the build refuses.
+- [`docs/getting-started.md`](../../docs/getting-started.md) — §3, the two tasks the plugin adds.

@@ -1,0 +1,26 @@
+# Components the v2 bindability rule accepts and the host compiler did not, for the three tiers
+# this module carries: `androidx.foundation`, `androidx.foundation.layout` and `androidx.ui`.
+#
+# One per line: <dictionary name><TAB><reason, in the compiler's words>. The generator skips these
+# and the coverage report counts them under "generable, excluded", so the number stays visible
+# rather than disappearing into a green build. A library upgrade that removes a bound component
+# also goes here, because its tag is retired rather than reused (plans/generator-v2.md, D-C).
+#
+# One file for three tiers, because exclusions are keyed by dictionary name and the three libraries
+# share no name -- and because the three tiers are one module and one page-weight decision, so a
+# person looking for "what did not compile in the foundation module" should find one list.
+#
+# One entry, and it is a widening of what this file is for. The header above says "the host compiler
+# did not", because that is the only way Material 3 ever needed it. `Group` compiles; it is
+# `androidx.compose.ui.graphics.vector.Group`, a `@VectorComposable`, and composing it in an ordinary
+# host tree throws `IllegalStateException: Invalid applier` from `Composables.kt:496` -- watched on
+# the Java Virtual Machine on 2026-09-16 before it was believed. A component a payload can call and
+# crash the host with is worse than one the host does not have, so it is excluded, its tag is
+# retired, and the classifier gap that let it through is reported rather than patched around here.
+#
+# `tools/generator-v2/coverage.md` still counts it under `ui`'s bound column, because
+# `generateComposeCoverage` reads only the Material 3 exclusions file (the command takes one
+# `--exclusions`). That disagreement is named here rather than hidden: the report says `ui` binds 4 and this tier
+# binds 3, until the coverage command learns to read more than one exclusions file or the classifier
+# refuses vector composables on its own.
+Group	@VectorComposable: needs a vector applier, throws "Invalid applier" in a host tree

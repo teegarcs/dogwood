@@ -1,0 +1,207 @@
+# Project Dogwood -- build, stamp, sign and check a payload as one reviewable step.
+#
+# `OPEN-DECISIONS.md` section 6 asked for this in one line: "Build, sign and upload as one
+# reviewable step, rather than a developer's Gradle invocation." The distance between those two
+# things is not convenience. A developer's invocation leaves no record of which key signed, which
+# version was stamped, or whether anybody checked the result before it reached a device -- and each
+# of those is silent when it is wrong.
+#
+# So this is manual dispatch on purpose. A payload is not published because a branch moved; it is
+# published because a person decided to, named a version, and said whether this was a rehearsal.
+#
+# **Where it ends.** At a signed bundle uploaded as a workflow artifact, checked. Where that bundle
+# is then *served from* is `OPEN-DECISIONS.md` section 6 and it is the owner's -- object storage, a
+# content-delivery network, the reference server on a box. Everything before that line is here, so
+# that the remaining step is a destination rather than a mechanism.
+#
+# **What has been run locally, and what has not.** Every step below is a command that has been run
+# on a development machine against this repository: the Gradle invocation with
+# `-PdogwoodVersion`/`-PdogwoodSigningKey`, `tools/reference-server/publish-check.sh` against the
+# payload it produces, and the brotli install that `P5` needs. What has NOT been run is this
+# workflow, because a GitHub Actions workflow cannot be executed anywhere but GitHub Actions. The
+# steps are deliberately thin wrappers around those commands for exactly that reason: the logic
+# lives in scripts that can be run and watched to fail, and this file arranges them.
+name: publish payload
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          The release identity, stamped INTO the payload. It sits inside the signed body, so it is
+          a build input -- a publishing step that edited it afterwards would invalidate every
+          signature over it.
+        required: true
+        type: string
+      dry_run:
+        description: >-
+          A rehearsal. Everything is built, stamped and checked; the throwaway development keys are
+          allowed as a fallback, and the job summary says so in the first line.
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build, sign and check a payload
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        # `pipefail`. The conformance workflow shipped green for a week while two claims were red,
+        # because a step written as `grade.py | tee out.conf` reports `tee`'s exit code. GitHub's
+        # default shell is `bash -e`, which does not include `pipefail`.
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Cache the Kotlin/JS toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/yarn
+            ~/.gradle/nodejs
+          key: ${{ runner.os }}-publish-payload-${{ hashFiles('engine/gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-publish-payload-
+
+      - name: Size the build for this runner
+        # The same reasoning as the conformance workflow: a free-tier runner is two processors and
+        # seven gigabytes, and the repository's own `gradle.properties` asks for a development
+        # machine's share. That combination killed two runs there with a SIGTERM from the runner.
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2500m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=1
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: Install brotli for the publish check
+        # `P5` asserts `Content-Encoding: br` on the manifest, and the reference server can only
+        # serve brotli if its interpreter has the module. Without this the check would grade gzip
+        # and pass -- which is the exact 27% that nothing on a device can detect. A virtual
+        # environment rather than the system interpreter, because a runner's python is externally
+        # managed and `pip install` into it is refused.
+        run: |
+          python3 -m venv /tmp/dogwood-venv
+          /tmp/dogwood-venv/bin/pip -q install brotli
+          echo "PYTHON=/tmp/dogwood-venv/bin/python3" >> "$GITHUB_ENV"
+
+      - name: Choose the signing keys
+        # The fallback is the one thing in this file that could quietly ship something wrong, so it
+        # is the loudest. Real secrets are used whenever they exist. The committed throwaway keys
+        # are allowed ONLY on a dry run, and a real run without secrets fails here rather than
+        # producing a bundle signed by keys that are published in this repository.
+        env:
+          DOGWOOD_SIGNING_KEY: ${{ secrets.DOGWOOD_SIGNING_KEY }}
+          DOGWOOD_ROTATION_KEY: ${{ secrets.DOGWOOD_ROTATION_KEY }}
+        run: |
+          # The committed development keys, read out of the build file rather than retyped: a
+          # fourth copy of a key is a fourth chance for one to drift.
+          dev_signing=$(grep -o 'val developmentSigningKey = "[0-9a-f]*"' \
+            engine/samples/slice-guest/build.gradle.kts | grep -o '[0-9a-f]\{64\}')
+          dev_rotation=$(grep -o 'val rotationSigningKey = "[0-9a-f]*"' \
+            engine/samples/slice-guest/build.gradle.kts | grep -o '[0-9a-f]\{64\}')
+
+          if [ -n "${DOGWOOD_SIGNING_KEY:-}" ]; then
+            echo "KEY_SOURCE=repository secrets" >> "$GITHUB_ENV"
+            echo "::add-mask::$DOGWOOD_SIGNING_KEY"
+            echo "SIGNING_KEY=$DOGWOOD_SIGNING_KEY" >> "$GITHUB_ENV"
+            if [ -n "${DOGWOOD_ROTATION_KEY:-}" ]; then
+              echo "::add-mask::$DOGWOOD_ROTATION_KEY"
+              echo "ROTATION_KEY=$DOGWOOD_ROTATION_KEY" >> "$GITHUB_ENV"
+            else
+              # A real key with no rotation key is a fleet with no way out of a leak. Allowed, and
+              # said out loud, because refusing it would block a first publish.
+              echo "ROTATION_KEY=$dev_rotation" >> "$GITHUB_ENV"
+              echo "KEY_WARNING=DOGWOOD_ROTATION_KEY is not set; the SECOND signature is the committed throwaway key. Read docs/keys.md section 4: a fleet that trusts two keys from the start turns an emergency rotation from weeks into zero." >> "$GITHUB_ENV"
+            fi
+          elif [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "KEY_SOURCE=THE COMMITTED THROWAWAY DEVELOPMENT KEYS" >> "$GITHUB_ENV"
+            echo "SIGNING_KEY=$dev_signing" >> "$GITHUB_ENV"
+            echo "ROTATION_KEY=$dev_rotation" >> "$GITHUB_ENV"
+            echo "KEY_WARNING=This bundle is signed by keys that are committed to this public repository. It proves the pipeline works and it must never be served to a device." >> "$GITHUB_ENV"
+          else
+            echo "::error::DOGWOOD_SIGNING_KEY is not set and this is not a dry run. A real publish signed by the repository's throwaway keys would be trusted by every host that compiled them in, which is every sample. Set the secret, or re-run with dry-run."
+            exit 1
+          fi
+
+      - name: Build and stamp the payload
+        working-directory: engine
+        # `-PdogwoodVersion` rather than a post-build edit, and this is the line the quarantine
+        # drill's header exists to explain: the version is inside the signed body, so rewriting it
+        # in a published manifest makes every launch fail with "manifest signature ... did not
+        # verify". A release identity is a build input.
+        run: |
+          ./gradlew :samples:slice-guest:jsBrowserProductionWebpackZipline \
+            -PdogwoodVersion='${{ inputs.version }}' \
+            -PdogwoodSigningKey="$SIGNING_KEY" \
+            -PdogwoodRotationKey="$ROTATION_KEY" \
+            --console=plain
+
+      - name: Check the bytes that would ship
+        # Seven claims on this particular build: the stamped version, both signatures accepted by a
+        # client holding only one key at a time, the cache split, `Content-Encoding: br`, and every
+        # module fetched with the digest the signed manifest names. Run locally against a real
+        # payload, and watched to fail on a wrong version, a wrong key and a missing brotli module.
+        run: |
+          tools/reference-server/publish-check.sh \
+            --payload engine/samples/slice-guest/build/zipline/ProductionWebpack \
+            --version '${{ inputs.version }}' \
+            --signing-key "$SIGNING_KEY" \
+            --rotation-key "$ROTATION_KEY"
+
+      - name: Put the result in the job summary
+        if: always()
+        # Loudest line first, because the one thing a reviewer must not miss is a bundle signed by
+        # keys anybody can read.
+        run: |
+          {
+            echo "## Payload ${{ inputs.version }}"
+            echo
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo '> **DRY RUN — do not serve this bundle.**'
+            fi
+            echo
+            echo "**Signed with:** ${KEY_SOURCE:-unknown}"
+            if [ -n "${KEY_WARNING:-}" ]; then
+              echo
+              echo "> ⚠️ ${KEY_WARNING}"
+            fi
+            echo
+            if [ -s tools/reference-server/build/publish-check.conf ]; then
+              echo '```'
+              cat tools/reference-server/build/publish-check.conf
+              echo '```'
+            else
+              echo 'The run failed before any claim was graded.'
+            fi
+            echo
+            echo '> Where this bundle is served from is `OPEN-DECISIONS.md` §6 and is not decided'
+            echo '> here. The artifact below is complete and signed; it needs a destination.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the signed bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogwood-payload-${{ inputs.version }}
+          path: |
+            engine/samples/slice-guest/build/zipline/ProductionWebpack
+            tools/reference-server/build/publish-check.conf
+          # `warn`, not `error`: this step runs on failure too, and a run that died in the build
+          # has nothing to upload. Failing the upload as well would report two problems where
+          # there is one.
+          if-no-files-found: warn

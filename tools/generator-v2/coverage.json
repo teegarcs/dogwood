@@ -2,13 +2,13 @@
     "modules": {
         "foundation": {
             "composables": 47,
-            "bound": 2,
-            "generableExcluded": 17,
-            "bespoke": 12,
+            "bound": 3,
+            "generableExcluded": 0,
+            "bespoke": 17,
             "unreachable": 4,
-            "deprecated": 12,
-            "settableParameters": 3,
-            "hostDefaultOnlyParameters": 0
+            "deprecated": 23,
+            "settableParameters": 9,
+            "hostDefaultOnlyParameters": 4
         },
         "foundation-layout": {
             "composables": 12,
@@ -22,34 +22,34 @@
         },
         "material3": {
             "composables": 186,
-            "bound": 79,
-            "generableExcluded": 22,
-            "bespoke": 38,
+            "bound": 96,
+            "generableExcluded": 15,
+            "bespoke": 28,
             "unreachable": 6,
             "deprecated": 41,
-            "settableParameters": 469,
-            "hostDefaultOnlyParameters": 165
+            "settableParameters": 594,
+            "hostDefaultOnlyParameters": 176
         },
         "ui": {
             "composables": 15,
-            "bound": 4,
+            "bound": 3,
             "generableExcluded": 0,
-            "bespoke": 8,
+            "bespoke": 9,
             "unreachable": 1,
             "deprecated": 2,
-            "settableParameters": 15,
-            "hostDefaultOnlyParameters": 4
+            "settableParameters": 6,
+            "hostDefaultOnlyParameters": 3
         }
     },
     "overall": {
         "composables": 260,
-        "bound": 93,
-        "generableExcluded": 39,
-        "bespoke": 58,
+        "bound": 110,
+        "generableExcluded": 15,
+        "bespoke": 54,
         "unreachable": 11,
-        "deprecated": 59,
-        "settableParameters": 519,
-        "hostDefaultOnlyParameters": 169
+        "deprecated": 70,
+        "settableParameters": 641,
+        "hostDefaultOnlyParameters": 183
     },
     "rows": [
         {
@@ -651,8 +651,8 @@
             "name": "BasicSecureTextField",
             "dictionaryName": "BasicSecureTextField",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "modifier",
                 "enabled",
@@ -679,8 +679,8 @@
             "name": "BasicSecureTextField",
             "dictionaryName": "BasicSecureTextField~3be96ab8",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "enabled"
@@ -705,8 +705,8 @@
             "name": "BasicSecureTextField",
             "dictionaryName": "BasicSecureTextField~6fe24c65",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "enabled",
@@ -731,9 +731,9 @@
             "file": "androidx/compose/foundation/text/BasicText.kt",
             "name": "BasicText",
             "dictionaryName": "BasicText",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "text",
                 "modifier",
@@ -756,8 +756,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~d57d2339",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "bespoke",
+            "reason": "text: type AnnotatedString cannot cross the boundary",
             "settable": [
                 "modifier",
                 "overflow",
@@ -780,8 +780,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~d5d29bab",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "text",
                 "modifier",
@@ -803,8 +803,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~802f9d7e",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "overflow",
@@ -826,8 +826,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~e1eaa739",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "text",
                 "modifier",
@@ -847,8 +847,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~4b6e2e90",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "overflow",
@@ -868,8 +868,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~f92c6d32",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "text",
                 "modifier",
@@ -890,8 +890,8 @@
             "name": "BasicText",
             "dictionaryName": "BasicText~709049d2",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "overflow",
@@ -912,8 +912,8 @@
             "name": "BasicTextField",
             "dictionaryName": "BasicTextField",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "modifier",
                 "enabled",
@@ -940,8 +940,8 @@
             "name": "BasicTextField",
             "dictionaryName": "BasicTextField~99fd548e",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "value",
                 "onValueChange",
@@ -970,8 +970,8 @@
             "name": "BasicTextField",
             "dictionaryName": "BasicTextField~0ff90d44",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "modifier",
                 "enabled",
@@ -998,8 +998,8 @@
             "name": "BasicTextField",
             "dictionaryName": "BasicTextField~5634b4f0",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "value",
                 "onValueChange",
@@ -1027,8 +1027,8 @@
             "name": "BasicTextField",
             "dictionaryName": "BasicTextField~443ac9db",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textStyle: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "enabled",
@@ -1054,8 +1054,8 @@
             "name": "ClickableText",
             "dictionaryName": "ClickableText",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "style: default names internal `Default`",
+            "bucket": "deprecated",
+            "reason": "deprecated in the library",
             "settable": [
                 "modifier",
                 "softWrap",
@@ -1716,9 +1716,9 @@
             "file": "androidx/compose/material3/BottomSheetScaffold.kt",
             "name": "BottomSheetScaffold",
             "dictionaryName": "BottomSheetScaffold",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "containerColor: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "sheetContent",
                 "modifier",
@@ -1755,13 +1755,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1779,13 +1779,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1803,13 +1803,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1827,13 +1827,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1851,13 +1851,13 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "contentPadding",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1873,12 +1873,12 @@
             "settable": [
                 "modifier",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "elevation",
-                "border"
+                "elevation"
             ],
             "experimental": false
         },
@@ -1895,12 +1895,12 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -1957,12 +1957,12 @@
             "settable": [
                 "modifier",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "elevation",
-                "border"
+                "elevation"
             ],
             "experimental": false
         },
@@ -1979,12 +1979,12 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2034,10 +2034,11 @@
             "file": "androidx/compose/material3/Checkbox.kt",
             "name": "TriStateCheckbox",
             "dictionaryName": "TriStateCheckbox",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder ToggleableState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
+                "state",
                 "onClick",
                 "modifier",
                 "enabled"
@@ -2055,8 +2056,9 @@
             "dictionaryName": "TriStateCheckbox~a32797bf",
             "bound": false,
             "bucket": "bespoke",
-            "reason": "state: live-state holder ToggleableState",
+            "reason": "checkmarkStroke: type Stroke cannot cross the boundary",
             "settable": [
+                "state",
                 "onClick",
                 "modifier",
                 "enabled"
@@ -2082,12 +2084,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2132,12 +2134,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2183,12 +2185,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2209,12 +2211,12 @@
                 "enabled",
                 "leadingIcon",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2236,12 +2238,12 @@
                 "leadingIcon",
                 "avatar",
                 "trailingIcon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2260,12 +2262,12 @@
                 "modifier",
                 "enabled",
                 "icon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2308,12 +2310,12 @@
                 "modifier",
                 "enabled",
                 "icon",
-                "shape"
+                "shape",
+                "border"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "elevation",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2849,11 +2851,11 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2872,11 +2874,11 @@
                 "modifier",
                 "enabled",
                 "shape",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -2946,9 +2948,9 @@
             "file": "androidx/compose/material3/Menu.kt",
             "name": "DropdownMenu",
             "dictionaryName": "DropdownMenu",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "properties: default names internal `DefaultMenuProperties`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "expanded",
                 "onDismissRequest",
@@ -2957,13 +2959,13 @@
                 "containerColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
                 "offset",
                 "scrollState",
-                "properties",
-                "border"
+                "properties"
             ],
             "experimental": false
         },
@@ -3050,9 +3052,9 @@
             "file": "androidx/compose/material3/NavigationBar.kt",
             "name": "NavigationBar",
             "dictionaryName": "NavigationBar",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "contentColor: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "containerColor",
@@ -3103,9 +3105,7 @@
                 "scrimColor",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "drawerState"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -3122,9 +3122,7 @@
                 "gesturesEnabled",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "drawerState"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -3170,8 +3168,8 @@
             "name": "ModalDrawerSheet",
             "dictionaryName": "ModalDrawerSheet~08f0067c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "drawerState: live-state holder DrawerState",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to ModalDrawerSheet after erasing host-default-only parameters",
             "settable": [
                 "modifier",
                 "drawerShape",
@@ -3212,8 +3210,8 @@
             "name": "DismissibleDrawerSheet",
             "dictionaryName": "DismissibleDrawerSheet~08f0067c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "drawerState: live-state holder DrawerState",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to DismissibleDrawerSheet after erasing host-default-only parameters",
             "settable": [
                 "modifier",
                 "drawerShape",
@@ -3707,9 +3705,9 @@
             "file": "androidx/compose/material3/Scaffold.kt",
             "name": "Scaffold",
             "dictionaryName": "Scaffold",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "containerColor: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "topBar",
@@ -3751,9 +3749,9 @@
             "file": "androidx/compose/material3/SearchBar.kt",
             "name": "TopSearchBar",
             "dictionaryName": "TopSearchBar",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SearchBarState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "inputField",
                 "modifier",
@@ -3927,8 +3925,8 @@
             "name": "SecureTextField",
             "dictionaryName": "SecureTextField",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textObfuscationCharacter: default names internal `DefaultObfuscationCharacter`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "modifier",
                 "enabled",
@@ -3963,8 +3961,8 @@
             "name": "OutlinedSecureTextField",
             "dictionaryName": "OutlinedSecureTextField",
             "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "textObfuscationCharacter: default names internal `DefaultObfuscationCharacter`",
+            "bucket": "bespoke",
+            "reason": "controlled text input; use TextInput (ADR-019)",
             "settable": [
                 "modifier",
                 "enabled",
@@ -4007,13 +4005,13 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "contentPadding",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4032,13 +4030,13 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "contentPadding",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4057,12 +4055,12 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4081,12 +4079,12 @@
                 "shape",
                 "modifier",
                 "enabled",
+                "border",
                 "icon",
                 "label"
             ],
             "hostDefaultOnly": [
                 "colors",
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4179,11 +4177,11 @@
                 "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "steps",
                 "onValueChangeFinished"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors",
                 "interactionSource"
             ],
@@ -4203,14 +4201,14 @@
                 "modifier",
                 "enabled",
                 "onValueChangeFinished",
-                "steps"
+                "steps",
+                "valueRange"
             ],
             "hostDefaultOnly": [
                 "colors",
                 "interactionSource",
                 "thumb",
-                "track",
-                "valueRange"
+                "track"
             ],
             "experimental": true
         },
@@ -4219,9 +4217,9 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "Slider",
             "dictionaryName": "Slider~e15d63b2",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SliderState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "enabled"
@@ -4239,17 +4237,19 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
+                "value",
+                "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "steps",
                 "onValueChangeFinished"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors"
             ],
             "experimental": true
@@ -4260,16 +4260,18 @@
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider~0b997a2c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "value: type ClosedFloatingPointRange<Float> cannot cross the boundary",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to RangeSlider after erasing host-default-only parameters",
             "settable": [
+                "value",
+                "onValueChange",
                 "modifier",
                 "enabled",
+                "valueRange",
                 "onValueChangeFinished",
                 "steps"
             ],
             "hostDefaultOnly": [
-                "valueRange",
                 "colors",
                 "startInteractionSource",
                 "endInteractionSource",
@@ -4284,9 +4286,9 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider~bb1147d1",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder RangeSliderState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "enabled"
@@ -4350,9 +4352,9 @@
             "file": "androidx/compose/material3/SnackbarHost.kt",
             "name": "SnackbarHost",
             "dictionaryName": "SnackbarHost",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "hostState: live-state holder SnackbarHostState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],
@@ -4366,9 +4368,9 @@
             "file": "androidx/compose/material3/Surface.kt",
             "name": "Surface",
             "dictionaryName": "Surface",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "color: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "shape",
@@ -4376,11 +4378,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "border"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -4388,9 +4389,9 @@
             "file": "androidx/compose/material3/Surface.kt",
             "name": "Surface",
             "dictionaryName": "Surface~0b388a87",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "color: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "onClick",
                 "modifier",
@@ -4400,10 +4401,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4413,9 +4414,9 @@
             "file": "androidx/compose/material3/Surface.kt",
             "name": "Surface",
             "dictionaryName": "Surface~9d901ca7",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "color: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "selected",
                 "onClick",
@@ -4426,10 +4427,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4439,9 +4440,9 @@
             "file": "androidx/compose/material3/Surface.kt",
             "name": "Surface",
             "dictionaryName": "Surface~819e1863",
-            "bound": false,
-            "bucket": "generable-excluded",
-            "reason": "color: default names internal `MaterialTheme`",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "checked",
                 "onCheckedChange",
@@ -4452,10 +4453,10 @@
                 "contentColor",
                 "tonalElevation",
                 "shadowElevation",
+                "border",
                 "content"
             ],
             "hostDefaultOnly": [
-                "border",
                 "interactionSource"
             ],
             "experimental": false
@@ -4465,9 +4466,9 @@
             "file": "androidx/compose/material3/SwipeToDismissBox.kt",
             "name": "SwipeToDismissBox",
             "dictionaryName": "SwipeToDismissBox",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SwipeToDismissBoxState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "backgroundContent",
                 "modifier",
@@ -5081,9 +5082,9 @@
             "file": "androidx/compose/material3/TimePicker.kt",
             "name": "TimePicker",
             "dictionaryName": "TimePicker",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder TimePickerState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],
@@ -5098,9 +5099,9 @@
             "file": "androidx/compose/material3/TimePicker.kt",
             "name": "TimeInput",
             "dictionaryName": "TimeInput",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder TimePickerState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],
@@ -5486,9 +5487,9 @@
             "file": "androidx/compose/ui/graphics/vector/VectorCompose.kt",
             "name": "Group",
             "dictionaryName": "Group",
-            "bound": true,
-            "bucket": "generable",
-            "reason": null,
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "@VectorComposable: a composable for another applier, not a UI node",
             "settable": [
                 "name",
                 "rotation",
@@ -5512,7 +5513,7 @@
             "dictionaryName": "Path",
             "bound": false,
             "bucket": "bespoke",
-            "reason": "pathData: type List<PathNode> cannot cross the boundary",
+            "reason": "@VectorComposable: a composable for another applier, not a UI node",
             "settable": [
                 "name",
                 "fillAlpha",

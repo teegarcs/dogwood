@@ -1,0 +1,603 @@
+# Project Dogwood -- the checks that need a device, run nightly on runners that have one.
+#
+# `conformance.yml` is tier S: claims proved by tests over code every client compiles. This file is
+# **tier C**: the claims that need the platform itself -- an iOS simulator with VoiceOver, an
+# Android emulator, a browser with a graphics stack, and the guest payload being served.
+#
+# Until the repository was public, none of that could run here, and both `docs/checks.md` and
+# `plans/conformance.md` said so: tier C "does not gate in continuous integration, and cannot".
+# The sentence was true about a private repository's runner minutes and false about the machines.
+# GitHub's macOS runners are free to public repositories, its ubuntu runners have the hardware
+# virtualisation an Android emulator needs, and both device families are therefore available. This
+# file is that sentence stopping being true.
+#
+# **Nightly and on demand, not on every pull request.** It is a long run -- two Kotlin/Native
+# links, a release Android build, a WebAssembly build and five drills that each install an
+# application and drive it -- and tier S already blocks merges. Putting it on pull requests would
+# buy a slower review loop for a signal that changes about as often as the drills do.
+#
+# **What it still cannot grade, and this is the honest part.** `G1`-`G4` are the timing budgets,
+# and the Phase 0 gate names a low-end 2022-tier Android device
+# (`adrs/layer-4/ADR-008-gate-device-not-available.md`). A hosted x86-64 emulator on a shared
+# virtual machine is not that device, and grading a timing budget on it would produce a number
+# whose only meaning is which runner the job landed on. They keep reading SKIP here, correctly and
+# for the same reason they read SKIP locally. The byte budgets `G5` and `G6` are different: bytes
+# are a property of the build rather than of the machine, so they are graded and they fail.
+#
+# Every step below mirrors a command that exists in the repository and is run by a person on a
+# development machine -- `tools/conformance/run-web.sh`, `tools/conformance/run-android.sh`,
+# `tools/a11y-drill/run.sh`, `tools/a11y-drill/run-material.sh`, `tools/skew-drill/*.sh`. Nothing
+# here reimplements a drill, because a drill that has two implementations is a drill with two
+# behaviours, and the one that runs unattended is the one nobody reads.
+name: tier-c
+
+on:
+  schedule:
+    # 08:00 UTC. A fixed hour rather than a spread one, because a run whose results land at a
+    # predictable time is a run somebody gets into the habit of reading.
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+# Not cancel-in-progress. A superseded tier-S run tells you about code nobody is merging; a
+# superseded tier-C run is forty minutes of device time that nothing else will repeat today.
+concurrency:
+  group: tier-c
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ios-and-web:
+    name: Tier C — iOS on a simulator, web in headless Chrome
+    # `macos-15` rather than `macos-latest`, and it must be an Apple-silicon image: the iOS sample
+    # builds `iosSimulatorArm64` (`samples/slice-ios/build.gradle.kts` syncs
+    # `bin/iosSimulatorArm64/debugExecutable/DogwoodSlice.kexe` into the application bundle), so an
+    # Intel runner would build a binary no simulator on it can launch.
+    runs-on: macos-15
+    timeout-minutes: 120
+
+    defaults:
+      run:
+        # `pipefail`, for the reason `conformance.yml` records: GitHub's default shell is `bash -e`,
+        # which does not include it, and a step written as `drill | tee out.conf` reports `tee`'s
+        # exit code rather than the drill's. That shipped once and made a red run green.
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Cache the Kotlin/Native and Kotlin/JS toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.konan
+            ~/.gradle/yarn
+            ~/.gradle/nodejs
+          key: ${{ runner.os }}-tier-c-toolchains-${{ hashFiles('engine/gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-tier-c-toolchains-
+
+      - name: Size the build for this runner
+        # A hosted macOS runner is three processors and seven gigabytes, and this job holds more at
+        # once than any other in the repository: a Gradle daemon serving the guest, a second Gradle
+        # daemon building the client, a Kotlin compile daemon, a booted simulator and Chrome. The
+        # project's own `gradle.properties` asks for a development machine's share and the iOS
+        # framework link is the step that tips it -- that link has taken a 32-gigabyte development
+        # machine past its memory, which is why `run-all.sh` passes `--max-workers=2`.
+        #
+        # Written to `GRADLE_USER_HOME` rather than committed, so it takes precedence over the
+        # project's file here and changes nothing on a development machine. `workers.max=2` is the
+        # same ceiling `run-all.sh` sets, applied to every `./gradlew` the drill scripts invoke
+        # without having to pass a flag into each of them.
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2200m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=2
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: Install brotli
+        # The byte budgets shell out to it and a macOS runner does not have it. Installed rather
+        # than tolerated, for the reason `from_web_weight.py` states at its own failure path: this
+        # grader once reported SKIP because `brotli` was absent and a workflow went green having
+        # graded nothing.
+        run: |
+          brew list brotli >/dev/null 2>&1 || brew install brotli
+          command -v brotli || { echo "brotli is still not on PATH" >&2; exit 1; }
+
+      - name: Find Chrome
+        # Asserted rather than assumed, and exported rather than hard-coded into the drills. Each
+        # web script already reads `CHROME` with the macOS application path as its default
+        # (`tools/conformance/run-web.sh`, `tools/skew-drill/run-web.sh`), so this job sets the
+        # variable and the scripts stay one implementation. If the runner image stops shipping
+        # Chrome this fails here, loudly, rather than reporting a drill that never ran as one that
+        # passed.
+        run: |
+          candidate='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+          if [ ! -x "$candidate" ]; then
+            echo "no Chrome at $candidate; the web drills cannot run" >&2
+            exit 1
+          fi
+          echo "CHROME=$candidate" >> "$GITHUB_ENV"
+          "$candidate" --version
+
+      - name: Boot an iOS simulator
+        # Every iOS drill asserts `xcrun simctl list devices booted | grep "(Booted)"` and refuses
+        # otherwise, so this is the prerequisite they are checking rather than a convenience. The
+        # device is chosen from `simctl`'s own JavaScript Object Notation (JSON) listing of what is
+        # available -- any iPhone will do, and the one that sorts last is taken so the choice is at
+        # least stable between runs. A hard-coded device name would be a workflow that breaks on
+        # the runner image's next Xcode bump, silently, with "no booted simulator".
+        #
+        # `bootstatus -b` boots and then **waits for the device to finish booting**. Without the
+        # wait the first `simctl install` races the boot and fails with an error that reads like a
+        # broken build.
+        run: |
+          udid="$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          best = None
+          for runtime, devices in runtimes.items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  if device.get("isAvailable") and device["name"].startswith("iPhone"):
+                      key = (runtime, device["name"])
+                      if best is None or key > best[0]:
+                          best = (key, device["udid"])
+          if best is None:
+              sys.exit("no available iPhone simulator on this runner")
+          print(best[1])
+          ')"
+          echo "booting $udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl list devices booted
+
+      - name: Serve the guest payload
+        # Three of the five drills check `http://localhost:8080/manifest.zipline.json` before they
+        # do anything and exit 2 if it is missing, because the screens they assert on are composed
+        # in the sandbox from guest code -- without the payload they would fail on an empty screen,
+        # which looks like an accessibility defect and is not one.
+        #
+        # The first poll iteration is slow on purpose: this Gradle task compiles the guest before
+        # it serves anything, so the wait below is a build as well as a start.
+        working-directory: engine
+        run: |
+          nohup ./gradlew :samples:slice-guest:serveProductionWebpackZipline --console=plain \
+            > "$RUNNER_TEMP/guest-serve.log" 2>&1 &
+          for _ in $(seq 1 180); do
+            if curl -fs -m 2 http://localhost:8080/manifest.zipline.json >/dev/null 2>&1; then
+              echo "the guest is being served"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "the guest never came up on :8080; the drills below would all refuse" >&2
+          tail -50 "$RUNNER_TEMP/guest-serve.log" >&2
+          exit 1
+
+      - name: Prepare the result directories
+        run: |
+          mkdir -p "$RUNNER_TEMP/conf" "$RUNNER_TEMP/log"
+          : > "$RUNNER_TEMP/status"
+
+      # Each drill below records its exit code instead of failing its step, and the verdict step at
+      # the end fails the job if any of them are non-zero. That is `run-all.sh`'s `status=1`
+      # accumulation, and the reason for it is the same: a drill that stops the run takes the
+      # remaining drills with it, and the matrix that comes out has gaps where the evidence was
+      # never collected rather than where it failed. A partial matrix is the one thing a generated
+      # matrix must never be.
+
+      - name: iOS — accessibility and network policy
+        run: |
+          set +e
+          CONF_OUT="$RUNNER_TEMP/conf/ios-a11y.conf" \
+            tools/a11y-drill/run.sh "$RUNNER_TEMP/log/ios-a11y.log"
+          echo "$? ios accessibility (tools/a11y-drill/run.sh)" >> "$RUNNER_TEMP/status"
+
+      - name: iOS — the generated Material 3 tier
+        # This drill writes a log rather than a conformance file, so the `CONF` lines are taken out
+        # of it here. `MaterialDrill.kt` prints its own `CONF RESULT client=ios` line, so the file
+        # this produces declares its client the way every other drill's does.
+        run: |
+          set +e
+          tools/a11y-drill/run-material.sh "$RUNNER_TEMP/log/ios-material.log"
+          echo "$? ios material (tools/a11y-drill/run-material.sh)" >> "$RUNNER_TEMP/status"
+          tr -d '\r' < "$RUNNER_TEMP/log/ios-material.log" \
+            | grep -E '^CONF ' > "$RUNNER_TEMP/conf/ios-material.conf"
+          true
+
+      - name: iOS — skew containment
+        run: |
+          set +e
+          tools/skew-drill/run-ios.sh
+          echo "$? ios skew (tools/skew-drill/run-ios.sh)" >> "$RUNNER_TEMP/status"
+          cp tools/skew-drill/build/skew-ios.conf "$RUNNER_TEMP/conf/ios-skew.conf" 2>/dev/null
+          true
+
+      - name: iOS — pre-flight dictionary refusal
+        run: |
+          set +e
+          tools/skew-drill/run-preflight-ios.sh
+          echo "$? ios pre-flight (tools/skew-drill/run-preflight-ios.sh)" >> "$RUNNER_TEMP/status"
+          cp tools/skew-drill/build/preflight-ios.conf "$RUNNER_TEMP/conf/ios-preflight.conf" 2>/dev/null
+          true
+
+      - name: Web — accessibility, host services and Material 3
+        # One script, three graders, three `CONF RESULT client=web` lines in one file. The
+        # aggregator reads all three: a file may hold more than one run.
+        run: |
+          set +e
+          tools/conformance/run-web.sh "$RUNNER_TEMP/conf/web-a11y.conf"
+          echo "$? web accessibility (tools/conformance/run-web.sh)" >> "$RUNNER_TEMP/status"
+          true
+
+      - name: Web — skew containment
+        # Also run by `conformance.yml` on every pull request, because it needs no device. It is
+        # here as well for the reason `run-all.sh` keeps it: this is the whole-matrix run, and a
+        # client graded in one place and not the other is how a matrix starts lying.
+        run: |
+          set +e
+          tools/skew-drill/run-web.sh
+          echo "$? web skew (tools/skew-drill/run-web.sh)" >> "$RUNNER_TEMP/status"
+          cp tools/skew-drill/build/skew-web.conf "$RUNNER_TEMP/conf/web-skew.conf" 2>/dev/null
+          true
+
+      - name: Web — the byte budgets
+        # `G5` is the host's weight and `G6` is the guest payload script's, and they are two claims
+        # because they are paid on two schedules: the host once per visitor behind an immutable
+        # content hash, the guest once per visitor per release. Both are properties of the build
+        # rather than of the machine, which is why they are the only performance claims this
+        # workflow can grade honestly. Both fail rather than skip when they cannot measure.
+        run: |
+          set +e
+          python3 tools/conformance/from_web_weight.py | tee "$RUNNER_TEMP/conf/web-weight.conf"
+          echo "${PIPESTATUS[0]} web host weight (from_web_weight.py)" >> "$RUNNER_TEMP/status"
+          python3 tools/conformance/from_guest_weight.py | tee "$RUNNER_TEMP/conf/web-guest-weight.conf"
+          echo "${PIPESTATUS[0]} web guest weight (from_guest_weight.py)" >> "$RUNNER_TEMP/status"
+          true
+
+      - name: Publish the claim results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-c-ios-and-web
+          path: |
+            ${{ runner.temp }}/conf
+            ${{ runner.temp }}/log
+          if-no-files-found: warn
+
+      - name: Verdict
+        if: always()
+        # Reported as a table before it fails, so the log says which drills were red rather than
+        # only that the job was.
+        run: |
+          echo '## Tier C — iOS and web' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '| exit | drill |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          # An absent or empty status file means no drill ever started -- the simulator never
+          # booted, or the guest was never served. The job is already red from that step, and this
+          # says so rather than reporting an empty table as a clean sheet.
+          if [ ! -s "$RUNNER_TEMP/status" ]; then
+            echo '_No drill reached the point of reporting; see the failed step above._' \
+              >> "$GITHUB_STEP_SUMMARY"
+            echo "no drill ran" >&2
+            exit 1
+          fi
+          while read -r code name; do
+            echo "| \`$code\` | $name |" >> "$GITHUB_STEP_SUMMARY"
+          done < "$RUNNER_TEMP/status"
+          cat "$RUNNER_TEMP/status"
+          if awk '$1 != 0 { found = 1 } END { exit !found }' "$RUNNER_TEMP/status"; then
+            echo "one or more drills failed; see the table above" >&2
+            exit 1
+          fi
+
+  android:
+    name: Tier C — Android on an emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Cache the Kotlin/JS toolchain
+        # The guest payload is Kotlin/JavaScript and this job builds it to serve it, so Node and
+        # Yarn are fetched here as well as on the macOS runner.
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/yarn
+            ~/.gradle/nodejs
+          key: ${{ runner.os }}-tier-c-android-${{ hashFiles('engine/gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-tier-c-android-
+
+      - name: Size the build for this runner
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2500m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=2
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: Enable hardware virtualisation for the emulator
+        # The reason this job can exist at all. GitHub's ubuntu runners expose `/dev/kvm`, and
+        # without it the emulator falls back to full software emulation and a drill that takes
+        # minutes takes hours. The udev rule widens the device's permissions so the unprivileged
+        # runner user can open it.
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Serve the guest payload
+        # `run-android.sh` and both skew drills check for this on :8080 and exit 2 without it. The
+        # emulator reaches it at `10.0.2.2:8080`, which is the host's address from inside the
+        # virtual device -- the same arrangement a development machine has.
+        working-directory: engine
+        run: |
+          nohup ./gradlew :samples:slice-guest:serveProductionWebpackZipline --console=plain \
+            > "$RUNNER_TEMP/guest-serve.log" 2>&1 &
+          for _ in $(seq 1 180); do
+            if curl -fs -m 2 http://localhost:8080/manifest.zipline.json >/dev/null 2>&1; then
+              echo "the guest is being served"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "the guest never came up on :8080; the drills below would all refuse" >&2
+          tail -50 "$RUNNER_TEMP/guest-serve.log" >&2
+          exit 1
+
+      - name: Prepare the result directories
+        run: |
+          mkdir -p "$RUNNER_TEMP/conf" "$RUNNER_TEMP/log"
+          : > "$RUNNER_TEMP/status"
+
+      - name: Run the Android drills on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # API 34 with Google application programming interfaces, which is what the sample's
+          # `compileSdk` targets. `x86_64` because the runner is x86-64 and hardware virtualisation
+          # only helps when the guest architecture matches the host's.
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: >-
+            -no-window -no-snapshot -noaudio -no-boot-anim
+            -gpu swiftshader_indirect -camera-back none -camera-front none
+          # The same accumulate-then-fail shape as the macOS job, for the same reason: one red
+          # drill must not take the rest of the matrix down with it. `script` runs on the runner
+          # with the emulator booted and `adb` already pointed at it, which is exactly the
+          # condition every one of these scripts asserts.
+          script: |
+            set +e
+            status="$RUNNER_TEMP/status"
+            conf="$RUNNER_TEMP/conf"
+
+            adb wait-for-device
+            adb devices
+
+            tools/conformance/run-android.sh "$conf/android-a11y.conf"
+            echo "$? android accessibility (tools/conformance/run-android.sh)" >> "$status"
+
+            tools/skew-drill/run.sh
+            echo "$? android skew (tools/skew-drill/run.sh)" >> "$status"
+            cp tools/skew-drill/build/skew.conf "$conf/android-skew.conf" 2>/dev/null
+
+            tools/skew-drill/run-preflight.sh
+            echo "$? android pre-flight (tools/skew-drill/run-preflight.sh)" >> "$status"
+            cp tools/skew-drill/build/preflight.conf "$conf/android-preflight.conf" 2>/dev/null
+
+            tools/conformance/cross-version-mobile.sh android "$conf/android-crossversion.conf"
+            echo "$? android cross-version (cross-version-mobile.sh)" >> "$status"
+
+            tools/reference-server/quarantine-drill.sh "$conf/android-quarantine.conf"
+            echo "$? android quarantine (quarantine-drill.sh)" >> "$status"
+
+            cp tools/skew-drill/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
+            cp tools/conformance/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
+            exit 0
+
+      - name: Publish the claim results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-c-android
+          path: |
+            ${{ runner.temp }}/conf
+            ${{ runner.temp }}/log
+          if-no-files-found: warn
+
+      - name: Verdict
+        if: always()
+        run: |
+          echo '## Tier C — Android' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '| exit | drill |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          # An absent or empty status file means no drill ever started -- the simulator never
+          # booted, or the guest was never served. The job is already red from that step, and this
+          # says so rather than reporting an empty table as a clean sheet.
+          if [ ! -s "$RUNNER_TEMP/status" ]; then
+            echo '_No drill reached the point of reporting; see the failed step above._' \
+              >> "$GITHUB_STEP_SUMMARY"
+            echo "no drill ran" >&2
+            exit 1
+          fi
+          while read -r code name; do
+            echo "| \`$code\` | $name |" >> "$GITHUB_STEP_SUMMARY"
+          done < "$RUNNER_TEMP/status"
+          cat "$RUNNER_TEMP/status"
+          if awk '$1 != 0 { found = 1 } END { exit !found }' "$RUNNER_TEMP/status"; then
+            echo "one or more drills failed; see the table above" >&2
+            exit 1
+          fi
+
+  matrix:
+    name: The matrix
+    needs: [ios-and-web, android]
+    # `always()`: the matrix is most worth generating on the night something went red. A job that
+    # only reports when everything passed is a job that reports nothing anybody needed.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tier-c-*
+          path: ${{ runner.temp }}/runs
+
+      - name: Fold each client's drills into one run
+        # One client is graded by several drills and each writes its own file, so the per-drill
+        # files are folded into one `result-<client>-<date>.conf` -- the same name and the same
+        # shape as the runs committed beside the tools, so a nightly artifact can be committed as
+        # the record of a release without editing.
+        #
+        # The fold is `aggregate.py`'s own `parse` and `merge`, imported rather than reimplemented.
+        # `merge` takes the worst verdict when two drills grade the same claim, so a red cell
+        # cannot be painted green by whichever file sorted last.
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          python3 - "$RUNNER_TEMP/runs" "$RUNNER_TEMP/result" <<'FOLD'
+          import datetime, pathlib, sys
+          sys.path.insert(0, 'tools/conformance')
+          import aggregate
+
+          source, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+          today = datetime.date.today().isoformat()
+
+          files = sorted(source.rglob('*.conf'))
+          if not files:
+              sys.exit(f'no .conf files under {source}: every drill failed before grading anything')
+
+          runs, sources = {}, {}
+          for path in files:
+              parsed = aggregate.parse(path)
+              if not parsed:
+                  # Loud rather than silent. A drill file with no `CONF RESULT` line belongs to a
+                  # client nobody can name, and guessing from its filename would put real claims in
+                  # the wrong column.
+                  sys.exit(f'{path}: no CONF RESULT line, so the client is unknown')
+              for client, claims in parsed.items():
+                  aggregate.merge(runs, client, claims)
+                  sources.setdefault(client, []).append(path.name)
+
+          for client, claims in sorted(runs.items()):
+              lines, counts = [], {'PASS': 0, 'FAIL': 0, 'SKIP': 0}
+              for claim_id, (verdict, detail) in claims.items():
+                  counts[verdict] += 1
+                  lines.append(f'CONF {claim_id} {verdict}' + (f' -- {detail}' if detail else ''))
+              lines.append(f'CONF RESULT client={client} passed={counts["PASS"]} '
+                           f'failed={counts["FAIL"]} skipped={counts["SKIP"]}')
+              (out / f'result-{client}-{today}.conf').write_text('\n'.join(lines) + '\n')
+              print(f'result-{client}-{today}.conf: {len(claims)} claims from '
+                    f'{len(sources[client])} drill files ({", ".join(sources[client])})')
+          FOLD
+
+      - name: Regenerate Part 3 of the plan
+        # `plans/conformance.md` says that table is generated and never hand-maintained. Until this
+        # workflow, nothing did the generating unattended -- a person copied the output across, and
+        # it went stale twice. `--update-plan` writes between the two `conformance-matrix` markers
+        # and refuses if they are not both there.
+        #
+        # It does **not** push the result. A workflow that commits to `main` unattended is a
+        # different decision from a workflow that measures, and the regenerated file is published
+        # below as an artifact instead, with the diff in the summary. Applying it is
+        # `gh run download <id> -n tier-c-matrix` and one commit.
+        id: regenerate
+        run: |
+          set +e
+          python3 tools/conformance/aggregate.py \
+            --update-plan plans/conformance.md \
+            --provenance "Generated ${{ github.run_started_at }} by \`.github/workflows/tier-c.yml\` run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), on \`${{ github.sha }}\`." \
+            "$RUNNER_TEMP"/result/*.conf > "$RUNNER_TEMP/matrix.md"
+          echo "aggregate=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/matrix.md"
+          git diff --stat -- plans/conformance.md
+          true
+
+      - name: Put the matrix in the run summary
+        if: always()
+        run: |
+          {
+            echo '## Conformance — the tier-C matrix'
+            echo
+            if [ -s "$RUNNER_TEMP/matrix.md" ]; then
+              cat "$RUNNER_TEMP/matrix.md"
+            else
+              echo 'No run reached the point of grading a claim; see the two device jobs.'
+            fi
+            echo
+            echo '### What is still not graded here'
+            echo
+            echo '`G1`–`G4`, the timing budgets, read `SKIP` and are correct to. The Phase 0 gate'
+            echo 'names a low-end 2022-tier Android device (`adrs/layer-4/ADR-008`), and a hosted'
+            echo 'emulator on a shared virtual machine is not it — a timing number measured here'
+            echo 'would say which runner the job landed on and nothing about the product. `G5` and'
+            echo '`G6`, the byte budgets, are graded: bytes are a property of the build.'
+            echo
+            echo '### Applying this matrix'
+            echo
+            echo 'The regenerated `plans/conformance.md` and the `result-*.conf` runs are attached'
+            echo 'as the `tier-c-matrix` artifact. This workflow does not commit them.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the matrix and the folded runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-c-matrix
+          path: |
+            ${{ runner.temp }}/result
+            ${{ runner.temp }}/matrix.md
+            plans/conformance.md
+          if-no-files-found: warn
+
+      - name: Verdict
+        if: always()
+        # A red cell in the matrix fails this job, which is what makes the nightly a gate rather
+        # than a report. `aggregate.py` exits 1 on any failed claim and 2 when it could not read
+        # its input at all, and the two are distinguished here because they need different people.
+        run: |
+          code='${{ steps.regenerate.outputs.aggregate }}'
+          case "$code" in
+            0) echo 'every claim graded tonight was met' ;;
+            1) echo 'a claim failed; the matrix above says which client and which claim' >&2
+               exit 1 ;;
+            *) echo "the matrix could not be generated (aggregate.py exit $code)" >&2
+               exit 1 ;;
+          esac

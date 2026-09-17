@@ -60,3 +60,9 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMul
 zipline = { id = "app.cash.zipline", version.ref = "zipline" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
+# The transport to Maven Central's Portal, and only the transport: the `.base` variant adds the
+# `mavenCentralUsername`/`mavenCentralPassword` credentials, the bundle assembly and the upload,
+# and configures NO publications of its own -- which is what lets this build keep the hand-written
+# Kotlin Multiplatform publications ADR-047 and ADR-071 pin the module names of. See the comment
+# in `build.gradle.kts`.
+mavenPublishBase = { id = "com.vanniktech.maven.publish.base", version = "0.37.0" }

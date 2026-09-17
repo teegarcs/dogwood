@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  An innocent-looking library that depends on the banned one. This is the case the source scan
+  cannot see: a guest depending on this has every frame-clock API on its classpath and not one
+  forbidden name in its own source.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>helper</artifactId>
+  <version>1.0</version>
+  <packaging>jar</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>androidx.compose.animation</groupId>
+      <artifactId>animation-core</artifactId>
+      <version>1.9.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

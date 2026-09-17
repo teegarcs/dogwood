@@ -42,7 +42,8 @@ fun generateTier(
   wireName: String,
   segmentName: String,
   segmentId: Int,
-  version: Int,
+  /** The library's own version, as text. The encoded segment version is derived below. */
+  libraryVersion: String,
   guestPackage: String,
   hostPackage: String,
   guestOut: File,
@@ -84,12 +85,45 @@ fun generateTier(
       previous.components.filter { it.name !in generatedNames }.map { it.localTag }
   }.orEmpty()
 
-  val dictionary = buildDictionary(
+  /*
+   * The generator revision, computed rather than typed (ADR-074).
+   *
+   * A segment version identifies a surface, and this surface has two authors: the library, whose
+   * version is the first three components, and the generator, whose revision is the last two. When
+   * the generator learns to bind something new from a library version it has already generated --
+   * which is exactly what ADR-074's change did, twenty-six times over -- the contents grow while
+   * the library version does not, and two different surfaces would otherwise share a number.
+   *
+   * So: same library version as the lock and a different surface means the revision goes up. A
+   * different library version starts again at zero, because the first three components already
+   * distinguish it. Nobody types it; it appears in the lock's diff beside the components that
+   * caused it.
+   */
+  val previousRevision = locked?.let { generatorRevisionOf(it.version) } ?: 0
+  val sameLibrary = locked != null && decodeLibraryVersion(locked.version) == libraryVersion
+  fun dictionaryAt(version: Int) = buildDictionary(
     segmentName = segmentName, segmentId = segmentId, version = version,
     components = bound.map { it.component }, wireName = wireName,
     reservedLocalTags = retiredTags,
     existingTags = locked?.components?.associate { it.name to it.localTag }.orEmpty(),
+    previous = locked?.components?.associateBy { it.name }.orEmpty(),
   )
+  val surfaceChanged = locked != null && dictionaryAt(locked.version).encode() != lock.readText()
+  val revision = when {
+    !sameLibrary -> 0
+    surfaceChanged -> previousRevision + 1
+    else -> previousRevision
+  }
+  val version = encodeLibraryVersion(libraryVersion, revision)
+  if (sameLibrary && surfaceChanged) {
+    println(
+      "generator-v2: $wireName stays at library $libraryVersion and its surface changed, so the " +
+        "generator revision goes $previousRevision -> $revision (version $version). A payload may " +
+        "declare the new number only once the fleet's hosts carry it (docs/upgrading-compose.md).",
+    )
+  }
+
+  val dictionary = dictionaryAt(version)
   val lockedVersion = locked?.version
   when (val result = checkAgainstLock(dictionary, lock, acceptDowngrade)) {
     is LockResult.Violated -> error(
@@ -111,7 +145,9 @@ fun generateTier(
     }
     LockResult.Unchanged -> Unit
   }
-  if (lockedVersion != null && lockedVersion != version) {
+  // Reported only when the *library* moved; a revision bump has already said so above, and one
+  // event printed twice reads as two events.
+  if (lockedVersion != null && !sameLibrary) {
     println(
       "generator-v2: $wireName moved from version $lockedVersion (${decodeLibraryVersion(lockedVersion)}) " +
         "to $version (${decodeLibraryVersion(version)}) -- the library the host resolves moved, and " +
@@ -126,7 +162,7 @@ fun generateTier(
   for ((file, inFile) in bound.groupBy { it.file }) {
     val stem = file.substringAfterLast('/').removeSuffix(".kt")
     File(guestOut, "$stem.kt").writeText(emitGuestFile(guestPackage, dictionary, inFile))
-    File(hostOut, "${stem}Bindings.kt").writeText(emitHostFile(hostPackage, prefix, dictionary, inFile, stem, surface.publicMarkers))
+    File(hostOut, "${stem}Bindings.kt").writeText(emitHostFile(hostPackage, prefix, dictionary, inFile, stem, surface.markerPackages))
   }
   File(hostOut, "${prefix}Binding.kt").writeText(emitBindingObject(hostPackage, prefix, wireName, version, dictionary, bound))
 
@@ -157,7 +193,7 @@ internal fun ClassifiedComposable.toParsedComponent(): ParsedComponent = ParsedC
         Kind.MODIFIER -> listOf(ParsedParameter(p.name, "Modifier", ParameterKind.MODIFIER, hasDefault = true, defaultExpression = "Modifier"))
         Kind.SLOT -> listOf(ParsedParameter(p.name, "@Composable () -> Unit" + if (v.nullable || v.hasDefault) "?" else "", ParameterKind.SLOT, hasDefault = v.hasDefault))
         Kind.EVENT -> {
-          val type = "(${v.eventArguments.joinToString(", ")}) -> Unit"
+          val type = "(${v.eventArguments.joinToString(", ") { guestArgumentType(it) }}) -> Unit"
           val optional = v.nullable || v.hasDefault
           buildList {
             if (optional) add(ParsedParameter(p.name + "Present", "Boolean", ParameterKind.VALUE, hasDefault = true, defaultExpression = "false"))
@@ -171,6 +207,18 @@ internal fun ClassifiedComposable.toParsedComponent(): ParsedComponent = ParsedC
           ),
         )
       }
+      /*
+       * A holder becomes a `ParsedParameter` of kind HOLDER carrying its shape, and
+       * `buildDictionary` expands it into the same wire properties and report event a hand-written
+       * surface's holder gets. One expansion, one numbering, one lock rule -- a guest cannot tell
+       * whether the holder it is writing belongs to a library or to a product.
+       */
+      is Verdict.Holder -> listOf(
+        ParsedParameter(
+          p.name, v.libraryType + "?", ParameterKind.HOLDER,
+          hasDefault = true, defaultExpression = "null", holderShape = v.shape,
+        ),
+      )
       else -> emptyList()
     }
   },
@@ -197,6 +245,9 @@ private fun emitNotSettable(bound: List<Bound>): String = buildString {
 // Guest stubs
 // ---------------------------------------------------------------------------------------------
 
+/** The guest-side holder class for a library state type: `TimePickerState` -> `TimePickerState`. */
+private fun guestHolderType(shape: dev.dogwood.codegen.HolderShape): String = shape.type
+
 private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.PRIMITIVE -> Classifier.stripAnnotations(v.libraryType).removeSuffix("?")
   Kind.DP -> "Dp"
@@ -204,6 +255,8 @@ private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.COLOR -> "Color"
   Kind.SHAPE -> "Shape"
   Kind.PADDING_VALUES -> "PaddingValues"
+  Kind.BORDER_STROKE -> "BorderStroke"
+  Kind.FLOAT_RANGE -> "FloatRange"
   Kind.ARRANGEMENT_H, Kind.ARRANGEMENT_V, Kind.ARRANGEMENT_HV -> "Arrangement"
   Kind.ALIGNMENT_H -> "HorizontalAlignment"
   Kind.ALIGNMENT_V -> "VerticalAlignment"
@@ -212,22 +265,40 @@ private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.TEXT_ALIGN -> "TextAlign"
   Kind.TEXT_OVERFLOW -> "TextOverflow"
   Kind.TEXT_DECORATION -> "TextDecoration"
+  Kind.TOGGLEABLE_STATE -> "ToggleableState"
   Kind.MODIFIER -> "Modifier"
   Kind.SLOT -> "@Composable () -> Unit"
-  Kind.EVENT -> "(${v.eventArguments.joinToString(", ")}) -> Unit"
+  Kind.EVENT -> "(${v.eventArguments.joinToString(", ") { guestArgumentType(it) }}) -> Unit"
 }
 
 private fun guestEncode(v: Verdict.Settable): String = when (v.kind) {
   Kind.PRIMITIVE -> "JsonPrimitive(it)"
   Kind.DP -> "JsonPrimitive(it.value)"
-  Kind.TEXT_UNIT, Kind.COLOR, Kind.SHAPE, Kind.PADDING_VALUES -> "it.json"
+  Kind.TEXT_UNIT, Kind.COLOR, Kind.SHAPE, Kind.PADDING_VALUES,
+  Kind.BORDER_STROKE, Kind.FLOAT_RANGE -> "it.json"
   Kind.ARRANGEMENT_H, Kind.ARRANGEMENT_V, Kind.ARRANGEMENT_HV,
-  Kind.FONT_WEIGHT, Kind.TEXT_ALIGN, Kind.TEXT_OVERFLOW, Kind.TEXT_DECORATION -> "JsonPrimitive(it.wire)"
+  Kind.FONT_WEIGHT, Kind.TEXT_ALIGN, Kind.TEXT_OVERFLOW, Kind.TEXT_DECORATION,
+  Kind.TOGGLEABLE_STATE -> "JsonPrimitive(it.wire)"
   Kind.ALIGNMENT_H, Kind.ALIGNMENT_V, Kind.ALIGNMENT_2D -> "JsonPrimitive(it.ordinal)"
   else -> error("not a value kind: ${v.kind}")
 }
 
+/** Each callback argument paired with the wire index it starts at, since one may occupy two. */
+private fun wireIndexed(types: List<String>): List<Pair<String, Int>> {
+  var at = 0
+  return types.map { type -> (type to at).also { at += wireArity(type) } }
+}
+
+/** How many wire arguments a callback argument of this type occupies. */
+private fun wireArity(type: String): Int = if (type == "ClosedFloatingPointRange<Float>") 2 else 1
+
+/** The guest lambda's parameter type for a callback argument. */
+private fun guestArgumentType(type: String): String =
+  if (type == "ClosedFloatingPointRange<Float>") "FloatRange" else type
+
 private fun guestDecodeArgument(type: String, index: Int): String = when (type) {
+  "ClosedFloatingPointRange<Float>" ->
+    "FloatRange(args[$index].jsonPrimitive.floatOrNull ?: 0f, args[${index + 1}].jsonPrimitive.floatOrNull ?: 0f)"
   "Boolean" -> "args[$index].jsonPrimitive.booleanOrNull ?: false"
   "Int" -> "args[$index].jsonPrimitive.intOrNull ?: 0"
   "Long" -> "args[$index].jsonPrimitive.longOrNull ?: 0L"
@@ -267,7 +338,23 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
     appendLine("/** `${b.classified.dictionaryName}`, widget tag ${(dictionary.segmentId shl 24) or entry.localTag}. Parameters the library has and this stub does not are host-default-only; see the reference. */")
     appendLine("@Composable")
     appendLine("fun ${b.name}(")
+    val holders = b.classified.parameters.filter { it.verdict is Verdict.Holder }
+    /*
+     * The content slot stays last, even when a holder is appended after it.
+     *
+     * Kotlin's trailing-lambda idiom is not a nicety here: `ModalDrawerSheet { ... }` is how every
+     * Compose developer writes this call, and it is what the library's own signature affords. A
+     * holder parameter appended at the very end silently rebinds that brace to the holder -- the
+     * call stops compiling if you are lucky, and passes a lambda where a `DrawerState?` was wanted
+     * if you are not. The catalogue's own drawers broke this way the first time a drawer holder
+     * landed, which is the cheapest possible demonstration that a payload would too.
+     *
+     * So the final slot is held back and emitted after the holders. Everything else keeps the
+     * library's order. Only the *last* one moves, because that is the only one the idiom uses.
+     */
+    val trailing = settable.lastOrNull()?.takeIf { (it.verdict as Verdict.Settable).kind == Kind.SLOT }
     for ((p, v) in settable) {
+      if (trailing != null && p === trailing.parameter) continue
       v as Verdict.Settable
       val optional = v.hasDefault || v.nullable
       val declaration = when (v.kind) {
@@ -278,7 +365,33 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
       }
       appendLine("  $declaration,")
     }
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      appendLine("  ${p.name}: ${guestHolderType(v.shape)}? = null,")
+    }
+    if (trailing != null) {
+      val v = trailing.verdict as Verdict.Settable
+      val optional = v.hasDefault || v.nullable
+      appendLine(
+        if (optional) "  ${trailing.parameter.name}: (@Composable () -> Unit)? = null,"
+        else "  ${trailing.parameter.name}: @Composable () -> Unit,",
+      )
+    }
     appendLine(") {")
+    /*
+     * A holder's fields are read HERE, in the composable body, and not inside `update`.
+     *
+     * That is what subscribes this call site to the holder's snapshot state. A read inside
+     * `update` happens after the composition has already decided not to recompose, so a target
+     * declared between frames would never cross. The v1 emitter carries the same comment and it is
+     * the one thing about this pattern that is easy to get wrong and invisible when you do.
+     */
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      for (property in v.shape.properties) {
+        appendLine("  val ${p.name}${property.suffix} = ${p.name}?.${property.field}")
+      }
+    }
     appendLine("  ComposeNode<WidgetNode, DogwoodApplier>(")
     appendLine("    factory = { newWidget(widgetTag(${dictionary.segmentId}, ${entry.localTag})) },")
     appendLine("    update = {")
@@ -293,7 +406,7 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
         Kind.EVENT -> {
           val tag = entry.events.getValue(p.name)
           val body = if (v.eventArguments.isEmpty()) "{ handler() }" else {
-            "{ args -> handler(${v.eventArguments.mapIndexed { i, t -> guestDecodeArgument(t, i) }.joinToString(", ")}) }"
+            "{ args -> handler(${wireIndexed(v.eventArguments).joinToString(", ") { (t, at) -> guestDecodeArgument(t, at) }}) }"
           }
           if (v.hasDefault || v.nullable) {
             val presence = entry.properties.getValue(p.name + "Present")
@@ -311,6 +424,37 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
             appendLine("      set(${p.name}) { recording.recorder.property(id, PropertyTag($tag), ${guestEncode(v)}) }")
           }
         }
+      }
+    }
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      for (property in v.shape.properties) {
+        val local = "${p.name}${property.suffix}"
+        val tag = entry.properties.getValue(local)
+        // Absence is the sentinel: nothing is sent when the guest passed no holder, so a client
+        // one dictionary version behind never meets a tag it has not heard of on a widget that
+        // owns an affordance (ADR-031, ADR-043).
+        appendLine("      set($local) { if (it != null) recording.recorder.property(id, PropertyTag($tag), JsonPrimitive(it)) }")
+      }
+      val report = v.shape.report
+      if (report != null) {
+        val tag = entry.events.getValue("${p.name}Report")
+        // Keyed on the holder itself, so passing null clears the slot. Registering nothing is not
+        // the same as registering a no-op: a handler from a previous composition would keep
+        // feeding a holder the guest has stopped using.
+        appendLine("      set(${p.name}) { holder ->")
+        appendLine("        if (holder == null) {")
+        appendLine("          recording.lambdas.clear(id, EventTag($tag))")
+        appendLine("        } else {")
+        appendLine("          recording.lambdas.set(id, EventTag($tag)) { args ->")
+        appendLine("            holder.${report.method}(")
+        report.arguments.forEachIndexed { index, argument ->
+          appendLine("              ${argument.name} = ${guestDecodeArgument(argument.type, index)},")
+        }
+        appendLine("            )")
+        appendLine("          }")
+        appendLine("        }")
+        appendLine("      }")
       }
     }
     appendLine("    },")
@@ -363,6 +507,9 @@ private fun hostReader(kind: Kind, libraryType: String, tag: Int): String {
     Kind.TEXT_ALIGN -> "node.textAlignOrNull($tag)"
     Kind.TEXT_OVERFLOW -> "node.textOverflowOrNull($tag)"
     Kind.TEXT_DECORATION -> "node.textDecorationOrNull($tag)"
+    Kind.TOGGLEABLE_STATE -> "node.toggleableStateOrNull($tag)"
+    Kind.BORDER_STROKE -> "node.borderStrokeOrNull($tag)"
+    Kind.FLOAT_RANGE -> "node.floatRangeOrNull($tag)"
     else -> error("not a value kind: $kind")
   }
 }
@@ -389,6 +536,11 @@ private fun hostFallback(kind: Kind, libraryType: String): String {
     Kind.TEXT_ALIGN -> "androidx.compose.ui.text.style.TextAlign.Unspecified"
     Kind.TEXT_OVERFLOW -> "androidx.compose.ui.text.style.TextOverflow.Clip"
     Kind.TEXT_DECORATION -> "androidx.compose.ui.text.style.TextDecoration.None"
+    // Nothing ticked, which is the conservative reading of a value a client could not decode:
+    // a tri-state box that shows less than the payload meant, never more.
+    Kind.TOGGLEABLE_STATE -> "androidx.compose.ui.state.ToggleableState.Off"
+    Kind.BORDER_STROKE -> "androidx.compose.foundation.BorderStroke(0.dp, androidx.compose.ui.graphics.Color.Transparent)"
+    Kind.FLOAT_RANGE -> "0f..1f"
     else -> error("no fallback for $kind")
   }
 }
@@ -405,7 +557,21 @@ private fun localType(libraryType: String): String {
   return if (libraryType.trimStart().startsWith("@Composable") && !stripped.startsWith("@Composable")) "@Composable $stripped" else stripped
 }
 
-private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictionary, bound: List<Bound>, stem: String, publicMarkers: Set<String>): String = buildString {
+private fun emitHostFile(
+  hostPackage: String,
+  prefix: String,
+  dictionary: Dictionary,
+  bound: List<Bound>,
+  stem: String,
+  /**
+   * The library's opt-in markers, by simple name, with the package each is declared in.
+   *
+   * Imported explicitly rather than relied on through the component's own package import: a
+   * library may declare its markers somewhere else entirely, which `androidx.compose.foundation`
+   * does, and the first compile of that tier failed on eight unresolved names.
+   */
+  publicMarkers: Map<String, String>,
+): String = buildString {
   val source = bound.first().classified.source
   val libraryPackage = source.packageName
   // Every simple name a generated line might use: default expressions, the parameter types the
@@ -432,7 +598,7 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
   // Every public marker the library declares, not only the ones on these functions: a default
   // expression may reach an experimental API the function itself is not marked with, and the
   // compiler refuses the file either way.
-  val optIns = bound.flatMap { it.classified.source.optIns }.toSet() + publicMarkers
+  val optIns = bound.flatMap { it.classified.source.optIns }.toSet() + publicMarkers.keys
 
   appendLine("// Generated by dogwood-codegen (generator v2) from ${source.file}. Do not edit.")
   appendLine("//")
@@ -446,6 +612,10 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
   appendLine()
   val allImports = LinkedHashSet<String>()
   allImports += "import $libraryPackage.*"
+  for (marker in optIns.sorted()) {
+    val pkg = publicMarkers[marker] ?: continue
+    if (pkg != libraryPackage) allImports += "import $pkg.$marker"
+  }
   allImports += imports
   allImports += listOf(
     "import androidx.compose.runtime.Composable",
@@ -467,6 +637,12 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
     "import dev.dogwood.host.shapeOrNull",
     "import dev.dogwood.host.dpOrNull",
     "import dev.dogwood.host.textUnitOrNull",
+    "import dev.dogwood.host.borderStrokeOrNull",
+    "import dev.dogwood.host.boolean",
+    "import dev.dogwood.host.float",
+    "import dev.dogwood.host.int",
+    "import dev.dogwood.host.string",
+    "import dev.dogwood.host.floatRangeOrNull",
     "import dev.dogwood.host.paddingValuesOrNull",
     "import dev.dogwood.protocol.EventTag",
     "import dev.dogwood.protocol.widgetTag",
@@ -487,9 +663,49 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
      * expression may name a sibling parameter (`contentColorFor(containerColor)`), and a slot
      * chosen by an `if` needs its lambda type stated or Kotlin infers `Any`.
      */
+    /*
+     * Host-default-only parameters are left off the call unless something else names them
+     * (`ClassifiedComposable.keptHostDefaults`, ADR-074). Omitting is what a Kotlin caller does
+     * when it wants the library's default, and unlike quoting it works when that default names a
+     * symbol the library keeps `internal`.
+     */
+    val omitted = b.classified.hostDefaultOnly
+      .map { it.parameter.name }
+      .filterNot { it in b.classified.keptHostDefaults }
+      .toSet()
     for ((p, v) in b.classified.parameters) {
+      if (p.name in omitted) continue
       val type = localType(p.type)
       val line = when (v) {
+        /*
+         * The generated binding builds the mirror and hands the library the real state object.
+         * What the mirror DOES is hand-written, for the reason ADR-043 gives: moving a pager,
+         * opening a drawer or answering with a chosen time is the part that requires taste.
+         *
+         * Named arguments, never positional. A shape with four properties passed positionally is
+         * two `Int` arguments away from a silent transposition -- the mirror compiles, the widget
+         * scrolls to a sequence number, and nothing says so.
+         */
+        is Verdict.Holder -> {
+          val arguments = v.shape.properties.joinToString(", ") { property ->
+            val tag = entry.properties.getValue("${p.name}${property.suffix}")
+            val read = when (property.type) {
+              "Boolean" -> "dogwoodNode.boolean($tag, ${property.absent})"
+              "Int" -> "dogwoodNode.int($tag, ${property.absent})"
+              "Float" -> "dogwoodNode.float($tag, ${property.absent})"
+              else -> "dogwoodNode.string($tag, ${property.absent})"
+            }
+            "${property.field} = $read"
+          }
+          val report = v.shape.report
+          val reporting = if (report == null) "" else {
+            val tag = entry.events.getValue("${p.name}Report")
+            val names = report.arguments.indices.joinToString(", ") { "a$it" }
+            val encoded = report.arguments.indices.joinToString(", ") { "JsonPrimitive(a$it)" }
+            ", report = { $names -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf($encoded)) }"
+          }
+          "val ${p.name}: $type = ${v.shape.mirror}($arguments$reporting)"
+        }
         is Verdict.HostDefaultOnly -> "val ${p.name}: $type = (${v.defaultText})"
         is Verdict.Unbindable -> error("unbindable parameter reached the emitter: ${b.name}.${p.name}")
         is Verdict.Settable -> when (v.kind) {
@@ -508,8 +724,15 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
           Kind.EVENT -> {
             val tag = entry.events.getValue(p.name)
             val names = v.eventArguments.indices.map { "a$it" }
+            val parts = v.eventArguments.mapIndexed { i, t ->
+              if (t == "ClosedFloatingPointRange<Float>") {
+                "JsonPrimitive(a$i.start), JsonPrimitive(a$i.endInclusive)"
+              } else {
+                "JsonPrimitive(a$i)"
+              }
+            }
             val send = if (names.isEmpty()) "{ dogwoodEvents.send(dogwoodNode, EventTag($tag)) }" else {
-              "{ ${names.joinToString(", ")} -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf(${names.joinToString(", ") { "JsonPrimitive($it)" }})) }"
+              "{ ${names.joinToString(", ")} -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf(${parts.joinToString(", ")})) }"
             }
             if (v.hasDefault || v.nullable) {
               val presence = entry.properties.getValue(p.name + "Present")
@@ -530,7 +753,10 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
       appendLine("      $line")
     }
     appendLine("      $libraryPackage.${b.name}(")
-    for ((p, _) in b.classified.parameters) appendLine("        ${p.name} = ${p.name},")
+    for ((p, _) in b.classified.parameters) {
+      if (p.name in omitted) continue
+      appendLine("        ${p.name} = ${p.name},")
+    }
     appendLine("      )")
     appendLine("    }")
   }

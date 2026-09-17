@@ -167,6 +167,34 @@ sealed interface GuardedLoad {
 }
 
 /**
+ * Appends this installation's rollout bucket to a manifest address.
+ *
+ * Separate from [DogwoodDelivery], public, and pure, because it is the one piece of staged rollout
+ * a host might have to reproduce: a product whose delivery goes through its own networking layer
+ * still wants the same address, and a second hand-written `"?cohort="` is the second place the
+ * spelling can be wrong.
+ *
+ * Three rules, each of which exists because getting it wrong is silent:
+ *
+ *   - **A null bucket appends nothing.** The address is returned unchanged, byte for byte, so a
+ *     host that never opted in issues exactly the request it issued before this existed.
+ *   - **An address that already carries a query keeps it**, joined with `&`. A manifest served
+ *     from `?release=canary` is an ordinary deployment, and replacing its query would change which
+ *     payload was fetched rather than which cohort asked for it.
+ *   - **An address that already names a cohort is left alone.** A caller that put the parameter
+ *     there meant it -- the cross-version and skew drills both pin a cohort on the address they
+ *     pass in -- and two `cohort=` parameters is a request whose meaning is the server's guess.
+ */
+fun withCohort(manifestUrl: String, bucket: Int?): String {
+  if (bucket == null) return manifestUrl
+  val query = manifestUrl.substringAfter('?', "")
+  val alreadyNamed = query.split("&").any { it.startsWith("cohort=") }
+  if (alreadyNamed) return manifestUrl
+  val separator = if (query.isEmpty()) "?" else "&"
+  return "$manifestUrl${separator}cohort=$bucket"
+}
+
+/**
  * Fetches, verifies, caches, and loads a guest.
  *
  * @param trustedPublicKeys key name to Ed25519 public key, hex-encoded. More than one entry is
@@ -215,6 +243,25 @@ class DogwoodDelivery(
    * detail into a blank screen.
    */
   private val clientSegmentVersions: () -> Map<String, Int> = { DogwoodDictionary.segmentVersions },
+  /**
+   * This installation's rollout bucket, sent on every manifest request.
+   *
+   * [InstallCohort] has given every installation a stable number 0-99 since ADR-049 and **nothing
+   * consumed it**: the client computed a bucket and sent it nowhere, which made staged rollout a
+   * capability on paper. This is the wire.
+   *
+   * It goes on the Uniform Resource Locator (URL) as a query parameter rather than in a header,
+   * and that is the whole reason it can be adopted at all: a static file server, a bucket behind a
+   * content-delivery network, `python3 -m http.server` -- every one of them ignores an unknown
+   * query parameter and serves the same manifest to everybody, exactly as today. A cohort-aware
+   * server reads it and routes. Nothing has to change on the serving side before this ships, and a
+   * deployment that never grows a rollout policy pays one query parameter for it.
+   *
+   * Null means send nothing, which is what a host that has not opted in gets. Not defaulted to a
+   * live cohort: a bucket is derived from a value persisted in the host's own storage, and
+   * constructing that store is the host's decision, not this constructor's.
+   */
+  private val installCohort: InstallCohort? = null,
 ) {
   init {
     require(trustedPublicKeys.isNotEmpty()) {
@@ -300,7 +347,7 @@ class DogwoodDelivery(
     val result = loader.loadOnce(
       applicationName = applicationName,
       freshnessChecker = MaxAgeFreshnessChecker(manifestMaxAgeMs, nowEpochMs),
-      manifestUrl = manifestUrl,
+      manifestUrl = withCohort(manifestUrl, installCohort?.bucket),
     )
     return when (result) {
       is LoadResult.Success -> DeliveredGuest(
@@ -341,8 +388,11 @@ class DogwoodDelivery(
     applicationName = applicationName,
     freshnessChecker = MaxAgeFreshnessChecker(manifestMaxAgeMs, nowEpochMs),
     manifestUrlFlow = flow {
+      // Resolved once rather than per emission: the bucket does not change, and rebuilding the
+      // string every five seconds would be the only part of this loop that allocated.
+      val requested = withCohort(manifestUrl, installCohort?.bucket)
       while (true) {
-        emit(manifestUrl)
+        emit(requested)
         delay(pollIntervalMs)
       }
     },

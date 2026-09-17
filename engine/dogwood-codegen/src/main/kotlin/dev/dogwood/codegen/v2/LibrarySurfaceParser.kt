@@ -49,7 +49,23 @@ class LibrarySurfaceParser {
       .toList()
     val composables = mutableListOf<LibraryComposable>()
     val internalNames = mutableSetOf<String>()
+    /*
+     * Names that are ALSO declared publicly somewhere in the library.
+     *
+     * A name is not a declaration, and Kotlin lets both share one. `MaterialTheme` is the public
+     * object every Material 3 default reads its colours from -- and `MaterialTheme.kt` also
+     * declares an `internal fun MaterialTheme(`, an overload of the composable. Recording the name
+     * as internal because one declaration is refused seven components whose defaults name the
+     * public object and would have compiled perfectly (found 2026-09-16, ADR-074).
+     *
+     * So a name counts as internal only when nothing public claims it too. That is conservative in
+     * the right direction: the cost of being wrong here is a binding that does not compile, which
+     * the build catches at once and `exclusions.txt` records, while the cost of the old reading was
+     * a component silently absent from the vocabulary with a reason that was not true.
+     */
+    val publicNames = mutableSetOf<String>()
     val publicMarkers = mutableSetOf<String>()
+    val markerPackages = mutableMapOf<String, String>()
     val internalMarkers = mutableSetOf<String>()
     for (file in files) {
       val text = file.readText()
@@ -61,12 +77,23 @@ class LibrarySurfaceParser {
         val isMarker = declaration is KtClass && declaration.isAnnotation() && name.startsWith("Experimental")
         when {
           isMarker && internal -> internalMarkers += name
-          isMarker -> publicMarkers += name
+          isMarker -> {
+            publicMarkers += name
+            kt.packageFqName.asString().takeIf { it.isNotEmpty() }?.let { markerPackages[name] = it }
+          }
           internal && name.first().isUpperCase() -> internalNames += name
+          name.first().isUpperCase() -> publicNames += name
         }
       }
     }
-    return LibrarySurface(module, composables, internalNames, publicMarkers, internalMarkers)
+    return LibrarySurface(
+      module = module,
+      composables = composables,
+      internalNames = internalNames - publicNames,
+      publicMarkers = publicMarkers,
+      markerPackages = markerPackages,
+      internalMarkers = internalMarkers,
+    )
   }
 
   /** One file's contribution. Exposed for tests, which pass source text directly. */
@@ -95,6 +122,7 @@ class LibrarySurfaceParser {
           },
           deprecated = function.annotationEntries.any { it.shortName?.asString() == "Deprecated" },
           optIns = fileOptIns + function.annotationEntries.flatMap { it.optInMarkers() },
+          annotations = function.annotationEntries.mapNotNull { it.shortName?.asString() }.toSet(),
           isExpect = function.hasModifier(KtTokens.EXPECT_KEYWORD),
           isInline = function.hasModifier(KtTokens.INLINE_KEYWORD),
           typeParameters = function.typeParameters.map { it.text },

@@ -56,6 +56,16 @@ object ExpressionFactories {
   const val ANIMATED_COLOR = 14
   const val OSCILLATE = 15
   const val TEXT_PLURAL = 16
+
+  /**
+   * A rounded shape whose four corners differ: `[17, topStart, topEnd, bottomEnd, bottomStart]`.
+   *
+   * Beside [ROUNDED_CORNER] rather than replacing it, because a payload that sends one radius
+   * still means one radius and a client that predates this reads the old form unchanged. The
+   * order is Compose's own (`RoundedCornerShape(topStart, topEnd, bottomEnd, bottomStart)`), so
+   * nobody has to remember a second convention.
+   */
+  const val ROUNDED_CORNER_EACH = 17
 }
 
 /** Modifier element tags: the first element of `[tag, value]` inside a modifier chain. */

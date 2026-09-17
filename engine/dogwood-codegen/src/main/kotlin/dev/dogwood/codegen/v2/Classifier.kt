@@ -11,6 +11,7 @@
  */
 package dev.dogwood.codegen.v2
 
+import dev.dogwood.codegen.HolderShape
 import java.security.MessageDigest
 
 /** How a settable parameter crosses. Each kind is one row of the plan's mapping table. */
@@ -18,7 +19,8 @@ enum class Kind {
   PRIMITIVE, DP, TEXT_UNIT, COLOR, SHAPE, PADDING_VALUES,
   ARRANGEMENT_H, ARRANGEMENT_V, ARRANGEMENT_HV,
   ALIGNMENT_H, ALIGNMENT_V, ALIGNMENT_2D,
-  FONT_WEIGHT, TEXT_ALIGN, TEXT_OVERFLOW, TEXT_DECORATION,
+  FONT_WEIGHT, TEXT_ALIGN, TEXT_OVERFLOW, TEXT_DECORATION, TOGGLEABLE_STATE,
+  BORDER_STROKE, FLOAT_RANGE,
   MODIFIER, SLOT, EVENT,
 }
 
@@ -44,6 +46,27 @@ sealed class Verdict {
   /** Cannot cross, has a default: omitted from the stub, the default passed always. */
   data class HostDefaultOnly(val libraryType: String, val defaultText: String) : Verdict()
 
+  /**
+   * A live-state object the host owns and the guest mirrors ([ADR-043]).
+   *
+   * The state itself never crosses -- it is a snapshot object with no serializable form, and a
+   * guest that held one would be holding per-frame state Layer 4 forbids. What crosses is the
+   * *shape*: a few target properties the guest writes and one report event the host sends back.
+   *
+   * On a surface an author controls, a holder is declared with `@Holder` and the generator checks
+   * the type against a registered shape. A library cannot be annotated, so a library tier's
+   * holders are recognised **by type name**, exactly as its affordances are recognised by
+   * parameter name. The table is [LIBRARY_HOLDER_SHAPES] and the mirror each entry names is
+   * hand-written host code, because what a holder *does* -- move a pager, open a drawer, answer
+   * with the time a user picked -- is the part that requires taste.
+   */
+  data class Holder(
+    val libraryType: String,
+    val shape: HolderShape,
+    val nullable: Boolean,
+    val hasDefault: Boolean,
+  ) : Verdict()
+
   /** Cannot cross and is required: the component cannot be bound. */
   data class Unbindable(val libraryType: String, val reason: String) : Verdict()
 }
@@ -61,14 +84,90 @@ data class ClassifiedComposable(
   val isBindable: Boolean get() = unbindableReason == null
   val settable: List<ClassifiedParameter> get() = parameters.filter { it.verdict is Verdict.Settable }
   val hostDefaultOnly: List<ClassifiedParameter> get() = parameters.filter { it.verdict is Verdict.HostDefaultOnly }
+
+  /**
+   * The host-default-only parameters the binding has to **write out**, which is not all of them.
+   *
+   * A binding quotes a library default because the guest *might* not send the parameter, and
+   * absence is the sentinel. For a host-default-only parameter the guest can never send it at all
+   * — so the binding can simply leave the argument off the call, and Kotlin passes the library's
+   * own default. That is better than quoting in every way that matters: it is shorter, it cannot
+   * drift from the library, and it works when the default names something the library keeps
+   * `internal`, which a quote cannot. Twenty-six of the thirty-nine components this generator
+   * excluded were excluded for exactly that (ADR-074).
+   *
+   * One parameter must still be written out: the one another emitted default *names*. Material 3
+   * writes `contentColor = contentColorFor(containerColor)`, and a binding that dropped
+   * `containerColor` would not compile. So the set starts from the names every always-emitted
+   * default mentions and closes over itself — a kept default may name a third parameter.
+   */
+  val keptHostDefaults: Set<String> by lazy {
+    val byName = parameters.associateBy { it.parameter.name }
+    val hostOnly = hostDefaultOnly.mapTo(mutableSetOf()) { it.parameter.name }
+
+    fun namesIn(text: String?): List<String> =
+      text?.let { Classifier.identifiersIn(it) }.orEmpty()
+
+    // Settable parameters are always emitted, so whatever their defaults name is required.
+    val required = ArrayDeque<String>()
+    for ((_, verdict) in parameters) {
+      when (verdict) {
+        is Verdict.Settable -> required += namesIn(verdict.defaultText).filter { it in hostOnly }
+        else -> Unit
+      }
+    }
+
+    val kept = mutableSetOf<String>()
+    while (required.isNotEmpty()) {
+      val name = required.removeFirst()
+      if (!kept.add(name)) continue
+      val verdict = byName[name]?.verdict
+      if (verdict is Verdict.HostDefaultOnly) {
+        required += namesIn(verdict.defaultText).filter { it in hostOnly }
+      }
+    }
+    kept
+  }
+
+  /**
+   * Every default expression this component's binding actually emits.
+   *
+   * What the internal-symbol check has to look at: a default nobody writes out cannot name
+   * anything the compiler will object to.
+   */
+  val emittedDefaults: List<Pair<LibraryParameter, String>>
+    get() = parameters.mapNotNull { (p, v) ->
+      when (v) {
+        is Verdict.Settable -> if (v.hasDefault) v.defaultText?.let { p to it } else null
+        is Verdict.HostDefaultOnly -> if (p.name in keptHostDefaults) p to v.defaultText else null
+        else -> null
+      }
+    }
 }
 
 object Classifier {
 
   private val PRIMITIVES = setOf("String", "Boolean", "Int", "Long", "Float", "Double")
-  private val EVENT_ARGUMENTS = PRIMITIVES
+  /**
+   * What a callback may carry back.
+   *
+   * Primitives, and one composite: a closed range of numbers, which is the argument
+   * `RangeSlider.onValueChange` carries and the only reason those components were unbindable. It
+   * crosses as the two numbers it always was — one wire argument each, decoded into one object on
+   * the guest — so nothing about the envelope changes. Anything else is still refused, with the
+   * type named.
+   */
+  private val EVENT_ARGUMENTS = PRIMITIVES + "ClosedFloatingPointRange<Float>"
   private val ASSETS = setOf("Painter", "ImageBitmap", "ImageVector", "Brush")
   private val AFFORDANCE_NAMES = setOf("enabled", "checked", "selected", "readOnly")
+
+  /**
+   * Annotations that say a composable builds something other than a UI node.
+   *
+   * Compose checks the applier at runtime, so the compiler is no help: a binding for one of these
+   * compiles and throws the moment anything composes it.
+   */
+  private val FOREIGN_APPLIERS = setOf("VectorComposable", "ComposableTarget")
   private val CONTROLLED_TEXT_INPUT = setOf(
     "TextField", "OutlinedTextField", "BasicTextField", "SecureTextField", "BasicSecureTextField",
     "SearchBar", "DockedSearchBar", "ExpandedFullScreenSearchBar", "ExpandedDockedSearchBar",
@@ -82,7 +181,21 @@ object Classifier {
     "SubcomposeMeasureScope", "CacheDrawScope", "GraphicsLayerScope", "PagerScope",
   )
 
+  /**
+   * The library state types this generator knows how to mirror, by name.
+   *
+   * Keyed by type name because a library cannot be annotated -- the same reasoning that makes the
+   * affordance rule name-keyed for a library tier (ADR-072). Each entry names a hand-written host
+   * mirror; adding a type here without writing that mirror fails the host compile, which is the
+   * failure mode worth having.
+   */
+  val LIBRARY_HOLDER_SHAPES: Map<String, HolderShape> = LibraryHolders.SHAPES
+
   private val SIMPLE_KINDS = mapOf(
+    // Added by M4 (plans/close-the-backlog.md §2.2), in the order the coverage report's
+    // "cannot cross the boundary" reasons ranked them.
+    "BorderStroke" to Kind.BORDER_STROKE,
+    "ClosedFloatingPointRange<Float>" to Kind.FLOAT_RANGE,
     "Dp" to Kind.DP,
     "TextUnit" to Kind.TEXT_UNIT,
     "Color" to Kind.COLOR,
@@ -98,6 +211,19 @@ object Classifier {
     "TextAlign" to Kind.TEXT_ALIGN,
     "TextOverflow" to Kind.TEXT_OVERFLOW,
     "TextDecoration" to Kind.TEXT_DECORATION,
+    /*
+     * A three-valued enumeration, not a holder, and it is here rather than in [LibraryHolders]
+     * because of what it is rather than what its name ends in.
+     *
+     * `TriStateCheckbox(state = …)` takes its state the way `Checkbox(checked = …)` takes its
+     * boolean: the caller decides, the control draws, and nothing is host-owned or reported back.
+     * The only thing holder-shaped about it is the suffix `State`, which is exactly what the
+     * fall-through at the bottom of [classifyParameter] keys on -- so without this row the
+     * classifier refused a plain value as a live-state holder. Crossing it as a value costs a
+     * guest enum and a reader; crossing it as a holder would have cost a shape, a mirror and a
+     * report channel for a control that has nothing to report.
+     */
+    "ToggleableState" to Kind.TOGGLEABLE_STATE,
   )
 
   fun classify(surface: LibrarySurface): List<ClassifiedComposable> {
@@ -156,6 +282,9 @@ object Classifier {
 
   private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
+  /** The identifiers a default expression mentions. Shared with [ClassifiedComposable]. */
+  internal fun identifiersIn(text: String): List<String> = IDENTIFIER.findAll(text).map { it.value }.toList()
+
   private fun classifyOne(composable: LibraryComposable, dictionaryName: String, surface: LibrarySurface): ClassifiedComposable {
     var modifierSeen = false
     val parameters = composable.parameters.map { parameter ->
@@ -163,18 +292,36 @@ object Classifier {
       if (verdict is Verdict.Settable && verdict.kind == Kind.MODIFIER) modifierSeen = true
       ClassifiedParameter(parameter, verdict)
     }
-    // A default the binding would have to copy but cannot: it names something the library keeps
-    // to itself. Refused here, with the name, rather than by the host compiler with a path.
-    val internalDefault = parameters.firstNotNullOfOrNull { (p, v) ->
-      val default = when (v) {
-        is Verdict.HostDefaultOnly -> v.defaultText
-        is Verdict.Settable -> if (v.hasDefault) v.defaultText else null
-        else -> null
-      } ?: return@firstNotNullOfOrNull null
+    /*
+     * A default the binding would have to copy but cannot: it names something the library keeps to
+     * itself. Refused here, with the name, rather than by the host compiler with a path.
+     *
+     * **Only the defaults the binding actually emits**, which since ADR-074 is not all of them: a
+     * host-default-only parameter is left off the call entirely unless another emitted default
+     * names it, so its default expression is never written and an `internal` symbol inside it
+     * cannot be a problem. Checking all of them refused twenty-six components for a reason that
+     * was never true of the code that would have been generated.
+     */
+    val provisional = ClassifiedComposable(composable, dictionaryName, parameters, unbindableReason = null)
+    val internalDefault = provisional.emittedDefaults.firstNotNullOfOrNull { (p, default) ->
       IDENTIFIER.findAll(default).map { it.value }.firstOrNull { it in surface.internalNames }?.let { "${p.name}: default names internal `$it`" }
     }
+    /*
+     * A composable that belongs to a different applier.
+     *
+     * `androidx.compose.ui.graphics.vector.Group` passes every rule here -- public, uppercase,
+     * `@Composable`, parameters that all cross -- and compiles into a perfectly good binding. Then
+     * composing it in a host tree throws `IllegalStateException: Invalid applier`, because it is a
+     * `@VectorComposable`: it builds a vector graphic, not a UI node, and Compose enforces that at
+     * runtime rather than in the type system. Found by running it (ADR-077).
+     *
+     * A component a payload can call and take the host down with is worse than one the host does
+     * not have, so these are refused rather than excluded after the fact.
+     */
+    val foreignApplier = composable.annotations.firstOrNull { it in FOREIGN_APPLIERS }
     val internalMarker = composable.optIns.firstOrNull { it in surface.internalMarkers }
     val reason = when {
+      foreignApplier != null -> "@$foreignApplier: a composable for another applier, not a UI node"
       internalMarker != null -> "requires an opt-in the library keeps internal ($internalMarker)"
       internalDefault != null -> internalDefault
       // Policy, not a rule: binding a deprecated function ships a client that cannot follow the
@@ -248,6 +395,14 @@ object Classifier {
     if (type in PRIMITIVES) return settable(Kind.PRIMITIVE)
     SIMPLE_KINDS[type]?.let { return settable(it) }
     if (type in ASSETS) return cannot("asset-backed type $type")
+    LIBRARY_HOLDER_SHAPES[type]?.let { shape ->
+      // Always optional on the stub: absence is the sentinel here as everywhere, and it is
+      // load-bearing rather than symmetric. A stub that sent a holder's properties unconditionally
+      // would put new tags on every one of these widgets, and a client one dictionary version
+      // behind meets tags it has never seen on a widget that owns an affordance -- which ADR-031
+      // defines as withhold. See ADR-043.
+      return Verdict.Holder(type, shape, nullable = parameter.type.trim().endsWith("?"), hasDefault = parameter.defaultText != null)
+    }
     if (type.endsWith("State") || type.endsWith("StateHolder") || type == "MutableInteractionSource") {
       return cannot("live-state holder $type")
     }

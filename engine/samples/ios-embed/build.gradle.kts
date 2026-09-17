@@ -45,6 +45,7 @@ kotlin {
       export(project(":dogwood-host"))
       export(project(":samples:product-design-system"))
       export(project(":dogwood-material3"))
+      export(project(":dogwood-foundation"))
     }
   }
 
@@ -57,6 +58,7 @@ kotlin {
         api(project(":dogwood-host"))
         api(project(":samples:product-design-system"))
         api(project(":dogwood-material3"))
+        api(project(":dogwood-foundation"))
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)

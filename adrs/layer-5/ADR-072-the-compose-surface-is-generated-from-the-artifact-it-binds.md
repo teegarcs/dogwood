@@ -174,3 +174,15 @@ than a chosen one.
 - [`roadmap.md`](../../roadmap.md) — Phase 3's "generator v2" points here.
 - [`adrs/README.md`](../README.md) — index entry.
 - Amended by M2 and M3 with what they measured.
+
+The manuals followed the inversion on 2026-09-16 (M7), which is the part of this decision a reader
+meets first. Until then all three taught the pre-v2 order — a hand-written surface as the way to get
+a vocabulary, with the generated tier as an addition:
+
+- [`docs/getting-started.md`](../../docs/getting-started.md) — §2, rewritten as "your vocabulary":
+  the generated library tiers first, a product's own surface second, with a flowchart for the
+  question an author actually has.
+- [`developer-experience.md`](../../developer-experience.md) — §1's vocabulary table, with the
+  generated tiers as its first row, and §4b pointing at them before a surface.
+- [`docs/authoring.md`](../../docs/authoring.md) — §10, which now opens with "look in the generated
+  library tiers first".

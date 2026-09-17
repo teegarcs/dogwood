@@ -56,6 +56,7 @@ kotlin {
         // until `tools/skew-drill/run-ios.sh` reported three unknown widget tags on a simulator.
         implementation(project(":samples:product-design-system"))
         implementation(project(":dogwood-material3"))
+        implementation(project(":dogwood-foundation"))
         implementation(compose.runtime)
         implementation(compose.foundation)
         implementation(compose.material3)

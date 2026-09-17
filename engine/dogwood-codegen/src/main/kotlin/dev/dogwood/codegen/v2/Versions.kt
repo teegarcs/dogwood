@@ -18,20 +18,32 @@ package dev.dogwood.codegen.v2
 import java.io.File
 
 /**
- * `1.9.0` becomes `10900`; `1.9.1`, `10901`; `2.0.0`, `20000`.
+ * `1.9.0` becomes `1090000`; `1.9.0` at generator revision 1, `1090001`; `2.0.0`, `2000000`.
  *
- * Two digits each for minor and patch, which is the shape ADR-072 chose and the shape the
- * committed locks already carry. A component of 100 or more would collide with the one above it
- * -- `1.10.0` and `2.0.0` would both be `20000` -- so it is refused rather than truncated. That
- * day will come for a library that reaches `x.100.0`; it will come as a build failure with this
- * sentence in it, not as two libraries sharing a number.
+ * **Two axes, because a segment version identifies a surface and a surface has two authors.** The
+ * library is one: its version is the first three components. The generator is the other, and
+ * ADR-074 is why it has to be here. That change taught the generator to bind twenty-six components
+ * it had been refusing, from the *same* library version — so the segment's contents grew while
+ * `1.9.0` did not, and a payload using a newly bound component would have declared `10900` to a
+ * host shipped last week that also called itself `10900` and had never heard of it. That is exactly
+ * the failure a declared version exists to prevent, arriving through the declaration itself.
+ *
+ * So the last two digits are the **generator revision**, and nobody types them: the generator reads
+ * the previous revision out of the lock and raises it when the bound set changes at an unchanged
+ * library version. It appears in a diff, beside the components that caused it.
+ *
+ * Two digits each for minor, patch and revision. A component of 100 or more would collide with the
+ * one above it -- `1.100.0` and `2.0.0` would both be `2000000` -- so it is refused rather than
+ * truncated. That day will come for a library that reaches `x.100.0`, or for a generator revised a
+ * hundred times against one library version; it will come as a build failure with this sentence in
+ * it, not as two surfaces sharing a number.
  *
  * A pre-release is refused for a different reason: `1.10.0-beta01` is republished under the same
  * name, and a payload that declared it would be declaring a version that means two different
  * surfaces on two different days. The pre-flight check ([ADR-061]) compares integers; it cannot
  * express "the beta from Tuesday".
  */
-fun encodeLibraryVersion(version: String): Int {
+fun encodeLibraryVersion(version: String, revision: Int = 0): Int {
   require(version.isNotBlank()) { "a library version cannot be blank" }
   require(!version.contains('-') && !version.contains('+')) {
     "cannot declare a tier for the pre-release version `$version`: a pre-release is republished " +
@@ -46,19 +58,22 @@ fun encodeLibraryVersion(version: String): Int {
     part.toIntOrNull() ?: error("cannot read `$version`: `$part` is not a number")
   }
   val (major, minor, patch) = numbers
-  require(numbers.all { it >= 0 }) { "cannot encode the negative version `$version`" }
-  require(minor < 100 && patch < 100) {
-    "cannot encode `$version`: this encoding gives the minor and patch two digits each, and a " +
-      "component of 100 or more would collide with the component above it. Widening the encoding " +
-      "raises every tier version at once and is a compatibility event, so it is a decision rather " +
-      "than a fallback."
+  require(numbers.all { it >= 0 } && revision >= 0) { "cannot encode the negative version `$version`" }
+  require(minor < 100 && patch < 100 && revision < 100) {
+    "cannot encode `$version` at generator revision $revision: this encoding gives the minor, the " +
+      "patch and the revision two digits each, and a component of 100 or more would collide with " +
+      "the component above it. Widening the encoding raises every tier version at once and is a " +
+      "compatibility event, so it is a decision rather than a fallback."
   }
-  return major * 10_000 + minor * 100 + patch
+  return major * 1_000_000 + minor * 10_000 + patch * 100 + revision
 }
 
-/** The inverse, for messages: `10900` reads back as `1.9.0`. */
+/** The library version an encoded segment version names, without its generator revision. */
 fun decodeLibraryVersion(encoded: Int): String =
-  "${encoded / 10_000}.${(encoded / 100) % 100}.${encoded % 100}"
+  "${encoded / 1_000_000}.${(encoded / 10_000) % 100}.${(encoded / 100) % 100}"
+
+/** The generator revision an encoded segment version carries. */
+fun generatorRevisionOf(encoded: Int): Int = encoded % 100
 
 /**
  * The versions `fetchComposeSources` resolved, read back from the file it wrote beside the
@@ -80,11 +95,11 @@ fun readResolvedVersions(file: File): Map<String, String> {
 }
 
 /** The version a tier for [module] declares, derived from what the host resolved. */
-fun tierVersion(versions: Map<String, String>, module: String): Int {
+fun tierVersion(versions: Map<String, String>, module: String, revision: Int = 0): Int {
   val resolved = versions[module]
     ?: error(
       "the host resolves no version for `$module`; the modules the generator reads are the ones " +
         "the host compiles against, so a module missing here is a module no host links",
     )
-  return encodeLibraryVersion(resolved)
+  return encodeLibraryVersion(resolved, revision)
 }

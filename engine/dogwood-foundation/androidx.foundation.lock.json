@@ -1,0 +1,46 @@
+{
+    "segmentName": "foundation",
+    "wireName": "androidx.foundation",
+    "segmentId": 254,
+    "version": 1100300,
+    "components": [
+        {
+            "name": "BasicText",
+            "localTag": 1,
+            "properties": {
+                "text": 1,
+                "overflow": 2,
+                "softWrap": 3,
+                "maxLines": 4,
+                "minLines": 5
+            },
+            "propertyTypes": {
+                "text": "String",
+                "overflow": "TextOverflow",
+                "softWrap": "Boolean",
+                "maxLines": "Int",
+                "minLines": "Int"
+            },
+            "slots": {},
+            "events": {}
+        },
+        {
+            "name": "SelectionContainer",
+            "localTag": 2,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        },
+        {
+            "name": "DisableSelection",
+            "localTag": 3,
+            "properties": {},
+            "slots": {
+                "content": 1
+            },
+            "events": {}
+        }
+    ]
+}

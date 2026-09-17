@@ -16,9 +16,13 @@ here so a real deployment has something to copy and to diff against:
      at all, and neither announces itself.
   2. **Brotli, when the client asks.** Serving gzip to a browser that offered brotli costs 27% and
      about five seconds on a slow connection (ADR-045), silently.
-  3. **Staged rollout by cohort.** `InstallCohort` gives every installation a stable bucket 0-99;
-     the client sends it, and this decides which release that bucket sees. Rollout is a server
-     decision -- the client half has existed since ADR-049 with nothing on the other end.
+  3. **Staged rollout by cohort.** `InstallCohort` gives every installation a stable bucket 0-99
+     and `DogwoodDelivery` sends it as `?cohort=N`; this decides which release that bucket sees.
+     Two controls, because they answer different questions. A **percentage** widens one release
+     towards the whole fleet and is what an ordinary rollout is. A **cohort range** in
+     `cohorts.json` pins named buckets to a named release and is what a canary is -- "buckets 0 to
+     9, and nobody else, until we have looked at it". A range is the more specific statement and
+     therefore wins; buckets no range names fall through to the percentage.
   4. **Resuming a previous release.** "Roll back" on this architecture is not a special mechanism:
      it is serving an earlier manifest again. One command, and the clients that quarantined the bad
      one come back on the good one.
@@ -28,6 +32,8 @@ Usage:
     tools/reference-server/server.py serve --root <dir> [--port 8080]
     tools/reference-server/server.py publish --root <dir> --from <payload-dir> --version 1.4.0
     tools/reference-server/server.py rollout --root <dir> --version 1.4.0 --percent 10
+    tools/reference-server/server.py cohorts --root <dir> --range 0-9 --version 1.4.0
+    tools/reference-server/server.py cohorts --root <dir> --clear
     tools/reference-server/server.py resume  --root <dir> --version 1.3.0
     tools/reference-server/server.py status  --root <dir>
 
@@ -54,6 +60,7 @@ except ImportError:
 
 MANIFEST = "manifest.zipline.json"
 STATE = "releases.json"
+COHORTS = "cohorts.json"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -75,6 +82,11 @@ def release_dir(root: pathlib.Path, version: str) -> pathlib.Path:
     return root / "releases" / version
 
 
+def state_versions(root: pathlib.Path) -> list:
+    """Every version published so far. Read fresh: `publish` is called between server lifetimes."""
+    return load_state(root).get("releases", [])
+
+
 def publish(root: pathlib.Path, source: pathlib.Path, version: str) -> int:
     """Copies a built, signed payload in and makes it the staged release at 0%.
 
@@ -92,9 +104,39 @@ def publish(root: pathlib.Path, source: pathlib.Path, version: str) -> int:
         print(f"release {version} already exists; publish a new version", file=sys.stderr)
         return 1
     target.mkdir(parents=True)
+    collisions = []
     for item in source.iterdir():
-        if item.is_file():
-            shutil.copy2(item, target / item.name)
+        if not item.is_file():
+            continue
+        if item.name != MANIFEST:
+            # A module path reused across releases with DIFFERENT bytes is a broken deployment, and
+            # a silent one: this server answers module requests with `Cache-Control: immutable`,
+            # which promises the bytes at that address never change. Two releases publishing
+            # different content at one address make that promise false for every client and every
+            # cache in between.
+            #
+            # Found by `cohort-drill.sh`, which is the first thing here to serve two releases of the
+            # same guest to different cohorts at the same time: a client pinned to the new release
+            # fetched the OLD release's module and refused the load on the digest the signed
+            # manifest named. The signature caught it -- the outcome is an outage, not a wrong
+            # screen -- and the fix is not in the server.
+            #
+            # A real deployment makes the address unique per release: a content hash in the module
+            # file name, or a per-release path prefix with the manifest served from inside it.
+            for other in sorted(state_versions(root)):
+                existing = release_dir(root, other) / item.name
+                if existing.is_file() and existing.read_bytes() != item.read_bytes():
+                    collisions.append(f"{item.name} (differs from release {other})")
+        shutil.copy2(item, target / item.name)
+    if collisions:
+        print(
+            "WARNING: this release reuses module addresses that already hold different bytes:\n  "
+            + "\n  ".join(collisions)
+            + "\n  Modules are served `immutable`, so that promise is now false. Publish modules at\n"
+            "  an address unique to the release -- a content hash in the name, or a per-release\n"
+            "  path prefix -- before serving two releases at once.",
+            file=sys.stderr,
+        )
 
     state = load_state(root)
     state["releases"] = sorted(set(state["releases"] + [version]))
@@ -145,18 +187,86 @@ def resume(root: pathlib.Path, version: str) -> int:
 
 def status(root: pathlib.Path) -> int:
     state = load_state(root)
+    state["cohortRanges"] = load_cohorts(root).get("ranges", [])
     print(json.dumps(state, indent=2))
     return 0
 
 
-def release_for_cohort(state: dict, cohort: int | None) -> str | None:
+def load_cohorts(root: pathlib.Path) -> dict:
+    """The bucket-range map, or an empty one.
+
+    A separate file from `releases.json` on purpose: the ranges are a *policy* somebody writes
+    during an incident or a canary, and the release list is a *fact* about what has been published.
+    Mixing them would mean an operator editing a policy in the same file the publish command
+    rewrites.
+    """
+    path = root / COHORTS
+    if not path.exists():
+        return {"ranges": []}
+    return json.loads(path.read_text())
+
+
+def save_cohorts(root: pathlib.Path, cohorts: dict) -> None:
+    (root / COHORTS).write_text(json.dumps(cohorts, indent=2) + "\n")
+
+
+def cohorts(root: pathlib.Path, spec: str | None, version: str | None, clear: bool) -> int:
+    """Pins a range of buckets to a release, or clears every pin."""
+    if clear:
+        save_cohorts(root, {"ranges": []})
+        print("cleared; every cohort falls through to the rollout percentage")
+        return 0
+    if spec is None or version is None:
+        print("give --range LOW-HIGH --version V, or --clear", file=sys.stderr)
+        return 1
+    state = load_state(root)
+    if version not in state["releases"]:
+        print(f"unknown release {version}", file=sys.stderr)
+        return 1
+    try:
+        low_text, high_text = spec.split("-", 1)
+        low, high = int(low_text), int(high_text)
+    except ValueError:
+        print(f"--range wants LOW-HIGH, got {spec!r}", file=sys.stderr)
+        return 1
+    if not (0 <= low <= high <= 99):
+        print(f"--range must lie inside 0-99, got {low}-{high}", file=sys.stderr)
+        return 1
+    book = load_cohorts(root)
+    # Replaces any range with the same bounds rather than stacking a second one: a policy file that
+    # accumulated duplicates would make "which release does bucket 3 see" depend on edit order.
+    book["ranges"] = [r for r in book.get("ranges", []) if (r["from"], r["to"]) != (low, high)]
+    book["ranges"].append({"from": low, "to": high, "version": version})
+    book["ranges"].sort(key=lambda r: (r["from"], r["to"]))
+    save_cohorts(root, book)
+    covered = sum(r["to"] - r["from"] + 1 for r in book["ranges"])
+    print(f"buckets {low}-{high} now see {version} ({covered} of 100 buckets pinned)")
+    return 0
+
+
+def release_for_cohort(state: dict, cohort: int | None, book: dict | None = None) -> str | None:
     """Which release this installation sees.
 
-    Buckets below the percentage get the staged release. Stable by construction: `InstallCohort`
-    gives a device one bucket for its lifetime, so widening a rollout only ever ADDS devices --
-    nobody is moved back off a release they already have, which would be a downgrade nobody asked
-    for and the one way a staged rollout can hurt more than it helps.
+    Three rules, in this order, and the order is the whole design:
+
+      1. **A range that names this bucket wins.** It is the more specific statement -- somebody
+         typed "0 to 9" about a particular release -- and it is how a canary is expressed. A
+         percentage cannot express one: `--percent 10` also means buckets 0 to 9, but the next
+         `--percent 20` moves the boundary, and a canary that silently widened when somebody
+         widened a different rollout would be the worst kind of surprise.
+      2. **Otherwise the percentage**, which is an ordinary widening rollout.
+      3. **Otherwise the live release**, which is what a client sending no cohort at all gets --
+         every static server, and every host that has not opted in.
+
+    Stable by construction either way: `InstallCohort` gives a device one bucket for its lifetime,
+    so widening a rollout only ever ADDS devices -- nobody is moved back off a release they already
+    have, which would be a downgrade nobody asked for and the one way staging can hurt more than it
+    helps.
     """
+    if cohort is not None:
+        for entry in (book or {}).get("ranges", []):
+            if entry["from"] <= cohort <= entry["to"]:
+                return entry["version"]
     if state.get("staged") and cohort is not None and cohort < state.get("percent", 0):
         return state["staged"]
     return state.get("live")
@@ -185,7 +295,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         cohort = int(part.split("=", 1)[1])
                     except ValueError:
                         cohort = None
-            version = release_for_cohort(state, cohort)
+            version = release_for_cohort(state, cohort, load_cohorts(self.root))
             if version is None:
                 self.send_error(503, "nothing published yet")
                 return
@@ -195,8 +305,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.respond(body, "application/json", cache="no-store", extra={"X-Dogwood-Release": version})
             return
 
-        # Everything else is a module, addressed by content and therefore immutable forever.
-        for version in state["releases"]:
+        # Everything else is a module, and this is the one place the reference has a limit worth
+        # knowing about before you copy it.
+        #
+        # A module request carries no release identity. The loader resolves each module address
+        # relative to the manifest it just verified, and the address is whatever the BUILD put in
+        # the manifest -- for this project's Zipline configuration, `slice-guest.zipline`, the same
+        # string in every release. So when two releases are live at once and both publish different
+        # bytes under that one name, nothing in the request says which is wanted, and the newest is
+        # the least surprising answer rather than the correct one. `publish` warns when it creates
+        # that situation, and the warning says what a real deployment must do about it.
+        #
+        # What saves a client from the wrong bytes is the signature: the manifest names each
+        # module's SHA-256, so a mismatched module is a refused load rather than a wrong screen.
+        # Loud, and in the right direction -- but it is an outage, so the fix belongs in publishing.
+        for version in reversed(state["releases"]):
             candidate = release_dir(self.root, version) / path
             if candidate.is_file() and candidate.resolve().is_relative_to(self.root.resolve()):
                 self.respond(
@@ -236,8 +359,10 @@ def serve(root: pathlib.Path, port: int) -> int:
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("127.0.0.1", port), Handler) as server:
         state = load_state(root)
+        pinned = load_cohorts(root).get("ranges", [])
         print(f"serving {root} on :{port} -- live {state.get('live')}, "
-              f"staged {state.get('staged')} at {state.get('percent', 0)}%")
+              f"staged {state.get('staged')} at {state.get('percent', 0)}%"
+              + (f", pinned {pinned}" if pinned else ""))
         server.serve_forever()
     return 0
 
@@ -245,7 +370,7 @@ def serve(root: pathlib.Path, port: int) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("serve", "publish", "rollout", "resume", "status"):
+    for name in ("serve", "publish", "rollout", "cohorts", "resume", "status"):
         p = sub.add_parser(name)
         p.add_argument("--root", required=True, type=pathlib.Path)
         if name == "serve":
@@ -257,6 +382,10 @@ def main() -> int:
             p.add_argument("--version", required=True)
         if name == "rollout":
             p.add_argument("--percent", type=int, required=True)
+        if name == "cohorts":
+            p.add_argument("--range", dest="spec", help="LOW-HIGH, inside 0-99")
+            p.add_argument("--version")
+            p.add_argument("--clear", action="store_true")
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True)
     if args.command == "serve":
@@ -265,6 +394,8 @@ def main() -> int:
         return publish(args.root, args.source, args.version)
     if args.command == "rollout":
         return rollout(args.root, args.version, args.percent)
+    if args.command == "cohorts":
+        return cohorts(args.root, args.spec, args.version, args.clear)
     if args.command == "resume":
         return resume(args.root, args.version)
     return status(args.root)

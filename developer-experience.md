@@ -9,15 +9,19 @@
 
 You write ordinary Jetpack Compose. You push it. It appears on phones — without an app release.
 
-The host application does not learn about your new screen, and it does not need to. What it was built knowing is a **vocabulary**, and this paragraph used to overstate it: it said the host knew "about two-thirds of the widget surface" of Compose. That is the measured *ceiling* of a generator that reads the androidx sources — generator v2 in the [roadmap](roadmap.md), which is not built. What is built, and what a payload can call today, is the vocabulary in the table below. Everything you compose *out of* that vocabulary — screens, flows, your own composables, your own component library written in the payload — needs no release. Corrected 2026-09-13, after a production review found the claim by reading the stubs rather than this sentence.
+The host application does not learn about your new screen, and it does not need to. What it was built knowing is a **vocabulary**, and where that vocabulary comes from changed in September 2026. It used to be a hand-written surface: a file of empty signatures per component, maintained by somebody. It is now, by default, **generated from the libraries themselves** — Material 3, foundation, layout and user interface (UI) — parsed out of the same sources the host compiles against, at the version the host resolves ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)). A product's own design system is still a surface, and is now the way to add **what a library does not have** rather than the way to get a vocabulary at all.
+
+Two corrections this paragraph has carried, kept because a document that quietly rewrites its own claims teaches nobody: it once said the host knew "about two-thirds of the widget surface" of Compose, which was a generator's projected ceiling stated as a fact and was corrected on 2026-09-13 by a production review that read the stubs rather than this sentence; and it taught the hand-written surface as the default until 2026-09-16, after generator v2 had already made one unnecessary for anything a library already has.
+
+Everything you compose *out of* that vocabulary — screens, flows, your own composables, your own component library written in the payload — needs no release.
 
 | Tier | What a payload can call today |
 |---|---|
+| **Generated library tiers** (segments 255, 254, 253, 252) | Material 3, `foundation`, `foundation.layout` and `androidx.ui`, bound from the libraries' **own sources** with the libraries' exact signatures — every button and card variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, `Text`, chips, tabs, top and bottom app bars, navigation bars, rails and drawers, dividers, progress indicators, `ListItem`, `AlertDialog`, `ModalBottomSheet`, the date and time picker dialogs, `Box`, `Column`, `Row`, `Spacer`, `FlowRow`/`FlowColumn`, `Dialog` and `Popup`. Roughly two composables in five are bound across the four modules, and the rest are accounted for one by one with the reason beside each. The host quotes the library's own default for anything you do not set; `*Colors`, elevations and interaction sources are not settable from a payload yet. **The exact list, and every parameter's status, is one generated report: [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md)** — read it there rather than here, because it is regenerated from the pinned sources ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) and a count copied into prose is stale the next time a type learns to cross |
 | Layout primitives (segment 0) | `Text`, `Column`, `Row`, `Box`, `Spacer`, with arrangement and alignment on the containers and font weight, text alignment, overflow, size, decoration and line height on text; `VerticalList`, `HorizontalList`, `Pager` |
 | Modifiers (segment 0) | 27: padding (uniform, per side, symmetric), size, width, height, `widthIn`/`heightIn`, `defaultMinSize`, `fillMaxWidth`/`Height`/`Size`, `wrapContentWidth`/`Height`, `aspectRatio`, weight and align (in scope), offset, alpha, rotate, scale, `clip`, `background`, `border`, `shadow`, **`clickable` on any node**, `contentDescription`, `testTag`; most numeric ones accept an animated target |
 | Dogwood's catalogue (segment 1) | 21 components: button, image, card, badge, divider, chip, price, star rating, section header, icon, text input, presence, scroll area, snackbar area, dialog, sheet, menu and menu item, date and time pickers |
-| **Material 3, generated** (segment 255) | **79 of Material 3's 186 composables**, with the library's exact signatures — every button and card variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, `Text`, chips, tabs, top and bottom app bars, navigation bars, rails and drawers, dividers, progress indicators, `ListItem`, `AlertDialog`, `ModalBottomSheet`, the date and time picker dialogs — plus `Box`, `Column`, `Row`, `Spacer`, `FlowRow`/`FlowColumn`, `Dialog` and `Popup` from the layout and UI tiers. The host quotes the library's own default for anything you do not set; `*Colors`, elevations and interaction sources are not settable from a payload yet. The list, and every parameter's status, is [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md), regenerated from the pinned sources ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) |
-| Yours (segment 2 and up) | whatever your surface declares — see §4b |
+| Yours (segment 2 and up) | whatever your surface declares — the way to add what a library does not have, not the way to get a vocabulary. See §4b |
 
 **What still requires a host release:** a new *kind* of widget — anything whose implementation must run natively — and ordinary bug fixes. Adding a modifier or a property to the primitive tier is also a release, which is why that tier was grown deliberately ([ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)): the practical test of "no release for a new component" is whether your design system's *compositional* components can be authored in the payload from these primitives, and that is what the tier is now sized for.
 
@@ -112,20 +116,89 @@ A host release enters the picture in exactly two cases: your payload uses a *reg
 
 ```mermaid
 flowchart LR
-    Write["Write Compose in Android Studio"] --> Preview["@Preview renders locally\n(planned, not built — see below)"]
-    Preview --> Check["Build-time dictionary check"]
-    Check -->|"API not in client"| Fix["Compile error naming the API\nand the client versions affected"]
+    Write["Write Compose in your editor"] --> Preview["Preview window: the same source,<br/>compiled for the Java Virtual Machine (JVM)<br/>against real Compose"]
+    Preview --> Resolve["The generated stubs, and the guest check"]
+    Resolve -->|"an Application Programming Interface (API)<br/>no client binds"| Fix["Unresolved reference:<br/>the function does not exist"]
     Fix --> Write
-    Check -->|"All APIs bound"| Push["Push to build pipeline"]
-    Push --> Deploy["Signed payload on the CDN"]
-    Deploy --> Device["Live on devices"]
+    Resolve -->|"everything resolves"| Push["Push to the build pipeline"]
+    Push --> Deploy["Signed payload on the<br/>Content Delivery Network (CDN)"]
+    Deploy --> Device["Live on devices — the only place<br/>skew and latency are graded"]
 ```
 
-**`@Preview` does not work today, and this paragraph used to say it did.** The design is that your module compiles twice from one source set — to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose — and it remains the plan ([Layer 1](specs/layer-1-authoring.md) Milestone 3). It is not built: `dogwood-compose` declares `js(IR)` and no other target, so a guest screen cannot compile for the Java Virtual Machine and no preview pane can render one. Corrected 2026-09-09, found by an independent grading run reading the build file rather than this sentence.
+**Every box, named.** *Write* is ordinary Compose in whatever editor you use; nothing in the loop
+needs a particular one. *Preview window* is `./gradlew :samples:slice-screens:preview`, described
+below: your screen compiled a second time, for the Java Virtual Machine (JVM), against an
+implementation of the same Application Programming Interface (API) that calls real Compose.
+*The generated stubs, and the guest check* is the pair of build-time answers you get: guest code can
+only call functions the generator emitted, and `dogwoodGuestCheck` refuses the handful of Compose
+APIs that would tick the boundary every frame. *Unresolved reference* is what calling anything else
+looks like — a missing function, not a failing check. *Push* is your ordinary build; *Deploy* is the
+signed payload on a Content Delivery Network (CDN); *Device* is a real client, which is the only
+place version skew and input latency are graded at all.
 
-What the inner loop is *instead*, and it is better than it sounds: `--continuous` on the development webpack task rebuilds the payload on every save, every shell host polls the manifest every five seconds, and the swap carries `rememberSaveable` state across — so the production code-update machinery doubles as hot reload on a real device. Screen tests need no harness the engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
+**`@Preview` renders a payload screen today, as a desktop window. The Android Studio pane is still
+not built.** The design is [Layer 1](specs/layer-1-authoring.md) section 3 and it has not changed:
+your module compiles twice from one source set — to JavaScript for deployment, where
+`dev.dogwood.compose.Text` records a wire operation, and to the JVM for previews, where a function
+of the same name in the same package calls `androidx.compose.material3.Text`. Identical call sites,
+two back ends, and not one line of `expect`/`actual` in the screen. The second back end is
+`engine/dogwood-compose-preview`.
 
-When the preview does land it will show the **intended layout** only: one Compose runtime, no protocol, no batching, no thread hop — so it could never show the two failure modes that matter most, degraded rendering under version skew and input latency. Those need a device.
+```
+./gradlew :samples:slice-screens:preview -Pscreen=material    # the Material 3 catalogue
+./gradlew :samples:slice-screens:preview -Pscreen=about -Pdark # the diagnostics screen, dark
+```
+
+The files it opens are `MaterialScreen.kt` and `AboutScreen.kt` — byte for byte the files the
+payload ships. Two more flags exist because a window cannot be asserted on: `-Pheadless` composes
+the screen off-screen, renders one frame and exits non-zero if either throws, and `-Pout=<path>`
+writes that frame as a Portable Network Graphics (PNG) file, which is how the screens are looked at
+in review. (There is no screenshot committed beside this paragraph: this repository carries no
+binary files, and the one-line command above reproduces the picture.)
+
+**What it shows you.** Layout, spacing, text, state and interaction, in real Compose. The generated
+Material 3 tier is real Material 3. A registered design system is *itself*: Acme's preview delegates
+call the real implementations in `samples/product-design-system`, which is the arrangement Layer 1
+Milestone 3 describes — a design system that already exists as Compose needs no second
+implementation to preview.
+
+**What it stands in for, and each one is meant to be obvious on screen.** A host-resolved colour
+token resolves against a fixed Material 3 colour scheme rather than your product's, and a token the
+preview does not carry renders **magenta**. `Formats` formats in this machine's locale rather than
+the device's. An icon and a remote image draw a labelled box, because no asset crosses this boundary
+and no network request is made. A platform date or time picker draws a box saying the host would
+answer there. Host services are a stand-in that says so: the clock is this machine's, navigation
+prints the route a real host would have been handed, and there is no network service at all.
+
+**What it can never show you, and it is the more important half.** One Compose runtime means no
+protocol, no batching and no thread hop, so the two failure modes that cost the most on a device are
+invisible here by construction. The first is **a payload that crosses the boundary every frame**: an
+animation driven from guest state, a scroll position read on every pixel, a list that re-sends its
+content. Every one of those is free in this window and is the difference between a smooth screen and
+an unusable one on a device; the guest check catches the shapes it can name and a preview catches
+none of them. The second is **skew**: `LocalSegmentVersions` in a preview reports what the preview
+back end implements, which is always the newest of everything, so the branch a two-year-old client
+would take is untestable here. Both need a device and a real client — `tools/skew-drill/` and the
+pre-flight drills are where they are graded.
+
+Two smaller gaps, for completeness. The preview's lazy containers are not lazy: windowing across the
+boundary is a protocol, and with no wire a preview composes every child, so a long list looks right
+and costs more here than on a device. And a scrolling container's `reportEveryDp` is a *wire* budget
+with no wire to throttle, so the numbers a preview reads back move continuously where a device's
+step.
+
+**The Android Studio pane is not built, and nobody has seen it work.** Layer 1 already records why:
+Android Studio's Compose preview renders through Layoutlib and wants an Android module, so a
+JavaScript-plus-JVM module does not drive it. The remaining step is packaging — an Android library
+variant of `dogwood-compose-preview` — not mechanism, because the desktop window is the proof that
+the delegation works. Until somebody builds it and looks at the pane, this paragraph says it is not
+built.
+
+What the inner loop is *besides* the preview, and it is better than it sounds: `--continuous` on the
+development webpack task rebuilds the payload on every save, every shell host polls the manifest
+every five seconds, and the swap carries `rememberSaveable` state across — so the production
+code-update machinery doubles as hot reload on a real device. Screen tests need no harness the
+engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
 
 **Most mistakes are compile errors, not blank screens — and the reason is simpler than this section originally claimed.** It described a build step comparing the Compose APIs you called against each target client's dictionary. **No such step exists.** What does exist is stronger for the common case and weaker for the specific one: guest code can only call the *generated stubs*, so calling something no client binds is not a check that fails, it is a function that does not exist. There is nothing to compare because there is nothing to call.
 
@@ -135,7 +208,12 @@ What that does **not** give you is version targeting. Whether the client on a gi
 
 ## 4b. Adding Your Own Components
 
-Dogwood's design system is twenty-one components and is not yours. A product registers its own, and
+**Look in the generated library tiers first** (§1): if Material 3 or the foundation, layout and user
+interface (UI) tiers already bind the component, there is nothing to declare and nothing to keep in
+step — [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md) is the list. This section
+is for what they do not have.
+
+Dogwood's own design system is twenty-one components and is not yours either. A product registers its own, and
 the whole of what it writes is three things ([ADR-046](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md);
 `engine/samples/product-design-system` is a working example you can copy).
 
@@ -381,7 +459,7 @@ And it is proven from outside, per platform, rather than claimed: `samples-stand
 | New component available to you | After a client release | Immediately, if you can compose it from the primitive tier and the registered components the client has; after a client release if it needs native powers |
 | What you write | JSON or a schema | Compose |
 | Where logic lives | Split: server rules plus client handlers | With your UI, in one place |
-| Local preview | Rarely | `@Preview`, real rendering — **planned, not built** |
+| Local preview | Rarely | Real Compose on the Java Virtual Machine (JVM), from the same source — a desktop window today, the Android Studio pane not yet ([§4](#4-your-development-loop)) |
 | Type safety | At the schema edge | End to end, in Kotlin |
 | Registry to maintain | Yes, by hand, forever | Generated |
 | Accessibility | Per component, by hand | Inherited from Compose |
