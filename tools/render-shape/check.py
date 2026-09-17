@@ -40,6 +40,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCES = [
     ROOT / "engine/dogwood-host/src/renderTest/kotlin",
     ROOT / "engine/dogwood-material3/src/renderTest/kotlin",
+    # The foundation, layout and ui tiers share one render source set, the same way they share one
+    # module (plans/close-the-backlog.md 2.3). A module left off this list is a module whose render
+    # tests can silently compose nothing on the web, which is the failure this file exists for.
+    ROOT / "engine/dogwood-foundation/src/renderTest/kotlin",
 ]
 
 # A call that starts a composition, directly or through one of this source set's helpers.

@@ -197,6 +197,113 @@ val generateMaterial3 by tasks.registering(JavaExec::class) {
 }
 
 /*
+ * The other three tiers generator v2 parses, in one module: `androidx.foundation` (254),
+ * `androidx.foundation.layout` (253) and `androidx.ui` (252), segment identifiers per ADR-072 D-B.
+ *
+ * Three tasks with the same shape as `generateMaterial3` and one consumer module,
+ * `dogwood-foundation`, for the reasons the module's own header gives: the three libraries share a
+ * classpath, they share a page-weight decision on the web, and a host that wants either of the
+ * other two wants the layout one. Small by design -- eight bindable composables in
+ * foundation-layout, four in `ui`, three in `foundation` -- because the primitive tier (segment 0)
+ * already offers `Column`, `Row` and `Box` and stays callable beside these (ADR-072 D-I).
+ *
+ * Each tier gets its OWN generated root. Not three directories under one, because Gradle treats a
+ * task output written underneath another task's declared output as an undeclared dependency and
+ * refuses the sources jar that packages it -- which is exactly the failure `generateMaterial3`
+ * records above, and the reason that task has a root of its own.
+ *
+ * The host package is shared: all three emit into `dev.dogwood.foundation`. A generated binding
+ * calls readers for Compose's closed sets (arrangements, alignments, text tokens) by simple name,
+ * so a reader has to live in the binding's own package -- three packages would mean three copies of
+ * one hand-written file inside one module. The binding objects are told apart by their prefixes
+ * (`FoundationBinding`, `FoundationLayoutBinding`, `UiBinding`), which the generator derives from
+ * `--segment`.
+ *
+ * The version is derived, never typed (ADR-073), and its last two digits are the generator
+ * revision the lock carries (ADR-074).
+ */
+val foundationLocks: Map<String, File> = mapOf(
+  "foundation" to rootProject.file("dogwood-foundation/androidx.foundation.lock.json"),
+  "foundation-layout" to rootProject.file("dogwood-foundation/androidx.foundation.layout.lock.json"),
+  "ui" to rootProject.file("dogwood-foundation/androidx.ui.lock.json"),
+)
+
+/** One tier task, so the three differ only in the five things that actually differ. */
+fun registerTier(
+  taskName: String,
+  module: String,
+  wireName: String,
+  segmentName: String,
+  segmentId: Int,
+  guestPackage: String,
+): TaskProvider<JavaExec> = tasks.register<JavaExec>(taskName) {
+  group = "build"
+  description = "Generates the $wireName tier: guest stubs, host bindings, dictionary and lock"
+  dependsOn(fetchComposeSources)
+  classpath = sourceSets["main"].runtimeClasspath
+  mainClass.set("dev.dogwood.codegen.v2.MainKt")
+  val root = rootProject.layout.buildDirectory.dir("generated/dogwood-foundation/$module")
+  val exclusions = rootProject.file("dogwood-foundation/exclusions.txt")
+  val lock = foundationLocks.getValue(module)
+  val reference = rootProject.file("../docs/api/$wireName.md")
+  inputs.dir(composeSourcesRoot)
+  inputs.file(exclusions)
+  outputs.dir(root)
+  outputs.file(reference)
+  argumentProviders.add {
+    val out = root.get().asFile
+    listOf(
+      "generate",
+      "--sources", composeSourcesRoot.get().asFile.absolutePath,
+      "--versions", composeVersionsFile.get().asFile.absolutePath,
+      "--module", module,
+      "--wire-name", wireName,
+      "--segment", segmentName,
+      "--segment-id", segmentId.toString(),
+      "--guest-package", guestPackage,
+      "--host-package", "dev.dogwood.foundation",
+      "--guest-out", File(out, "guest/" + guestPackage.replace('.', '/')).absolutePath,
+      "--host-out", File(out, "host/dev/dogwood/foundation").absolutePath,
+      "--dictionary-out", File(out, "dictionary/$wireName.json").absolutePath,
+      "--lock", lock.absolutePath,
+      "--exclusions", exclusions.absolutePath,
+      "--docs-out", reference.absolutePath,
+    ) + if (providers.gradleProperty("dogwoodAcceptTierDowngrade").getOrElse("false") == "true") {
+      listOf("--accept-downgrade", "true")
+    } else {
+      emptyList()
+    }
+  }
+}
+
+val generateFoundation = registerTier(
+  taskName = "generateFoundation",
+  module = "foundation",
+  wireName = "androidx.foundation",
+  segmentName = "foundation",
+  segmentId = 254,
+  guestPackage = "dev.dogwood.compose.foundation",
+)
+
+val generateFoundationLayout = registerTier(
+  taskName = "generateFoundationLayout",
+  module = "foundation-layout",
+  wireName = "androidx.foundation.layout",
+  segmentName = "foundationLayout",
+  segmentId = 253,
+  guestPackage = "dev.dogwood.compose.foundation.layout",
+)
+
+val generateUi = registerTier(
+  taskName = "generateUi",
+  module = "ui",
+  wireName = "androidx.ui",
+  segmentName = "ui",
+  segmentId = 252,
+  guestPackage = "dev.dogwood.compose.ui",
+)
+
+/*
  * The cross-check the derivation still needs.
  *
  * Deriving the version removes the three numbers a person had to keep in step; it does not by
@@ -216,11 +323,15 @@ val checkGeneratedTierVersions by tasks.registering(JavaExec::class) {
   mainClass.set("dev.dogwood.codegen.v2.MainKt")
   inputs.dir(composeSourcesRoot)
   inputs.file(material3Lock)
+  inputs.files(foundationLocks.values)
   argumentProviders.add {
+    // Every generated tier, not only the first one. A lock left off this list is a lock nothing
+    // compares to the resolved library, which is the whole failure this task exists to catch.
+    val tiers = listOf("material3" to material3Lock) + foundationLocks.toList()
     listOf(
       "check-versions",
       "--versions", composeVersionsFile.get().asFile.absolutePath,
-      "--tiers", "material3=${material3Lock.absolutePath}",
+      "--tiers", tiers.joinToString(",") { (module, lock) -> "$module=${lock.absolutePath}" },
     )
   }
 }

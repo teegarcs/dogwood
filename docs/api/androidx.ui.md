@@ -31,41 +31,15 @@ Two rules govern every number here, and both are enforced by the lock beside the
 
 | Component | Local tag | Widget tag | Owns an affordance |
 | --- | ---: | ---: | :---: |
-| [`Group`](#group) | 1 | -67108863 |  |
-| [`LookaheadScope`](#lookaheadscope) | 2 | -67108862 |  |
-| [`Dialog`](#dialog) | 3 | -67108861 |  |
-| [`Popup`](#popup) | 4 | -67108860 |  |
-
----
-
-### Group
-
-Local tag 1, widget tag `-67108863`.
-
-**Properties**
-
-| Name | Type | Tag | Default | Notes |
-| --- | --- | ---: | --- | --- |
-| `name` | `String` | 1 | `DefaultGroupName` |  |
-| `rotation` | `Float` | 2 | `DefaultRotation` |  |
-| `pivotX` | `Float` | 3 | `DefaultPivotX` |  |
-| `pivotY` | `Float` | 4 | `DefaultPivotY` |  |
-| `scaleX` | `Float` | 5 | `DefaultScaleX` |  |
-| `scaleY` | `Float` | 6 | `DefaultScaleY` |  |
-| `translationX` | `Float` | 7 | `DefaultTranslationX` |  |
-| `translationY` | `Float` | 8 | `DefaultTranslationY` |  |
-
-**Content slots**
-
-| Name | Tag |
-| --- | ---: |
-| `content` | 1 |
+| [`LookaheadScope`](#lookaheadscope) | 1 | -67108863 |  |
+| [`Dialog`](#dialog) | 2 | -67108862 |  |
+| [`Popup`](#popup) | 3 | -67108861 |  |
 
 ---
 
 ### LookaheadScope
 
-Local tag 2, widget tag `-67108862`.
+Local tag 1, widget tag `-67108863`.
 
 **Content slots**
 
@@ -77,7 +51,7 @@ Local tag 2, widget tag `-67108862`.
 
 ### Dialog
 
-Local tag 3, widget tag `-67108861`.
+Local tag 2, widget tag `-67108862`.
 
 **Content slots**
 
@@ -95,7 +69,7 @@ Local tag 3, widget tag `-67108861`.
 
 ### Popup
 
-Local tag 4, widget tag `-67108860`.
+Local tag 3, widget tag `-67108861`.
 
 **Properties**
 
@@ -125,6 +99,5 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | Component | Parameter | Library type | Host passes |
 | --- | --- | --- | --- |
 | `Dialog` | `properties` | `DialogProperties` | `DialogProperties()` |
-| `Group` | `clipPathData` | `List<PathNode>` | `EmptyPath` |
 | `Popup` | `offset` | `IntOffset` | `IntOffset(0, 0)` |
 | `Popup` | `properties` | `PopupProperties` | `PopupProperties()` |

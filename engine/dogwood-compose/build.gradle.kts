@@ -71,6 +71,31 @@ kotlin {
       },
     )
 
+    /*
+     * The foundation, layout and ui tiers' guest stubs, from the three generated roots the
+     * `dogwood-foundation` module's tasks write (plans/close-the-backlog.md 2.3).
+     *
+     * Three source directories rather than one, because each tier is a separate Gradle task with a
+     * separate output root -- a task output written underneath another task's declared output is,
+     * to Gradle, an undeclared dependency, and the sources jar is what refuses it. Each one is
+     * wired through its own producing task for the reason the Material 3 block above gives.
+     *
+     * The packages are `dev.dogwood.compose.foundation`, `.foundation.layout` and `.ui`, which is
+     * what makes ADR-072's D-I true at the source level: a payload gets segment 0's `Column` or the
+     * generated one by which package it imports, and both stay callable.
+     */
+    for ((task, module) in listOf(
+      "generateFoundation" to "foundation",
+      "generateFoundationLayout" to "foundation-layout",
+      "generateUi" to "ui",
+    )) {
+      jsMain.get().kotlin.srcDir(
+        project(":dogwood-codegen").tasks.named(task).map {
+          rootProject.layout.buildDirectory.dir("generated/dogwood-foundation/$module/guest").get()
+        },
+      )
+    }
+
     jsTest {
       dependencies {
         implementation(kotlin("test"))
@@ -92,6 +117,10 @@ kotlin {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
+  dependsOn(":dogwood-codegen:generateMaterial3")
+  dependsOn(":dogwood-codegen:generateFoundation")
+  dependsOn(":dogwood-codegen:generateFoundationLayout")
+  dependsOn(":dogwood-codegen:generateUi")
 }
 
 // Zipline's API validator reads the same generated sources but is not a Kotlin compilation task,
@@ -99,5 +128,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 // dependency the moment the generated directory is stale -- which is every clean checkout.
 tasks.matching { it.name.contains("ZiplineApi") }.configureEach {
   dependsOn(":dogwood-codegen:generateDesignSystem")
+  dependsOn(":dogwood-codegen:generateMaterial3")
+  dependsOn(":dogwood-codegen:generateFoundation")
+  dependsOn(":dogwood-codegen:generateFoundationLayout")
+  dependsOn(":dogwood-codegen:generateUi")
 }
 
