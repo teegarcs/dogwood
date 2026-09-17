@@ -260,3 +260,21 @@ integration rather than only here. The secret-handling step took the dry-run bra
 Nothing in that workflow needed fixing, which is worth recording as much as a failure would be: the
 steps are thin wrappers around commands a person runs, and that discipline is what made a
 first-ever run boring.
+
+### What was re-verified here, after Group 1 changed the address
+
+Every drill that fetches a payload had to be re-run, because Group 1 changed the name of the file
+they fetch. All on this machine, 2026-09-17:
+
+| Drill | Result |
+|---|---|
+| `tools/reference-server/check.sh` | 11 of 11, including the new refusal control |
+| `tools/reference-server/cohort-drill.sh` | 10 of 10, `B7` and its two companions included |
+| `tools/reference-server/rotation-drill.sh` | pass; two releases whose modules are byte-identical share one pool address, which is the intended behaviour and not a collision |
+| `tools/reference-server/publish-check.sh` | 6 of 7; `P5` fails for want of the Python `brotli` module on this machine, which the nightly workflow installs and where it passes |
+| `tools/skew-drill/run-desktop.sh` | 5 of 5, including the wait loop that now reads the module address out of the manifest |
+| `tools/conformance/run-android.sh` | 27 of 27 on an emulator, the whole `M` family included |
+
+`check.sh` failed once on the way, on its real-client leg, while an Android instrumented test was
+running on the same machine. Re-run on a quiet machine it passes. Recorded because the first reading
+of that failure was "the pool broke the desktop client", which it was not.
