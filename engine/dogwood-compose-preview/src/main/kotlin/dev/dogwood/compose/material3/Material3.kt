@@ -27,7 +27,13 @@
  * `SnackbarHost`, `TriStateCheckbox`, and the state-holder overloads of `Slider` and `RangeSlider`.
  * The two navigation drawers are covered, by hand, at the end of this file.
  *
- * Everything a delegate does is forward. There is no recording, no wire and no host tree: a
+ * **One difference worth knowing about.** Sixteen slots are optional on the guest side and *not*
+ * optional in the library -- a top app bar's `navigationIcon` and `actions`, a tab row's
+ * `indicator` and `divider`. The guest's `null` reaches them as an empty slot rather than as an
+ * absent one, because the library has nowhere to put an absence. A bar with no navigation icon
+ * therefore reserves the space for one in a preview and does not on a device.
+ *
+ * Everything else a delegate does is forward. There is no recording, no wire and no host tree: a
  * `Button` here is `androidx.compose.material3.Button`, reached by an ordinary Kotlin call.
  */
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)

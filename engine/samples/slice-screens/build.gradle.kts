@@ -29,6 +29,26 @@ kotlin {
     // this screen actually sends -- so it has to run where the real Compose runtime runs.
     nodejs()
   }
+
+  /*
+   * The preview compilation (plans/close-the-backlog.md Group 4; Layer 1 section 3).
+   *
+   * **The same source, compiled twice.** `MaterialScreen.kt` and `AboutScreen.kt` below are
+   * compiled for Kotlin/JavaScript against `dogwood-compose`, where every call records a wire
+   * operation, and for the Java Virtual Machine against `dogwood-compose-preview`, where the same
+   * call reaches real Compose. Neither compilation knows about the other and neither file has a
+   * line of `expect`/`actual` in it: the two back ends publish the same package and the same
+   * names, which is the whole of the trick.
+   *
+   * Only those two files are on the preview path today, by an explicit `include` rather than by
+   * a shared directory, and the reason is honest rather than architectural: the preview back end
+   * covers the vocabulary those two screens use, which is most of the primitive tier, the design
+   * system and the Material 3 catalogue. `ExploreScreen` and `FeedScreen` reach further -- host
+   * networking, lazy windowing, the pager -- and adding them is adding delegates, not adding a
+   * mechanism.
+   */
+  jvm()
+
   sourceSets {
     jsMain {
       dependencies {
@@ -44,6 +64,60 @@ kotlin {
       dependencies {
         implementation(kotlin("test"))
       }
+    }
+
+    jvmMain {
+      // Two roots, and the filter below is what keeps them from being everything. `src/jsMain` is
+      // the payload's own screens; `preview/main` is the launcher and Acme's preview delegates,
+      // which are deliberately NOT under `src` -- `dogwoodGuestCheck` reads `src` and is a check
+      // on *guest* code, and a desktop window is not guest code.
+      kotlin.setSrcDirs(listOf("src/jsMain/kotlin", "preview/main/kotlin"))
+      kotlin.include(
+        "dev/dogwood/slice/MaterialScreen.kt",
+        "dev/dogwood/slice/AboutScreen.kt",
+        "dev/dogwood/slice/preview/**",
+        "dev/acme/**",
+      )
+      dependencies {
+        // The other back end. Same packages, same names, real Compose underneath.
+        api(project(":dogwood-compose-preview"))
+        // Acme's real implementations, which the preview delegates call directly -- the
+        // arrangement Layer 1 Milestone 3 describes for a registered design system.
+        implementation(project(":samples:product-design-system"))
+      }
+    }
+  }
+}
+
+/*
+ * The window.
+ *
+ *     ./gradlew :samples:slice-screens:preview -Pscreen=material
+ *     ./gradlew :samples:slice-screens:preview -Pscreen=about -Pdark
+ *
+ * and the gate that can run without one:
+ *
+ *     ./gradlew :samples:slice-screens:preview -Pscreen=material -Pheadless
+ *
+ * which composes the screen into an off-screen Skia surface, renders a frame, and exits non-zero
+ * if either throws. That is the only form of this task a machine can grade, so it is the form the
+ * checks run; see `PreviewMain.kt` for what a preview can and cannot tell you.
+ */
+val preview by tasks.registering(JavaExec::class) {
+  group = "application"
+  description = "Opens a payload screen in a Compose Desktop window, rendered by real Compose."
+  val jvmMain = kotlin.targets.getByName("jvm").compilations.getByName("main")
+  classpath(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+  dependsOn(jvmMain.compileTaskProvider)
+  mainClass.set("dev.dogwood.slice.preview.PreviewMainKt")
+  // Compose composes deeply and the desktop sample already runs with a larger stack for it.
+  jvmArgs("-Xss8m")
+  argumentProviders.add {
+    buildList {
+      add("--screen=" + (project.findProperty("screen") as String? ?: "material"))
+      if (project.hasProperty("dark")) add("--dark=true")
+      if (project.hasProperty("headless")) add("--headless")
+      (project.findProperty("out") as String?)?.let { add("--out=$it") }
     }
   }
 }
