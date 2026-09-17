@@ -140,9 +140,6 @@ jobs:
 
       - name: Build and stamp the payload
         working-directory: engine
-        env:
-          SIGNING_KEY: ${{ env.SIGNING_KEY }}
-          ROTATION_KEY: ${{ env.ROTATION_KEY }}
         # `-PdogwoodVersion` rather than a post-build edit, and this is the line the quarantine
         # drill's header exists to explain: the version is inside the signed body, so rewriting it
         # in a published manifest makes every launch fail with "manifest signature ... did not
@@ -155,9 +152,6 @@ jobs:
             --console=plain
 
       - name: Check the bytes that would ship
-        env:
-          SIGNING_KEY: ${{ env.SIGNING_KEY }}
-          ROTATION_KEY: ${{ env.ROTATION_KEY }}
         # Seven claims on this particular build: the stamped version, both signatures accepted by a
         # client holding only one key at a time, the cache split, `Content-Encoding: br`, and every
         # module fetched with the digest the signed manifest names. Run locally against a real
@@ -207,4 +201,7 @@ jobs:
           path: |
             engine/samples/slice-guest/build/zipline/ProductionWebpack
             tools/reference-server/build/publish-check.conf
-          if-no-files-found: error
+          # `warn`, not `error`: this step runs on failure too, and a run that died in the build
+          # has nothing to upload. Failing the upload as well would report two problems where
+          # there is one.
+          if-no-files-found: warn
