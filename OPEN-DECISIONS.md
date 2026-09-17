@@ -174,11 +174,15 @@ python3 tools/reference-server/portal-bundle-check.py
 
 Six requirements graded on the zip a person would upload — POM completeness, a sources jar and a
 javadoc jar per jar-packaged coordinate, a PGP signature beside every deployable file, md5 and sha1
-recomputed, and nothing in the archive that does not belong. **36 coordinates, 1990 files, all
-green** — after the check found a real defect on its first run: `dogwood-codegen` published no
-sources jar, which Central refuses a deployment for. Watched to fail: rebuilt with no
-`DOGWOOD_GPG_KEY`, `M4` goes red on all 199 deployable files; one `.sha1` overwritten with zeroes,
-`M5` names it. The script says on every run what it cannot do, which is ask the Portal.
+recomputed, and nothing in the archive that does not belong. **43 coordinates, 2420 files, all
+green** on 2026-09-16 — a figure that grows on its own, because the bundle is assembled from every
+module that applies `maven-publish` rather than from a written list, which is how `dogwood-foundation`
+joined it the day it was added.
+
+The check found a real defect on its first run: `dogwood-codegen` published no sources jar, which
+Central refuses a deployment for. Watched to fail: rebuilt with no `DOGWOOD_GPG_KEY`, `M4` goes red
+on every deployable file and says so; one `.sha1` overwritten with zeroes, `M5` names the file. The
+script says on every run what it cannot do, which is ask the Portal.
 
 **What is left, and it is account work rather than a decision:**
 
