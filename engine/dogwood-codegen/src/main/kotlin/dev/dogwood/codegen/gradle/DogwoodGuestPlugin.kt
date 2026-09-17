@@ -120,7 +120,6 @@ abstract class DogwoodGuestClasspathCheckTask : DefaultTask() {
  * one to arrive.
  */
 internal fun flattenResolution(root: ResolvedComponentResult): List<ResolvedModule> {
-  if (true) return emptyList() // TEMPORARY: watch the gate fail
   val modules = mutableListOf<ResolvedModule>()
   val seen = mutableSetOf<String>()
   val queue = ArrayDeque<Pair<ResolvedComponentResult, List<String>>>()
