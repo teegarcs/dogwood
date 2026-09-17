@@ -48,11 +48,16 @@ trap cleanup EXIT
 git -C "$ROOT" worktree remove --force "$WORKTREE" 2>/dev/null || true
 git -C "$ROOT" worktree add --detach "$WORKTREE" "$TAG" >/dev/null || exit 1
 
-passed=0; failed=0; lines=()
+passed=0; failed=0
+: > "$OUT"
 conform() { # id, ok(1/0), detail
-  if [ "$2" = "1" ]; then passed=$((passed+1)); lines+=("CONF $1 PASS -- $3")
-  else failed=$((failed+1)); lines+=("CONF $1 FAIL -- $3"); fi
-  printf '%s\n' "${lines[-1]}"
+  local line
+  if [ "$2" = "1" ]; then passed=$((passed+1)); line="CONF $1 PASS -- $3"
+  else failed=$((failed+1)); line="CONF $1 FAIL -- $3"; fi
+  # Printed and appended as it happens, not collected. `${lines[-1]}` is a bash 4 spelling and this
+  # runs under the bash 3.2 macOS ships, where it is an unbound variable under `set -u` -- so the
+  # drill died at its first verdict with "bad array subscript" and no result.
+  printf '%s\n' "$line" | tee -a "$OUT"
 }
 
 serve() { # directory
@@ -122,6 +127,5 @@ if grep -q "loaded version" "$HERE/build/engine-skew-k4.log"; then k4=1; else k4
 conform "K4" "$k4" \
   "$(grep -o 'loaded version[^\"]\{0,80\}' "$HERE/build/engine-skew-k4.log" | head -1 || echo "today's host did not load the older payload")"
 
-printf '%s\n' "${lines[@]}" > "$OUT"
 echo "CONF RESULT client=desktop passed=$passed failed=$failed skipped=0" >> "$OUT"
 [ "$failed" = "0" ]
