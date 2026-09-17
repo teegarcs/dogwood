@@ -10,7 +10,7 @@ grades them.
 | Tier | Grades | Runs | Needs |
 |---|---|---|---|
 | **S** | claims about code every client compiles, plus page weight | **every pull request**, `.github/workflows/conformance.yml` | a Java Development Kit and a browser |
-| **C** | accessibility, network policy, skew containment, byte budgets | **nightly and on demand**, `.github/workflows/tier-c.yml`; **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device or emulator, Chrome, and the guest served on `:8080` |
+| **C** | accessibility, network policy, skew containment, the generated Material 3 tier, engine skew, byte budgets | **nightly and on demand**, `.github/workflows/tier-c.yml`; **locally and before a release**, `tools/conformance/run-all.sh` | a booted iOS simulator with VoiceOver, an attached Android device or emulator, Chrome, the guest served on `:8080`, and a `v*` tag to compare the engine against |
 
 **The Android drills run against the minified release build** (`testBuildType = "release"`), so every Android cell is graded against what a user would install — R8 on, shrinking and optimization included. See ADR-056 for why the sample's keep rules exist and why an adopter needs none of them.
 
@@ -20,8 +20,10 @@ repository is public, so GitHub's macOS runners cost nothing, and its ubuntu run
 `/dev/kvm` — which is what an Android emulator needs to run in minutes rather than hours. Both
 device families are therefore available, and `.github/workflows/tier-c.yml` boots one of each
 **nightly**: a macOS job for the iOS drills and the web drills in headless Chrome, an ubuntu job for
-the Android drills on an emulator, and a third job that folds every `result-*.conf` into one run per
-client and regenerates the matrix in [`plans/conformance.md`](../plans/conformance.md) Part 3.
+the Android drills on an emulator, and a third ubuntu job for the one tier-C drill that needs no
+device at all — `engine-skew.sh`, which meets two engine versions in a git worktree. Those three run
+in parallel; a fourth waits for all of them, folds every `result-*.conf` into one run per client and
+regenerates the matrix in [`plans/conformance.md`](../plans/conformance.md) Part 3.
 
 Nightly and on demand rather than per pull request, and that is a deliberate boundary rather than a
 limitation: it is roughly forty minutes of device time and tier S already blocks merges, so putting
@@ -94,6 +96,15 @@ the end rather than at the first red one, for the same reason `run-all.sh` accum
 drill that stops the run takes the remaining drills with it, and the matrix that comes out then has
 gaps where the evidence was never collected rather than where it failed.
 
+**Each nightly job sweeps its own results before uploading them**, and that is the other half of the
+same idea. A drill appends its verdicts as it goes and names its client on the last line, so one
+that dies in between leaves a `.conf` holding real claims and no `CONF RESULT` — and the fold
+refuses such a file rather than guess which column the claims belong to, which would mean one dead
+drill taking every other drill's evidence down with it. The sweep drops those files, names each one
+and how many claim lines it was carrying, in the job's output and in its summary, and **fails the
+job**: a dropped result means a drill died, and a run that looked clean because evidence was
+removed would be the same lie as a matrix built from whichever drill sorted last.
+
 **What the nightly still cannot grade, and this is the part worth being precise about.** `G1`–`G4`
 are the timing budgets, and the Phase 0 gate names a low-end 2022-tier Android device
 ([Layer 4 ADR-008](../adrs/layer-4/ADR-008-gate-device-not-available.md)) that this project decided
@@ -119,30 +130,30 @@ better served with `python3 -m http.server 8080` from the built
 `samples/slice-guest/build/zipline/ProductionWebpack` than with `serveProductionWebpackZipline`,
 which is a Gradle daemon and a webpack watcher holding a gigabyte for the duration.
 
-| Drill | Claims | What it actually does |
-|---|---|---|
-| [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |
-| [`a11y-drill/run.sh`](../tools/a11y-drill/README.md) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | in-application walk of `UIAccessibility` with VoiceOver enabled, plus the iOS network drill |
-| [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5`, `D7`, `J1`–`J4`, `A7`, `H4`, `H5`, `B1`, `B2`, `A4` | headless Chrome: `Accessibility.getFullAXTree`, plus the host services, a real code update, the kill switch, and the sidecar's detached Ed25519 signature checked against fixtures the build itself signed ([ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)), and a guest that crashes on purpose so the frames can be read ([ADR-063](../adrs/layer-5/ADR-063-a-web-crash-carries-its-frames.md)) |
-| [`skew-drill/run.sh`](../tools/skew-drill/README.md), `run-ios.sh` | `A2`–`A4` | two builds: a client at version N meeting a payload at N+1 that **declares nothing** — the render-time containment rules |
-| [`a11y-drill/run-material.sh`](../tools/a11y-drill/README.md), the web drill's `web_material.py`, and `MaterialConformanceTest` on Android | `M1`–`M7` | the generated Material 3 catalogue, operated through each platform's own accessibility layer: a control is found by its label, activated the way an assistive technology activates it, and the payload's own witness line changes |
-| [`skew-drill/run-desktop.sh`](../tools/skew-drill/README.md) | `A2`–`A4` | the same two builds on the desktop, read off the **render transcript** — that client has no accessibility tree to walk from outside the process |
-| [`reference-server/quarantine-drill.sh`](../tools/reference-server/quarantine-drill.sh) | `H2`, `H3` | a payload that throws before the host can mount anything, published twice, quarantined on a device, recovered through `resume` |
-| [`two-payloads/measure.sh`](multi-team.md) | — | two independently shipped payloads in one application, and what the second costs ([ADR-065](../adrs/layer-5/ADR-065-two-teams-need-two-shells-and-nothing-else.md)) |
-| [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
-| [`skew-drill/run-material-preflight.sh`](../tools/skew-drill/README.md) | `B6` | an Android or iOS client built **without** the generated Material 3 tier, meeting a payload that declares it: refused before `start`, naming the segment, with the ordinary build as the control |
-| [`engine-skew.sh`](../tools/conformance/engine-skew.sh) | `K3`, `K4` | two **engine** versions meeting: the host built at a tag in a worktree and the payload built at `HEAD`, each served to the other |
-| [`reference-server/rotation-drill.sh`](keys.md) | `R1`–`R5` | a signing key rotated through a real server, with two clients differing only in which key they hold — the one holding the old key stops at exactly the publish that drops its signature |
-| [`reference-server/cohort-drill.sh`](operating.md) | `C1`–`C3` | a bad release published to buckets 0–9 only, and the other ninety installations untouched |
-| [`reference-server/publish-check.sh`](../tools/reference-server/publish-check.sh) | `P1`–`P7` | the bytes a publish would ship: the version stamped, the signature over them, the cache split, and `Content-Encoding: br` |
-| [`cross-version.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | a **frozen, signed** payload from an earlier toolchain served to a desktop host built from current sources |
-| [`cross-version-mobile.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | the same fixture served to an installed Android or iOS build, pointed at it by `--es manifest` / `--dogwood-manifest` |
-| [`symbolicate/resolve.py`](../tools/symbolicate/resolve.py) | — | resolves a minified guest stack against the build's source map; run by hand on a crash report, not part of a gate |
-| [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | grades the Phase 0 timings against `budgets.tsv`. Reads `SKIP` everywhere until the gate device exists, on hosted runners included |
-| [`from_web_weight.py`](../tools/conformance/from_web_weight.py) | `G5` | the host's brotli weight. Also tier S, because bytes are a property of the build |
-| [`from_guest_weight.py`](../tools/conformance/from_guest_weight.py) | `G6` | the guest payload script's brotli weight — the half `G5` deliberately excludes, and therefore the half nothing bounded until it existed |
-| [`phase0/scaling-sensitivity.sh`](../tools/phase0/results/scaling-sensitivity.md) | — | the same emulator at 4 cores and 1; **sensitivity, never gate evidence** ([ADR-064](../adrs/layer-4/ADR-064-the-tail-budgets-headroom-was-parallelism.md)) |
-| [`aggregate.py`](../tools/conformance/aggregate.py) | — | generates the matrix from every run and exits non-zero on a red cell |
+| Drill | Claims | Run by | What it actually does |
+|---|---|---|---|
+| [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | `run-all.sh`; `tier-c.yml` (android) | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |
+| [`a11y-drill/run.sh`](../tools/a11y-drill/README.md) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | `run-all.sh`; `tier-c.yml` (iOS and web) | in-application walk of `UIAccessibility` with VoiceOver enabled, plus the iOS network drill |
+| [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5`, `D7`, `J1`–`J4`, `A7`, `H4`, `H5`, `B1`, `B2`, `A4` | `run-all.sh`; `tier-c.yml` (iOS and web) | headless Chrome: `Accessibility.getFullAXTree`, plus the host services, a real code update, the kill switch, and the sidecar's detached Ed25519 signature checked against fixtures the build itself signed ([ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)), and a guest that crashes on purpose so the frames can be read ([ADR-063](../adrs/layer-5/ADR-063-a-web-crash-carries-its-frames.md)) |
+| [`skew-drill/run.sh`](../tools/skew-drill/README.md), `run-ios.sh` | `A2`–`A4` | `run-all.sh`; `tier-c.yml` (android; iOS and web) | two builds: a client at version N meeting a payload at N+1 that **declares nothing** — the render-time containment rules |
+| [`a11y-drill/run-material.sh`](../tools/a11y-drill/README.md), the web drill's `web_material.py`, and `MaterialConformanceTest` on Android | `M1`–`M7` | `run-all.sh`; `tier-c.yml` (iOS and web). The other two clients need no separate invocation: `web_material.py` is `run-web.sh`'s third grader and `MaterialConformanceTest` is one of the classes `run-android.sh`'s `connectedReleaseAndroidTest` runs | the generated Material 3 catalogue, operated through each platform's own accessibility layer: a control is found by its label, activated the way an assistive technology activates it, and the payload's own witness line changes |
+| [`skew-drill/run-desktop.sh`](../tools/skew-drill/README.md) | `A2`–`A4` | `run-all.sh` only | the same two builds on the desktop, read off the **render transcript** — that client has no accessibility tree to walk from outside the process |
+| [`reference-server/quarantine-drill.sh`](../tools/reference-server/quarantine-drill.sh) | `H2`, `H3` | `run-all.sh`; `tier-c.yml` (android) | a payload that throws before the host can mount anything, published twice, quarantined on a device, recovered through `resume` |
+| [`two-payloads/measure.sh`](multi-team.md) | — | by hand — a measurement, not a gate | two independently shipped payloads in one application, and what the second costs ([ADR-065](../adrs/layer-5/ADR-065-two-teams-need-two-shells-and-nothing-else.md)) |
+| [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | `run-all.sh`; `tier-c.yml` (android; iOS and web) | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
+| [`skew-drill/run-material-preflight.sh`](../tools/skew-drill/README.md) | `B6` | `run-all.sh`, both clients; `tier-c.yml`, both clients (the android job and the iOS job each run it for their own client) | an Android or iOS client built **without** the generated Material 3 tier, meeting a payload that declares it: refused before `start`, naming the segment, with the ordinary build as the control |
+| [`engine-skew.sh`](../tools/conformance/engine-skew.sh) | `K3`, `K4` | `run-all.sh`; `tier-c.yml` (its own `engine-skew` job — it needs no device, only a git worktree, so it runs in parallel with the two device jobs rather than after them, and that job checks out at `fetch-depth: 0` because a shallow checkout has no tags to build a worktree from) | two **engine** versions meeting: the host built at a tag in a worktree and the payload built at `HEAD`, each served to the other |
+| [`reference-server/rotation-drill.sh`](keys.md) | `R1`–`R5` | `run-all.sh` only | a signing key rotated through a real server, with two clients differing only in which key they hold — the one holding the old key stops at exactly the publish that drops its signature |
+| [`reference-server/cohort-drill.sh`](operating.md) | `C1`–`C3` | `run-all.sh` only | a bad release published to buckets 0–9 only, and the other ninety installations untouched |
+| [`reference-server/publish-check.sh`](../tools/reference-server/publish-check.sh) | `P1`–`P7` | `run-all.sh`; `publish-payload.yml` | the bytes a publish would ship: the version stamped, the signature over them, the cache split, and `Content-Encoding: br` |
+| [`cross-version.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | `run-all.sh` only | a **frozen, signed** payload from an earlier toolchain served to a desktop host built from current sources |
+| [`cross-version-mobile.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | `run-all.sh`, both clients; `tier-c.yml` (android only) | the same fixture served to an installed Android or iOS build, pointed at it by `--es manifest` / `--dogwood-manifest` |
+| [`symbolicate/resolve.py`](../tools/symbolicate/resolve.py) | — | by hand, on a crash report | resolves a minified guest stack against the build's source map; run by hand on a crash report, not part of a gate |
+| [`from_phase0.py`](../tools/conformance/from_phase0.py) | `G1`–`G4` | `run-all.sh` only | grades the Phase 0 timings against `budgets.tsv`. Reads `SKIP` everywhere until the gate device exists, on hosted runners included |
+| [`from_web_weight.py`](../tools/conformance/from_web_weight.py) | `G5` | `run-all.sh`; `tier-c.yml` (iOS and web); `conformance.yml` (tier S) | the host's brotli weight. Also tier S, because bytes are a property of the build |
+| [`from_guest_weight.py`](../tools/conformance/from_guest_weight.py) | `G6` | `run-all.sh`; `tier-c.yml` (iOS and web); `conformance.yml` (tier S) | the guest payload script's brotli weight — the half `G5` deliberately excludes, and therefore the half nothing bounded until it existed |
+| [`phase0/scaling-sensitivity.sh`](../tools/phase0/results/scaling-sensitivity.md) | — | by hand — sensitivity, never gate evidence | the same emulator at 4 cores and 1; **sensitivity, never gate evidence** ([ADR-064](../adrs/layer-4/ADR-064-the-tail-budgets-headroom-was-parallelism.md)) |
+| [`aggregate.py`](../tools/conformance/aggregate.py) | — | `run-all.sh`; `tier-c.yml` (the matrix job) | generates the matrix from every run and exits non-zero on a red cell |
 
 ## Freezing a payload — a rule, not a run
 
@@ -347,7 +358,8 @@ the plan the repository was then on; making it public closed that, and closed
 
 **Tier C gates nightly, and does not block a merge.** `.github/workflows/tier-c.yml` runs on a
 schedule and on `workflow_dispatch`, boots an iOS simulator on a macOS runner and an Android
-emulator on an ubuntu one, and fails on a red claim exactly as `run-all.sh` does. It is not a
+emulator on an ubuntu one, runs the deviceless engine-skew drill beside them, and fails on a red
+claim exactly as `run-all.sh` does. It is not a
 required check and should not be: a required check has to run on the pull request, and this is
 forty minutes of device time for a signal that moves about as often as the drills do. What it buys
 instead is that a tier-C regression is found the night it lands rather than the next time somebody
@@ -363,6 +375,22 @@ tree being released rather than against last night's `main`, and it is also the 
 `result-*.conf` files get committed as the record. The nightly's own runs are published as the
 `tier-c-matrix` artifact, and it does not commit them: a workflow that pushes to `main` unattended
 is a different decision from a workflow that measures, and only the second one was taken here.
+
+**The matrix is written by the run that produced it.** `run-all.sh` passes `--update-plan` to
+`aggregate.py`, so finishing the gate rewrites Part 3 of [`plans/conformance.md`](../plans/conformance.md)
+between its two `conformance-matrix` markers, with a banner naming the date, the machine, the
+commit and whether the tree was clean. It used to print the table and leave a person to paste it
+across, which is how Part 3 came to be dated three days before the claims it described.
+
+The write-back is guarded, and the guard is a **coverage** test rather than a verdict test: a run
+must have graded every client the committed matrix names, and at least as many claims for each of
+them as that matrix records. A red cell is written down — that is the table doing its job. A
+partial run is turned away, because a client nothing reached has no column at all and a drill that
+refused leaves its claims absent, which renders as `—`, a gap; and a generated matrix must never
+invent a gap. Two environment variables are the stated exits: `SKIP_MATRIX_WRITE=1` never writes,
+for a deliberately partial run where the console table is wanted and the file must not move, and
+`FORCE_MATRIX_WRITE=1` writes anyway, for the one honest case the guard cannot tell from a partial
+run — a change that legitimately retires claims.
 
 **And what nothing enforces.** The checks that are deliberately not automated anywhere — the iOS
 embed check, the reference-server check, the standalone check, and serving the web page with

@@ -91,6 +91,37 @@ for pair in "android:preflight" "ios:preflight-ios"; do
   fi
 done
 
+echo "==> mobile pre-flight refusal of the generated Material 3 tier"
+# `B6`, which is not `B3` again with a different payload. `B3` is a client meeting a dictionary
+# *version* it does not have; `B6` is a client meeting a whole *segment* it has never heard of. One
+# script with a client argument rather than the pair above, because these two halves assert the same
+# outcome and differ only in how the tier is left out -- a build flag on Android, a launch argument
+# on iOS.
+#
+# The web grades `B6` too, in `web_material.py` via `run-web.sh`, and that is two gradings of one
+# promise rather than one grading twice: the web host compares versions in `WebDelivery`, a mobile
+# host reads the vector out of Zipline's signed manifest metadata in `DogwoodDelivery`.
+#
+# The drill refuses when the served payload does not declare the tier, which is the prerequisite it
+# cannot invent: with nothing to refuse it would pass by testing nothing.
+for client in android ios; do
+  "$HERE/../skew-drill/run-material-preflight.sh" "$client" >/dev/null 2>&1 || status=1
+  if [ -f "$HERE/../skew-drill/build/material-preflight-${client}.conf" ]; then
+    # `<client>-materialpreflight`, one hyphen and no more. The fold at the end of this script takes
+    # the client from `name.rsplit('-', 1)[0]`, so a file called `android-material-preflight.conf`
+    # would be folded into a client named `android-material` and `B6` would land in a column the
+    # matrix has never had and nobody reads.
+    #
+    # The `RESULT` line is carried across as well as the claims. The fold drops it when it merges
+    # into an existing `android.conf`, and keeps it when there is none -- which is the case that
+    # matters, because a client file with no `CONF RESULT` line is one `aggregate.py` refuses to
+    # attribute at all.
+    grep -E "^CONF ([A-Z][0-9]|RESULT)" \
+      "$HERE/../skew-drill/build/material-preflight-${client}.conf" \
+      > "$HERE/build/${client}-materialpreflight.conf" || true
+  fi
+done
+
 echo "==> a bad publish, quarantined on a device and recovered"
 # `H2`'s device half. Every earlier test of the crash-loop quarantine simulated the crash by
 # recording a start without a success; this one publishes a payload that genuinely fails to mount.
@@ -120,6 +151,28 @@ echo "==> web accessibility"
 echo "==> ios accessibility and network policy"
 CONF_OUT="$HERE/build/ios-a11y.conf" "$HERE/../a11y-drill/run.sh" >/dev/null 2>&1 || status=1
 
+echo "==> the generated Material 3 tier on ios"
+# `M1`-`M7`, and iOS only. Android's and the web's Material claims are already graded and must not
+# be added here twice: `run-android.sh` above runs `connectedReleaseAndroidTest`, which runs every
+# instrumented class in `slice-android` and `MaterialConformanceTest` is one of them, and
+# `run-web.sh` below calls `web_material.py` as its third grader. iOS is the one client whose
+# Material drill is a separate script, because VoiceOver has to be switched on first and the walk
+# happens inside the application.
+#
+# It writes a log rather than a `.conf`, so the `CONF` lines are taken out of it here.
+# `MaterialDrill.kt` prints its own `CONF RESULT client=ios`, so the file this produces declares its
+# client the way every other drill's does.
+#
+# The log is deleted first. The drill only truncates it at the point it launches the application, so
+# a run that refuses earlier -- no simulator, no payload on :8080 -- would otherwise leave yesterday's
+# verdicts on disk for the grep below to harvest as though they were today's.
+rm -f "$HERE/build/ios-material.log"
+"$HERE/../a11y-drill/run-material.sh" "$HERE/build/ios-material.log" >/dev/null 2>&1 || status=1
+if [ -f "$HERE/build/ios-material.log" ]; then
+  tr -d '\r' < "$HERE/build/ios-material.log" \
+    | grep -E "^CONF ([A-Z][0-9]|RESULT)" > "$HERE/build/ios-material.conf" || true
+fi
+
 echo "==> compatibility across the over-the-air gap"
 # A committed payload fixture from an earlier toolchain, against a host built from current
 # sources -- the pairing every deployment has and nothing else here exercises.
@@ -130,6 +183,29 @@ for client in android ios; do
   "$HERE/cross-version-mobile.sh" "$client" "$HERE/build/${client}-crossversion.conf" \
     >/dev/null 2>&1 || status=1
 done
+
+echo "==> two engine versions meeting"
+# `K3` and `K4`, and the pairing the drill above cannot reach. `cross-version.sh` serves a frozen,
+# signed payload *artifact* to a host built today, which covers a payload that is merely old. This
+# one builds both halves from source at two engine versions: a host checked out at the newest `v*`
+# tag in a throwaway git worktree, and the payload built at `HEAD`, each served to the other. `K3`
+# is the older host refusing today's payload; `K4` is today's host running the older payload, which
+# is the direction a fleet actually lives in.
+#
+# It needs no device -- the desktop client is the instrument, because `-Ddogwood.manifest` already
+# points it anywhere -- so it sits with the other deviceless drills rather than waiting for hardware.
+#
+# It refuses when there is no `v*` tag to compare against, and grades `K3` SKIP when the two
+# versions declare the same dictionary: there is no skew to grade when the vocabulary did not move.
+"$HERE/engine-skew.sh" >/dev/null 2>&1 || status=1
+if [ -f "$HERE/build/engine-skew.conf" ]; then
+  # Renamed rather than left where it lands. This drill writes into the very directory the fold
+  # reads, and the fold takes the client from `name.rsplit('-', 1)[0]` -- so `engine-skew.conf`
+  # would invent a client called `engine` and carry `K3` and `K4` out of the desktop column with it.
+  grep -E "^CONF ([A-Z][0-9]|RESULT)" "$HERE/build/engine-skew.conf" \
+    > "$HERE/build/desktop-engineskew.conf" || true
+  rm -f "$HERE/build/engine-skew.conf"
+fi
 
 echo "==> performance budgets"
 python3 "$HERE/from_phase0.py" > "$HERE/build/phase0.raw" || status=1
@@ -166,11 +242,133 @@ for extra in sorted(glob.glob(str(out / '*-*.conf'))):
 PY
 
 echo
-python3 "$HERE/aggregate.py" "$HERE"/build/*.conf || status=1
+# --- Part 3 of the plan, written by the run that produced it -----------------------------------
+#
+# `plans/conformance.md` says that table is generated and never hand-maintained, and until now this
+# gate did not do the generating: it printed the matrix and a person pasted it across. That is how
+# Part 3 came to be dated `2026-09-14` while describing a smaller project than the one in the
+# repository. `--update-plan` writes between the two `conformance-matrix` markers and refuses if
+# they are not both there.
+#
+# **The guard is a coverage test, not a verdict test.** A partial run -- no simulator, no emulator,
+# a drill that refused for want of a served payload -- grades fewer claims, and writing that back
+# would *delete* evidence rather than refresh it. A client nothing reached has no column at all, and
+# a drill that refused leaves its claims absent, which renders as `—`, a gap. The plan's own rule is
+# that a generated matrix must never invent a gap.
+#
+# So the rule is measured against the table being replaced rather than against a threshold somebody
+# chose: **this run must have graded every client the committed matrix names, and at least as many
+# claims for each of them as that matrix records.** The legitimate gaps survive it -- `K1` on web
+# and `H5` on android are gaps today and stay gaps, because neither changes a count. A partial run
+# does not: a client nothing reached fails the first half, a drill that refused fails the second.
+#
+# A red cell is not a reason to refuse the write. A failing claim recorded in the matrix is the
+# table doing its job; only a run that knows *less* than the table it would overwrite is turned
+# away. Tier C passes `--update-plan` unconditionally and correctly: its fold step already dies
+# rather than produce a run it cannot attribute, and it uploads the result instead of committing it.
+#
+#   SKIP_MATRIX_WRITE=1   never write. For a deliberately partial run -- grading one client while
+#                         working on it -- where the console matrix is wanted and the file must not
+#                         move.
+#   FORCE_MATRIX_WRITE=1  write anyway. For the one honest case the guard cannot tell apart from a
+#                         partial run: a change that legitimately retires claims.
+PLAN="$HERE/../../plans/conformance.md"
+matrix_args=()
+if [ "${SKIP_MATRIX_WRITE:-0}" = "1" ]; then
+  echo "(Part 3 not written: SKIP_MATRIX_WRITE=1)" >&2
+else
+  if [ "${FORCE_MATRIX_WRITE:-0}" = "1" ]; then
+    write_back=0
+    echo "(the write-back guard was overridden: FORCE_MATRIX_WRITE=1)" >&2
+  else
+    python3 - "$PLAN" "$HERE" "$HERE"/build/*.conf <<'PY'
+import pathlib, re, sys
+plan_path, here = sys.argv[1], sys.argv[2]
+sys.path.insert(0, here)
+import aggregate
+
+text = pathlib.Path(plan_path).read_text()
+if aggregate.BEGIN not in text or aggregate.END not in text:
+    sys.exit('the plan has no conformance-matrix markers; aggregate.py would refuse the write anyway')
+block = text[text.index(aggregate.BEGIN):text.index(aggregate.END)]
+
+# The counts are read off the block's own footer -- `- **android**: pass 65, skip 4` -- which
+# `render()` writes from `len(runs[client])`, so it is the same measure as the one taken below. A
+# block with no footer is one nothing generated, and there is nothing there to protect.
+was = {}
+for line in re.finditer(r'^- \*\*(\w+)\*\*: (.+)$', block, re.M):
+    was[line.group(1)] = sum(int(n) for n in re.findall(r'\d+', line.group(2)))
+if not was:
+    sys.exit(0)
+
+runs = {}
+for path in sys.argv[3:]:
+    parsed = aggregate.parse(path)
+    if not parsed:
+        continue  # aggregate.py itself reports this file, loudly, a moment from now
+    for client, claims in parsed.items():
+        aggregate.merge(runs, client, claims)
+
+problems = []
+for client in sorted(was):
+    if client not in runs:
+        problems.append(f'{client}: the committed matrix has a column and this run graded nothing')
+    elif len(runs[client]) < was[client]:
+        problems.append(f'{client}: {len(runs[client])} claims this run, '
+                        f'against {was[client]} in the committed matrix')
+if problems:
+    print('Part 3 was NOT written: this run knows less than the table it would replace.',
+          file=sys.stderr)
+    for problem in problems:
+        print(f'  {problem}', file=sys.stderr)
+    print('  Run the whole gate with every device attached, or SKIP_MATRIX_WRITE=1 to say so '
+          'deliberately, or FORCE_MATRIX_WRITE=1 if this run really does retire claims.',
+          file=sys.stderr)
+    sys.exit(1)
+PY
+    write_back=$?
+  fi
+  if [ "$write_back" = "0" ]; then
+    # The banner names the machine and the commit, because a generated table whose provenance is a
+    # date is one nobody can place: the same date covers a run with an emulator attached and one
+    # without, and a clean tree and a dirty one.
+    root="$(cd "$HERE/../.." && pwd)"
+    commit="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo 'an unknown commit')"
+    branch="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'an unknown branch')"
+    if [ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]; then
+      tree=', with uncommitted changes in the working tree'
+    else
+      tree=''
+    fi
+    if [ "${SKIP_ENGINE_BUILD:-0}" = "1" ]; then
+      engine=', with `SKIP_ENGINE_BUILD=1` grading the test results already on disk'
+    else
+      engine=''
+    fi
+    matrix_args=(--update-plan "$PLAN" --provenance \
+      "Generated $(date +%Y-%m-%d) by \`tools/conformance/run-all.sh\` on \`$(hostname -s)\` \
+($(uname -sm)), from \`$commit\` on branch \`$branch\`${tree}${engine}.")
+  else
+    # A gate that could not write the matrix is a gate that did not run whole, and a whole run is
+    # what this script's one line of output is asked about. Reported as its own verdict below rather
+    # than as a red cell, because it is neither -- nothing failed, something was never graded.
+    partial=1
+    status=1
+  fi
+fi
+
+python3 "$HERE/aggregate.py" "${matrix_args[@]+"${matrix_args[@]}"}" "$HERE"/build/*.conf || status=1
 
 echo
-if [ "$status" = "0" ]; then
-  echo "PASS -- every claim this machine can grade is met"
+if [ "$status" = "0" ] && [ "${SKIP_MATRIX_WRITE:-0}" = "1" ]; then
+  echo "PASS -- every claim this machine can grade is met; Part 3 was left alone by request"
+elif [ "$status" = "0" ]; then
+  echo "PASS -- every claim this machine can grade is met, and Part 3 of plans/conformance.md"
+  echo "        has been rewritten from this run; commit it with the change it grades"
+elif [ "${partial:-0}" = "1" ]; then
+  echo "FAIL -- this run graded less than the matrix it would have replaced, so Part 3 was not" >&2
+  echo "        written; the refusal above says which client, and the matrix above says what" >&2
+  echo "        this run did reach" >&2
 else
   echo "FAIL -- see the matrix above; a red cell blocks the merge" >&2
 fi

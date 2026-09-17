@@ -120,8 +120,20 @@ echo "==> $TAG declares  [$declared_old]"
 # better than grading a pair that cannot disagree.
 if [ "$declared_new" = "$declared_old" ]; then
   echo "the two engine versions declare the same dictionary; there is no skew to grade" >&2
-  echo "CONF K3 SKIP -- $TAG and HEAD declare the same dictionary" | tee "$OUT"
-  echo "CONF RESULT client=desktop passed=0 failed=0 skipped=1" >> "$OUT"
+  # **Both claims, not only `K3`.** This branch returns before either half is served and before the
+  # host is run at all, so `K4` is exactly as ungraded as `K3` is -- and an ungraded claim that says
+  # nothing renders in the matrix as `—`, a gap, while one that reports SKIP renders as `·`. Those
+  # mean different things, and the difference is the whole point of the mark: a gap is evidence
+  # nobody collected and nobody decided about, a skip is a decision with a reason attached to it.
+  # Reporting `K4` as a gap here said the drill had forgotten the claim, when what had happened is
+  # that the drill stopped before reaching it.
+  {
+    echo "CONF K3 SKIP -- $TAG and HEAD declare the same dictionary ($declared_new), so there is" \
+         "nothing for the older host to refuse"
+    echo "CONF K4 SKIP -- not graded either: this drill returns before it serves or runs anything" \
+         "when the two versions agree, so today's host was never given $TAG's payload"
+    echo "CONF RESULT client=desktop passed=0 failed=0 skipped=2"
+  } | tee -a "$OUT"
   exit 0
 fi
 

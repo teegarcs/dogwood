@@ -231,6 +231,25 @@ jobs:
           cp tools/skew-drill/build/preflight-ios.conf "$RUNNER_TEMP/conf/ios-preflight.conf" 2>/dev/null
           true
 
+      - name: iOS — pre-flight refusal of the generated Material 3 tier
+        # `B6`, and it is the step above's sibling rather than a repeat of it: `B3` is a client
+        # meeting a dictionary *version* it does not have, `B6` a client meeting a whole *segment*
+        # it has never heard of. The Android job runs the same drill with `android`, and this one
+        # with `ios`, because a claim graded on one client here and on two clients in `run-all.sh`
+        # is precisely the drift between the two runners that this file exists to remove.
+        #
+        # The iOS half needs no rebuild flag: the tier is left out with the launch argument
+        # `--dogwood-no-material3`, so the drill installs the application once and launches it
+        # twice -- the ordinary build as the control, then the same build without the tier.
+        run: |
+          set +e
+          tools/skew-drill/run-material-preflight.sh ios
+          echo "$? ios material pre-flight (run-material-preflight.sh ios)" >> "$RUNNER_TEMP/status"
+          cp tools/skew-drill/build/material-preflight-ios.conf \
+            "$RUNNER_TEMP/conf/ios-materialpreflight.conf" 2>/dev/null
+          cp tools/skew-drill/build/material-preflight-ios-*.log "$RUNNER_TEMP/log/" 2>/dev/null
+          true
+
       - name: Web — accessibility, host services and Material 3
         # One script, three graders, three `CONF RESULT client=web` lines in one file. The
         # aggregator reads all three: a file may hold more than one run.
@@ -264,6 +283,51 @@ jobs:
           python3 tools/conformance/from_guest_weight.py | tee "$RUNNER_TEMP/conf/web-guest-weight.conf"
           echo "${PIPESTATUS[0]} web guest weight (from_guest_weight.py)" >> "$RUNNER_TEMP/status"
           true
+
+      - name: Drop any result file that never named its client
+        if: always()
+        # **One sweep, rather than a guard at every copy.** The drills append their verdicts as they
+        # go and declare their client on the last line, so a drill that dies in between leaves a
+        # `.conf` holding real claims and no `CONF RESULT`. The `matrix` job's fold exits on such a
+        # file rather than guess which column the claims belong to -- correctly, but that means one
+        # dead drill takes the entire matrix down with it, including every other drill's evidence.
+        #
+        # This runs once, over the directory that is about to be uploaded, so it also covers the
+        # files the drills write straight into it -- `android-a11y.conf`, `web-a11y.conf`,
+        # `ios-material.conf` -- which a guard at a `cp` could never reach because there is no `cp`.
+        # Two mechanisms for one rule is a file where nobody knows which one is doing the work.
+        #
+        # **It is loud, and it fails.** A dropped file means a drill died, and quietly tidying away
+        # the evidence would be the same failure shape as a matrix built from whichever drill sorted
+        # last: a run that looks clean because something was removed rather than because nothing
+        # went wrong. Each dropped file is named, with the number of claim lines it was carrying, on
+        # the step's output and in the job summary, and the step exits non-zero.
+        #
+        # That non-zero is belt as well as braces. Every drill here writes its `CONF RESULT` line
+        # immediately before it exits -- `check.py`, `check_preflight.py` and `check_web.py` append
+        # it as the last line of the file and then `sys.exit`, and the shell drills `echo` it and
+        # then test `$failed` -- so a file without one always coincides with a non-zero exit that
+        # the verdict step already reads. That is a property of the drills, though, not something
+        # this workflow enforces, and a sweep that depended on it would be one drill rewrite away
+        # from silently swallowing a dead one.
+        run: |
+          dropped=0
+          for file in "$RUNNER_TEMP"/conf/*.conf; do
+            [ -e "$file" ] || continue
+            grep -q '^CONF RESULT' "$file" && continue
+            # `grep -c` prints its count and *returns 1* when the count is zero, which under this
+            # job's `set -e` would end the sweep at the first empty file it met.
+            claims="$(grep -c '^CONF ' "$file" || true)"
+            echo "dropped $(basename "$file"): $claims claim lines and no CONF RESULT line, so the drill that wrote it died before it named its client" >&2
+            echo "- \`$(basename "$file")\` — dropped: $claims claim lines, no \`CONF RESULT\`; the drill that wrote it died before naming its client" >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$file"
+            dropped=$((dropped + 1))
+          done
+          if [ "$dropped" != "0" ]; then
+            echo "$dropped result file(s) were dropped; the matrix will have gaps where their claims should be" >&2
+            exit 1
+          fi
+          echo "every result file names its client"
 
       - name: Publish the claim results
         if: always()
@@ -415,6 +479,16 @@ jobs:
             echo "$? android pre-flight (tools/skew-drill/run-preflight.sh)" >> "$status"
             cp tools/skew-drill/build/preflight.conf "$conf/android-preflight.conf" 2>/dev/null
 
+            # `B6`: a client built without the generated Material 3 tier, meeting a payload that
+            # declares it. Not `B3` again -- that is a client meeting a dictionary *version* it does
+            # not have, this is a client meeting a whole *segment* it has never heard of. It
+            # reinstalls the application twice, with `-PdogwoodMaterial3=false` and then without, so
+            # it runs after the drills that assume the ordinary build is installed.
+            tools/skew-drill/run-material-preflight.sh android
+            echo "$? android material pre-flight (run-material-preflight.sh)" >> "$status"
+            cp tools/skew-drill/build/material-preflight-android.conf \
+              "$conf/android-materialpreflight.conf" 2>/dev/null
+
             tools/conformance/cross-version-mobile.sh android "$conf/android-crossversion.conf"
             echo "$? android cross-version (cross-version-mobile.sh)" >> "$status"
 
@@ -424,6 +498,51 @@ jobs:
             cp tools/skew-drill/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
             cp tools/conformance/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
             exit 0
+
+      - name: Drop any result file that never named its client
+        if: always()
+        # **One sweep, rather than a guard at every copy.** The drills append their verdicts as they
+        # go and declare their client on the last line, so a drill that dies in between leaves a
+        # `.conf` holding real claims and no `CONF RESULT`. The `matrix` job's fold exits on such a
+        # file rather than guess which column the claims belong to -- correctly, but that means one
+        # dead drill takes the entire matrix down with it, including every other drill's evidence.
+        #
+        # This runs once, over the directory that is about to be uploaded, so it also covers the
+        # files the drills write straight into it -- `android-a11y.conf`, `web-a11y.conf`,
+        # `ios-material.conf` -- which a guard at a `cp` could never reach because there is no `cp`.
+        # Two mechanisms for one rule is a file where nobody knows which one is doing the work.
+        #
+        # **It is loud, and it fails.** A dropped file means a drill died, and quietly tidying away
+        # the evidence would be the same failure shape as a matrix built from whichever drill sorted
+        # last: a run that looks clean because something was removed rather than because nothing
+        # went wrong. Each dropped file is named, with the number of claim lines it was carrying, on
+        # the step's output and in the job summary, and the step exits non-zero.
+        #
+        # That non-zero is belt as well as braces. Every drill here writes its `CONF RESULT` line
+        # immediately before it exits -- `check.py`, `check_preflight.py` and `check_web.py` append
+        # it as the last line of the file and then `sys.exit`, and the shell drills `echo` it and
+        # then test `$failed` -- so a file without one always coincides with a non-zero exit that
+        # the verdict step already reads. That is a property of the drills, though, not something
+        # this workflow enforces, and a sweep that depended on it would be one drill rewrite away
+        # from silently swallowing a dead one.
+        run: |
+          dropped=0
+          for file in "$RUNNER_TEMP"/conf/*.conf; do
+            [ -e "$file" ] || continue
+            grep -q '^CONF RESULT' "$file" && continue
+            # `grep -c` prints its count and *returns 1* when the count is zero, which under this
+            # job's `set -e` would end the sweep at the first empty file it met.
+            claims="$(grep -c '^CONF ' "$file" || true)"
+            echo "dropped $(basename "$file"): $claims claim lines and no CONF RESULT line, so the drill that wrote it died before it named its client" >&2
+            echo "- \`$(basename "$file")\` — dropped: $claims claim lines, no \`CONF RESULT\`; the drill that wrote it died before naming its client" >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$file"
+            dropped=$((dropped + 1))
+          done
+          if [ "$dropped" != "0" ]; then
+            echo "$dropped result file(s) were dropped; the matrix will have gaps where their claims should be" >&2
+            exit 1
+          fi
+          echo "every result file names its client"
 
       - name: Publish the claim results
         if: always()
@@ -460,9 +579,191 @@ jobs:
             exit 1
           fi
 
+  engine-skew:
+    name: Tier C — two engine versions meeting
+    # **Its own job, and deliberately not part of `matrix`.** It has no `needs`, so it starts with
+    # the two device jobs rather than after them: the three run in parallel and the nightly is as
+    # long as the longest, not as long as their sum. Putting it in `matrix` -- which waits on both
+    # device jobs -- would have added forty minutes to the *end* of every night and delayed the one
+    # report anybody reads.
+    #
+    # Its artifact is named `tier-c-engine-skew`, which the matrix job's existing
+    # `pattern: tier-c-*` download already collects. Nothing there needed teaching about it.
+    runs-on: ubuntu-latest
+    # Two guest payload builds -- one at `HEAD`, one at a tag in a worktree with a cold Gradle
+    # cache -- and two desktop client runs. It is the longest deviceless thing in the repository.
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `0`, not the default `1`. `actions/checkout` fetches a single commit and **no tags**,
+          # and `engine-skew.sh` resolves its comparison point with `git tag -l 'v*'` and then adds
+          # a worktree at it. Under the default depth that list is empty and the drill refuses with
+          # "no v* tag to compare against" -- a workflow reporting a missing prerequisite about a
+          # tag that exists on the remote. Checked by observation rather than from the
+          # documentation: a `--depth 1 --single-branch` clone of this repository lists no tags at
+          # all, and `git worktree add v0.1.0` in it fails with `invalid reference`.
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        # The drill asserts a Java 21 toolchain and prints a sentence rather than crashing when it
+        # finds another, so without this the job would *refuse* rather than fail -- which is the
+        # right behaviour from the drill and the wrong outcome for a nightly that exists to grade
+        # `K3` and `K4`. An ubuntu runner ships more than one Java Development Kit and points
+        # `JAVA_HOME` at whichever the image prefers today.
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Size the build for this runner
+        # The same ceiling the two device jobs set and for the same reason: the project's own
+        # `gradle.properties` asks for a development machine's share (`-Xmx4g`, `parallel=true`),
+        # and this job holds two Gradle builds and a virtual X server at once.
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx2500m -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          org.gradle.workers.max=2
+          kotlin.daemon.jvmargs=-Xmx1600m
+          PROPS
+
+      - name: A virtual display for the desktop client
+        # `slice-desktop`'s `main` is `androidx.compose.ui.window.application { Window(...) }` -- a
+        # real Abstract Window Toolkit (AWT) window, not a headless renderer. On a runner with no
+        # display that throws `HeadlessException` before a single claim is graded, so the drill is
+        # wrapped in `xvfb-run` below. Asserted here rather than assumed, for the reason the macOS
+        # job asserts Chrome: a missing tool discovered inside a drill looks like a defect in the
+        # product and is not one.
+        run: |
+          command -v xvfb-run >/dev/null || {
+            sudo apt-get update -qq && sudo apt-get install -y -qq xvfb; }
+          command -v xvfb-run
+
+      - name: Prepare the result directories
+        run: mkdir -p "$RUNNER_TEMP/conf" "$RUNNER_TEMP/log"
+
+      - name: Two engine versions meeting
+        # `K3` and `K4`, the one drill in tier C that needs no device: a host built from the newest
+        # `v*` tag in a git worktree and a payload built from `HEAD`, each served to the other. `K3`
+        # is the older host refusing today's payload; `K4` is today's host running the older
+        # payload, which is the direction a fleet actually lives in. The desktop client is the
+        # instrument because `-Ddogwood.manifest` already points it anywhere -- which is also why
+        # this job is the only desktop evidence the nightly produces.
+        #
+        # The exit code is recorded rather than allowed to fail the step, the same accumulate-then-
+        # fail shape the device jobs use, so the artifact is still uploaded when the drill dies.
+        id: drill
+        run: |
+          set +e
+          xvfb-run -a tools/conformance/engine-skew.sh
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          # The file name is for a person reading the artifact. The fold reads the client from the
+          # `CONF RESULT client=desktop` line inside the file, not from the name.
+          cp tools/conformance/build/engine-skew.conf \
+            "$RUNNER_TEMP/conf/desktop-engineskew.conf" 2>/dev/null
+          cp tools/conformance/build/engine-skew-*.log "$RUNNER_TEMP/log/" 2>/dev/null
+          true
+
+      - name: Drop any result file that never named its client
+        if: always()
+        # **One sweep, rather than a guard at every copy.** The drills append their verdicts as they
+        # go and declare their client on the last line, so a drill that dies in between leaves a
+        # `.conf` holding real claims and no `CONF RESULT`. The `matrix` job's fold exits on such a
+        # file rather than guess which column the claims belong to -- correctly, but that means one
+        # dead drill takes the entire matrix down with it, including every other drill's evidence.
+        #
+        # This runs once, over the directory that is about to be uploaded, so it also covers the
+        # files the drills write straight into it -- `android-a11y.conf`, `web-a11y.conf`,
+        # `ios-material.conf` -- which a guard at a `cp` could never reach because there is no `cp`.
+        # Two mechanisms for one rule is a file where nobody knows which one is doing the work.
+        #
+        # **It is loud, and it fails.** A dropped file means a drill died, and quietly tidying away
+        # the evidence would be the same failure shape as a matrix built from whichever drill sorted
+        # last: a run that looks clean because something was removed rather than because nothing
+        # went wrong. Each dropped file is named, with the number of claim lines it was carrying, on
+        # the step's output and in the job summary, and the step exits non-zero.
+        #
+        # That non-zero is belt as well as braces. Every drill here writes its `CONF RESULT` line
+        # immediately before it exits -- `check.py`, `check_preflight.py` and `check_web.py` append
+        # it as the last line of the file and then `sys.exit`, and the shell drills `echo` it and
+        # then test `$failed` -- so a file without one always coincides with a non-zero exit that
+        # the verdict step already reads. That is a property of the drills, though, not something
+        # this workflow enforces, and a sweep that depended on it would be one drill rewrite away
+        # from silently swallowing a dead one.
+        run: |
+          dropped=0
+          for file in "$RUNNER_TEMP"/conf/*.conf; do
+            [ -e "$file" ] || continue
+            grep -q '^CONF RESULT' "$file" && continue
+            # `grep -c` prints its count and *returns 1* when the count is zero, which under this
+            # job's `set -e` would end the sweep at the first empty file it met.
+            claims="$(grep -c '^CONF ' "$file" || true)"
+            echo "dropped $(basename "$file"): $claims claim lines and no CONF RESULT line, so the drill that wrote it died before it named its client" >&2
+            echo "- \`$(basename "$file")\` — dropped: $claims claim lines, no \`CONF RESULT\`; the drill that wrote it died before naming its client" >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$file"
+            dropped=$((dropped + 1))
+          done
+          if [ "$dropped" != "0" ]; then
+            echo "$dropped result file(s) were dropped; the matrix will have gaps where their claims should be" >&2
+            exit 1
+          fi
+          echo "every result file names its client"
+
+      - name: Publish the claim results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-c-engine-skew
+          path: |
+            ${{ runner.temp }}/conf
+            ${{ runner.temp }}/log
+          if-no-files-found: warn
+
+      - name: Verdict
+        if: always()
+        run: |
+          echo '## Tier C — two engine versions meeting' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          code='${{ steps.drill.outputs.exit }}'
+          if [ -s "$RUNNER_TEMP/conf/desktop-engineskew.conf" ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/conf/desktop-engineskew.conf" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/conf/desktop-engineskew.conf"
+          else
+            # Double-quoted, because the apostrophe in "tonight's" ends a single-quoted string --
+            # which it did, and the workflow would not have parsed at all.
+            echo "_The drill graded nothing; \`K3\` and \`K4\` will be gaps in tonight's matrix._" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # Exit 2 is the drill refusing for want of a prerequisite -- no `v*` tag, no Java 21 -- and
+          # it is red here rather than tolerated. On a development machine a refusal means "you did
+          # not set this up"; on a runner it means the workflow is broken, and a nightly that goes
+          # green having graded nothing is the failure this whole file exists to stop.
+          case "${code:-none}" in
+            # Not "K3 and K4 were met": the drill exits 0 having graded them both SKIP when the two
+            # engine versions declare the same dictionary, and a summary line that said "met" about
+            # a skip would be the matrix lying in its own job's verdict.
+            0) echo 'the drill finished; the verdicts above say what it graded' ;;
+            1) echo 'a claim failed; see the verdicts above' >&2; exit 1 ;;
+            *) echo "the drill did not grade anything (exit ${code:-none}); see the log artifact" >&2
+               exit 1 ;;
+          esac
+
   matrix:
     name: The matrix
-    needs: [ios-and-web, android]
+    # `engine-skew` is in `needs` and that costs no wall-clock time: none of the three has a `needs`
+    # of its own, so all three start at once and this job waits for the last of them. What `needs`
+    # buys is that the drill's artifact exists before the download below runs -- without it the fold
+    # would race the drill and silently produce a matrix with no desktop column.
+    needs: [ios-and-web, android, engine-skew]
     # `always()`: the matrix is most worth generating on the night something went red. A job that
     # only reports when everything passed is a job that reports nothing anybody needed.
     if: always()
@@ -592,12 +893,28 @@ jobs:
         # A red cell in the matrix fails this job, which is what makes the nightly a gate rather
         # than a report. `aggregate.py` exits 1 on any failed claim and 2 when it could not read
         # its input at all, and the two are distinguished here because they need different people.
+        #
+        # The `engine-skew` job is judged here too, and separately from its own verdict, because
+        # its failure mode is not a red cell in this table. A drill that dies before it grades
+        # anything leaves `K3` and `K4` *absent* from the matrix, which renders as `—`, a gap -- and
+        # a gap is the one thing a generated matrix must never invent. `aggregate.py` cannot see the
+        # difference between a claim nobody graded and a claim nobody has; the job result can.
+        # Saying it twice, once in each job, is deliberate: the other job says the drill broke, this
+        # one says what the matrix is therefore missing.
         run: |
+          failed=0
+          skew='${{ needs.engine-skew.result }}'
+          if [ "$skew" != "success" ]; then
+            echo "the engine-skew job did not succeed (result: $skew), so K3 and K4 are missing" >&2
+            echo "from the matrix rather than failing in it" >&2
+            failed=1
+          fi
           code='${{ steps.regenerate.outputs.aggregate }}'
           case "$code" in
             0) echo 'every claim graded tonight was met' ;;
             1) echo 'a claim failed; the matrix above says which client and which claim' >&2
-               exit 1 ;;
+               failed=1 ;;
             *) echo "the matrix could not be generated (aggregate.py exit $code)" >&2
-               exit 1 ;;
+               failed=1 ;;
           esac
+          exit "$failed"
