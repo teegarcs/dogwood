@@ -8,6 +8,38 @@
 # G5 is bytes, not milliseconds; its unit is named in the description because it is the one
 # exception and hiding that in a column header would be worse than saying it here.
 #
+# G6 is bytes too, and it is a second budget rather than a bigger G5 on purpose. G5 bounds the
+# HOST -- the WebAssembly modules, app.js and index.html, which a visitor downloads once and a
+# browser then keeps behind an immutable content hash. G6 bounds the GUEST script, which is the
+# Over-The-Air (OTA) payload and is re-fetched every time a product publishes. Folding the two
+# together would make a payload change read as a client regression, and a kilobyte that is paid
+# once per visitor would be averaged with a kilobyte that is paid once per visitor per release.
+#
+# G6 WAS ESTABLISHED AT 252,000 BYTES ON 2026-09-16, FROM A MEASUREMENT, NOT A GUESS.
+#
+# The measurement, on the distribution built by
+# `./gradlew :samples:web-slice:wasmJsBrowserDistribution` at commit c424227:
+#
+#   guest-kotlin.js, brotli quality 11        243,951
+#   guest-kotlin.js, uncompressed           1,223,843
+#
+# The ceiling is 252,000 -- 8,049 bytes of headroom, 3.30%, which is the proportion G5 carries
+# (130,905 of 3,929,095, 3.33%) rounded to a number a person can hold in their head. Tight for the
+# reason G5's is tight: on Fast 3G every 100 kilobytes is roughly half a second of waiting
+# (ADR-038), and the guest is waited for on every release rather than once.
+#
+# This establishment is deliberately NOT an attribution, and the difference matters. There is no
+# before-and-after here to attribute: the number is what the guest weighs today, measured for the
+# first time. What it cannot say is what the generated Material 3 tier cost the guest, because the
+# catalogue is not behind a build switch on the guest side the way the tier's registration is on
+# the host side, so the three-build split G5 has could not be produced without changing product
+# source. That is the gap being closed, stated rather than papered over: the tier grew the guest
+# by an amount nobody measured, and from here nothing grows it unobserved.
+#
+# **From here, a raise to G6 obeys the same rule as a raise to G5**, below: three builds in the
+# commit that makes it -- before the change, after it, and the split between whatever was added.
+# A raise without one is a number nobody has to defend.
+#
 # 4.06 MB against a measured 3.93 MB: a ceiling with headroom rather than today's figure. Pinning it
 # exactly fails on the next legitimate component and teaches everyone to raise the number, which is
 # how a budget stops meaning anything. The headroom is deliberately tight -- about 130 kilobytes --
@@ -56,3 +88,4 @@ G2	4.0	batch crossing, per-frame reading: a steady-state recomposition batch
 G3	16.7	maximum garbage-collection pause under load, 99th percentile
 G4	500.0	cold start: module load plus first composition
 G5	4060000	the shipped web slice, brotli-compressed, in bytes
+G6	252000	the guest payload script, brotli-compressed, in bytes
