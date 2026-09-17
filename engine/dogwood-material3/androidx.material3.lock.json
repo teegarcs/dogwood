@@ -2,7 +2,7 @@
     "segmentName": "material3",
     "wireName": "androidx.material3",
     "segmentId": 255,
-    "version": 1090004,
+    "version": 1090006,
     "components": [
         {
             "name": "AlertDialog",
@@ -506,6 +506,30 @@
             },
             "eventTypes": {
                 "onCheckedChange": "((Boolean) -> Unit)?"
+            }
+        },
+        {
+            "name": "TriStateCheckbox",
+            "localTag": 92,
+            "properties": {
+                "state": 1,
+                "onClickPresent": 2,
+                "enabled": 3
+            },
+            "propertyTypes": {
+                "state": "ToggleableState",
+                "onClickPresent": "Boolean",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "onClick": 1
+            },
+            "eventTypes": {
+                "onClick": "(() -> Unit)?"
             }
         },
         {
@@ -1208,10 +1232,16 @@
             "name": "ModalNavigationDrawer",
             "localTag": 50,
             "properties": {
+                "drawerStateTarget": 3,
+                "drawerStateSequence": 4,
+                "drawerStateWatching": 5,
                 "gesturesEnabled": 1,
                 "scrimColor": 2
             },
             "propertyTypes": {
+                "drawerStateTarget": "String",
+                "drawerStateSequence": "Int",
+                "drawerStateWatching": "Boolean",
                 "gesturesEnabled": "Boolean",
                 "scrimColor": "Color"
             },
@@ -1219,22 +1249,38 @@
                 "drawerContent": 1,
                 "content": 2
             },
-            "events": {}
+            "events": {
+                "drawerStateReport": 1
+            },
+            "eventTypes": {
+                "drawerStateReport": "(String, Boolean) -> Unit"
+            }
         },
         {
             "name": "DismissibleNavigationDrawer",
             "localTag": 51,
             "properties": {
+                "drawerStateTarget": 2,
+                "drawerStateSequence": 3,
+                "drawerStateWatching": 4,
                 "gesturesEnabled": 1
             },
             "propertyTypes": {
+                "drawerStateTarget": "String",
+                "drawerStateSequence": "Int",
+                "drawerStateWatching": "Boolean",
                 "gesturesEnabled": "Boolean"
             },
             "slots": {
                 "drawerContent": 1,
                 "content": 2
             },
-            "events": {}
+            "events": {
+                "drawerStateReport": 1
+            },
+            "eventTypes": {
+                "drawerStateReport": "(String, Boolean) -> Unit"
+            }
         },
         {
             "name": "PermanentNavigationDrawer",
@@ -1431,6 +1477,35 @@
             "events": {}
         },
         {
+            "name": "TopSearchBar",
+            "localTag": 93,
+            "properties": {
+                "stateTarget": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "shape": 4,
+                "tonalElevation": 5,
+                "shadowElevation": 6
+            },
+            "propertyTypes": {
+                "stateTarget": "String",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "shape": "Shape",
+                "tonalElevation": "Dp",
+                "shadowElevation": "Dp"
+            },
+            "slots": {
+                "inputField": 1
+            },
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(String, Boolean) -> Unit"
+            }
+        },
+        {
             "name": "SingleChoiceSegmentedButtonRow",
             "localTag": 61,
             "properties": {
@@ -1531,6 +1606,38 @@
             }
         },
         {
+            "name": "Slider~e15d63b2",
+            "localTag": 94,
+            "properties": {
+                "stateValue": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "stateSteps": 4,
+                "stateRangeStart": 5,
+                "stateRangeEnd": 6,
+                "enabled": 7
+            },
+            "propertyTypes": {
+                "stateValue": "Float",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "stateSteps": "Int",
+                "stateRangeStart": "Float",
+                "stateRangeEnd": "Float",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Float, Boolean) -> Unit"
+            }
+        },
+        {
             "name": "RangeSlider",
             "localTag": 89,
             "properties": {
@@ -1561,6 +1668,40 @@
             }
         },
         {
+            "name": "RangeSlider~bb1147d1",
+            "localTag": 95,
+            "properties": {
+                "stateStart": 1,
+                "stateEnd": 2,
+                "stateSequence": 3,
+                "stateWatching": 4,
+                "stateSteps": 5,
+                "stateRangeStart": 6,
+                "stateRangeEnd": 7,
+                "enabled": 8
+            },
+            "propertyTypes": {
+                "stateStart": "Float",
+                "stateEnd": "Float",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "stateSteps": "Int",
+                "stateRangeStart": "Float",
+                "stateRangeEnd": "Float",
+                "enabled": "Boolean"
+            },
+            "safetyRelevant": [
+                "enabled"
+            ],
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Float, Float, Boolean) -> Unit"
+            }
+        },
+        {
             "name": "Snackbar",
             "localTag": 67,
             "properties": {
@@ -1585,6 +1726,31 @@
                 "content": 3
             },
             "events": {}
+        },
+        {
+            "name": "SnackbarHost",
+            "localTag": 96,
+            "properties": {
+                "hostStateMessage": 1,
+                "hostStateActionLabel": 2,
+                "hostStateSequence": 3,
+                "hostStateWatching": 4,
+                "hostStateDismissSequence": 5
+            },
+            "propertyTypes": {
+                "hostStateMessage": "String",
+                "hostStateActionLabel": "String",
+                "hostStateSequence": "Int",
+                "hostStateWatching": "Boolean",
+                "hostStateDismissSequence": "Int"
+            },
+            "slots": {},
+            "events": {
+                "hostStateReport": 1
+            },
+            "eventTypes": {
+                "hostStateReport": "(Int, Boolean) -> Unit"
+            }
         },
         {
             "name": "Surface",
@@ -1716,6 +1882,36 @@
             },
             "eventTypes": {
                 "onCheckedChange": "(Boolean) -> Unit"
+            }
+        },
+        {
+            "name": "SwipeToDismissBox",
+            "localTag": 97,
+            "properties": {
+                "stateTarget": 1,
+                "stateSequence": 2,
+                "stateWatching": 3,
+                "enableDismissFromStartToEnd": 4,
+                "enableDismissFromEndToStart": 5,
+                "gesturesEnabled": 6
+            },
+            "propertyTypes": {
+                "stateTarget": "String",
+                "stateSequence": "Int",
+                "stateWatching": "Boolean",
+                "enableDismissFromStartToEnd": "Boolean",
+                "enableDismissFromEndToStart": "Boolean",
+                "gesturesEnabled": "Boolean"
+            },
+            "slots": {
+                "backgroundContent": 1,
+                "content": 2
+            },
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(String, Boolean) -> Unit"
             }
         },
         {

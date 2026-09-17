@@ -19,7 +19,7 @@ enum class Kind {
   PRIMITIVE, DP, TEXT_UNIT, COLOR, SHAPE, PADDING_VALUES,
   ARRANGEMENT_H, ARRANGEMENT_V, ARRANGEMENT_HV,
   ALIGNMENT_H, ALIGNMENT_V, ALIGNMENT_2D,
-  FONT_WEIGHT, TEXT_ALIGN, TEXT_OVERFLOW, TEXT_DECORATION,
+  FONT_WEIGHT, TEXT_ALIGN, TEXT_OVERFLOW, TEXT_DECORATION, TOGGLEABLE_STATE,
   BORDER_STROKE, FLOAT_RANGE,
   MODIFIER, SLOT, EVENT,
 }
@@ -203,6 +203,19 @@ object Classifier {
     "TextAlign" to Kind.TEXT_ALIGN,
     "TextOverflow" to Kind.TEXT_OVERFLOW,
     "TextDecoration" to Kind.TEXT_DECORATION,
+    /*
+     * A three-valued enumeration, not a holder, and it is here rather than in [LibraryHolders]
+     * because of what it is rather than what its name ends in.
+     *
+     * `TriStateCheckbox(state = …)` takes its state the way `Checkbox(checked = …)` takes its
+     * boolean: the caller decides, the control draws, and nothing is host-owned or reported back.
+     * The only thing holder-shaped about it is the suffix `State`, which is exactly what the
+     * fall-through at the bottom of [classifyParameter] keys on -- so without this row the
+     * classifier refused a plain value as a live-state holder. Crossing it as a value costs a
+     * guest enum and a reader; crossing it as a holder would have cost a shape, a mirror and a
+     * report channel for a control that has nothing to report.
+     */
+    "ToggleableState" to Kind.TOGGLEABLE_STATE,
   )
 
   fun classify(surface: LibrarySurface): List<ClassifiedComposable> {

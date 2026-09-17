@@ -15,11 +15,11 @@ own default for. Function coverage overstates parameter coverage, and both are h
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `foundation` | 1.10.3 | 47 | **3** | 0 | 17 | 4 | 23 | 9 | 4 |
 | `foundation-layout` | 1.10.3 | 12 | **8** | 0 | 0 | 0 | 4 | 32 | 0 |
-| `material3` | 1.9.0 | 186 | **88** | 13 | 38 | 6 | 41 | 572 | 158 |
+| `material3` | 1.9.0 | 186 | **96** | 15 | 28 | 6 | 41 | 594 | 176 |
 | `ui` | 1.10.3 | 15 | **4** | 0 | 8 | 1 | 2 | 15 | 4 |
-| **all** | | **260** | **103** | 13 | 63 | 11 | 70 | 628 | 166 |
+| **all** | | **260** | **111** | 15 | 53 | 11 | 70 | 650 | 184 |
 
-**103 of 260 bound (39.6%).** Affordance rule for a library tier: a
+**111 of 260 bound (42.7%).** Affordance rule for a library tier: a
 `Boolean` parameter named `enabled`, `checked`, `selected` or `readOnly` withholds the widget on
 unreadable skew, exactly as `@Affordance` does on a product surface.
 
@@ -129,8 +129,8 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `OutlinedCard~2c46c5fa` | ✅ | onClick, modifier, enabled, shape, border, content | colors, elevation, interactionSource |  |
 | `Checkbox` | ✅ | checked, onCheckedChange, modifier, enabled | colors, interactionSource |  |
 | `Checkbox~609b80d6` |  | checked, onCheckedChange, modifier, enabled | colors, interactionSource | checkmarkStroke: type Stroke cannot cross the boundary |
-| `TriStateCheckbox` |  | onClick, modifier, enabled | colors, interactionSource | state: live-state holder ToggleableState |
-| `TriStateCheckbox~a32797bf` |  | onClick, modifier, enabled | colors, interactionSource | state: live-state holder ToggleableState |
+| `TriStateCheckbox` | ✅ | state, onClick, modifier, enabled | colors, interactionSource |  |
+| `TriStateCheckbox~a32797bf` |  | state, onClick, modifier, enabled | colors, interactionSource | checkmarkStroke: type Stroke cannot cross the boundary |
 | `AssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
 | `AssistChip~3f28020e` |  | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape | colors, elevation, border, interactionSource | deprecated in the library |
 | `ElevatedAssistChip` | ✅ | onClick, label, modifier, enabled, leadingIcon, trailingIcon, shape, border | colors, elevation, interactionSource |  |
@@ -179,11 +179,11 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `NavigationBar` | ✅ | modifier, containerColor, contentColor, tonalElevation, content | windowInsets |  |
 | `NavigationBarItem` |  | selected, onClick, icon, modifier, enabled, label, alwaysShowLabel | colors, interactionSource | extension on RowScope; a binding calls by name |
 | `DismissibleDrawerSheet` | ✅ | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets |  |
-| `DismissibleDrawerSheet~08f0067c` |  | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets | drawerState: live-state holder DrawerState |
-| `DismissibleNavigationDrawer` | ✅ | drawerContent, modifier, gesturesEnabled, content | drawerState |  |
+| `DismissibleDrawerSheet~08f0067c` |  | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets | guest signature identical to DismissibleDrawerSheet after erasing host-default-only parameters |
+| `DismissibleNavigationDrawer` | ✅ | drawerContent, modifier, gesturesEnabled, content |  |  |
 | `ModalDrawerSheet` | ✅ | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets |  |
-| `ModalDrawerSheet~08f0067c` |  | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets | drawerState: live-state holder DrawerState |
-| `ModalNavigationDrawer` | ✅ | drawerContent, modifier, gesturesEnabled, scrimColor, content | drawerState |  |
+| `ModalDrawerSheet~08f0067c` |  | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets | guest signature identical to ModalDrawerSheet after erasing host-default-only parameters |
+| `ModalNavigationDrawer` | ✅ | drawerContent, modifier, gesturesEnabled, scrimColor, content |  |  |
 | `NavigationDrawerItem` |  | label, selected, onClick, modifier, icon, badge, shape | colors, interactionSource | shape: default names internal `NavigationDrawerTokens` |
 | `PermanentDrawerSheet` | ✅ | modifier, drawerShape, drawerContainerColor, drawerContentColor, drawerTonalElevation, content | windowInsets |  |
 | `PermanentNavigationDrawer` | ✅ | drawerContent, modifier, content |  |  |
@@ -215,7 +215,7 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `SearchBar` ⚠ |  | inputField, modifier, shape, tonalElevation, shadowElevation | colors | controlled text input; use TextInput (ADR-019) |
 | `SearchBar~3e66cf48` ⚠ |  | query, onQueryChange, onSearch, active, onActiveChange, modifier, enabled, placeholder, leadingIcon, trailingIcon, shape, tonalElevation, shadowElevation, content | colors, windowInsets, interactionSource | deprecated in the library |
 | `SearchBar~979e0fa2` ⚠ |  | inputField, expanded, onExpandedChange, modifier, shape, tonalElevation, shadowElevation, content | colors, windowInsets | controlled text input; use TextInput (ADR-019) |
-| `TopSearchBar` ⚠ |  | inputField, modifier, shape, tonalElevation, shadowElevation | colors, windowInsets, scrollBehavior | state: live-state holder SearchBarState |
+| `TopSearchBar` ⚠ | ✅ | inputField, modifier, shape, tonalElevation, shadowElevation | colors, windowInsets, scrollBehavior |  |
 | `OutlinedSecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `SecureTextField` ⚠ |  | modifier, enabled, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, textObfuscationMode, textObfuscationCharacter, keyboardOptions, onKeyboardAction, onTextLayout, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `MultiChoiceSegmentedButtonRow` | ✅ | modifier, space, content |  |  |
@@ -228,18 +228,18 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `ShortNavigationBarItem` | ✅ | selected, onClick, icon, label, modifier, enabled | iconPosition, colors, interactionSource |  |
 | `RangeSlider` ⚠ | ✅ | value, onValueChange, modifier, enabled, valueRange, steps, onValueChangeFinished | colors |  |
 | `RangeSlider~0b997a2c` ⚠ |  | value, onValueChange, modifier, enabled, valueRange, onValueChangeFinished, steps | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | guest signature identical to RangeSlider after erasing host-default-only parameters |
-| `RangeSlider~bb1147d1` ⚠ |  | modifier, enabled | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track | state: live-state holder RangeSliderState |
+| `RangeSlider~bb1147d1` ⚠ | ✅ | modifier, enabled | colors, startInteractionSource, endInteractionSource, startThumb, endThumb, track |  |
 | `Slider` ⚠ | ✅ | value, onValueChange, modifier, enabled, valueRange, steps, onValueChangeFinished | colors, interactionSource |  |
 | `Slider~d234905b` ⚠ |  | value, onValueChange, modifier, enabled, onValueChangeFinished, steps, valueRange | colors, interactionSource, thumb, track | guest signature identical to Slider after erasing host-default-only parameters |
-| `Slider~e15d63b2` ⚠ |  | modifier, enabled | colors, interactionSource, thumb, track | state: live-state holder SliderState |
+| `Slider~e15d63b2` ⚠ | ✅ | modifier, enabled | colors, interactionSource, thumb, track |  |
 | `Snackbar` | ✅ | modifier, action, dismissAction, actionOnNewLine, shape, containerColor, contentColor, actionContentColor, dismissActionContentColor, content |  |  |
 | `Snackbar~0158ce0b` |  | modifier, actionOnNewLine, shape, containerColor, contentColor, actionColor, actionContentColor, dismissActionContentColor |  | snackbarData: type SnackbarData cannot cross the boundary |
-| `SnackbarHost` |  | modifier | snackbar | hostState: live-state holder SnackbarHostState |
+| `SnackbarHost` | ✅ | modifier | snackbar |  |
 | `Surface` | ✅ | modifier, shape, color, contentColor, tonalElevation, shadowElevation, border, content |  |  |
 | `Surface~0b388a87` | ✅ | onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
 | `Surface~819e1863` | ✅ | checked, onCheckedChange, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
 | `Surface~9d901ca7` | ✅ | selected, onClick, modifier, enabled, shape, color, contentColor, tonalElevation, shadowElevation, border, content | interactionSource |  |
-| `SwipeToDismissBox` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content | onDismiss | state: live-state holder SwipeToDismissBoxState |
+| `SwipeToDismissBox` | ✅ | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content | onDismiss |  |
 | `SwipeToDismissBox~037141c9` |  | backgroundContent, modifier, enableDismissFromStartToEnd, enableDismissFromEndToStart, gesturesEnabled, content |  | deprecated in the library |
 | `Switch` | ✅ | checked, onCheckedChange, modifier, thumbContent, enabled | colors, interactionSource |  |
 | `LeadingIconTab` | ✅ | selected, onClick, text, icon, modifier, enabled, selectedContentColor, unselectedContentColor | interactionSource |  |
@@ -263,8 +263,8 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 | `TextField` ⚠ |  | modifier, enabled, readOnly, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, shape, contentPadding | textStyle, labelPosition, inputTransformation, outputTransformation, keyboardOptions, onKeyboardAction, lineLimits, onTextLayout, scrollState, colors, interactionSource | controlled text input; use TextInput (ADR-019) |
 | `TextField~7a8e07ca` ⚠ |  | value, onValueChange, modifier, enabled, readOnly, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, singleLine, maxLines, minLines, shape | textStyle, visualTransformation, keyboardOptions, keyboardActions, interactionSource, colors | controlled text input; use TextInput (ADR-019) |
 | `TextField~927d21ff` ⚠ |  | modifier, enabled, readOnly, label, placeholder, leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, singleLine, maxLines, minLines, shape | textStyle, visualTransformation, keyboardOptions, keyboardActions, interactionSource, colors | controlled text input; use TextInput (ADR-019) |
-| `TimeInput` ⚠ |  | modifier | colors | state: live-state holder TimePickerState |
-| `TimePicker` ⚠ |  | modifier | colors, layoutType | state: live-state holder TimePickerState |
+| `TimeInput` ⚠ | ✅ | modifier | colors |  |
+| `TimePicker` ⚠ | ✅ | modifier | colors, layoutType |  |
 | `TimePickerDialog` | ✅ | onDismissRequest, confirmButton, title, modifier, modeToggleButton, dismissButton, shape, containerColor, content | properties |  |
 | `PlainTooltip` ⚠ |  | modifier, maxWidth, shape, contentColor, containerColor, tonalElevation, shadowElevation, content | caretSize | deprecated in the library |
 | `PlainTooltip~bc881833` ⚠ |  | modifier, maxWidth, shape, contentColor, containerColor, tonalElevation, shadowElevation, content | caretShape | extension on TooltipScope; a binding calls by name |

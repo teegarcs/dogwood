@@ -22,13 +22,13 @@
         },
         "material3": {
             "composables": 186,
-            "bound": 88,
-            "generableExcluded": 13,
-            "bespoke": 38,
+            "bound": 96,
+            "generableExcluded": 15,
+            "bespoke": 28,
             "unreachable": 6,
             "deprecated": 41,
-            "settableParameters": 572,
-            "hostDefaultOnlyParameters": 158
+            "settableParameters": 594,
+            "hostDefaultOnlyParameters": 176
         },
         "ui": {
             "composables": 15,
@@ -43,13 +43,13 @@
     },
     "overall": {
         "composables": 260,
-        "bound": 103,
-        "generableExcluded": 13,
-        "bespoke": 63,
+        "bound": 111,
+        "generableExcluded": 15,
+        "bespoke": 53,
         "unreachable": 11,
         "deprecated": 70,
-        "settableParameters": 628,
-        "hostDefaultOnlyParameters": 166
+        "settableParameters": 650,
+        "hostDefaultOnlyParameters": 184
     },
     "rows": [
         {
@@ -2034,10 +2034,11 @@
             "file": "androidx/compose/material3/Checkbox.kt",
             "name": "TriStateCheckbox",
             "dictionaryName": "TriStateCheckbox",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder ToggleableState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
+                "state",
                 "onClick",
                 "modifier",
                 "enabled"
@@ -2055,8 +2056,9 @@
             "dictionaryName": "TriStateCheckbox~a32797bf",
             "bound": false,
             "bucket": "bespoke",
-            "reason": "state: live-state holder ToggleableState",
+            "reason": "checkmarkStroke: type Stroke cannot cross the boundary",
             "settable": [
+                "state",
                 "onClick",
                 "modifier",
                 "enabled"
@@ -3103,9 +3105,7 @@
                 "scrimColor",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "drawerState"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -3122,9 +3122,7 @@
                 "gesturesEnabled",
                 "content"
             ],
-            "hostDefaultOnly": [
-                "drawerState"
-            ],
+            "hostDefaultOnly": [],
             "experimental": false
         },
         {
@@ -3170,8 +3168,8 @@
             "name": "ModalDrawerSheet",
             "dictionaryName": "ModalDrawerSheet~08f0067c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "drawerState: live-state holder DrawerState",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to ModalDrawerSheet after erasing host-default-only parameters",
             "settable": [
                 "modifier",
                 "drawerShape",
@@ -3212,8 +3210,8 @@
             "name": "DismissibleDrawerSheet",
             "dictionaryName": "DismissibleDrawerSheet~08f0067c",
             "bound": false,
-            "bucket": "bespoke",
-            "reason": "drawerState: live-state holder DrawerState",
+            "bucket": "generable-excluded",
+            "reason": "guest signature identical to DismissibleDrawerSheet after erasing host-default-only parameters",
             "settable": [
                 "modifier",
                 "drawerShape",
@@ -3751,9 +3749,9 @@
             "file": "androidx/compose/material3/SearchBar.kt",
             "name": "TopSearchBar",
             "dictionaryName": "TopSearchBar",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SearchBarState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "inputField",
                 "modifier",
@@ -4219,9 +4217,9 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "Slider",
             "dictionaryName": "Slider~e15d63b2",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SliderState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "enabled"
@@ -4288,9 +4286,9 @@
             "file": "androidx/compose/material3/Slider.kt",
             "name": "RangeSlider",
             "dictionaryName": "RangeSlider~bb1147d1",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder RangeSliderState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier",
                 "enabled"
@@ -4354,9 +4352,9 @@
             "file": "androidx/compose/material3/SnackbarHost.kt",
             "name": "SnackbarHost",
             "dictionaryName": "SnackbarHost",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "hostState: live-state holder SnackbarHostState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],
@@ -4468,9 +4466,9 @@
             "file": "androidx/compose/material3/SwipeToDismissBox.kt",
             "name": "SwipeToDismissBox",
             "dictionaryName": "SwipeToDismissBox",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder SwipeToDismissBoxState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "backgroundContent",
                 "modifier",
@@ -5084,9 +5082,9 @@
             "file": "androidx/compose/material3/TimePicker.kt",
             "name": "TimePicker",
             "dictionaryName": "TimePicker",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder TimePickerState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],
@@ -5101,9 +5099,9 @@
             "file": "androidx/compose/material3/TimePicker.kt",
             "name": "TimeInput",
             "dictionaryName": "TimeInput",
-            "bound": false,
-            "bucket": "bespoke",
-            "reason": "state: live-state holder TimePickerState",
+            "bound": true,
+            "bucket": "generable",
+            "reason": null,
             "settable": [
                 "modifier"
             ],

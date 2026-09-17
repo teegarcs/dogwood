@@ -116,20 +116,89 @@ A host release enters the picture in exactly two cases: your payload uses a *reg
 
 ```mermaid
 flowchart LR
-    Write["Write Compose in Android Studio"] --> Preview["@Preview renders locally\n(planned, not built — see below)"]
-    Preview --> Check["Build-time dictionary check"]
-    Check -->|"API not in client"| Fix["Compile error naming the API\nand the client versions affected"]
+    Write["Write Compose in your editor"] --> Preview["Preview window: the same source,<br/>compiled for the Java Virtual Machine (JVM)<br/>against real Compose"]
+    Preview --> Resolve["The generated stubs, and the guest check"]
+    Resolve -->|"an Application Programming Interface (API)<br/>no client binds"| Fix["Unresolved reference:<br/>the function does not exist"]
     Fix --> Write
-    Check -->|"All APIs bound"| Push["Push to build pipeline"]
-    Push --> Deploy["Signed payload on the CDN"]
-    Deploy --> Device["Live on devices"]
+    Resolve -->|"everything resolves"| Push["Push to the build pipeline"]
+    Push --> Deploy["Signed payload on the<br/>Content Delivery Network (CDN)"]
+    Deploy --> Device["Live on devices — the only place<br/>skew and latency are graded"]
 ```
 
-**`@Preview` does not work today, and this paragraph used to say it did.** The design is that your module compiles twice from one source set — to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose — and it remains the plan ([Layer 1](specs/layer-1-authoring.md) Milestone 3). It is not built: `dogwood-compose` declares `js(IR)` and no other target, so a guest screen cannot compile for the Java Virtual Machine and no preview pane can render one. Corrected 2026-09-09, found by an independent grading run reading the build file rather than this sentence. The plan for building it, a desktop window first and the Android Studio pane second, is [`plans/close-the-backlog.md`](plans/close-the-backlog.md) Group 4; until that lands, what follows is the loop.
+**Every box, named.** *Write* is ordinary Compose in whatever editor you use; nothing in the loop
+needs a particular one. *Preview window* is `./gradlew :samples:slice-screens:preview`, described
+below: your screen compiled a second time, for the Java Virtual Machine (JVM), against an
+implementation of the same Application Programming Interface (API) that calls real Compose.
+*The generated stubs, and the guest check* is the pair of build-time answers you get: guest code can
+only call functions the generator emitted, and `dogwoodGuestCheck` refuses the handful of Compose
+APIs that would tick the boundary every frame. *Unresolved reference* is what calling anything else
+looks like — a missing function, not a failing check. *Push* is your ordinary build; *Deploy* is the
+signed payload on a Content Delivery Network (CDN); *Device* is a real client, which is the only
+place version skew and input latency are graded at all.
 
-What the inner loop is *instead*, and it is better than it sounds: `--continuous` on the development webpack task rebuilds the payload on every save, every shell host polls the manifest every five seconds, and the swap carries `rememberSaveable` state across — so the production code-update machinery doubles as hot reload on a real device. Screen tests need no harness the engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
+**`@Preview` renders a payload screen today, as a desktop window. The Android Studio pane is still
+not built.** The design is [Layer 1](specs/layer-1-authoring.md) section 3 and it has not changed:
+your module compiles twice from one source set — to JavaScript for deployment, where
+`dev.dogwood.compose.Text` records a wire operation, and to the JVM for previews, where a function
+of the same name in the same package calls `androidx.compose.material3.Text`. Identical call sites,
+two back ends, and not one line of `expect`/`actual` in the screen. The second back end is
+`engine/dogwood-compose-preview`.
 
-When the preview does land it will show the **intended layout** only: one Compose runtime, no protocol, no batching, no thread hop — so it could never show the two failure modes that matter most, degraded rendering under version skew and input latency. Those need a device.
+```
+./gradlew :samples:slice-screens:preview -Pscreen=material    # the Material 3 catalogue
+./gradlew :samples:slice-screens:preview -Pscreen=about -Pdark # the diagnostics screen, dark
+```
+
+The files it opens are `MaterialScreen.kt` and `AboutScreen.kt` — byte for byte the files the
+payload ships. Two more flags exist because a window cannot be asserted on: `-Pheadless` composes
+the screen off-screen, renders one frame and exits non-zero if either throws, and `-Pout=<path>`
+writes that frame as a Portable Network Graphics (PNG) file, which is how the screens are looked at
+in review. (There is no screenshot committed beside this paragraph: this repository carries no
+binary files, and the one-line command above reproduces the picture.)
+
+**What it shows you.** Layout, spacing, text, state and interaction, in real Compose. The generated
+Material 3 tier is real Material 3. A registered design system is *itself*: Acme's preview delegates
+call the real implementations in `samples/product-design-system`, which is the arrangement Layer 1
+Milestone 3 describes — a design system that already exists as Compose needs no second
+implementation to preview.
+
+**What it stands in for, and each one is meant to be obvious on screen.** A host-resolved colour
+token resolves against a fixed Material 3 colour scheme rather than your product's, and a token the
+preview does not carry renders **magenta**. `Formats` formats in this machine's locale rather than
+the device's. An icon and a remote image draw a labelled box, because no asset crosses this boundary
+and no network request is made. A platform date or time picker draws a box saying the host would
+answer there. Host services are a stand-in that says so: the clock is this machine's, navigation
+prints the route a real host would have been handed, and there is no network service at all.
+
+**What it can never show you, and it is the more important half.** One Compose runtime means no
+protocol, no batching and no thread hop, so the two failure modes that cost the most on a device are
+invisible here by construction. The first is **a payload that crosses the boundary every frame**: an
+animation driven from guest state, a scroll position read on every pixel, a list that re-sends its
+content. Every one of those is free in this window and is the difference between a smooth screen and
+an unusable one on a device; the guest check catches the shapes it can name and a preview catches
+none of them. The second is **skew**: `LocalSegmentVersions` in a preview reports what the preview
+back end implements, which is always the newest of everything, so the branch a two-year-old client
+would take is untestable here. Both need a device and a real client — `tools/skew-drill/` and the
+pre-flight drills are where they are graded.
+
+Two smaller gaps, for completeness. The preview's lazy containers are not lazy: windowing across the
+boundary is a protocol, and with no wire a preview composes every child, so a long list looks right
+and costs more here than on a device. And a scrolling container's `reportEveryDp` is a *wire* budget
+with no wire to throttle, so the numbers a preview reads back move continuously where a device's
+step.
+
+**The Android Studio pane is not built, and nobody has seen it work.** Layer 1 already records why:
+Android Studio's Compose preview renders through Layoutlib and wants an Android module, so a
+JavaScript-plus-JVM module does not drive it. The remaining step is packaging — an Android library
+variant of `dogwood-compose-preview` — not mechanism, because the desktop window is the proof that
+the delegation works. Until somebody builds it and looks at the pane, this paragraph says it is not
+built.
+
+What the inner loop is *besides* the preview, and it is better than it sounds: `--continuous` on the
+development webpack task rebuilds the payload on every save, every shell host polls the manifest
+every five seconds, and the swap carries `rememberSaveable` state across — so the production
+code-update machinery doubles as hot reload on a real device. Screen tests need no harness the
+engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
 
 **Most mistakes are compile errors, not blank screens — and the reason is simpler than this section originally claimed.** It described a build step comparing the Compose APIs you called against each target client's dictionary. **No such step exists.** What does exist is stronger for the common case and weaker for the specific one: guest code can only call the *generated stubs*, so calling something no client binds is not a check that fails, it is a function that does not exist. There is nothing to compare because there is nothing to call.
 
@@ -390,7 +459,7 @@ And it is proven from outside, per platform, rather than claimed: `samples-stand
 | New component available to you | After a client release | Immediately, if you can compose it from the primitive tier and the registered components the client has; after a client release if it needs native powers |
 | What you write | JSON or a schema | Compose |
 | Where logic lives | Split: server rules plus client handlers | With your UI, in one place |
-| Local preview | Rarely | `@Preview`, real rendering — **planned, not built** |
+| Local preview | Rarely | Real Compose on the Java Virtual Machine (JVM), from the same source — a desktop window today, the Android Studio pane not yet ([§4](#4-your-development-loop)) |
 | Type safety | At the schema edge | End to end, in Kotlin |
 | Registry to maintain | Yes, by hand, forever | Generated |
 | Accessibility | Per component, by hand | Inherited from Compose |

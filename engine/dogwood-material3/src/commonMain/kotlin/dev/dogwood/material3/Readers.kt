@@ -16,6 +16,7 @@ package dev.dogwood.material3
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -159,5 +160,27 @@ fun WidgetView.textDecorationOrNull(tag: Int): TextDecoration? {
     "underline" -> TextDecoration.Underline
     "lineThrough" -> TextDecoration.LineThrough
     else -> null.also { unknown("textDecoration", name) }
+  }
+}
+
+/**
+ * The three answers a tri-state control can give, by name.
+ *
+ * A value rather than a live-state holder: `TriStateCheckbox` takes its `state` the way `Checkbox`
+ * takes `checked`, so there is nothing host-owned here and nothing to report back. Only the type's
+ * `State` suffix ever made it look otherwise.
+ *
+ * An unknown name degrades to null, which the binding turns into the library's own default for an
+ * optional parameter and into `ToggleableState.Off` for a required one — a box showing less than
+ * the payload meant rather than more, and the name lands in the skew report either way.
+ */
+@Composable
+fun WidgetView.toggleableStateOrNull(tag: Int): ToggleableState? {
+  val name = stringOrNull(tag) ?: return null
+  return when (name) {
+    "on" -> ToggleableState.On
+    "off" -> ToggleableState.Off
+    "indeterminate" -> ToggleableState.Indeterminate
+    else -> null.also { unknown("toggleableState", name) }
   }
 }

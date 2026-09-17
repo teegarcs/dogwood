@@ -87,6 +87,31 @@ enum class TextOverflow(internal val wire: String) { Clip("clip"), Ellipsis("ell
 
 enum class TextDecoration(internal val wire: String) { Underline("underline"), LineThrough("lineThrough") }
 
+/**
+ * The three answers a tri-state control can give: yes, no, and "some of the things below".
+ *
+ * A **value**, not a live-state holder, and that distinction is the whole reason this is three
+ * lines rather than a shape entry and a hand-written mirror. Material 3's `TriStateCheckbox` takes
+ * its `state` the way an ordinary checkbox takes `checked` -- the caller decides it and the control
+ * draws it -- so nothing about it is host-owned and nothing needs reporting back. Its type merely
+ * ends in `State`, which is what had the library classifier refusing it as a holder.
+ *
+ * A name on the wire rather than an ordinal, for the reason every closed set here crosses as a
+ * name: a client one dictionary version behind meets `indeterminate` having never heard of it and
+ * records that in the skew report, where an ordinal would resolve silently to whichever entry sits
+ * at that index.
+ */
+enum class ToggleableState(internal val wire: String) {
+  /** Every child is selected: the tick. */
+  On("on"),
+
+  /** None is: the empty box. */
+  Off("off"),
+
+  /** Some are. The state a plain `Boolean` cannot express, and the only reason this type exists. */
+  Indeterminate("indeterminate"),
+}
+
 // ---------------------------------------------------------------------------------------------
 // Modifiers
 // ---------------------------------------------------------------------------------------------
