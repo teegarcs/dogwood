@@ -30,9 +30,12 @@ cd "$HERE/../../engine"
 
 passed=0
 failed=0
+# `ok` is 1 for a pass, so every call site reads as the sentence it grades rather than as an exit
+# status. The first version took 0 for a pass and the control inverted itself: a client that
+# refused was reported as the control succeeding.
 conform() {
   local id="$1" ok="$2" detail="$3"
-  if [ "$ok" = "0" ]; then
+  if [ "$ok" = "1" ]; then
     passed=$((passed + 1)); echo "CONF $id PASS -- $detail" | tee -a "$OUT"
   else
     failed=$((failed + 1)); echo "CONF $id FAIL -- $detail" | tee -a "$OUT"
@@ -65,16 +68,27 @@ case "$CLIENT" in
     echo "==> the control: the ordinary client, which has the tier"
     ./gradlew :samples:slice-android:installDebug --console=plain -q --max-workers=2 || exit 1
     control="$(run_and_read)"
-    echo "$control" | grep -q "refused" && control_refused=0 || control_refused=1
-    conform "B6-control" "$control_refused" \
-      "the ordinary client runs the same payload it is about to refuse without the tier"
+    # The control asserts a *positive*: the client loaded the release. "It did not refuse" is also
+    # true of a client that never reached the server, which is the reading that makes a control
+    # worthless.
+    if echo "$control" | grep -q "loaded version" && ! echo "$control" | grep -q "androidx.material3"; then
+      control_ok=1
+    else
+      control_ok=0
+    fi
+    conform "B6-control" "$control_ok" \
+      "$(echo "$control" | grep -o 'loaded version[^"]\{0,60\}' | head -1 || echo 'the ordinary client did not load the payload')"
 
     echo "==> the client built WITHOUT the tier"
     ./gradlew :samples:slice-android:installDebug -PdogwoodMaterial3=false --console=plain -q --max-workers=2 || exit 1
     without="$(run_and_read)"
-    if echo "$without" | grep -q "androidx.material3"; then named=0; else named=1; fi
+    if echo "$without" | grep -q "androidx.material3" && ! echo "$without" | grep -q "loaded version"; then
+      named=1
+    else
+      named=0
+    fi
     conform "B6" "$named" \
-      "$(echo "$without" | grep -o 'refused[^"]\{0,120\}' | head -1 | tr -d '\n')"
+      "$(echo "$without" | grep -oE '(refused|does not implement)[^"]{0,120}' | head -1 | tr -d '\n')"
 
     echo "==> restoring the ordinary client"
     ./gradlew :samples:slice-android:installDebug --console=plain -q --max-workers=2 || true
@@ -104,15 +118,23 @@ case "$CLIENT" in
 
     echo "==> the control: the ordinary client, which has the tier"
     control="$(run_and_read control)"
-    echo "$control" | grep -q "refused" && control_refused=0 || control_refused=1
-    conform "B6-control" "$control_refused" \
-      "the ordinary client runs the same payload it is about to refuse without the tier"
+    if echo "$control" | grep -q "loaded version" && ! echo "$control" | grep -q "androidx.material3"; then
+      control_ok=1
+    else
+      control_ok=0
+    fi
+    conform "B6-control" "$control_ok" \
+      "$(echo "$control" | grep -o 'loaded version[^"]\{0,60\}' | head -1 || echo 'the ordinary client did not load the payload')"
 
     echo "==> the client launched WITHOUT the tier"
     without="$(run_and_read without --dogwood-no-material3)"
-    if echo "$without" | grep -q "androidx.material3"; then named=0; else named=1; fi
+    if echo "$without" | grep -q "androidx.material3" && ! echo "$without" | grep -q "loaded version"; then
+      named=1
+    else
+      named=0
+    fi
     conform "B6" "$named" \
-      "$(echo "$without" | grep -o 'refused[^"]\{0,120\}' | head -1 | tr -d '\n')"
+      "$(echo "$without" | grep -oE '(refused|does not implement)[^"]{0,120}' | head -1 | tr -d '\n')"
     ;;
 
   *) echo "usage: $0 android|ios" >&2; exit 2 ;;
