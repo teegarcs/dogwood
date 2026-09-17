@@ -429,7 +429,14 @@ private fun SliceHost(configuration: HostEnvironment) {
       current = "explore"
       var arrived = false
       var waited = 0
-      while (!arrived && waited < 60_000) {
+      /*
+       * Sixty seconds, stretched for a slower machine. `J2` waits on a network fetch and a
+       * composition, and on a hosted simulator it was the last claim in this drill still failing --
+       * `no launch-parameter text on screen after 60s` -- while everything around it passed. Every
+       * other deadline in these drills needed the same treatment on the same runner.
+       */
+      val budget = (60_000 * readPatience()).toInt()
+      while (!arrived && waited < budget) {
         kotlinx.coroutines.delay(500)
         waited += 500
         arrived = collectAccessibilityElements(root).any {
@@ -440,7 +447,7 @@ private fun SliceHost(configuration: HostEnvironment) {
         println("CONF J2 PASS -- the host named 'explore' and the city it passed reached the composition")
       } else {
         failures += 1
-        println("CONF J2 FAIL -- no launch-parameter text on screen after 60s")
+        println("CONF J2 FAIL -- no launch-parameter text on screen after ${budget / 1000}s")
       }
       println("A11Y DONE failures=$failures")
     }

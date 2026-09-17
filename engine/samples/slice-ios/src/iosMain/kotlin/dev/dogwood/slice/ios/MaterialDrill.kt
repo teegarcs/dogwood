@@ -70,7 +70,20 @@ private var deadline: Double = Double.MAX_VALUE
  * as long to learn the same thing. Passed as `--dogwood-patience <n>` beside the drill's own launch
  * argument, which is how every other switch reaches this application.
  */
-private var patience: Double = 1.0
+internal var patience: Double = 1.0
+
+/**
+ * Reads `--dogwood-patience <n>` off the launch arguments, once, for whichever drill asked.
+ *
+ * Shared by the Material drill and the accessibility drill rather than parsed twice: both are
+ * launched by `xcrun simctl launch` with the same switch, and two readers of one argument is two
+ * places to forget it.
+ */
+internal fun readPatience(): Double {
+  val arguments = NSProcessInfo.processInfo.arguments.map { it.toString() }
+  val at = arguments.indexOf("--dogwood-patience")
+  return arguments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toDoubleOrNull()?.coerceIn(1.0, 10.0) ?: 1.0
+}
 private var startedAt: Double = 0.0
 
 /**
@@ -264,12 +277,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
    */
   // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
   // by the drill rather than cut off by the harness.
-  patience = NSProcessInfo.processInfo.arguments.map { it.toString() }
-    .let { arguments ->
-      val at = arguments.indexOf("--dogwood-patience")
-      arguments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toDoubleOrNull()
-    }
-    ?.coerceIn(1.0, 10.0) ?: 1.0
+  patience = readPatience()
   startedAt = NSDate().timeIntervalSince1970
   // The overall budget stretches with the per-wait patience, or a patient run would simply spend
   // its extra seconds and then be cut off by the budget that was sized for an impatient one.
