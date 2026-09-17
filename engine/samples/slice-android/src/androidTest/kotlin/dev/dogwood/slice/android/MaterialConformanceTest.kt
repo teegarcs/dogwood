@@ -457,7 +457,22 @@ class MaterialConformanceTest {
         return@repeat
       }
       act(reach("Business"))
-      chosen = awaitWitness("m3.menu=", menuWas, timeoutMs = 5_000)
+      /*
+       * **The full budget, not a short one per round**, and this is the correction to my own first
+       * retry rather than to the original code.
+       *
+       * That retry gave each round five seconds instead of the default fifteen, reasoning that
+       * three quick attempts beat one slow one. On a hosted emulator the run then read
+       * `[round 0: chose, witness unmoved] [round 1: the menu never opened] [round 2: the menu
+       * never opened]` -- round zero opened the menu and chose correctly and the witness simply had
+       * not caught up in five seconds, and by then the choice had closed the menu and renamed its
+       * anchor, so nothing could open it again. The original single attempt with a generous wait
+       * passed this emulator twice; the retry failed it twice. It was a worse drill.
+       *
+       * A choice that registers slowly is still a choice. Retry only what can genuinely be missed --
+       * the *opening* -- and never cut short the wait on a consequence that is already in flight.
+       */
+      chosen = awaitWitness("m3.menu=", menuWas)
       if (chosen == null) menuNotes += " [round $round: chose, witness unmoved]"
     }
 

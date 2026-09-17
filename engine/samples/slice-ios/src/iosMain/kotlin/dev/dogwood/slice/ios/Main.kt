@@ -447,7 +447,20 @@ private fun SliceHost(configuration: HostEnvironment) {
         println("CONF J2 PASS -- the host named 'explore' and the city it passed reached the composition")
       } else {
         failures += 1
-        println("CONF J2 FAIL -- no launch-parameter text on screen after ${budget / 1000}s")
+        /*
+         * **The failure says what was on screen**, because three nightly runs failed here saying
+         * only that a word was absent. `J2` needs a launch parameter to reach the composition AND a
+         * network fetch to return, and "no Tokyo" cannot tell those apart -- nor from a screen that
+         * never left the previous tab. The Android drill's menu claim was diagnosed in one run once
+         * it started reporting per-attempt detail; this is the same move.
+         */
+        val onScreen = collectAccessibilityElements(root)
+          .mapNotNull { it.accessibilityLabel }
+          .filter { it.isNotBlank() }
+        println(
+          "CONF J2 FAIL -- no launch-parameter text on screen after ${budget / 1000}s; " +
+            "${onScreen.size} labels, first 12: ${onScreen.take(12)}",
+        )
       }
       println("A11Y DONE failures=$failures")
     }
