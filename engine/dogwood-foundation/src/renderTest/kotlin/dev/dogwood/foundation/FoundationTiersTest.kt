@@ -158,16 +158,25 @@ class FoundationTiersTest {
       wire.text(id, 1, words)
       wire.insert(0, 1, id, index)
     }
-    // The two that take no content: the empty `Box` overload and `Spacer`. They carry a test tag
-    // so "displayed" is a claim about them rather than about their children, of which they have
-    // none. Both are sized by a modifier the payload sends, so a zero-sized node would fail here.
+    // The two that take no content: the empty `Box` overload and `Spacer`. They carry a test tag,
+    // so the claim about them is that a node with that tag exists -- `assertExists` rather than
+    // `assertIsDisplayed`, because both are zero-sized when the payload sends no size modifier and
+    // "displayed" would be a claim about the modifier rather than about the binding.
     for ((index, local) in listOf(LAYOUT_BOX_EMPTY, LAYOUT_SPACER).withIndex()) {
       val id = wire.create(Segments.FOUNDATION_LAYOUT, local)
       wire.tagged(id, "empty$index")
       wire.insert(0, 1, id, withContent.size + index)
     }
-    rendered(wire.build()) {
+    val tree = wire.build()
+    rendered(tree) {
       for ((_, words) in withContent) onNodeWithText(words).assertIsDisplayed()
+      onNodeWithTag("empty0").assertExists()
+      onNodeWithTag("empty1").assertExists()
+      assertEquals(
+        emptySet<Int>(),
+        tree.skew.unknownWidgetTags,
+        "a layout this client does carry was rendered as a placeholder",
+      )
     }
   }
 
