@@ -134,7 +134,50 @@ echo "==> a bad publish, quarantined on a device and recovered"
 echo "==> rotating a signing key, publishing, and staging a canary"
 "$HERE/../reference-server/rotation-drill.sh" "$HERE/build/rotation.conf" >/dev/null 2>&1 || status=1
 "$HERE/../reference-server/cohort-drill.sh" "$HERE/build/cohort.conf" >/dev/null 2>&1 || status=1
-"$HERE/../reference-server/publish-check.sh" "$HERE/build/publish-check.conf" >/dev/null 2>&1 || status=1
+# `publish-check.sh` takes named arguments, not an output path. This line used to pass one
+# positional path, which the script rejects with "unknown argument" and exit 64 -- swallowed by the
+# redirect, counted as a failure with no file behind it, so `P1`-`P7` were graded nowhere in this
+# gate. Found 2026-09-17 while reading the script's own argument parser.
+#
+# The private keys are READ out of the guest's build file rather than restated here, the way
+# `rotation-drill.sh` reads the public halves out of the trust anchor. A second copy of a key is a
+# second thing to update, and `publish-check.sh` derives each public half from the private one it is
+# given, so a transposed pair fails rather than passing.
+GUEST_BUILD="$HERE/../../engine/samples/slice-guest/build.gradle.kts"
+PUBLISH_SIGNING_KEY="$(grep -o 'val developmentSigningKey = "[0-9a-f]\{64\}"' "$GUEST_BUILD" | grep -o '[0-9a-f]\{64\}')"
+PUBLISH_ROTATION_KEY="$(grep -o 'val rotationSigningKey = "[0-9a-f]\{64\}"' "$GUEST_BUILD" | grep -o '[0-9a-f]\{64\}')"
+#
+# The payload is REBUILT at the version being checked, and that is what makes `P1` and `P6` mean
+# anything. `P1` is "the release identity is a build input" -- it catches a publishing step that
+# stamps a version in afterwards, which invalidates the signature over it. Checking whatever version
+# the payload already happened to carry would assert that a number equals itself. `P6` fails with
+# it, because it looks for the client reaching `updated` at that same version.
+#
+# Rebuilt back to the default afterwards on every path, because the drills after this one use the
+# payload on :8080 and a gate-stamped version left behind would follow them around.
+PUBLISH_VERSION="gate-$(date +%Y%m%d%H%M%S)"
+GUEST_DIR="$HERE/../../engine/samples/slice-guest/build/zipline/ProductionWebpack"
+if [ -n "$PUBLISH_SIGNING_KEY" ]; then
+  if "$HERE/../../engine/gradlew" -p "$HERE/../../engine" \
+      :samples:slice-guest:jsBrowserProductionWebpackZipline \
+      -PdogwoodVersion="$PUBLISH_VERSION" --max-workers=2 --console=plain -q >/dev/null 2>&1; then
+    "$HERE/../reference-server/publish-check.sh" \
+      --payload "$GUEST_DIR" \
+      --version "$PUBLISH_VERSION" \
+      --signing-key "$PUBLISH_SIGNING_KEY" \
+      ${PUBLISH_ROTATION_KEY:+--rotation-key "$PUBLISH_ROTATION_KEY"} \
+      --out "$HERE/build/publish-check.conf" >/dev/null 2>&1 || status=1
+  else
+    echo "    (the guest would not build at $PUBLISH_VERSION; P1-P7 not graded)" >&2
+    status=1
+  fi
+  "$HERE/../../engine/gradlew" -p "$HERE/../../engine" \
+    :samples:slice-guest:jsBrowserProductionWebpackZipline \
+    --max-workers=2 --console=plain -q >/dev/null 2>&1 || status=1
+else
+  echo "    (no development signing key found in $GUEST_BUILD; P1-P7 not graded)" >&2
+  status=1
+fi
 
 echo "==> web skew containment"
 # Needs no device, so this one also runs in continuous integration (`conformance.yml`). It is kept
