@@ -117,7 +117,14 @@ tasks.matching { it.name == dogwoodZiplineTaskName }.configureEach {
       // the skew drills swap files in behind Gradle's back and re-run it on purpose.
       if (old.endsWith("-$digest.${old.substringAfterLast('.')}")) continue
 
-      val base = old.substringBeforeLast('.')
+      /*
+       * An address already carrying a digest is stripped back to its bare name before the new one
+       * is appended, so a second application can never produce `slice-guest-<old>-<new>.zipline`.
+       * The Zipline task rewrites the manifest from scratch every time it runs, so `old` is the
+       * plugin's own name in practice -- this is the case that is cheap to make impossible rather
+       * than one that has been seen.
+       */
+      val base = old.substringBeforeLast('.').replace(Regex("-[0-9a-f]{16}$"), "")
       val extension = old.substringAfterLast('.')
       val new = "$base-$digest.$extension"
       val oldFile = File(dir, old)

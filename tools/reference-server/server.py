@@ -118,19 +118,18 @@ def publish(root: pathlib.Path, source: pathlib.Path, version: str) -> int:
     manifest = json.loads((source / MANIFEST).read_text())
     modules = manifest.get("modules", {})
 
-    #     Every module address must name its own bytes, and a publish that finds one that does not is
-    #     refused rather than warned about.
+    # Every module address must name its own bytes, and a publish that finds one that does not is
+    # refused rather than warned about.
     #
-    #     This is the gate for `gradle/content-addressed-modules.gradle.kts`. Before that step existed,
-    #     every release named its module `slice-guest.zipline` -- the same string every time -- and a
-    #     server holding two live releases could not tell which release a module request wanted. It
-    #     guessed newest, and `cohort-drill.sh` watched a client pinned to the canary fetch the live
-    #     release's bytes and refuse the load on the digest its signed manifest named. The signature
-    #     caught it, which is the right direction, but the outcome is a device that cannot start.
+    # This is the gate for `gradle/content-addressed-modules.gradle.kts`. Before that step existed,
+    # every release named its module `slice-guest.zipline` -- the same string every time -- and a
+    # server holding two live releases could not tell which release a module request wanted. It
+    # guessed newest, and `cohort-drill.sh` watched a client pinned to the canary fetch the live
+    # release's bytes and refuse the load on the digest its signed manifest named. The signature
+    # caught it, which is the right direction, but the outcome is a device that cannot start.
     #
-    #     Refusing here rather than warning is the difference between a property and a hope. A warning
-    #     was what this used to print, and `quarantine-drill.sh` published straight past it.
-    #
+    # Refusing here rather than warning is the difference between a property and a hope. A warning
+    # was what this used to print, and `quarantine-drill.sh` published straight past it.
     unaddressed = []
     for module_id, module in sorted(modules.items()):
         url, digest = module.get("url", ""), module.get("sha256", "")

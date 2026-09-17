@@ -184,3 +184,79 @@ Group 4's first dispatch goes out before anything else, because a forty-minute d
 failing while other work happens rather than after it. Groups 2 and 3 land next: they are small, and
 they are what makes Group 1's new claim visible in the matrix when it arrives. Group 1 is last and
 largest, and its own drill grades it.
+
+---
+
+## What landed, 2026-09-17
+
+Filled in as each group closed, including the parts where the plan above was wrong. The house rule
+is that a plan is a prediction and the record is what happened.
+
+### Group 1 — the module address
+
+| What the plan said | What happened |
+|---|---|
+| The fix belongs at build time, before signing | Held. `SignatureTest.movingTheModuleAddressIsRejected` is the assertion behind it. |
+| Content-address the module and re-sign | Done, as a `doLast` on the Zipline task so every existing `dependsOn` gets the right bytes. |
+| `publish` asserts equality instead of warning | Went further: it **refuses**, because a warning is what `quarantine-drill.sh` used to publish straight past. |
+| `B7` graded in `cohort-drill.sh` | Done, and it **passed hollow on its first run**. See below. |
+
+**Three things the plan did not predict.**
+
+1. **`B7` was meaningless when first written.** `-PdogwoodVersion` reaches the manifest and not the
+   bundle, so the drill's two releases had byte-identical modules and therefore one shared content
+   address. `B7` passed while exercising nothing. It was caught by `B7-distinct`, added at the same
+   time out of the same suspicion, which failed printing the same digest twice. The canary is now
+   built from genuinely different source. The lesson is the one AGENTS.md §1.5 states from the other
+   direction: a claim that passes is also a hypothesis.
+2. **Five skew drills fetched the module by its old literal name.** They poll `:8080` for the
+   rebuilt payload, and a literal address would have 404'd forever while the drill reported "the
+   skewed payload never reached the server" — a product failure that did not happen. They read the
+   address out of the manifest now.
+3. **The local gate has never run the publish check.** `run-all.sh` passed a positional output path
+   to a script that takes named arguments, so `publish-check.sh` exited 64 with "unknown argument"
+   into `/dev/null`, and `P1`–`P7` were graded nowhere. Found while reading the script's own
+   argument parser to wire it up. Fixing the invocation was not enough: the payload has to be
+   **rebuilt at the version being checked**, or `P1` asserts that a number equals itself.
+
+**Watched to fail.** With the content-addressing step commented out, `publish` refuses both releases
+by name and the drill stops. The first time that was watched, the drill blamed "the reference server
+never answered on :8475" — the symptom three steps downstream — because `build` ignored `publish`'s
+exit status. It no longer does.
+
+**Not applied to `samples-standalone/umbra` or `tools/phase0/guest`**, with a reason rather than an
+omission: umbra is a standalone build that deliberately shares no files with `engine/`, and phase0 is
+a benchmark harness. Neither is ever served by a server holding two releases. The right long-term
+home for the step is the published `io.github.teegarcs.dogwood.guest` plugin, where a product would
+get it by applying the plugin rather than by copying a script.
+
+### Group 2 — every drill has a runner
+
+The three orphans are wired: the iOS Material drill, the Material pre-flight drill and the engine
+skew drill. Engine skew became **its own nightly job** rather than living in the matrix job, which
+was about to turn a fifteen-minute report into an hour-long one.
+
+The nine per-copy `CONF RESULT` guards were replaced by **one sweep per job**, which also reaches
+`android-a11y.conf` and `web-a11y.conf` that no per-copy guard could. It is loud rather than tidy: a
+dropped result file means a drill died, and the run says so in the job output and the summary.
+
+### Group 3 — the matrix writes itself back
+
+`run-all.sh` passes `--update-plan`, guarded so a partial run cannot overwrite a fuller table, with
+`SKIP_MATRIX_WRITE=1` and `FORCE_MATRIX_WRITE=1` as the explicit escapes.
+
+**Tier C still does not commit the matrix, and that is a decision taken here rather than deferred.**
+Giving a nightly workflow write access to `main` to keep a table fresh is a larger grant than the
+problem needs. With the local gate writing back, the table is refreshed by the person who ran it.
+
+### Group 4 — the two workflows run for real
+
+**`publish-payload.yml` is green on its first ever execution**, run 35175358230 on this branch with
+`dry_run: true` and version `0.1.1-dryrun`. All seven claims pass, including `P5` (brotli, which the
+workflow installs and this development machine cannot) and `P4` showing
+`slice-guest-de2a545af99f06ba.zipline` — Group 1's content address, graded in continuous
+integration rather than only here. The secret-handling step took the dry-run branch and said so.
+
+Nothing in that workflow needed fixing, which is worth recording as much as a failure would be: the
+steps are thin wrappers around commands a person runs, and that discipline is what made a
+first-ever run boring.
