@@ -265,6 +265,7 @@ private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.TEXT_ALIGN -> "TextAlign"
   Kind.TEXT_OVERFLOW -> "TextOverflow"
   Kind.TEXT_DECORATION -> "TextDecoration"
+  Kind.TOGGLEABLE_STATE -> "ToggleableState"
   Kind.MODIFIER -> "Modifier"
   Kind.SLOT -> "@Composable () -> Unit"
   Kind.EVENT -> "(${v.eventArguments.joinToString(", ") { guestArgumentType(it) }}) -> Unit"
@@ -276,7 +277,8 @@ private fun guestEncode(v: Verdict.Settable): String = when (v.kind) {
   Kind.TEXT_UNIT, Kind.COLOR, Kind.SHAPE, Kind.PADDING_VALUES,
   Kind.BORDER_STROKE, Kind.FLOAT_RANGE -> "it.json"
   Kind.ARRANGEMENT_H, Kind.ARRANGEMENT_V, Kind.ARRANGEMENT_HV,
-  Kind.FONT_WEIGHT, Kind.TEXT_ALIGN, Kind.TEXT_OVERFLOW, Kind.TEXT_DECORATION -> "JsonPrimitive(it.wire)"
+  Kind.FONT_WEIGHT, Kind.TEXT_ALIGN, Kind.TEXT_OVERFLOW, Kind.TEXT_DECORATION,
+  Kind.TOGGLEABLE_STATE -> "JsonPrimitive(it.wire)"
   Kind.ALIGNMENT_H, Kind.ALIGNMENT_V, Kind.ALIGNMENT_2D -> "JsonPrimitive(it.ordinal)"
   else -> error("not a value kind: ${v.kind}")
 }
@@ -336,7 +338,23 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
     appendLine("/** `${b.classified.dictionaryName}`, widget tag ${(dictionary.segmentId shl 24) or entry.localTag}. Parameters the library has and this stub does not are host-default-only; see the reference. */")
     appendLine("@Composable")
     appendLine("fun ${b.name}(")
+    val holders = b.classified.parameters.filter { it.verdict is Verdict.Holder }
+    /*
+     * The content slot stays last, even when a holder is appended after it.
+     *
+     * Kotlin's trailing-lambda idiom is not a nicety here: `ModalDrawerSheet { ... }` is how every
+     * Compose developer writes this call, and it is what the library's own signature affords. A
+     * holder parameter appended at the very end silently rebinds that brace to the holder -- the
+     * call stops compiling if you are lucky, and passes a lambda where a `DrawerState?` was wanted
+     * if you are not. The catalogue's own drawers broke this way the first time a drawer holder
+     * landed, which is the cheapest possible demonstration that a payload would too.
+     *
+     * So the final slot is held back and emitted after the holders. Everything else keeps the
+     * library's order. Only the *last* one moves, because that is the only one the idiom uses.
+     */
+    val trailing = settable.lastOrNull()?.takeIf { (it.verdict as Verdict.Settable).kind == Kind.SLOT }
     for ((p, v) in settable) {
+      if (trailing != null && p === trailing.parameter) continue
       v as Verdict.Settable
       val optional = v.hasDefault || v.nullable
       val declaration = when (v.kind) {
@@ -347,10 +365,17 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
       }
       appendLine("  $declaration,")
     }
-    val holders = b.classified.parameters.filter { it.verdict is Verdict.Holder }
     for ((p, v) in holders) {
       v as Verdict.Holder
       appendLine("  ${p.name}: ${guestHolderType(v.shape)}? = null,")
+    }
+    if (trailing != null) {
+      val v = trailing.verdict as Verdict.Settable
+      val optional = v.hasDefault || v.nullable
+      appendLine(
+        if (optional) "  ${trailing.parameter.name}: (@Composable () -> Unit)? = null,"
+        else "  ${trailing.parameter.name}: @Composable () -> Unit,",
+      )
     }
     appendLine(") {")
     /*
@@ -482,6 +507,7 @@ private fun hostReader(kind: Kind, libraryType: String, tag: Int): String {
     Kind.TEXT_ALIGN -> "node.textAlignOrNull($tag)"
     Kind.TEXT_OVERFLOW -> "node.textOverflowOrNull($tag)"
     Kind.TEXT_DECORATION -> "node.textDecorationOrNull($tag)"
+    Kind.TOGGLEABLE_STATE -> "node.toggleableStateOrNull($tag)"
     Kind.BORDER_STROKE -> "node.borderStrokeOrNull($tag)"
     Kind.FLOAT_RANGE -> "node.floatRangeOrNull($tag)"
     else -> error("not a value kind: $kind")
@@ -510,6 +536,9 @@ private fun hostFallback(kind: Kind, libraryType: String): String {
     Kind.TEXT_ALIGN -> "androidx.compose.ui.text.style.TextAlign.Unspecified"
     Kind.TEXT_OVERFLOW -> "androidx.compose.ui.text.style.TextOverflow.Clip"
     Kind.TEXT_DECORATION -> "androidx.compose.ui.text.style.TextDecoration.None"
+    // Nothing ticked, which is the conservative reading of a value a client could not decode:
+    // a tri-state box that shows less than the payload meant, never more.
+    Kind.TOGGLEABLE_STATE -> "androidx.compose.ui.state.ToggleableState.Off"
     Kind.BORDER_STROKE -> "androidx.compose.foundation.BorderStroke(0.dp, androidx.compose.ui.graphics.Color.Transparent)"
     Kind.FLOAT_RANGE -> "0f..1f"
     else -> error("no fallback for $kind")
