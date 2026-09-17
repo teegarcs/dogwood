@@ -48,7 +48,10 @@ conform() { # id, condition(1|0), detail
   echo "$line"
 }
 
-cleanup() { kill "${server:-0}" 2>/dev/null || true; rm -rf "$ROOT"; }
+# NOT `kill "${server:-0}"`: unset, that expands to `kill 0`, which signals the whole process
+# group -- the shell running the drill included. The symptom is a drill that ends with exit 144 and
+# no output at all, which reads as a hang rather than as a bug in its own cleanup.
+cleanup() { [ -n "${server:-}" ] && kill "$server" 2>/dev/null; rm -rf "$ROOT"; return 0; }
 trap cleanup EXIT
 
 command -v adb >/dev/null || { echo "adb not found" >&2; exit 1; }

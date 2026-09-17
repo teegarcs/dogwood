@@ -39,7 +39,9 @@ echo "==> comparing HEAD against $TAG"
 
 WORKTREE="${TMPDIR:-/tmp}/dogwood-engine-$TAG"
 cleanup() {
-  kill ${server:-0} 2>/dev/null || true
+  # Never `kill ${server:-0}`: unset, that is `kill 0` and signals this shell's whole process
+  # group, which ends the drill with exit 144 and no output.
+  [ -n "${server:-}" ] && kill "$server" 2>/dev/null
   git -C "$ROOT" worktree remove --force "$WORKTREE" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -54,7 +56,9 @@ conform() { # id, ok(1/0), detail
 }
 
 serve() { # directory
-  kill ${server:-0} 2>/dev/null || true
+  # Never `kill ${server:-0}`: unset, that is `kill 0` and signals this shell's whole process
+  # group, which ends the drill with exit 144 and no output.
+  [ -n "${server:-}" ] && kill "$server" 2>/dev/null
   python3 -m http.server "$PORT" --directory "$1" --bind 127.0.0.1 >/dev/null 2>&1 &
   server=$!
   for _ in $(seq 1 40); do

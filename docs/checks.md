@@ -130,6 +130,11 @@ which is a Gradle daemon and a webpack watcher holding a gigabyte for the durati
 | [`reference-server/quarantine-drill.sh`](../tools/reference-server/quarantine-drill.sh) | `H2`, `H3` | a payload that throws before the host can mount anything, published twice, quarantined on a device, recovered through `resume` |
 | [`two-payloads/measure.sh`](multi-team.md) | — | two independently shipped payloads in one application, and what the second costs ([ADR-065](../adrs/layer-5/ADR-065-two-teams-need-two-shells-and-nothing-else.md)) |
 | [`skew-drill/run-preflight.sh`](../tools/skew-drill/README.md), `run-preflight-ios.sh` | `B3` | the same two builds, with the payload **declaring** N+1: the client refuses before `start` ([ADR-061](../adrs/layer-3/ADR-061-a-payload-declares-the-dictionary-it-needs.md)) |
+| [`skew-drill/run-material-preflight.sh`](../tools/skew-drill/README.md) | `B6` | an Android or iOS client built **without** the generated Material 3 tier, meeting a payload that declares it: refused before `start`, naming the segment, with the ordinary build as the control |
+| [`engine-skew.sh`](../tools/conformance/engine-skew.sh) | `K3`, `K4` | two **engine** versions meeting: the host built at a tag in a worktree and the payload built at `HEAD`, each served to the other |
+| [`reference-server/rotation-drill.sh`](keys.md) | `R1`–`R5` | a signing key rotated through a real server, with two clients differing only in which key they hold — the one holding the old key stops at exactly the publish that drops its signature |
+| [`reference-server/cohort-drill.sh`](operating.md) | `C1`–`C3` | a bad release published to buckets 0–9 only, and the other ninety installations untouched |
+| [`reference-server/publish-check.sh`](../tools/reference-server/publish-check.sh) | `P1`–`P7` | the bytes a publish would ship: the version stamped, the signature over them, the cache split, and `Content-Encoding: br` |
 | [`cross-version.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | a **frozen, signed** payload from an earlier toolchain served to a desktop host built from current sources |
 | [`cross-version-mobile.sh`](../tools/conformance/fixtures/README.md) | `K1`, `K2` | the same fixture served to an installed Android or iOS build, pointed at it by `--es manifest` / `--dogwood-manifest` |
 | [`symbolicate/resolve.py`](../tools/symbolicate/resolve.py) | — | resolves a minified guest stack against the build's source map; run by hand on a crash report, not part of a gate |
@@ -217,6 +222,26 @@ release **and one outside it does not**; `resume` puts the earlier release back.
 the desktop host against it with a cold cache and asserts the client loaded and *verified* a signed
 manifest and fetched a module — because everything before it is the server agreeing with itself.
 Not in continuous integration: it starts servers and a windowed client.
+
+## Rotating a key, and publishing — three drills that are procedures
+
+```
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+tools/reference-server/rotation-drill.sh     # R1-R5, the roll-forward, both clients
+tools/reference-server/cohort-drill.sh       # C1-C3, a canary that stays a canary
+tools/reference-server/publish-check.sh      # P1-P7, on the bytes that would ship
+```
+
+[`docs/keys.md`](keys.md) is the runbook these execute. The rotation one is the reason that document
+is worth trusting: a procedure nobody has performed is a paragraph, and this one publishes two real
+releases through the reference server to two clients that differ only in which key they hold. `R5`
+is the step people skip — the client holding only the old key stops updating at exactly the publish
+that drops its signature, which is why the last step of a rotation is something to *finish* rather
+than to start.
+
+Each carries its own negative: `--dual-at-step-3` republishes without dropping the old signature and
+`R5` must then fail, `--range 0-99` puts every bucket in the canary and the spared claim must fail.
+A drill that cannot fail on purpose is not evidence.
 
 ## The standalone check — can anyone outside this repository use it?
 

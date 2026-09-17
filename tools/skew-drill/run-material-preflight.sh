@@ -61,8 +61,20 @@ case "$CLIENT" in
       adb shell am force-stop "$PACKAGE" >/dev/null 2>&1
       adb logcat -c >/dev/null 2>&1
       adb shell am start -n "$PACKAGE/.TabsActivity" --es entry material >/dev/null 2>&1
-      sleep 12
-      adb logcat -d 2>/dev/null | tail -400
+      # Polled to a decision rather than slept at. A fixed wait long enough on a warm emulator is
+      # not long enough on the first launch after an install, when the runtime is still compiling
+      # the application -- and the control failed that way, reporting "did not load the payload"
+      # about a client that loaded it a few seconds later.
+      for _ in $(seq 1 30); do
+        if adb logcat -d 2>/dev/null | grep -qE "loaded version|refused|does not implement"; then break; fi
+        sleep 2
+      done
+      sleep 2
+      # Filtered to this application's own tags, not the tail of everything. An emulator's logcat
+      # carries hundreds of lines a second from Google Play Services, and a `tail -400` of that
+      # does not reach back to the line the drill is grading -- which reported the control as
+      # "did not load the payload" about a client that had loaded it four seconds earlier.
+      adb logcat -d 2>/dev/null | grep -iE "dogwood|refused" | tail -80
     }
 
     echo "==> the control: the ordinary client, which has the tier"

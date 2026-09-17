@@ -96,6 +96,15 @@ echo "==> a bad publish, quarantined on a device and recovered"
 # recording a start without a success; this one publishes a payload that genuinely fails to mount.
 "$HERE/../reference-server/quarantine-drill.sh" "$HERE/build/android-quarantine.conf" >/dev/null 2>&1 || status=1
 
+# The operational drills that are procedures rather than product behaviour: a key rotated through a
+# real server, a canary that stays a canary, and the bytes a publish would ship. They need no
+# device -- only the reference server and a client that verifies -- so they run here rather than
+# waiting for hardware. `docs/keys.md` is the runbook they execute.
+echo "==> rotating a signing key, publishing, and staging a canary"
+"$HERE/../reference-server/rotation-drill.sh" "$HERE/build/rotation.conf" >/dev/null 2>&1 || status=1
+"$HERE/../reference-server/cohort-drill.sh" "$HERE/build/cohort.conf" >/dev/null 2>&1 || status=1
+"$HERE/../reference-server/publish-check.sh" "$HERE/build/publish-check.conf" >/dev/null 2>&1 || status=1
+
 echo "==> web skew containment"
 # Needs no device, so this one also runs in continuous integration (`conformance.yml`). It is kept
 # here too because this script is the whole-matrix run, and a client graded in one place and not the
