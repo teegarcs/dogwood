@@ -362,6 +362,13 @@ audit. Every number here is measured; the commits carry the evidence.
    Node and writes its change batches; the Java Virtual Machine replays those exact bytes through
    the real host bindings. Everything between a payload and a pixel, with no device.
 
+**Verified after the work, on 2026-09-16:** 1,322 shared tests with no failures; the Android
+Material drill 8 of 8 and its refusal claim 2 of 2; iOS five Material claims, a documented skip and
+its refusal claim 2 of 2; the web 8 of 8; `K3` and `K4` on two engine versions; the rotation drill 7
+of 7; `G5` at 3,995,411 bytes and `G6` at 245,158, both inside their ceilings; the standalone check
+`PASS` on a consumer outside this repository; render-shape, link-check and
+`checkGeneratedTierVersions` green.
+
 **And three defects in the work itself**, each found by running it: a holder parameter appended
 after a content slot silently rebound every trailing lambda; a drill whose `conform` took zero for a
 pass reported a refusal as its control succeeding; `kill "${server:-0}"` signals the whole process
