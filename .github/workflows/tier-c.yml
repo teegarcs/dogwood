@@ -831,14 +831,25 @@ jobs:
         #
         # It does **not** push the result. A workflow that commits to `main` unattended is a
         # different decision from a workflow that measures, and the regenerated file is published
-        # below as an artifact instead, with the diff in the summary. Applying it is
-        # `gh run download <id> -n tier-c-matrix` and one commit.
+        # below as an artifact instead, with the diff in the summary.
+        #
+        # **Applying it is NOT one commit, and this is the trap.** This job grades tier C only. The
+        # committed table also holds tier S -- the shared-code claims `from_tests.py` reads out of a
+        # green engine build, which is most of the desktop column and about a third of every other
+        # one. Committing this file wholesale *deletes* those rows: measured on 2026-09-17, the
+        # tier-C matrix had 41 rows against the committed 61, with desktop falling from 44 claims to
+        # 2. It was nearly committed that way.
+        #
+        # So the artifact is evidence to be **combined**, not a replacement. The provenance line says
+        # so, and `run-all.sh`'s write-back guard exists for exactly this comparison -- it refuses a
+        # run that knows less than the table it would overwrite. To apply this: run `from_tests.py`
+        # against a green build, add the device drills from here, and aggregate the union.
         id: regenerate
         run: |
           set +e
           python3 tools/conformance/aggregate.py \
             --update-plan plans/conformance.md \
-            --provenance "Generated ${{ github.run_started_at }} by \`.github/workflows/tier-c.yml\` run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), on \`${{ github.sha }}\`." \
+            --provenance "**Tier C only, not a complete matrix.** Generated ${{ github.run_started_at }} by \`.github/workflows/tier-c.yml\` run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), on \`${{ github.sha }}\`. It grades the claims that need a device and nothing else, so it is missing every tier-S claim \`from_tests.py\` reads out of a green engine build. Combine it with those rather than committing it over a fuller table." \
             "$RUNNER_TEMP"/result/*.conf > "$RUNNER_TEMP/matrix.md"
           echo "aggregate=$?" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/matrix.md"

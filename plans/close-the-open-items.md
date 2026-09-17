@@ -410,3 +410,25 @@ Two iOS findings, and each is a variant of one already fixed elsewhere that day.
    one now does too. Note what the earlier fix did here: adding a retry to `M2` was right for the
    general case and did nothing for this one, and the *shape* of its failure after the retry —
    three activations, none observed — is what pointed at the reading rather than the writing.
+
+### The nightly is green, and Group 3 is closed
+
+**Run 35258075837: all four jobs green.** Eight dispatches to get there. What each one cost is in the
+sections above; what matters is that a workflow which had been signed off as validated needed eight
+runs to pass once, and every failure in between was real.
+
+**Part 3 is regenerated and committed**, 70 rows against the 61 it replaced, zero failures. It was
+**composed rather than produced by `run-all.sh`**, from three sources and no others: the shared-code
+claims from this machine's green engine build, the two device-free desktop drills from this machine,
+and every device drill from the green nightly. The banner above the table says exactly that.
+
+**And a trap worth recording, because it was nearly sprung.** The nightly's matrix artifact is tier C
+only. Committing it wholesale would have *deleted* evidence: 41 rows against the committed 61, with
+desktop falling from 44 claims to 2, because tier S — the shared-code claims `from_tests.py` reads
+out of a green build — is most of the desktop column and about a third of every other one. The
+artifact was one command away from being committed that way. `tier-c.yml` now says so in its own
+provenance line and in a comment at the step, and the local gate's write-back guard already refuses
+this exact comparison: a run that knows less than the table it would overwrite.
+
+That guard was written for a partial local run. It turns out to describe the nightly too, which is
+the second time today a rule written for one case turned out to be the general one.
