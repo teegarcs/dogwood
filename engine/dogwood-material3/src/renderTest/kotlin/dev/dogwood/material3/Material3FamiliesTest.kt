@@ -90,6 +90,7 @@ private const val CONTENT_TAB = 71
 private const val PRIMARY_TAB_ROW = 72
 private const val M3_TEXT = 76
 private const val TIME_PICKER_DIALOG = 77
+private const val TIME_PICKER = 90
 private const val LINEAR_PROGRESS = 58
 private const val CIRCULAR_PROGRESS = 59
 
@@ -687,6 +688,44 @@ class Material3FamiliesTest {
       onNodeWithText("Economy").assertIsDisplayed()
       onNodeWithTag("item").performClick()
       assertEquals(1, chosen)
+    }
+  }
+
+  /**
+   * A live-state holder, mirrored.
+   *
+   * The generated binding does not receive a `TimePickerState` — it *builds* one, from four
+   * properties the guest wrote, and hands the library the real object (ADR-043, ADR-074). What this
+   * pins is that the plumbing on the host side is wired to the right tags: a picker asked to show
+   * 09:30 shows 09:30, which it can only do if `stateInitial` reached the mirror and the mirror
+   * reached the library's state.
+   *
+   * The time crosses as `HH:MM` in twenty-four-hour clock whatever the dial displays, because a
+   * client's locale must not be baked into the wire.
+   */
+  @Test
+  fun aTimePickerIsBuiltFromTheGuestsMirroredState() = run {
+    val wire = Wire()
+    val picker = wire.create(TIME_PICKER)
+    wire.property(picker, 1, "true")
+    wire.property(picker, 2, "1")
+    wire.property(picker, 3, "\"09:30\"")
+    wire.property(picker, 4, "true")
+    wire.tagged(picker, "picker")
+    wire.insert(0, 1, picker, 0)
+    val reported = mutableListOf<String>()
+    rendered(
+      wire.build(),
+      EventSink { _, tag, args ->
+        reported += "${tag.value}:" + args.joinToString(",") { it.jsonPrimitive.content }
+      },
+    ) {
+      onNodeWithTag("picker").assertIsDisplayed()
+      // The report carries the sequence it answers, so two requests in flight cannot be confused.
+      assertTrue(
+        reported.any { it.startsWith("1:1,09:30") },
+        "the picker never reported the time it was asked for: $reported",
+      )
     }
   }
 

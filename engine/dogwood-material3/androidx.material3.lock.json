@@ -2,7 +2,7 @@
     "segmentName": "material3",
     "wireName": "androidx.material3",
     "segmentId": 255,
-    "version": 1090003,
+    "version": 1090004,
     "components": [
         {
             "name": "AlertDialog",
@@ -1955,6 +1955,52 @@
             },
             "slots": {},
             "events": {}
+        },
+        {
+            "name": "TimePicker",
+            "localTag": 90,
+            "properties": {
+                "stateVisible": 1,
+                "stateSequence": 2,
+                "stateInitial": 3,
+                "stateWatching": 4
+            },
+            "propertyTypes": {
+                "stateVisible": "Boolean",
+                "stateSequence": "Int",
+                "stateInitial": "String",
+                "stateWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Int, String) -> Unit"
+            }
+        },
+        {
+            "name": "TimeInput",
+            "localTag": 91,
+            "properties": {
+                "stateVisible": 1,
+                "stateSequence": 2,
+                "stateInitial": 3,
+                "stateWatching": 4
+            },
+            "propertyTypes": {
+                "stateVisible": "Boolean",
+                "stateSequence": "Int",
+                "stateInitial": "String",
+                "stateWatching": "Boolean"
+            },
+            "slots": {},
+            "events": {
+                "stateReport": 1
+            },
+            "eventTypes": {
+                "stateReport": "(Int, String) -> Unit"
+            }
         },
         {
             "name": "TimePickerDialog",

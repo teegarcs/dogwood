@@ -11,6 +11,7 @@
  */
 package dev.dogwood.codegen.v2
 
+import dev.dogwood.codegen.HolderShape
 import java.security.MessageDigest
 
 /** How a settable parameter crosses. Each kind is one row of the plan's mapping table. */
@@ -44,6 +45,27 @@ sealed class Verdict {
 
   /** Cannot cross, has a default: omitted from the stub, the default passed always. */
   data class HostDefaultOnly(val libraryType: String, val defaultText: String) : Verdict()
+
+  /**
+   * A live-state object the host owns and the guest mirrors ([ADR-043]).
+   *
+   * The state itself never crosses -- it is a snapshot object with no serializable form, and a
+   * guest that held one would be holding per-frame state Layer 4 forbids. What crosses is the
+   * *shape*: a few target properties the guest writes and one report event the host sends back.
+   *
+   * On a surface an author controls, a holder is declared with `@Holder` and the generator checks
+   * the type against a registered shape. A library cannot be annotated, so a library tier's
+   * holders are recognised **by type name**, exactly as its affordances are recognised by
+   * parameter name. The table is [LIBRARY_HOLDER_SHAPES] and the mirror each entry names is
+   * hand-written host code, because what a holder *does* -- move a pager, open a drawer, answer
+   * with the time a user picked -- is the part that requires taste.
+   */
+  data class Holder(
+    val libraryType: String,
+    val shape: HolderShape,
+    val nullable: Boolean,
+    val hasDefault: Boolean,
+  ) : Verdict()
 
   /** Cannot cross and is required: the component cannot be bound. */
   data class Unbindable(val libraryType: String, val reason: String) : Verdict()
@@ -150,6 +172,16 @@ object Classifier {
     "LazyItemScope", "PointerInputScope", "AwaitPointerEventScope", "MeasureScope",
     "SubcomposeMeasureScope", "CacheDrawScope", "GraphicsLayerScope", "PagerScope",
   )
+
+  /**
+   * The library state types this generator knows how to mirror, by name.
+   *
+   * Keyed by type name because a library cannot be annotated -- the same reasoning that makes the
+   * affordance rule name-keyed for a library tier (ADR-072). Each entry names a hand-written host
+   * mirror; adding a type here without writing that mirror fails the host compile, which is the
+   * failure mode worth having.
+   */
+  val LIBRARY_HOLDER_SHAPES: Map<String, HolderShape> = LibraryHolders.SHAPES
 
   private val SIMPLE_KINDS = mapOf(
     // Added by M4 (plans/close-the-backlog.md §2.2), in the order the coverage report's
@@ -328,6 +360,14 @@ object Classifier {
     if (type in PRIMITIVES) return settable(Kind.PRIMITIVE)
     SIMPLE_KINDS[type]?.let { return settable(it) }
     if (type in ASSETS) return cannot("asset-backed type $type")
+    LIBRARY_HOLDER_SHAPES[type]?.let { shape ->
+      // Always optional on the stub: absence is the sentinel here as everywhere, and it is
+      // load-bearing rather than symmetric. A stub that sent a holder's properties unconditionally
+      // would put new tags on every one of these widgets, and a client one dictionary version
+      // behind meets tags it has never seen on a widget that owns an affordance -- which ADR-031
+      // defines as withhold. See ADR-043.
+      return Verdict.Holder(type, shape, nullable = parameter.type.trim().endsWith("?"), hasDefault = parameter.defaultText != null)
+    }
     if (type.endsWith("State") || type.endsWith("StateHolder") || type == "MutableInteractionSource") {
       return cannot("live-state holder $type")
     }

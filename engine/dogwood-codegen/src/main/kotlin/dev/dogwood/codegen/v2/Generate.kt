@@ -207,6 +207,18 @@ internal fun ClassifiedComposable.toParsedComponent(): ParsedComponent = ParsedC
           ),
         )
       }
+      /*
+       * A holder becomes a `ParsedParameter` of kind HOLDER carrying its shape, and
+       * `buildDictionary` expands it into the same wire properties and report event a hand-written
+       * surface's holder gets. One expansion, one numbering, one lock rule -- a guest cannot tell
+       * whether the holder it is writing belongs to a library or to a product.
+       */
+      is Verdict.Holder -> listOf(
+        ParsedParameter(
+          p.name, v.libraryType + "?", ParameterKind.HOLDER,
+          hasDefault = true, defaultExpression = "null", holderShape = v.shape,
+        ),
+      )
       else -> emptyList()
     }
   },
@@ -232,6 +244,9 @@ private fun emitNotSettable(bound: List<Bound>): String = buildString {
 // ---------------------------------------------------------------------------------------------
 // Guest stubs
 // ---------------------------------------------------------------------------------------------
+
+/** The guest-side holder class for a library state type: `TimePickerState` -> `TimePickerState`. */
+private fun guestHolderType(shape: dev.dogwood.codegen.HolderShape): String = shape.type
 
 private fun guestType(v: Verdict.Settable): String = when (v.kind) {
   Kind.PRIMITIVE -> Classifier.stripAnnotations(v.libraryType).removeSuffix("?")
@@ -332,7 +347,26 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
       }
       appendLine("  $declaration,")
     }
+    val holders = b.classified.parameters.filter { it.verdict is Verdict.Holder }
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      appendLine("  ${p.name}: ${guestHolderType(v.shape)}? = null,")
+    }
     appendLine(") {")
+    /*
+     * A holder's fields are read HERE, in the composable body, and not inside `update`.
+     *
+     * That is what subscribes this call site to the holder's snapshot state. A read inside
+     * `update` happens after the composition has already decided not to recompose, so a target
+     * declared between frames would never cross. The v1 emitter carries the same comment and it is
+     * the one thing about this pattern that is easy to get wrong and invisible when you do.
+     */
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      for (property in v.shape.properties) {
+        appendLine("  val ${p.name}${property.suffix} = ${p.name}?.${property.field}")
+      }
+    }
     appendLine("  ComposeNode<WidgetNode, DogwoodApplier>(")
     appendLine("    factory = { newWidget(widgetTag(${dictionary.segmentId}, ${entry.localTag})) },")
     appendLine("    update = {")
@@ -365,6 +399,37 @@ private fun emitGuestFile(guestPackage: String, dictionary: Dictionary, bound: L
             appendLine("      set(${p.name}) { recording.recorder.property(id, PropertyTag($tag), ${guestEncode(v)}) }")
           }
         }
+      }
+    }
+    for ((p, v) in holders) {
+      v as Verdict.Holder
+      for (property in v.shape.properties) {
+        val local = "${p.name}${property.suffix}"
+        val tag = entry.properties.getValue(local)
+        // Absence is the sentinel: nothing is sent when the guest passed no holder, so a client
+        // one dictionary version behind never meets a tag it has not heard of on a widget that
+        // owns an affordance (ADR-031, ADR-043).
+        appendLine("      set($local) { if (it != null) recording.recorder.property(id, PropertyTag($tag), JsonPrimitive(it)) }")
+      }
+      val report = v.shape.report
+      if (report != null) {
+        val tag = entry.events.getValue("${p.name}Report")
+        // Keyed on the holder itself, so passing null clears the slot. Registering nothing is not
+        // the same as registering a no-op: a handler from a previous composition would keep
+        // feeding a holder the guest has stopped using.
+        appendLine("      set(${p.name}) { holder ->")
+        appendLine("        if (holder == null) {")
+        appendLine("          recording.lambdas.clear(id, EventTag($tag))")
+        appendLine("        } else {")
+        appendLine("          recording.lambdas.set(id, EventTag($tag)) { args ->")
+        appendLine("            holder.${report.method}(")
+        report.arguments.forEachIndexed { index, argument ->
+          appendLine("              ${argument.name} = ${guestDecodeArgument(argument.type, index)},")
+        }
+        appendLine("            )")
+        appendLine("          }")
+        appendLine("        }")
+        appendLine("      }")
       }
     }
     appendLine("    },")
@@ -526,6 +591,10 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
     "import dev.dogwood.host.dpOrNull",
     "import dev.dogwood.host.textUnitOrNull",
     "import dev.dogwood.host.borderStrokeOrNull",
+    "import dev.dogwood.host.boolean",
+    "import dev.dogwood.host.float",
+    "import dev.dogwood.host.int",
+    "import dev.dogwood.host.string",
     "import dev.dogwood.host.floatRangeOrNull",
     "import dev.dogwood.host.paddingValuesOrNull",
     "import dev.dogwood.protocol.EventTag",
@@ -561,6 +630,35 @@ private fun emitHostFile(hostPackage: String, prefix: String, dictionary: Dictio
       if (p.name in omitted) continue
       val type = localType(p.type)
       val line = when (v) {
+        /*
+         * The generated binding builds the mirror and hands the library the real state object.
+         * What the mirror DOES is hand-written, for the reason ADR-043 gives: moving a pager,
+         * opening a drawer or answering with a chosen time is the part that requires taste.
+         *
+         * Named arguments, never positional. A shape with four properties passed positionally is
+         * two `Int` arguments away from a silent transposition -- the mirror compiles, the widget
+         * scrolls to a sequence number, and nothing says so.
+         */
+        is Verdict.Holder -> {
+          val arguments = v.shape.properties.joinToString(", ") { property ->
+            val tag = entry.properties.getValue("${p.name}${property.suffix}")
+            val read = when (property.type) {
+              "Boolean" -> "dogwoodNode.boolean($tag, ${property.absent})"
+              "Int" -> "dogwoodNode.int($tag, ${property.absent})"
+              "Float" -> "dogwoodNode.float($tag, ${property.absent})"
+              else -> "dogwoodNode.string($tag, ${property.absent})"
+            }
+            "${property.field} = $read"
+          }
+          val report = v.shape.report
+          val reporting = if (report == null) "" else {
+            val tag = entry.events.getValue("${p.name}Report")
+            val names = report.arguments.indices.joinToString(", ") { "a$it" }
+            val encoded = report.arguments.indices.joinToString(", ") { "JsonPrimitive(a$it)" }
+            ", report = { $names -> dogwoodEvents.send(dogwoodNode, EventTag($tag), listOf($encoded)) }"
+          }
+          "val ${p.name}: $type = ${v.shape.mirror}($arguments$reporting)"
+        }
         is Verdict.HostDefaultOnly -> "val ${p.name}: $type = (${v.defaultText})"
         is Verdict.Unbindable -> error("unbindable parameter reached the emitter: ${b.name}.${p.name}")
         is Verdict.Settable -> when (v.kind) {

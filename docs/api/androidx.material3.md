@@ -4,7 +4,7 @@
 # `androidx.material3` — component reference
 
 Generated from the component surface, so it cannot disagree with what the generator
-actually emitted. Version **1090003**, segment **255**.
+actually emitted. Version **1090004**, segment **255**.
 
 A guest calls these as ordinary Kotlin Compose functions. Everything below describes
 how each one crosses the boundary.
@@ -119,6 +119,8 @@ appear in no table below and are not free.
 | [`PrimaryScrollableTabRow`](#primaryscrollabletabrow) | 74 | -16777142 |  |
 | [`SecondaryScrollableTabRow`](#secondaryscrollabletabrow) | 75 | -16777141 |  |
 | [`Text`](#text) | 76 | -16777140 |  |
+| [`TimePicker`](#timepicker) | 90 | -16777126 |  |
+| [`TimeInput`](#timeinput) | 91 | -16777125 |  |
 | [`TimePickerDialog`](#timepickerdialog) | 77 | -16777139 |  |
 | [`WideNavigationRail`](#widenavigationrail) | 78 | -16777138 |  |
 | [`ModalWideNavigationRail`](#modalwidenavigationrail) | 79 | -16777137 |  |
@@ -2332,6 +2334,52 @@ Takes a modifier chain.
 
 ---
 
+### TimePicker
+
+Local tag 90, widget tag `-16777126`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateVisible` | `Boolean` | 1 | `false` when absent | from the `state` holder (`requested`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`requestSequence`) |
+| `stateInitial` | `String` | 3 | `""` when absent | from the `state` holder (`initialTime`) |
+| `stateWatching` | `Boolean` | 4 | `false` when absent | from the `state` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+---
+
+### TimeInput
+
+Local tag 91, widget tag `-16777125`.
+
+**Properties**
+
+| Name | Type | Tag | Default | Notes |
+| --- | --- | ---: | --- | --- |
+| `stateVisible` | `Boolean` | 1 | `false` when absent | from the `state` holder (`requested`) |
+| `stateSequence` | `Int` | 2 | `0` when absent | from the `state` holder (`requestSequence`) |
+| `stateInitial` | `String` | 3 | `""` when absent | from the `state` holder (`initialTime`) |
+| `stateWatching` | `Boolean` | 4 | `false` when absent | from the `state` holder (`watching`) |
+
+**Events**
+
+| Name | Signature | Tag | Notes |
+| --- | --- | ---: | --- |
+| `stateReport` | `(Int, String) -> Unit` | 1 | the host's report back into the `state` holder |
+
+Takes a modifier chain.
+
+---
+
 ### TimePickerDialog
 
 Local tag 77, widget tag `-16777139`.
@@ -2591,6 +2639,9 @@ host passes the library's own default every time. Listed so nobody looks for a m
 | `TextButton` | `colors` | `ButtonColors` | `ButtonDefaults.textButtonColors()` |
 | `TextButton` | `elevation` | `ButtonElevation?` | `null` |
 | `TextButton` | `interactionSource` | `MutableInteractionSource?` | `null` |
+| `TimeInput` | `colors` | `TimePickerColors` | `TimePickerDefaults.colors()` |
+| `TimePicker` | `colors` | `TimePickerColors` | `TimePickerDefaults.colors()` |
+| `TimePicker` | `layoutType` | `TimePickerLayoutType` | `TimePickerDefaults.layoutType()` |
 | `TimePickerDialog` | `properties` | `DialogProperties` | `DialogProperties(usePlatformDefaultWidth = false)` |
 | `TopAppBar~b00f901d` | `windowInsets` | `WindowInsets` | `TopAppBarDefaults.windowInsets` |
 | `TopAppBar~b00f901d` | `colors` | `TopAppBarColors` | `TopAppBarDefaults.topAppBarColors()` |
