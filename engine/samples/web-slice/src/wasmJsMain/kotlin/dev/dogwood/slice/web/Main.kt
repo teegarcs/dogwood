@@ -210,6 +210,10 @@ fun main() {
    *   the tiers linked but not registered       3,968,335   (+0)
    *   the tiers registered                      3,995,617   (+27,282)
    *
+   * As committed, at 52122d9, the page measures **3,996,605** -- 988 bytes above the figure in the
+   * table, which is what the rest of the branch moved between 7481191 and here. The delta above is
+   * still the delta: it is the only pair of builds that differ in one thing.
+   *
    * **`G5` does not move.** 3,995,617 against a ceiling of 4,060,000 leaves 64,383 bytes of
    * headroom, 1.59%, so this is a measurement that did not become a raise -- which is the outcome
    * the rule is supposed to make possible and the reason it is worth running when the answer
