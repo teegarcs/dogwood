@@ -354,7 +354,12 @@ val generateComposeCoverage by tasks.registering(JavaExec::class) {
       "--sources", composeSourcesRoot.get().asFile.absolutePath,
       "--versions", composeVersionsFile.get().asFile.absolutePath,
       "--out", report.absolutePath,
-      "--exclusions", rootProject.file("dogwood-material3/exclusions.txt").absolutePath,
+      // Every tier's exclusions. A report that reads one module's list counts another module's
+      // excluded components as bound.
+      "--exclusions", listOf(
+        rootProject.file("dogwood-material3/exclusions.txt"),
+        rootProject.file("dogwood-foundation/exclusions.txt"),
+      ).filter { it.isFile }.joinToString(",") { it.absolutePath },
     )
   }
 }

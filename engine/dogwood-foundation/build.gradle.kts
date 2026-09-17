@@ -55,21 +55,6 @@ val tierTasks = mapOf(
 kotlin {
   jvmToolchain(21)
 
-  /*
-   * The three libraries' real opt-in markers, passed to the compiler rather than written into the
-   * generated files -- because the generated files name their markers by simple name and these
-   * three are declared in a different package from the components that carry them. See
-   * `src/commonMain/kotlin/dev/dogwood/foundation/OptInMarkers.kt`, which is the other half of this
-   * and says what the real fix is. Delete both together.
-   */
-  compilerOptions {
-    optIn.addAll(
-      "androidx.compose.foundation.ExperimentalFoundationApi",
-      "androidx.compose.foundation.gestures.ExperimentalTapGestureDetectorBehaviorApi",
-      "androidx.compose.ui.input.pointer.util.ExperimentalVelocityTrackerApi",
-    )
-  }
-
   jvm()
   androidTarget {
     publishLibraryVariants("release")

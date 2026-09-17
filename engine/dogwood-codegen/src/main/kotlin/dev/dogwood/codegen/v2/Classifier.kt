@@ -160,6 +160,14 @@ object Classifier {
   private val EVENT_ARGUMENTS = PRIMITIVES + "ClosedFloatingPointRange<Float>"
   private val ASSETS = setOf("Painter", "ImageBitmap", "ImageVector", "Brush")
   private val AFFORDANCE_NAMES = setOf("enabled", "checked", "selected", "readOnly")
+
+  /**
+   * Annotations that say a composable builds something other than a UI node.
+   *
+   * Compose checks the applier at runtime, so the compiler is no help: a binding for one of these
+   * compiles and throws the moment anything composes it.
+   */
+  private val FOREIGN_APPLIERS = setOf("VectorComposable", "ComposableTarget")
   private val CONTROLLED_TEXT_INPUT = setOf(
     "TextField", "OutlinedTextField", "BasicTextField", "SecureTextField", "BasicSecureTextField",
     "SearchBar", "DockedSearchBar", "ExpandedFullScreenSearchBar", "ExpandedDockedSearchBar",
@@ -298,8 +306,22 @@ object Classifier {
     val internalDefault = provisional.emittedDefaults.firstNotNullOfOrNull { (p, default) ->
       IDENTIFIER.findAll(default).map { it.value }.firstOrNull { it in surface.internalNames }?.let { "${p.name}: default names internal `$it`" }
     }
+    /*
+     * A composable that belongs to a different applier.
+     *
+     * `androidx.compose.ui.graphics.vector.Group` passes every rule here -- public, uppercase,
+     * `@Composable`, parameters that all cross -- and compiles into a perfectly good binding. Then
+     * composing it in a host tree throws `IllegalStateException: Invalid applier`, because it is a
+     * `@VectorComposable`: it builds a vector graphic, not a UI node, and Compose enforces that at
+     * runtime rather than in the type system. Found by running it (ADR-077).
+     *
+     * A component a payload can call and take the host down with is worse than one the host does
+     * not have, so these are refused rather than excluded after the fact.
+     */
+    val foreignApplier = composable.annotations.firstOrNull { it in FOREIGN_APPLIERS }
     val internalMarker = composable.optIns.firstOrNull { it in surface.internalMarkers }
     val reason = when {
+      foreignApplier != null -> "@$foreignApplier: a composable for another applier, not a UI node"
       internalMarker != null -> "requires an opt-in the library keeps internal ($internalMarker)"
       internalDefault != null -> internalDefault
       // Policy, not a rule: binding a deprecated function ships a client that cannot follow the

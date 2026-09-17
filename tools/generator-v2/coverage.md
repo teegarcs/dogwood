@@ -16,10 +16,10 @@ own default for. Function coverage overstates parameter coverage, and both are h
 | `foundation` | 1.10.3 | 47 | **3** | 0 | 17 | 4 | 23 | 9 | 4 |
 | `foundation-layout` | 1.10.3 | 12 | **8** | 0 | 0 | 0 | 4 | 32 | 0 |
 | `material3` | 1.9.0 | 186 | **96** | 15 | 28 | 6 | 41 | 594 | 176 |
-| `ui` | 1.10.3 | 15 | **4** | 0 | 8 | 1 | 2 | 15 | 4 |
-| **all** | | **260** | **111** | 15 | 53 | 11 | 70 | 650 | 184 |
+| `ui` | 1.10.3 | 15 | **3** | 0 | 9 | 1 | 2 | 6 | 3 |
+| **all** | | **260** | **110** | 15 | 54 | 11 | 70 | 641 | 183 |
 
-**111 of 260 bound (42.7%).** Affordance rule for a library tier: a
+**110 of 260 bound (42.3%).** Affordance rule for a library tier: a
 `Boolean` parameter named `enabled`, `checked`, `selected` or `readOnly` withholds the widget on
 unreadable skew, exactly as `@Affordance` does on a product surface.
 
@@ -287,8 +287,8 @@ unreadable skew, exactly as `@Affordance` does on a product surface.
 
 | Component | Bound | Settable | Host default only | Why not |
 |---|:---:|---|---|---|
-| `Group` | ✅ | name, rotation, pivotX, pivotY, scaleX, scaleY, translationX, translationY, content | clipPathData |  |
-| `Path` |  | name, fillAlpha, strokeAlpha, strokeLineWidth, strokeLineMiter, trimPathStart, trimPathEnd, trimPathOffset | pathFillType, fill, stroke, strokeLineCap, strokeLineJoin | pathData: type List<PathNode> cannot cross the boundary |
+| `Group` |  | name, rotation, pivotX, pivotY, scaleX, scaleY, translationX, translationY, content | clipPathData | @VectorComposable: a composable for another applier, not a UI node |
+| `Path` |  | name, fillAlpha, strokeAlpha, strokeLineWidth, strokeLineMiter, trimPathStart, trimPathEnd, trimPathOffset | pathFillType, fill, stroke, strokeLineCap, strokeLineJoin | @VectorComposable: a composable for another applier, not a UI node |
 | `RenderVectorGroup` |  |  | configs | group: type VectorGroup cannot cross the boundary |
 | `Layout` |  | content, modifier |  | measurePolicy: type MeasurePolicy cannot cross the boundary |
 | `Layout~b64dbf2b` |  | modifier |  | measurePolicy: type MeasurePolicy cannot cross the boundary |

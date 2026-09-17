@@ -18,7 +18,16 @@ fun main(args: Array<String>) {
     "coverage" -> {
       val sources = File(required("sources"))
       val out = File(required("out"))
-      val exclusions = readExclusions(options["exclusions"]?.let(::File))
+      /*
+       * Every tier's exclusions, not one tier's.
+       *
+       * `--exclusions` took a single file, which was right while one tier existed and quietly wrong
+       * the moment a second did: the report went on counting a component as bound after another
+       * module had excluded it. Comma-separated, and each is read if it is there.
+       */
+      val exclusions = required("exclusions").split(",").filter { it.isNotBlank() }
+        .map { readExclusions(File(it)) }
+        .fold(emptyMap<String, String>()) { all, one -> all + one }
       val parser = LibrarySurfaceParser()
       val surfaces = sources.listFiles()!!.filter { it.isDirectory }.sortedBy { it.name }.map { dir ->
         dir.name to Classifier.classify(parser.parseModule(dir.name, dir))

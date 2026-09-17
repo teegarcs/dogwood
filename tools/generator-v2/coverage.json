@@ -32,24 +32,24 @@
         },
         "ui": {
             "composables": 15,
-            "bound": 4,
+            "bound": 3,
             "generableExcluded": 0,
-            "bespoke": 8,
+            "bespoke": 9,
             "unreachable": 1,
             "deprecated": 2,
-            "settableParameters": 15,
-            "hostDefaultOnlyParameters": 4
+            "settableParameters": 6,
+            "hostDefaultOnlyParameters": 3
         }
     },
     "overall": {
         "composables": 260,
-        "bound": 111,
+        "bound": 110,
         "generableExcluded": 15,
-        "bespoke": 53,
+        "bespoke": 54,
         "unreachable": 11,
         "deprecated": 70,
-        "settableParameters": 650,
-        "hostDefaultOnlyParameters": 184
+        "settableParameters": 641,
+        "hostDefaultOnlyParameters": 183
     },
     "rows": [
         {
@@ -5487,9 +5487,9 @@
             "file": "androidx/compose/ui/graphics/vector/VectorCompose.kt",
             "name": "Group",
             "dictionaryName": "Group",
-            "bound": true,
-            "bucket": "generable",
-            "reason": null,
+            "bound": false,
+            "bucket": "bespoke",
+            "reason": "@VectorComposable: a composable for another applier, not a UI node",
             "settable": [
                 "name",
                 "rotation",
@@ -5513,7 +5513,7 @@
             "dictionaryName": "Path",
             "bound": false,
             "bucket": "bespoke",
-            "reason": "pathData: type List<PathNode> cannot cross the boundary",
+            "reason": "@VectorComposable: a composable for another applier, not a UI node",
             "settable": [
                 "name",
                 "fillAlpha",
