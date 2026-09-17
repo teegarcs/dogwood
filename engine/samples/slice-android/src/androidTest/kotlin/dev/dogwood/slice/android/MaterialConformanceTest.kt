@@ -57,6 +57,16 @@ class MaterialConformanceTest {
   private val automation get() = instrumentation.uiAutomation
   private val device: UiDevice = UiDevice.getInstance(instrumentation)
 
+  /**
+   * How long to wait, as a multiple of what a development machine needs. See
+   * `AccessibilityConformanceTest` for the reason; `tier-c.yml` sets it for a hosted emulator.
+   */
+  private val patience: Double =
+    InstrumentationRegistry.getArguments().getString("dogwoodPatience")?.toDoubleOrNull()
+      ?.coerceIn(1.0, 10.0) ?: 1.0
+
+  private fun patiently(ms: Long): Long = (ms * patience).toLong()
+
   private var passed = 0
   private var failed = 0
   private var skipped = 0
@@ -158,7 +168,7 @@ class MaterialConformanceTest {
 
   /** Waits for a witness to say something other than [was]: the consequence, not the click. */
   private fun awaitWitness(prefix: String, was: String?, timeoutMs: Long = 15_000): String? {
-    val deadline = System.currentTimeMillis() + timeoutMs
+    val deadline = System.currentTimeMillis() + patiently(timeoutMs)
     var scrolled = false
     while (System.currentTimeMillis() < deadline) {
       val now = witness(prefix)
@@ -411,10 +421,29 @@ class MaterialConformanceTest {
     // M5 -- a sheet and a menu open and choose.
     openSection("Sheets")
     val menuWas = witnessAnywhere("m3.menu=")
-    act(reach("Cabin class"))
-    Thread.sleep(800)
-    act(reach("Business"))
-    val chosen = awaitWitness("m3.menu=", menuWas)
+    /*
+     * Opened and chosen from until the witness moves, rather than once with a sleep between.
+     *
+     * This was `act(reach("Cabin class"))`, `Thread.sleep(800)`, `act(reach("Business"))`. Eight
+     * hundred milliseconds is a guess about how long a dropdown takes to compose, and under load it
+     * is wrong: the item is not on screen yet, `reach` finds nothing, the click goes nowhere and the
+     * claim reports `menu=null`. Watched on a loaded development machine after passing 27 of 27 on
+     * the same machine an hour earlier, which is what a guess about a schedule looks like when the
+     * schedule changes.
+     *
+     * The same shape as `M2` on iOS, where the drill's first activation failed while every later one
+     * worked: an activation that lands before the target is ready is gone, and waiting longer does
+     * not bring it back. So wait for the item to exist, act, and if the payload's own witness has
+     * not moved, open the menu and choose again.
+     */
+    var chosen: String? = null
+    repeat(3) {
+      if (chosen != null) return@repeat
+      act(reach("Cabin class"))
+      if (!awaitLabel("Business", timeoutMs = 5_000)) return@repeat
+      act(reach("Business"))
+      chosen = awaitWitness("m3.menu=", menuWas, timeoutMs = 5_000)
+    }
 
     val sheetWas = witnessAnywhere("m3.sheet=")
     act(reach("Open the sheet"))
