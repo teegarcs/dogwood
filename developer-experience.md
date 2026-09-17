@@ -9,15 +9,19 @@
 
 You write ordinary Jetpack Compose. You push it. It appears on phones — without an app release.
 
-The host application does not learn about your new screen, and it does not need to. What it was built knowing is a **vocabulary**, and this paragraph used to overstate it: it said the host knew "about two-thirds of the widget surface" of Compose. That is the measured *ceiling* of a generator that reads the androidx sources — generator v2 in the [roadmap](roadmap.md), which is not built. What is built, and what a payload can call today, is the vocabulary in the table below. Everything you compose *out of* that vocabulary — screens, flows, your own composables, your own component library written in the payload — needs no release. Corrected 2026-09-13, after a production review found the claim by reading the stubs rather than this sentence.
+The host application does not learn about your new screen, and it does not need to. What it was built knowing is a **vocabulary**, and where that vocabulary comes from changed in September 2026. It used to be a hand-written surface: a file of empty signatures per component, maintained by somebody. It is now, by default, **generated from the libraries themselves** — Material 3, foundation, layout and user interface (UI) — parsed out of the same sources the host compiles against, at the version the host resolves ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)). A product's own design system is still a surface, and is now the way to add **what a library does not have** rather than the way to get a vocabulary at all.
+
+Two corrections this paragraph has carried, kept because a document that quietly rewrites its own claims teaches nobody: it once said the host knew "about two-thirds of the widget surface" of Compose, which was a generator's projected ceiling stated as a fact and was corrected on 2026-09-13 by a production review that read the stubs rather than this sentence; and it taught the hand-written surface as the default until 2026-09-16, after generator v2 had already made one unnecessary for anything a library already has.
+
+Everything you compose *out of* that vocabulary — screens, flows, your own composables, your own component library written in the payload — needs no release.
 
 | Tier | What a payload can call today |
 |---|---|
+| **Generated library tiers** (segments 255, 254, 253, 252) | Material 3, `foundation`, `foundation.layout` and `androidx.ui`, bound from the libraries' **own sources** with the libraries' exact signatures — every button and card variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, `Text`, chips, tabs, top and bottom app bars, navigation bars, rails and drawers, dividers, progress indicators, `ListItem`, `AlertDialog`, `ModalBottomSheet`, the date and time picker dialogs, `Box`, `Column`, `Row`, `Spacer`, `FlowRow`/`FlowColumn`, `Dialog` and `Popup`. Roughly two composables in five are bound across the four modules, and the rest are accounted for one by one with the reason beside each. The host quotes the library's own default for anything you do not set; `*Colors`, elevations and interaction sources are not settable from a payload yet. **The exact list, and every parameter's status, is one generated report: [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md)** — read it there rather than here, because it is regenerated from the pinned sources ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) and a count copied into prose is stale the next time a type learns to cross |
 | Layout primitives (segment 0) | `Text`, `Column`, `Row`, `Box`, `Spacer`, with arrangement and alignment on the containers and font weight, text alignment, overflow, size, decoration and line height on text; `VerticalList`, `HorizontalList`, `Pager` |
 | Modifiers (segment 0) | 27: padding (uniform, per side, symmetric), size, width, height, `widthIn`/`heightIn`, `defaultMinSize`, `fillMaxWidth`/`Height`/`Size`, `wrapContentWidth`/`Height`, `aspectRatio`, weight and align (in scope), offset, alpha, rotate, scale, `clip`, `background`, `border`, `shadow`, **`clickable` on any node**, `contentDescription`, `testTag`; most numeric ones accept an animated target |
 | Dogwood's catalogue (segment 1) | 21 components: button, image, card, badge, divider, chip, price, star rating, section header, icon, text input, presence, scroll area, snackbar area, dialog, sheet, menu and menu item, date and time pickers |
-| **Material 3, generated** (segment 255) | **79 of Material 3's 186 composables**, with the library's exact signatures — every button and card variant, `Switch`, `Checkbox`, `RadioButton`, `Slider`, `Text`, chips, tabs, top and bottom app bars, navigation bars, rails and drawers, dividers, progress indicators, `ListItem`, `AlertDialog`, `ModalBottomSheet`, the date and time picker dialogs — plus `Box`, `Column`, `Row`, `Spacer`, `FlowRow`/`FlowColumn`, `Dialog` and `Popup` from the layout and UI tiers. The host quotes the library's own default for anything you do not set; `*Colors`, elevations and interaction sources are not settable from a payload yet. The list, and every parameter's status, is [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md), regenerated from the pinned sources ([ADR-072](adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)) |
-| Yours (segment 2 and up) | whatever your surface declares — see §4b |
+| Yours (segment 2 and up) | whatever your surface declares — the way to add what a library does not have, not the way to get a vocabulary. See §4b |
 
 **What still requires a host release:** a new *kind* of widget — anything whose implementation must run natively — and ordinary bug fixes. Adding a modifier or a property to the primitive tier is also a release, which is why that tier was grown deliberately ([ADR-069](adrs/layer-5/ADR-069-the-primitive-tier-is-the-lever.md)): the practical test of "no release for a new component" is whether your design system's *compositional* components can be authored in the payload from these primitives, and that is what the tier is now sized for.
 
@@ -121,7 +125,7 @@ flowchart LR
     Deploy --> Device["Live on devices"]
 ```
 
-**`@Preview` does not work today, and this paragraph used to say it did.** The design is that your module compiles twice from one source set — to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose — and it remains the plan ([Layer 1](specs/layer-1-authoring.md) Milestone 3). It is not built: `dogwood-compose` declares `js(IR)` and no other target, so a guest screen cannot compile for the Java Virtual Machine and no preview pane can render one. Corrected 2026-09-09, found by an independent grading run reading the build file rather than this sentence.
+**`@Preview` does not work today, and this paragraph used to say it did.** The design is that your module compiles twice from one source set — to JavaScript for deployment, and locally for previews, where the stubs translate to real Compose — and it remains the plan ([Layer 1](specs/layer-1-authoring.md) Milestone 3). It is not built: `dogwood-compose` declares `js(IR)` and no other target, so a guest screen cannot compile for the Java Virtual Machine and no preview pane can render one. Corrected 2026-09-09, found by an independent grading run reading the build file rather than this sentence. The plan for building it, a desktop window first and the Android Studio pane second, is [`plans/close-the-backlog.md`](plans/close-the-backlog.md) Group 4; until that lands, what follows is the loop.
 
 What the inner loop is *instead*, and it is better than it sounds: `--continuous` on the development webpack task rebuilds the payload on every save, every shell host polls the manifest every five seconds, and the swap carries `rememberSaveable` state across — so the production code-update machinery doubles as hot reload on a real device. Screen tests need no harness the engine does not already export ([`docs/authoring.md`](docs/authoring.md) §8).
 
@@ -135,7 +139,12 @@ What that does **not** give you is version targeting. Whether the client on a gi
 
 ## 4b. Adding Your Own Components
 
-Dogwood's design system is twenty-one components and is not yours. A product registers its own, and
+**Look in the generated library tiers first** (§1): if Material 3 or the foundation, layout and user
+interface (UI) tiers already bind the component, there is nothing to declare and nothing to keep in
+step — [`tools/generator-v2/coverage.md`](tools/generator-v2/coverage.md) is the list. This section
+is for what they do not have.
+
+Dogwood's own design system is twenty-one components and is not yours either. A product registers its own, and
 the whole of what it writes is three things ([ADR-046](adrs/layer-5/ADR-046-a-product-registers-its-own-segment.md);
 `engine/samples/product-design-system` is a working example you can copy).
 

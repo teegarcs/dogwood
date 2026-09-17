@@ -36,6 +36,22 @@ fail as *slowness*, which is the hardest symptom to trace back to a cause.
 | `withFrameNanos`, `withFrameMillis` | a guest frame loop is per-frame state by definition | declare what should change; let the host run the frames |
 | `painterResource`, `imageResource`, `vectorResource` | the sandbox has no resources | `AsyncImage(url)`, `Icon(name)` |
 | `stringResource` | the same | payload-carried string tables |
+| `OutlinedTextField`, `BasicTextField`, `SecureTextField` and their kin; `SearchBar` and the other search bars | a controlled text field asks you what the text should be after **every keystroke**, across a boundary the next keystroke is racing | `TextInput`, or the `TextField(state = rememberTextFieldState())` wrapper over it — §4 |
+| `TextField(value = …, onValueChange = …)` | the same: it is Compose's controlled overload | `TextField(state = …)` — same name, different argument, and the one this library gives you |
+
+**The text fields are the one family on that list that does not compile anyway**, and they are on
+it for a different reason from the rest. Nothing a payload can see declares `OutlinedTextField`, so
+without the check you get "unresolved reference" — which names no replacement and reads like a
+missing dependency, when the truth is that this architecture deliberately does not have one
+([ADR-019](../adrs/layer-5/ADR-019-text-input.md): the host owns the buffer, you hold a
+version-stamped mirror, §4). `TextField` is the exception that proves it: the name **does** resolve,
+to the wrapper you should be calling, and only the `onValueChange` overload is refused.
+
+**The plugin also reads your dependencies, not just your source.** `dogwoodGuestClasspathCheck`
+fails on the artifacts these APIs live in — `animation-core` and its kin — because a payload that
+depends on a helper library which depends on one of those has every frame-clock API one import
+away, and a source scan cannot see it. The failure names the route the artifact took and the
+`exclude` that removes it.
 
 **The shape of the replacement is always the same: say what should be true, not what should happen
 each frame.** An animation is a target and a specification; the host interpolates. That is one
@@ -86,6 +102,22 @@ Four shapes exist today, and knowing which you are holding tells you what to exp
 **The quantum is yours to declare.** A scroll holder reports every 48 density-independent pixels by
 default; raise it if you only need coarse position, and understand that lowering it buys precision
 with boundary crossings.
+
+**Text is not in that table, and it is the one holder that could not use the pattern.** A text field's buffer
+belongs to the host, where the typing is, and your `TextFieldState` is a **version-stamped mirror**
+of it: the host counts user edits, every edit event carries that count, and a value you send stamped
+older than the host's count is discarded — because the user has typed since, and the user wins. That
+is why it is a version rather than a flat "the host always wins", which would make `state.clear()`
+impossible. Masks, length limits and counters are declared once and applied host-side; your value is
+always the raw one, so changing a mask cannot change what your validation reads.
+[ADR-019](../adrs/layer-5/ADR-019-text-input.md) has the whole rule, including why a controlled
+`TextField` is refused in §2 rather than made slow.
+
+```kotlin
+val card = rememberTextFieldState()
+TextField(state = card, mask = "#### #### #### ####", keyboard = Keyboards.NUMBER, showCounter = true)
+// card.text is digits. It never contains the spaces.
+```
 
 **A holder's report is edge-triggered.** It tells you when its value *changes*, which is the throttle
 — so a fresh holder after a code update knows nothing until something moves. The host handles that
@@ -233,6 +265,16 @@ screen already written for Dogwood and it does nothing at all — which is the c
 
 ## 10. Composing your own components, and when that is not enough
 
+**Look in the generated library tiers first.** Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
+a payload can `import dev.dogwood.compose.material3.*` and call `Button`, `Switch`, `Card`,
+`TopAppBar` and most of the rest of Material 3 with the library's own signatures, if the host
+registered the tier — and the same for the `foundation`, `foundation.layout` and `androidx.ui`
+tiers. [`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md) is the list, generated
+from the pinned sources; read the count there rather than from a sentence here, because it moves
+whenever the libraries move or the generator learns a type. **Compose your own only for what is not
+there.** That is the order — it used to be the other way round on this page, and a component you do
+not have to declare is a component nobody has to keep in step.
+
 **A default you do not set belongs to the host.** The generated bindings call the real library
 function with the library on the *host's* classpath, so any optional parameter you leave out takes
 that host's default, evaluated on the device. Set the parameter when you need one look;
@@ -240,14 +282,9 @@ that host's default, evaluated on the device. Set the parameter when you need on
 mid-upgrade.
 
 **The worked example is `MaterialScreen.kt`** in `samples/slice-screens`, which every client
-renders: ten sections composing all 79 bound components, every control with a line of text beside
-it that says what it changed. It is what the `M` conformance claims are graded against on a device.
-
-**Look in the generated Material 3 tier first.** Since [ADR-072](../adrs/layer-5/ADR-072-the-compose-surface-is-generated-from-the-artifact-it-binds.md)
-a payload can `import dev.dogwood.compose.material3.*` and call `Button`, `Switch`, `Card`,
-`TopAppBar` and eighty more with the library's own signatures, if the host registered the tier.
-[`tools/generator-v2/coverage.md`](../tools/generator-v2/coverage.md) is the list. Compose your
-own only for what is not there.
+renders: sections composing the tier's bound components, every control with a line of text beside
+it that says what it changed, and a test asserting a floor so the catalogue cannot fall behind what
+the report claims. It is what the `M` conformance claims are graded against on a device.
 
 The rule that decides whether a new component needs an app release: **can it be composed from
 pieces the installed client already has?** If yes, write it as an ordinary `@Composable` in the
