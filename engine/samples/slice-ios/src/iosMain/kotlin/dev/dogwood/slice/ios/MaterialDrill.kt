@@ -55,6 +55,15 @@ private val MATERIAL_SECTIONS = listOf(
  * until somebody noticed. A drill that hangs is worse than one that fails.
  */
 private var deadline: Double = Double.MAX_VALUE
+private var startedAt: Double = 0.0
+
+/**
+ * Seconds since the drill began, printed at each claim.
+ *
+ * A drill that is merely slow and a drill that has stopped look identical from outside, and this
+ * one has been mistaken for the second twice. The timestamps are what tell them apart.
+ */
+private fun elapsedSeconds(): Int = (NSDate().timeIntervalSince1970 - startedAt).toInt()
 
 private fun outOfTime(): Boolean = NSDate().timeIntervalSince1970 > deadline
 
@@ -83,18 +92,30 @@ private fun witnessOf(root: UIView, prefix: String): String? =
 private suspend fun scrollUntil(root: UIView, steps: Int = 10, predicate: () -> Boolean): Boolean {
   if (predicate()) return true
   /*
-   * The page, not whatever answers first.
+   * The page, not whatever answers first, and found once rather than per attempt.
    *
-   * Offering the scroll to every published element in turn takes a tree walk per attempt and, worse,
-   * stops at whichever element accepts it -- on the Selection section that is the slider, which
-   * takes the scroll and moves nothing. The window first, then the elements once.
+   * Offering the scroll to every published element in turn takes a whole tree walk per element --
+   * on this screen that is hundreds of walks per scroll, each crossing the Kotlin/Objective-C
+   * bridge thousands of times, and the first complete run of this drill spent minutes inside one
+   * `scrollUntil` looking, from outside, exactly like a hang. It also stops at whichever element
+   * accepts the scroll, which on the Selection section is a slider: it takes the scroll and moves
+   * nothing.
+   *
+   * So the scrolling element is found once, remembered, and reused until it stops working.
    */
+  var scroller: NSObject? = null
   fun scroll(direction: platform.UIKit.UIAccessibilityScrollDirection): Boolean {
+    scroller?.let { if (it.accessibilityScroll(direction)) return true }
     if (root.accessibilityScroll(direction)) return true
-    val elements = elementsOf(root)
-    for (element in elements) if (element.accessibilityScroll(direction)) return true
+    for (element in elementsOf(root)) {
+      if (element !== scroller && element.accessibilityScroll(direction)) {
+        scroller = element
+        return true
+      }
+    }
     return false
   }
+
   repeat(steps) {
     if (outOfTime()) return false
     if (!scroll(UIAccessibilityScrollDirectionUp)) return@repeat
@@ -169,14 +190,15 @@ suspend fun runMaterialDrill(root: UIView): Int {
    */
   // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
   // by the drill rather than cut off by the harness.
-  deadline = NSDate().timeIntervalSince1970 + 300.0
+  startedAt = NSDate().timeIntervalSince1970
+  deadline = startedAt + 300.0
 
   var passed = 0
   var failed = 0
   var skipped = 0
   fun conform(id: String, condition: Boolean, detail: String) {
     if (condition) passed++ else failed++
-    println("CONF $id ${if (condition) "PASS" else "FAIL"} -- $detail")
+    println("CONF $id ${if (condition) "PASS" else "FAIL"} -- [${elapsedSeconds()}s] $detail")
   }
   fun skip(id: String, reason: String) {
     skipped++
@@ -271,6 +293,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
     }
   }
 
+  println("A11Y NOTE reaching the dialogs section at ${elapsedSeconds()}s")
   // M4 -- a dialog opens, is announced, and confirms.
   if (outOfTime()) {
     conform("M4", false, "the drill ran out of its budget before reaching the dialogs")

@@ -21,7 +21,26 @@ android {
     versionCode = 1
     versionName = "0.1"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    /*
+     * Whether this build registers the generated Material 3 tier.
+     *
+     * A build flag rather than a runtime switch, because that is what it models: a host either
+     * ships the tier's bytes or it does not, and a payload that declares `androidx.material3` must
+     * be refused before `start` by one that does not (claim `B6`, ADR-061). A runtime toggle would
+     * be testing a different thing -- a host that has the tier and pretends otherwise.
+     *
+     * `-PdogwoodMaterial3=false` builds the client without it; `tools/skew-drill/run-material-preflight.sh`
+     * is what does that, and the default is the ordinary product build.
+     */
+    buildConfigField(
+      "boolean",
+      "DOGWOOD_MATERIAL3",
+      (providers.gradleProperty("dogwoodMaterial3").getOrElse("true") != "false").toString(),
+    )
   }
+
+  buildFeatures { buildConfig = true }
 
   /*
    * The instrumented conformance drills run against the RELEASE build -- the minified one.
@@ -76,6 +95,7 @@ dependencies {
   implementation(project(":dogwood-host"))
   implementation(project(":samples:product-design-system"))
   implementation(project(":dogwood-material3"))
+  implementation(project(":dogwood-foundation"))
   implementation(compose.runtime)
   implementation(compose.foundation)
   implementation(compose.material3)

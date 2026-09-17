@@ -180,8 +180,31 @@ fun main() {
   // product's components arrive as inert placeholders and are reported as skew, which is what the
   // iOS skew drill found: `widgets=[33554433, 33554434, 33554435]` is segment 2, tags 1 to 3.
   dev.dogwood.host.DogwoodRegistry.register(dev.acme.design.AcmeDesignSystemBinding)
-  // The Material 3 tier (plans/generator-v2.md), registered explicitly so a host can leave it out.
-  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  /*
+   * The Material 3 tier (plans/generator-v2.md), registered explicitly so a host can leave it out.
+   *
+   * `--dogwood-no-material3` builds the case a drill needs: a client that genuinely does not have
+   * the tier, meeting a payload that declares `androidx.material3`. It must refuse the release
+   * before `start` rather than render a screen of placeholders (claim `B6`, ADR-061).
+   *
+   * A launch argument here where Android uses a build flag, and the difference is each platform's
+   * own grain rather than an inconsistency: this host's drills are already launch arguments
+   * (`--dogwood-a11y`, `--dogwood-skew`, `--dogwood-material`) because `xcrun simctl launch` is
+   * how anything reaches it, while an Android host is reinstalled per drill anyway. What is being
+   * modelled -- a client whose registry has never heard of the segment -- is identical.
+   */
+  if (!NSProcessInfo.processInfo.arguments.map { it.toString() }.contains("--dogwood-no-material3")) {
+    dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.material3.Material3Binding)
+  }
+  /*
+   * The foundation, layout and ui tiers (plans/close-the-backlog.md 2.3): three segments in one
+   * module, registered explicitly for the same reason the Material 3 tier is. Not behind
+   * `--dogwood-no-material3`, which exists to build a client with no `androidx.material3` and says
+   * nothing about whether this client has the generated layout primitives.
+   */
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.FoundationLayoutBinding)
+  dev.dogwood.host.DogwoodRegistry.register(dev.dogwood.foundation.UiBinding)
 
   val args = arrayOf("DogwoodSlice")
   memScoped {

@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Project Dogwood -- claim `B6` on the mobile clients: a host without the generated Material 3 tier
+# refuses a payload that declares it, before any guest code runs.
+#
+#   export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+#   ./gradlew :samples:slice-guest:serveProductionWebpackZipline   # in another shell
+#   tools/skew-drill/run-material-preflight.sh android|ios
+#
+# The web already grades `B6` (`tools/conformance/web_material.py`), and this is not the same claim
+# twice: the web host verifies its sidecar and compares versions in `WebDelivery`, while a mobile
+# host reads the vector out of Zipline's *signed* manifest metadata and compares it in
+# `DogwoodDelivery` before `start` (ADR-061). Two implementations, one promise, so two gradings.
+#
+# **What makes this drill honest is the control.** Every assertion below is satisfied by a client
+# that was simply broken, so the same payload is run first against the ordinary build -- which has
+# the tier and must render -- and only then against a client built without it.
+#
+# The two clients differ in how they leave the tier out, and each follows its platform's grain:
+# Android takes a build flag (`-PdogwoodMaterial3=false`) because an Android host is reinstalled per
+# drill anyway; iOS takes a launch argument (`--dogwood-no-material3`) because `xcrun simctl launch`
+# is how anything reaches it and its other drills are already launch arguments. What is modelled --
+# a client whose registry has never heard of the segment -- is identical.
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+CLIENT="${1:-android}"
+mkdir -p "$HERE/build"
+OUT="$HERE/build/material-preflight-$CLIENT.conf"
+: > "$OUT"
+cd "$HERE/../../engine"
+
+passed=0
+failed=0
+conform() {
+  local id="$1" ok="$2" detail="$3"
+  if [ "$ok" = "0" ]; then
+    passed=$((passed + 1)); echo "CONF $id PASS -- $detail" | tee -a "$OUT"
+  else
+    failed=$((failed + 1)); echo "CONF $id FAIL -- $detail" | tee -a "$OUT"
+  fi
+}
+
+# The payload has to be being served, and it has to declare the tier -- otherwise there is nothing
+# for a client to refuse and the drill would pass by testing nothing.
+declared="$(curl -fs -m 5 http://localhost:8080/manifest.zipline.json | python3 -c \
+  'import json,sys; print(json.load(sys.stdin).get("metadata", {}).get("dogwood.segments", ""))' 2>/dev/null)"
+case "$declared" in
+  *androidx.material3:*) echo "==> the served manifest declares [$declared]" ;;
+  *) echo "the served payload declares no Material 3 tier; nothing to refuse" >&2; exit 2 ;;
+esac
+
+case "$CLIENT" in
+  android)
+    command -v adb >/dev/null || { echo "adb not found" >&2; exit 1; }
+    adb get-state >/dev/null 2>&1 || { echo "no device or emulator attached" >&2; exit 1; }
+    PACKAGE=dev.dogwood.slice.android
+
+    run_and_read() {
+      adb shell am force-stop "$PACKAGE" >/dev/null 2>&1
+      adb logcat -c >/dev/null 2>&1
+      adb shell am start -n "$PACKAGE/.TabsActivity" --es entry material >/dev/null 2>&1
+      sleep 12
+      adb logcat -d 2>/dev/null | tail -400
+    }
+
+    echo "==> the control: the ordinary client, which has the tier"
+    ./gradlew :samples:slice-android:installDebug --console=plain -q --max-workers=2 || exit 1
+    control="$(run_and_read)"
+    echo "$control" | grep -q "refused" && control_refused=0 || control_refused=1
+    conform "B6-control" "$control_refused" \
+      "the ordinary client runs the same payload it is about to refuse without the tier"
+
+    echo "==> the client built WITHOUT the tier"
+    ./gradlew :samples:slice-android:installDebug -PdogwoodMaterial3=false --console=plain -q --max-workers=2 || exit 1
+    without="$(run_and_read)"
+    if echo "$without" | grep -q "androidx.material3"; then named=0; else named=1; fi
+    conform "B6" "$named" \
+      "$(echo "$without" | grep -o 'refused[^"]\{0,120\}' | head -1 | tr -d '\n')"
+
+    echo "==> restoring the ordinary client"
+    ./gradlew :samples:slice-android:installDebug --console=plain -q --max-workers=2 || true
+    ;;
+
+  ios)
+    command -v xcrun >/dev/null || { echo "xcrun not found; this drill needs Xcode" >&2; exit 1; }
+    xcrun simctl list devices booted | grep -q "(Booted)" || {
+      echo "no booted simulator; boot one first (xcrun simctl boot <device>)" >&2; exit 1; }
+    APP=dev.dogwood.slice.ios
+
+    ./gradlew :samples:slice-ios:iosApp --console=plain -q --max-workers=2 || exit 1
+    xcrun simctl terminate booted "$APP" >/dev/null 2>&1 || true
+    xcrun simctl install booted samples/slice-ios/build/DogwoodSlice.app || exit 1
+
+    run_and_read() {
+      local log="$HERE/build/material-preflight-ios-$1.log"
+      xcrun simctl terminate booted "$APP" >/dev/null 2>&1 || true
+      shift
+      xcrun simctl launch --console-pty booted "$APP" "$@" > "$log" 2>&1 &
+      local launcher=$!
+      sleep 20
+      kill "$launcher" 2>/dev/null || true
+      xcrun simctl terminate booted "$APP" >/dev/null 2>&1 || true
+      tr -d '\r' < "$log"
+    }
+
+    echo "==> the control: the ordinary client, which has the tier"
+    control="$(run_and_read control)"
+    echo "$control" | grep -q "refused" && control_refused=0 || control_refused=1
+    conform "B6-control" "$control_refused" \
+      "the ordinary client runs the same payload it is about to refuse without the tier"
+
+    echo "==> the client launched WITHOUT the tier"
+    without="$(run_and_read without --dogwood-no-material3)"
+    if echo "$without" | grep -q "androidx.material3"; then named=0; else named=1; fi
+    conform "B6" "$named" \
+      "$(echo "$without" | grep -o 'refused[^"]\{0,120\}' | head -1 | tr -d '\n')"
+    ;;
+
+  *) echo "usage: $0 android|ios" >&2; exit 2 ;;
+esac
+
+echo "CONF RESULT client=$CLIENT passed=$passed failed=$failed skipped=0" | tee -a "$OUT"
+[ "$failed" = "0" ]

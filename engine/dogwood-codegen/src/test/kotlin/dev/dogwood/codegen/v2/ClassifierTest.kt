@@ -108,8 +108,23 @@ class ClassifierTest {
   fun aParameterTheTableCannotCrossButWhichHasADefaultIsHostDefaultOnlyWithItsTextVerbatim() {
     assertEquals(Verdict.HostDefaultOnly("ButtonColors", "ButtonDefaults.buttonColors()"), verdict("Button", "colors"))
     assertEquals(Verdict.HostDefaultOnly("ButtonElevation?", "ButtonDefaults.buttonElevation()"), verdict("Button", "elevation"))
-    assertEquals(Verdict.HostDefaultOnly("BorderStroke?", "null"), verdict("Button", "border"))
     assertEquals(Verdict.HostDefaultOnly("MutableInteractionSource?", "null"), verdict("Button", "interactionSource"))
+  }
+
+  /**
+   * And a parameter the table *has learned* to cross stops being host-default-only.
+   *
+   * `border` was in the assertion above until 2026-09-16, when `BorderStroke` joined the mapping
+   * table (ADR-074). That is the shape of every future growth: a row moves from one side of this
+   * test to the other, and the coverage report's parameter columns move with it. Kept as its own
+   * test rather than deleted, so the transition is legible.
+   */
+  @Test
+  fun aTypeTheTableHasLearnedToCrossBecomesSettable() {
+    val border = verdict("Button", "border") as Verdict.Settable
+    assertEquals(Kind.BORDER_STROKE, border.kind)
+    assertEquals("BorderStroke?", border.libraryType)
+    assertTrue(border.nullable || border.hasDefault, "a border is optional on every button")
   }
 
   @Test
