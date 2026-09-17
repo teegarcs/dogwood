@@ -152,12 +152,35 @@ private suspend fun reach(root: UIView, label: String): NSObject? {
   return elementNamed(root, label)
 }
 
-/** Waits for a witness to say something other than [was]: the consequence, not the activation. */
+/**
+ * Waits for a witness to say something other than [was]: the consequence, not the activation.
+ *
+ * **Scrolls to find the witness if it is not in view**, which is the fix for a failure that looked
+ * like a dead button. `M2` reported `section=true, activated=true, m3.buttons=0/0/0/0/0 -> null` on
+ * a hosted simulator, three activations deep and fifty seconds in, while `M3`, `M6` and `M7` all
+ * passed two seconds later. The button was found and activated; what was missing was the *reading*.
+ *
+ * `reach` scrolls the view to bring its target on screen, and on a shorter viewport that pushes the
+ * witness line off the bottom. `witnessOf` reads the current viewport only, so it answered null
+ * forever and the drill reported a payload that had not responded. The payload had responded; the
+ * drill was looking at the wrong part of the screen.
+ *
+ * `tools/conformance/run-android.sh`'s instrumented counterpart has scrolled here since it was
+ * written -- "if the witness is not in the viewport, go and find it once" -- and this is the same
+ * rule. Once per call rather than every attempt, because scrolling costs a tree walk and the point
+ * is to relocate the line, not to hunt for it repeatedly.
+ */
 private suspend fun awaitWitness(root: UIView, prefix: String, was: String?, attempts: Int = 60): String? {
+  var searched = false
   repeat((attempts * patience).toInt().coerceAtLeast(1)) {
     if (outOfTime()) return null
     val now = witnessOf(root, prefix)
     if (now != null && now != was) return now
+    if (now == null && !searched) {
+      searched = true
+      scrollUntil(root) { witnessOf(root, prefix) != null }
+      witnessOf(root, prefix)?.let { if (it != was) return it }
+    }
     delay(250)
   }
   return null

@@ -238,11 +238,21 @@ suspend fun runAccessibilityDrill(root: UIView): Int {
   //
   // The clock is the one with an observable value: a millisecond count the guest could not have
   // invented, and which reads `host clock unavailable` when no clock crossed.
+  //
+  // **The zone is checked against the sentinel, not against a spelling.** Requiring a `/` was a
+  // proxy for "a real zone name", and it is wrong on exactly the machine this most needs to run on:
+  // a hosted runner's clock is UTC and this platform answers `GMT`, which has no slash. The nightly
+  // failed here with `[host clock 1789640592534, time zone GMT]` -- both values crossed, and the
+  // claim rejected one of them for how it was spelt. The same assertion on the web client had the
+  // same bug and was corrected the same way on the same day.
+  //
+  // What this asserts is that the guest printed something instead of the `unavailable` its own
+  // screen falls back to when the host answered nothing.
   checks.check(
     "J1",
     "the services this host wired reached the guest",
     labels.any { it.startsWith("host clock ") && it.last().isDigit() } &&
-      labels.any { it.startsWith("time zone ") && it.contains("/") },
+      labels.any { it.startsWith("time zone ") && !it.endsWith("unavailable") },
     labels.filter { it.startsWith("host clock") || it.startsWith("time zone") }.toString(),
   )
 

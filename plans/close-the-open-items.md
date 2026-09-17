@@ -383,3 +383,30 @@ was a workflow that had never worked, two were drills passing on the wrong evide
 assertions that encoded a machine rather than a behaviour, and three were real races. None of them
 were visible from reading, and the workflow had been "validated" by mirroring its commands locally.
 That is the argument for Group 4 in one paragraph.
+
+### Group 4, third run: Android green, web green, two iOS findings left
+
+Run 35206208331. **The Android job passes**, having produced nothing at all on the first run and
+three red drills on the second. `engine-skew` passes. **Every web drill passes**, including the
+accessibility one whose `D1` had been reading the tree before Compose published it.
+
+The merge gate is green on the same commit: tier S and the web skew job both pass.
+
+Two iOS findings, and each is a variant of one already fixed elsewhere that day.
+
+1. **`J1` on iOS is the web's time-zone bug, in Kotlin.** `[host clock 1789640592534, time zone
+   GMT]` — both values crossed the boundary, and the claim rejected one of them for how it was
+   spelt, because it required a `/`. A hosted runner's clock is UTC and this platform answers `GMT`.
+   The same assertion, the same proxy and the same correction as the web client, found on the same
+   day by the same runner.
+2. **`M2` on iOS was never a dead button.** Three activations and fifty seconds in, with
+   `section=true, activated=true`, the witness read `null` while `M3`, `M6` and `M7` passed two
+   seconds later. `reach` scrolls the view to bring its target on screen, and on a shorter viewport
+   that pushes the witness line off the bottom; `witnessOf` reads the current viewport only, so it
+   answered `null` forever. The payload had responded. The drill was looking at the wrong part of
+   the screen, and reported that as a product failure.
+
+   The Android drill's counterpart has scrolled to find its witness since it was written. The iOS
+   one now does too. Note what the earlier fix did here: adding a retry to `M2` was right for the
+   general case and did nothing for this one, and the *shape* of its failure after the retry —
+   three activations, none observed — is what pointed at the reading rather than the writing.
