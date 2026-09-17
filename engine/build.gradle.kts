@@ -45,6 +45,30 @@ plugins {
  * so the check is on the bundle, and the one step that remains when the account exists is entering
  * `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD` and running `publishToMavenCentral`.
  */
+/*
+ * One task that assembles the whole bundle, because the Portal takes one upload rather than seven.
+ *
+ * A publisher running this module by module would upload seven deployments and have to release
+ * them in dependency order or watch the validation fail on unresolvable parents. The Portal's
+ * unit is a single archive of a repository layout; this produces that archive.
+ *
+ * **Registered here, above the block that fills it, and its contents are never listed.** A written
+ * list of publishing modules is exactly the shape of the defect this file's header already records:
+ * `dogwood-web` went a week without any publishing coordinates because a list in one place did not
+ * grow with the project (ADR-070). Every module that applies `maven-publish` adds itself below, so
+ * a module that starts publishing joins the bundle without anybody remembering to say so.
+ */
+val assembleMavenCentralBundle by tasks.registering(Zip::class) {
+  group = "publishing"
+  description = "Assembles the Central Portal bundle locally, with no credentials and no network."
+  from(layout.buildDirectory.dir("publishing/mavenCentralBundle"))
+  // Gradle writes `maven-metadata.xml` for a file repository, and a Portal bundle is artifacts
+  // only: an unsigned file in the archive is a validation failure over something nobody asked for.
+  exclude("**/maven-metadata.xml*")
+  destinationDirectory.set(layout.buildDirectory.dir("publishing"))
+  archiveFileName.set("dogwood-central-bundle.zip")
+}
+
 subprojects {
   plugins.withId("maven-publish") {
     apply(plugin = "signing")
@@ -114,6 +138,11 @@ subprojects {
           url = uri(rootProject.layout.buildDirectory.dir("publishing/mavenCentralBundle"))
         }
       }
+    }
+
+    // The module adds itself to the aggregate. See the task's own comment for why there is no list.
+    assembleMavenCentralBundle.configure {
+      dependsOn(tasks.named("publishAllPublicationsToMavenCentralBundleRepository"))
     }
 
     val gpgKey: String? = System.getenv("DOGWOOD_GPG_KEY")
@@ -190,35 +219,4 @@ subprojects {
       mustRunAfter(tasks.withType<org.gradle.plugins.signing.Sign>())
     }
   }
-}
-
-/*
- * One task that assembles the whole bundle, because the Portal takes one upload rather than seven.
- *
- * A publisher running this module by module would upload seven deployments and have to release
- * them in dependency order or watch the validation fail on unresolvable parents. The Portal's
- * unit is a single archive of a repository layout; this produces that archive.
- */
-val publishingModules = listOf(
-  "dogwood-wire",
-  "dogwood-protocol",
-  "dogwood-compose",
-  "dogwood-host",
-  "dogwood-web",
-  "dogwood-material3",
-  "dogwood-codegen",
-)
-
-val assembleMavenCentralBundle by tasks.registering(Zip::class) {
-  group = "publishing"
-  description = "Assembles the Central Portal bundle locally, with no credentials and no network."
-  for (module in publishingModules) {
-    dependsOn(":$module:publishAllPublicationsToMavenCentralBundleRepository")
-  }
-  from(layout.buildDirectory.dir("publishing/mavenCentralBundle"))
-  // Gradle writes `maven-metadata.xml` for a file repository, and a Portal bundle is artifacts
-  // only: an unsigned file in the archive is a validation failure over something nobody asked for.
-  exclude("**/maven-metadata.xml*")
-  destinationDirectory.set(layout.buildDirectory.dir("publishing"))
-  archiveFileName.set("dogwood-central-bundle.zip")
 }
