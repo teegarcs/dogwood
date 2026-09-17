@@ -198,6 +198,28 @@ zipline {
 }
 
 /*
+ * The module file is renamed for its own content, and the manifest is re-signed over the new name.
+ *
+ * Without this, every release this project publishes names its module `slice-guest.zipline`, and a
+ * server holding two live releases cannot tell which one a module request wants. See
+ * `gradle/content-addressed-modules.gradle.kts` for why the fix has to be here rather than in the
+ * server, and ADR-077 for the decision.
+ *
+ * The keys and their ORDER repeat the `signingKeys` block above deliberately: Zipline verifies
+ * against the first key name a client recognises, and `KeyRotationTest` and the rotation drill both
+ * depend on `dogwood-development` coming first. `SignatureTest` asserts the pair and the order on
+ * the manifest this produces, so the two lists cannot drift apart unnoticed.
+ */
+extra["dogwoodSigningKeys"] = linkedMapOf(
+  "dogwood-development" to
+    providers.gradleProperty("dogwoodSigningKey").getOrElse(developmentSigningKey),
+  "dogwood-development-2" to
+    providers.gradleProperty("dogwoodRotationKey").getOrElse(rotationSigningKey),
+)
+apply(from = rootProject.file("gradle/content-addressed-modules.gradle.kts"))
+
+
+/*
  * The sample's data endpoint, served from the same development server as the payload.
  *
  * A real deployment's feed comes from a real service; this exists so the network path is
