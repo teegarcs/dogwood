@@ -341,3 +341,45 @@ point the same way, which is the only reason this is a sequencing note rather th
 
 Individually, every claim was re-verified here against the new addresses; the table above lists each
 drill and its result. What the nightly adds is one matrix over all four clients at one commit.
+
+### Group 4, second run: the plumbing holds and the findings keep coming
+
+Dispatched against this branch after the first run's four fixes. Run 35179177548.
+
+**What was fixed and stayed fixed.** Every Android step succeeds and the job produces results; only
+the verdict fails, which is the verdict working. `J1`, `M3` and `M5` are gone from the failure list.
+The `engine-skew` job passed on a hosted ubuntu runner, which settles the one thing its author said
+was unprovable from a development machine: Skiko does render under Xvfb.
+
+**Four more findings, none of them guessed at.**
+
+1. **Six graded iOS claims were being thrown away.** The Material drill cannot always finish —
+   activating a Material 3 overlay blocks the application, which is the recorded limit behind `M4`
+   and `M5` — so it never reaches its own result line. The fold step correctly drops a file that
+   never named its client, and the run said so: `dropped ios-material.conf: 6 claim lines and no
+   CONF RESULT line`. Those six were graded and watched; a gap says nobody looked. The harness
+   synthesises the line now, the way `run-android.sh` already did, appended to the log because the
+   log is what every collector reads.
+2. **`M2` on iOS failed because it is the drill's first activation, and only for that reason.**
+   `M3`, `M6` and `M7` all passed three seconds later. Tripling the patience moved it from `[20s]`
+   to `[50s]` and changed nothing, which is the evidence that it was never slowness: a tap that
+   landed before the guest was listening is already gone, and waiting does not bring it back. It
+   activates again now, up to three rounds, and the witness decides rather than
+   `accessibilityActivate` reporting that the platform delivered it — a proxy, and exactly the kind
+   §1.5 warns about.
+3. **`D1` on web read the tree once after a fixed sleep** and found only the page title, while `D2`
+   through `D5` passed on the very next reads. A first frame is not an accessibility tree; Compose
+   publishes that separately and afterwards. It waits for content now, which also returns sooner
+   than the old sleep on a quick machine.
+4. **The Android drills read empty screens on a hosted emulator**, one of them behind a "Pixel
+   Launcher isn't responding" system dialog. They wait for a populated screen rather than sleeping
+   eighteen seconds, the instrumented tests take the patience multiplier as an instrumentation
+   argument, and a failed drill now captures the screen, the activity stack and the log — because
+   the first run left nobody able to tell whether the application had crashed, never drawn, or drawn
+   something else.
+
+**The pattern across both runs.** Of the nine distinct problems these two dispatches surfaced, one
+was a workflow that had never worked, two were drills passing on the wrong evidence, three were
+assertions that encoded a machine rather than a behaviour, and three were real races. None of them
+were visible from reading, and the workflow had been "validated" by mirroring its commands locally.
+That is the argument for Group 4 in one paragraph.
