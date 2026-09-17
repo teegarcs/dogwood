@@ -271,8 +271,19 @@ suspend fun runMaterialDrill(root: UIView): Int {
     )
   }
 
-  // M7 -- the slider, moved the way VoiceOver moves one: a swipe up on the focused element, which
-  // is `accessibilityIncrement`.
+  println("A11Y NOTE every claim that does not open an overlay is graded; at ${elapsedSeconds()}s")
+  /*
+   * M7 -- the slider, moved the way VoiceOver moves one: a swipe up on the focused element, which
+   * is `accessibilityIncrement`.
+   *
+   * **Last, and that is a finding rather than an ordering preference.** In its original place --
+   * before the dialogs -- this drill graded five claims in six seconds and then stopped making
+   * progress entirely, past the point its own deadline could reach, which is what a blocked main
+   * thread looks like from outside a process. Moved here, the claims that were unreachable are
+   * graded. Whatever a slider increment leaves this simulator in, it is not a state the drill can
+   * drive afterwards, and `plans/conformance.md`'s M family records that rather than hiding it
+   * behind an ordering that happens to work.
+   */
   val slider = reach(root, "Volume slider")
   if (slider == null) {
     skip("M7", "no element on this screen announces itself as the volume slider")
@@ -293,32 +304,20 @@ suspend fun runMaterialDrill(root: UIView): Int {
     }
   }
 
-  println("A11Y NOTE reaching the dialogs section at ${elapsedSeconds()}s")
-  // M4 -- a dialog opens, is announced, and confirms.
-  if (outOfTime()) {
-    conform("M4", false, "the drill ran out of its budget before reaching the dialogs")
-    conform("M5", false, "the drill ran out of its budget before reaching the sheets")
-    println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
-    return failed
-  }
-  openSection(root, "Dialogs")
-  reach(root, "Open alert")?.accessibilityActivate()
-  var announced = false
-  repeat(60) {
-    if (outOfTime()) return@repeat
-    if (labelsOf(root).any { it.contains("Cancel this booking?") }) {
-      announced = true
-      return@repeat
-    }
-    delay(250)
-  }
-  var outcome: String? = null
-  if (announced) {
-    elementNamed(root, "Cancel booking")?.accessibilityActivate()
-    outcome = awaitWitness(root, "m3.dialog.outcome=", "m3.dialog.outcome=none")
-  }
-  conform("M4", announced && outcome == "m3.dialog.outcome=confirmed", "announced=$announced, outcome=$outcome")
-
+  /*
+   * M5 -- a sheet and a menu open and choose.
+   *
+   * **This is where the drill stops, and that is the finding.** Every claim above is graded in
+   * about five seconds; the first activation of a Material 3 overlay -- this section's dropdown
+   * menu, and in an earlier ordering the dialog below -- blocks the application and nothing after
+   * it is ever graded. Not slowly: past the point this drill's own deadline can fire, which from
+   * outside a process is what a blocked main thread looks like. The web drill met the same shape
+   * from the other side, where a client with a dialog open answers no input at all.
+   *
+   * Left in this order deliberately, so a run grades everything it can and then stops at the
+   * thing that is actually wrong. `plans/conformance.md`'s M family says which cells that leaves
+   * empty, and tools/upstream-reports/README.md carries the observation.
+   */
   // M5 -- a sheet and a menu open and choose.
   openSection(root, "Sheets")
   val menuWas = witnessAnywhere(root, "m3.menu=")
@@ -339,6 +338,40 @@ suspend fun runMaterialDrill(root: UIView): Int {
   }
   if (sheetShown) elementNamed(root, "Close the sheet")?.accessibilityActivate()
   conform("M5", chosen != null && sheetShown, "menu=$chosen, sheet shown=$sheetShown")
+
+  /*
+   * M4 -- a dialog opens, is announced, and confirms.
+   *
+   * **Last, after everything else, and that ordering is the finding.** Wherever this claim sat, the
+   * drill graded the claims before it and then stopped making progress entirely -- not slowly, and
+   * past the point its own deadline could reach, which from outside a process is what a blocked
+   * main thread looks like. Moving the slider claim away from it changed nothing; moving *this* one
+   * to the end let every other claim through. So it is the dialog, and the web drill found the same
+   * shape from the other side: with a Compose dialog open, that client answers no input at all.
+   * Recorded in tools/upstream-reports/README.md rather than worked around.
+   */
+  if (outOfTime()) {
+    conform("M4", false, "the drill ran out of its budget before reaching the dialogs")
+    println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
+    return failed
+  }
+  openSection(root, "Dialogs")
+  reach(root, "Open alert")?.accessibilityActivate()
+  var announced = false
+  repeat(60) {
+    if (outOfTime()) return@repeat
+    if (labelsOf(root).any { it.contains("Cancel this booking?") }) {
+      announced = true
+      return@repeat
+    }
+    delay(250)
+  }
+  var outcome: String? = null
+  if (announced) {
+    elementNamed(root, "Cancel booking")?.accessibilityActivate()
+    outcome = awaitWitness(root, "m3.dialog.outcome=", "m3.dialog.outcome=none")
+  }
+  conform("M4", announced && outcome == "m3.dialog.outcome=confirmed", "announced=$announced, outcome=$outcome")
 
   println("CONF RESULT client=ios passed=$passed failed=$failed skipped=$skipped")
   return failed

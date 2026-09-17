@@ -197,15 +197,29 @@ below ends at the witness rather than at a property that ought to imply it (AGEN
 | M2 | A generated button is operable through the accessibility layer and the payload's state changes | C | ✅ android, ios, web |
 | M3 | Generated selection controls are operable and their state changes: checkbox, switch, radio | C | ✅ android, ios, web |
 | M3-announced | …and an assistive technology is told what they are and whether they are on | C | ✅ android; ios and web report what their platform publishes instead, as skips carrying the observation |
-| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS not established** |
-| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS not established** |
+| M4 | A generated dialog opens, is announced, and confirms | C | ✅ android; web announces but cannot be operated from outside the process; **iOS blocked by the overlay itself** |
+| M5 | A generated sheet and menu open and choose | C | ✅ android, web; **iOS blocked by the overlay itself** |
 | M6 | A primitive-tier icon inside a generated component announces its description | C | ✅ android, ios, web |
 | M7 | A generated slider is moved through the accessibility layer and reports its value | C | ✅ android, ios; web publishes no node for one |
 
-**Two cells say "not established", which is neither a pass nor a failure.** The iOS drill grades
-`M1`, `M2`, `M3`, `M6` and `M7` and then stops making progress before the dialogs section — twice,
-reproducibly, and not at a point its own deadline reaches, so the cause is in the drill or in what
-the platform does to it rather than in anything it has measured. Nothing has been observed to fail: the same two claims pass on
+**Two cells say "not established", which is neither a pass nor a failure — and 2026-09-16's runs
+found out why.** The iOS drill grades `M1`, `M2`, `M3`, `M6` and `M7` in about six seconds and then
+stops, entirely, at the first activation of a Material 3 **overlay**: a dropdown menu, or a dialog
+when the claims are reordered so that one comes first. Moving the slider claim away changed nothing;
+moving the dialog to the end simply moved the stop to the menu. It is not slowness — it is past the
+point the drill's own deadline can fire, which from outside a process is what a blocked main thread
+looks like.
+
+The web drill met the same shape from the other side: with a Compose dialog open, that client
+answers no input at all — not an accessibility click, not a mouse event at the node's own box, not
+Escape. Two clients, two instruments, one behaviour. Both are recorded in
+`tools/upstream-reports/README.md` and neither is a statement about a generated binding: the tier's
+own render tests confirm this dialog and this menu on the Java Virtual Machine, WebAssembly **and
+the iOS simulator**, where Compose's test framework drives the composition rather than the
+platform's accessibility layer.
+
+The claims are ordered so that a run grades everything it can before it stops at the thing that is
+actually wrong, rather than hiding the stop behind an order that happens to work. Nothing has been observed to fail: the same two claims pass on
 Android, and the dialog and sheet bindings pass in the tier's own render tests *on the iOS
 simulator*. An empty cell here means the drill has not settled the question, which is the rule this
 matrix has always used and the reason its empty cells mean something.

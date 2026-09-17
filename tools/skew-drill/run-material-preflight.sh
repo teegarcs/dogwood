@@ -21,6 +21,18 @@
 # is how anything reaches it and its other drills are already launch arguments. What is modelled --
 # a client whose registry has never heard of the segment -- is identical.
 set -uo pipefail
+
+# Gradle refuses a Java it does not support, and reports it by printing the version and nothing
+# else -- "25.0.2" as the entire "what went wrong". That is indistinguishable from a crash unless
+# you already know, so it is checked here with a sentence instead. The header says to export
+# JAVA_HOME; this is what happens when somebody does not.
+java_version="$("${JAVA_HOME:-/usr}/bin/java" -version 2>&1 | head -1)"
+case "$java_version" in
+  *\"21*) ;;
+  *) echo "this build needs a Java 21 toolchain; found: $java_version" >&2
+     echo "  export JAVA_HOME=/opt/homebrew/opt/openjdk@21" >&2
+     exit 2 ;;
+esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLIENT="${1:-android}"
 mkdir -p "$HERE/build"

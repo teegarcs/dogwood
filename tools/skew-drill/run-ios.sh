@@ -73,7 +73,7 @@ xcrun simctl spawn booted notifyutil -p com.apple.accessibility.cache.app.ax
 xcrun simctl spawn booted notifyutil -p com.apple.accessibility.cache.ax
 
 echo "==> installing the client at the committed version"
-./gradlew :samples:slice-ios:iosApp --console=plain -q || exit 1
+./gradlew :samples:slice-ios:iosApp --console=plain -q --max-workers=2 || exit 1
 xcrun simctl terminate booted dev.dogwood.slice.ios 2>/dev/null || true
 xcrun simctl install booted samples/slice-ios/build/DogwoodSlice.app || exit 1
 
