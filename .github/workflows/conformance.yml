@@ -135,6 +135,11 @@ jobs:
         # graded by `run-all.sh`.
         run: python3 tools/conformance/from_web_weight.py | tee -a /tmp/tier-s.conf
 
+      - name: Grade the guest script's budget
+        # `G5` bounds the page; this bounds the script the page fetches. Same distribution, same
+        # runner, no device -- so it belongs here rather than only in the nightly device job.
+        run: python3 tools/conformance/from_guest_weight.py | tee -a /tmp/tier-s.conf
+
       - name: Put the claim table in the run summary
         if: always()
         # So a reviewer sees which claims were graded without opening a log or downloading an

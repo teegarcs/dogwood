@@ -126,6 +126,11 @@ echo "==> performance budgets"
 python3 "$HERE/from_phase0.py" > "$HERE/build/phase0.raw" || status=1
 split_by_client "$HERE/build/phase0.raw" "-perf"
 python3 "$HERE/from_web_weight.py" > "$HERE/build/web-perf.conf" || status=1
+# The guest script is a separate download from the page that fetches it, and until `G6` nothing
+# bounded it -- the Material catalogue grew the guest by a quarter of a megabyte under a budget
+# that only ever looked at the host. Appended rather than a second file, because both are the same
+# client's bytes.
+python3 "$HERE/from_guest_weight.py" >> "$HERE/build/web-perf.conf" || status=1
 
 # Fold every per-drill file into its client's, so the aggregator sees one run per client.
 python3 - "$HERE/build" <<'PY'
