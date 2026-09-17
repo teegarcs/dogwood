@@ -133,7 +133,7 @@ cell below is a claim about what a user would install, not about a debug build
 | B3 | A payload naming a dictionary version this client lacks is refused before it starts | S + C | S ✅; C ✅ web, android, ios (ADR-061) |
 | B4 | Delivery failure leaves the last known-good payload serving | S | ✅ |
 | B5 | A guest script whose bytes do not match the digest in the signed sidecar never executes; the Worker is built from the verified bytes | C | C web ✅ (2026-09-15; ADR-062, ADR-032 notes) |
-| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control |
+| B6 | A payload that declares a **generated library tier** the host has not registered is refused before a Worker or a guest exists, naming the segment | C | ✅ web, with its control; android and ios by `tools/skew-drill/run-material-preflight.sh` |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -323,6 +323,15 @@ signed payload fixture** to a host built from current sources.
 |---|---|---|---|
 | K1 | A payload built by an earlier toolchain still loads and **verifies** on a host built today | C | ✅ desktop, android, ios |
 | K2 | …and still **renders**: it composes its screen, not merely loads | C | ✅ desktop, android, ios |
+| K3 | A host built from an **earlier engine** refuses a payload built today that declares more than it implements, before `start` and naming the segment | C | desktop, `tools/conformance/engine-skew.sh` |
+| K4 | …and a host built today **runs** a payload the earlier engine built | C | desktop, `tools/conformance/engine-skew.sh` |
+
+`K1` and `K2` serve a **frozen payload artifact** to a host built today, which covers a payload that
+is merely old. `K3` and `K4` are the pairing that needed a second *engine* version to exist and so
+read "blocked" in the audit until one did: `tools/conformance/engine-skew.sh` builds the host in a
+worktree at a tag, builds the payload at `HEAD`, and serves each to the other. The `K3` direction is
+the one a deployment reaches by shipping a payload faster than a store review, and it must end in a
+refusal rather than a degraded screen.
 
 The fixture is an artifact rather than a rebuild, and `tools/conformance/fixtures/README.md` says
 why: a rebuild is today's toolchain, which is the pairing already covered by every other drill here.
