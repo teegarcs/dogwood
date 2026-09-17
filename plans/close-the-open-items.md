@@ -278,3 +278,44 @@ they fetch. All on this machine, 2026-09-17:
 `check.sh` failed once on the way, on its real-client leg, while an Android instrumented test was
 running on the same machine. Re-run on a quiet machine it passes. Recorded because the first reading
 of that failure was "the pool broke the desktop client", which it was not.
+
+### Group 1, item 5 — the web profile had the same defect
+
+The plan asked whether it did, and said to fix it or record why it could not happen. It can, and it
+was **reproduced before it was fixed**: one sidecar address answering with different content per
+cohort, two releases both naming `guest-kotlin.js`, and headless Chrome reporting `IntegrityRefused`
+against a control that started cleanly. ADR-078 is the decision; `signWebSidecars` renames the script
+for its own digest and writes that address into every sidecar before signing, for the same reason
+the Zipline path had to — claim `B1` already proves a client refuses a sidecar whose `guestScript`
+was rewritten after signing.
+
+The integrity fixture keeps its deliberately wrong digest and gains the right address, because a
+fixture refused for a 404 grades nothing. New claims `B8`, `B8-distinct` and `B8-canary`, watched to
+fail with the addressing disabled — where `B8-canary` passes, which is the defect in one line: the
+cohort that keeps working is whichever release published last.
+
+### Two drills were passing for the wrong reason, and both were found on the way
+
+Neither was in the plan. Both are the same shape as `B7`'s hollow pass, which is why they are
+recorded together.
+
+1. **`B3` on web was graded by the signature check, not the dictionary check.** The skew drill wrote
+   its skewed sidecar *after* the only signing pass, so the page refused it for a missing signature
+   — which satisfies `B3`'s "no Worker was created". The repository has the receipt:
+   `result-web-2026-09-08.conf` says `refused=DictionarySkew`, and both
+   `result-web-2026-09-09.conf` and `result-web-2026-09-14.conf` say `refused=SignatureRefused`. For
+   two recorded runs the dictionary claim was passing on the wrong evidence. The drill re-signs that
+   sidecar now and `B3` reads `DictionarySkew` again.
+2. **`M3` on web searched for *unnamed* control nodes.** It was written when Compose published
+   Material 3's selection controls with no name at all. The catalogue then gave each control a
+   `contentDescription` — recorded in `plans/material3-proof.md` §5 at the time as the fix for a real
+   user as well as for the drill — and nobody came back to the lookup. So the claim failed with "0
+   unnamed controls on the section", a red cell reporting that the catalogue had been **fixed**. It
+   finds the controls by name now, the way the Android drill always has, and grades three of them
+   instead of two. The `M3-announced` skip is narrower and more useful as a result: these publish a
+   name but still no role and no checked state, so a user hears "Background refresh, button" where
+   they should hear "Background refresh, switch, on". The upstream draft says that now.
+
+The general lesson, which is AGENTS.md §1.5 read from the other end: **a claim that passes is also a
+hypothesis.** Three of them were wrong in one day, and each was caught by asking what the drill was
+actually looking at rather than whether it was green.
