@@ -76,9 +76,13 @@ components lost, parameters that stopped being settable. It is committed, so it 
 **4. Compile the tier, and read what the compiler refused.**
 
 ```
-./gradlew :dogwood-material3:compileKotlinJvm
-git diff engine/dogwood-material3/exclusions.txt
+./gradlew :dogwood-material3:compileKotlinJvm :dogwood-foundation:compileKotlinJvm
+git diff engine/dogwood-material3/exclusions.txt engine/dogwood-foundation/exclusions.txt
 ```
+
+Four tiers, two modules and two exclusion lists: `dogwood-material3` carries
+`androidx.material3`, and `dogwood-foundation` carries `androidx.foundation`,
+`androidx.foundation.layout` and `androidx.ui` in one module with one list between them.
 
 Generate, compile, refuse — in that order, because a library is not a surface an author can edit.
 A component whose default expression stopped being public lands here with the compiler's own
@@ -89,10 +93,12 @@ reason, and the coverage report counts it under *generable, excluded* rather tha
 ```
 ./gradlew :dogwood-material3:jvmTest :dogwood-material3:wasmJsTest \
           :dogwood-material3:iosSimulatorArm64Test
+./gradlew :dogwood-foundation:jvmTest :dogwood-foundation:wasmJsTest \
+          :dogwood-foundation:iosSimulatorArm64Test
 ./gradlew :samples:slice-screens:jsNodeTest :samples:slice-desktop:test
 ```
 
-The first three are one render test per family on three targets. The last two are the catalogue's
+The first six are one render test per family and per segment, on three targets each. The last two are the catalogue's
 coverage count and the replay of a real payload's wire through the real host.
 
 **6. Run the catalogue on one device.** Whichever you have booted:
