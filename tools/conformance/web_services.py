@@ -320,6 +320,66 @@ def run(url, chrome, port):
             f"{[l for l in swapped.get('log', []) if 'hash to' in l][:1]}",
         )
 
+        # ---------------------------------------------------------------------------------
+        # B8 -- two releases live at once, and each cohort loads its own release's script.
+        #
+        # The web's `B7`. A canary on this profile is one sidecar address answering with different
+        # content per cohort (`tools/reference-server`, ADR-049), and `WebDelivery` resolves
+        # `guestScript` against the sidecar address it was given -- so the two releases' scripts
+        # land wherever their addresses say. `run-web.sh` publishes both releases into `b8/`, each
+        # naming the script its own build would have named.
+        #
+        # Before ADR-078 every release named its script `guest-kotlin.js`, so the second publish
+        # landed on the first release's script and a visitor on the first release fetched bytes its
+        # sidecar had never named. Watched, in this browser, with the addressing disabled:
+        # `IntegrityRefused` -- "the bytes at .../b8/guest-kotlin.js hash to …; the signed manifest
+        # says …". A page that cannot start, and which visitors it happens to decided by which
+        # cohort somebody pinned.
+        #
+        # `B8-distinct` is the guard `B7-distinct` is on mobile, and it exists because `B8` can
+        # pass hollow: two releases that happened to be the same bytes would share one address
+        # honestly, and `B8` would be grading a coincidence. It reads both releases off the server.
+        # ---------------------------------------------------------------------------------
+        origin = url.rsplit('/', 1)[0]
+
+        def fetch(path):
+            with urllib.request.urlopen(f'{origin}/{path}', timeout=30) as response:
+                return response.read()
+
+        try:
+            live_doc = json.loads(fetch('b8/dogwood-manifest-release.json'))
+            canary_doc = json.loads(fetch('b8/dogwood-manifest-canary.json'))
+            distinct = (
+                live_doc['guestScript'] != canary_doc['guestScript']
+                and fetch(f"b8/{live_doc['guestScript']}") != fetch(f"b8/{canary_doc['guestScript']}")
+            )
+            detail = (f"{live_doc['releaseVersion']} at {live_doc['guestScript']}, "
+                      f"{canary_doc['releaseVersion']} at {canary_doc['guestScript']}")
+        except Exception as failure:  # noqa: BLE001 -- a fixture that cannot be read is a red claim
+            distinct, detail = False, f'the two releases could not both be read: {failure}'
+        conform('B8-distinct', distinct, detail)
+
+        # The release cohort, with the canary already published. This is the assertion: a visitor
+        # on the release everyone else has must not be handed the canary's bytes.
+        live_run = load('manifest=b8/dogwood-manifest-release.json&trust=none')
+        conform(
+            'B8',
+            live_run.get('workerCreated') == 'true' and not live_run.get('refused'),
+            f"workerCreated={live_run.get('workerCreated')} refused={live_run.get('refused')} -- "
+            f"{[l for l in live_run.get('log', []) if 'hash to' in l][:1]}",
+        )
+
+        # And the canary cohort, at the same time and against the same directory. `trust=none` for
+        # both, because this drill cannot sign: see the fixture's comment in `run-web.sh`. The
+        # digest is still enforced, which is what makes "it got its own script" an assertion.
+        canary_run = load('manifest=b8/dogwood-manifest-canary.json&trust=none')
+        conform(
+            'B8-canary',
+            canary_run.get('workerCreated') == 'true' and not canary_run.get('refused'),
+            f"workerCreated={canary_run.get('workerCreated')} refused={canary_run.get('refused')} -- "
+            f"{[l for l in canary_run.get('log', []) if 'hash to' in l][:1]}",
+        )
+
         # B2 -- rotation. The fixture is signed by the key being rotated *to*, alone. A client
         # holding both keys must accept it, or a rotation would be an outage rather than a
         # roll-forward: publishers sign with both, clients move, then the old key is retired.

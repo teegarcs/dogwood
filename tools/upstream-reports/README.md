@@ -217,11 +217,16 @@ bindings: the same components, composed from the same wire, toggle and confirm u
 `runComposeUiTest` on the Java Virtual Machine, WebAssembly and the iOS simulator. What differs is
 what the platform bridge publishes.
 
-**a. Web: selection controls are unnamed and stateless.** `androidx.compose.material3.Checkbox`,
-`Switch` and `RadioButton` reach Chrome's accessibility tree as `button` nodes with an empty name
-and no properties -- no `checkbox`, `switch` or `radio` role and no checked state. A screen reader
-is told neither what the control is nor whether it is on. Setting a `contentDescription` on the
-control gives it a name; nothing observed gives it a state or a role.
+**a. Web: selection controls have no role and no state.** `androidx.compose.material3.Checkbox`,
+`Switch` and `RadioButton` reach Chrome's accessibility tree as `button` nodes with no properties --
+no `checkbox`, `switch` or `radio` role and no checked state. A screen reader is told what the
+control is *for* but not what it is or whether it is on: "Background refresh, button" where it
+should hear "Background refresh, switch, on".
+
+Setting a `contentDescription` supplies the name, and this sample does, which is why the name half
+of this report is closed. Nothing observed supplies a state or a role, and a name without a state is
+the harder half for a user: it reads as an ordinary button, so nothing tells them it toggles or
+which way it currently sits.
 
 *Reproduce:* any Compose Multiplatform 1.10.3 wasm page with a `Switch`, read with
 `Accessibility.getFullAXTree` over the DevTools protocol and `--force-renderer-accessibility`.

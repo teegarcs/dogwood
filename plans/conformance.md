@@ -137,6 +137,9 @@ cell below is a claim about what a user would install, not about a debug build
 | B7 | With two releases live at once, a client in each cohort loads **its own release's** modules and reaches `updated`, not merely `verified` | C | ✅ `tools/reference-server/cohort-drill.sh` (2026-09-17; ADR-077) |
 | B7-distinct | …and the two live releases genuinely publish their modules at different addresses, so `B7` is grading routing rather than a coincidence | C | ✅ same drill; it caught `B7` passing hollow on its first run |
 | B7-spared | …and the client outside the pin loads the live release's modules at the same time | C | ✅ same drill |
+| B8 | The web profile's counterpart: with two releases live, a page loads **its own release's** guest script rather than whichever was published last | C | ✅ `tools/conformance/run-web.sh` (2026-09-17; ADR-077) |
+| B8-distinct | …and the two releases genuinely publish their scripts at different addresses | C | ✅ same drill; watched to fail with the addressing disabled |
+| B8-canary | …and the cohort that would have kept working by luck is named, because with one shared address it is whichever published last | C | ✅ same drill |
 
 `B3` reads "before it starts" rather than "before any guest code runs", and the change of wording is
 a correction rather than a weakening. On the **web** nothing of the payload executes: the host
@@ -382,7 +385,7 @@ the window covered; retiring one is either a compatibility fix or a documented s
 | G3 | Collection pause p99 | 16.7 ms | C | Android, iOS, desktop |
 | G4 | Cold start to first composition | 500 ms | C | Android, iOS, desktop |
 | G5 | The host's weight: the WebAssembly modules, `app.js` and `index.html`, brotli | 4,060,000 bytes | C | web only |
-| G6 | The guest payload script's weight: `guest-kotlin.js`, brotli | 252,000 bytes | C | web only |
+| G6 | The guest payload script's weight: the content-addressed `guest-kotlin-<digest>.js`, brotli | 252,000 bytes | C | web only |
 
 `G5` and `G6` are bytes rather than milliseconds, and they are two budgets rather than one for a
 reason that is about *when* each is paid. The host is downloaded once and then held behind an
