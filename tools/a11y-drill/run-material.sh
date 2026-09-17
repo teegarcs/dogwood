@@ -59,10 +59,25 @@ xcrun simctl terminate booted dev.dogwood.slice.ios 2>/dev/null || true
 xcrun simctl install booted samples/slice-ios/build/DogwoodSlice.app
 
 echo "==> running the drill"
-xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-material > "$LOG" 2>&1 &
+# `DOGWOOD_DRILL_PATIENCE` stretches every wait inside the drill, for a machine slower than the one
+# the numbers were tuned on. The nightly's first run failed `M2` with `[20s] ... -> null`: the
+# section opened, the button was activated, and fifteen seconds was not enough for the payload's own
+# witness to come back on a hosted simulator. Unset here, so a development machine waits what it
+# always did; `tier-c.yml` sets it.
+PATIENCE="${DOGWOOD_DRILL_PATIENCE:-1}"
+# The shell's arithmetic below is integer-only, and a fractional patience would make it a syntax
+# error rather than a slower wait. The drill itself takes the fractional value; only the harness
+# loop rounds.
+PATIENCE_WHOLE="${PATIENCE%%.*}"
+case "$PATIENCE_WHOLE" in ''|*[!0-9]*) PATIENCE_WHOLE=1 ;; esac
+[ "$PATIENCE_WHOLE" -ge 1 ] 2>/dev/null || PATIENCE_WHOLE=1
+xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-material \
+  --dogwood-patience "$PATIENCE" > "$LOG" 2>&1 &
 launcher=$!
-# Generous: the drill walks ten sections and waits on a consequence after each activation.
-for _ in $(seq 1 240); do
+# Generous: the drill walks ten sections and waits on a consequence after each activation. Scaled
+# with the drill's own budget, because a harness that gives up first turns a slow drill into a
+# missing result -- and a missing result renders as a gap, which a matrix must never invent.
+for _ in $(seq 1 $((240 * PATIENCE_WHOLE))); do
   tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^MATERIAL DONE\|^CONF REFUSED" && break
   sleep 2
 done

@@ -22,6 +22,7 @@ clients with four different instruments.
 Run by `tools/conformance/run-web.sh` alongside the other two web modules.
 """
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -33,6 +34,24 @@ sys.path.insert(0, __file__.rsplit('/', 2)[0] + '/web-ttff')
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from cdp import Devtools  # noqa: E402
 from web_accessibility import ax_nodes  # noqa: E402
+
+# How long to wait for a page to do something, as a multiple of what a development machine needs.
+#
+# Every deadline below was tuned on a development machine and three of them were too tight on a
+# hosted runner: the first tier-C run reported `M5` as `sheet=None` -- a sheet that had been asked
+# to open and had not finished -- and the iOS drill reported the same shape for `M2`. A hosted
+# runner is two shared cores rendering a WebAssembly Compose canvas through a software rasteriser,
+# and it is simply slower than the machine these numbers came from.
+#
+# A multiplier rather than bigger numbers, because a development machine should not wait three
+# times as long to learn the same thing, and a drill that is slow to fail is a drill people stop
+# running. `tier-c.yml` sets it; everywhere else it is 1 and nothing changes.
+PATIENCE = float(os.environ.get('DOGWOOD_DRILL_PATIENCE', '1'))
+
+
+def patiently(seconds):
+    """A deadline in seconds, stretched by `DOGWOOD_DRILL_PATIENCE`."""
+    return seconds * PATIENCE
 
 passed = failed = skipped = 0
 
@@ -77,7 +96,7 @@ def witness(devtools, session, prefix):
 
 def await_witness(devtools, session, prefix, was, timeout=15):
     """Waits for a witness to say something other than [was]. The consequence, not the click."""
-    deadline = time.time() + timeout
+    deadline = time.time() + patiently(timeout)
     while time.time() < deadline:
         now = witness(devtools, session, prefix)
         if now is not None and now != was:
@@ -158,7 +177,7 @@ def open_page(devtools, url, query):
 
 
 def await_first_frame(devtools, session, timeout=60):
-    deadline = time.time() + timeout
+    deadline = time.time() + patiently(timeout)
     while time.time() < deadline:
         raw = devtools.call('Runtime.evaluate', {
             'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
@@ -199,7 +218,7 @@ def run(url, chrome, port):
         # ---------------------------------------------------------------------------------
         tierless = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&tier=none')
         refused = None
-        deadline = time.time() + 45
+        deadline = time.time() + patiently(45)
         while time.time() < deadline:
             current = read_report(devtools, tierless)
             if current.get('refused'):
@@ -229,7 +248,7 @@ def run(url, chrome, port):
         if not await_first_frame(devtools, session):
             print('CONF REFUSED the page never reported a first frame', flush=True)
             return 2
-        time.sleep(1.5)
+        time.sleep(patiently(1.5))
 
         conform(
             'B6-control',
@@ -366,17 +385,17 @@ def run(url, chrome, port):
         open_section(devtools, session, 'Sheets')
         was_menu = witness(devtools, session, 'm3.menu=')
         activate(devtools, session, find(devtools, session, 'Cabin class'))
-        time.sleep(1.0)
+        time.sleep(patiently(1.0))
         activate(devtools, session, find(devtools, session, 'Business'))
         chosen = await_witness(devtools, session, 'm3.menu=', was_menu)
 
         sheet_session = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&entry=material')
         opened = None
         if await_first_frame(devtools, sheet_session):
-            time.sleep(1.5)
+            time.sleep(patiently(1.5))
             open_section(devtools, sheet_session, 'Sheets')
             activate(devtools, sheet_session, find(devtools, sheet_session, 'Open the sheet'))
-            deadline = time.time() + 15
+            deadline = time.time() + patiently(15)
             while time.time() < deadline:
                 if 'Fare conditions' in names(devtools, sheet_session):
                     opened = 'Fare conditions'
@@ -404,10 +423,10 @@ def run(url, chrome, port):
         dialog_session = open_page(devtools, url, 'manifest=dogwood-manifest-kotlin.json&entry=material')
         announced = None
         if await_first_frame(devtools, dialog_session):
-            time.sleep(1.5)
+            time.sleep(patiently(1.5))
             open_section(devtools, dialog_session, 'Dialogs')
             activate(devtools, dialog_session, find(devtools, dialog_session, 'Open alert'))
-            deadline = time.time() + 15
+            deadline = time.time() + patiently(15)
             while time.time() < deadline:
                 current = set(names(devtools, dialog_session))
                 if {'Cancel this booking?', 'Cancel booking', 'Keep it'} <= current:

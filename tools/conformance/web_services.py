@@ -108,7 +108,15 @@ def run(url, chrome, port):
         # J1 -- the services a host wired reach the guest, and the guest can read them. The clock is
         # the one with an observable value: a millisecond count the guest could not have invented.
         clock = next((n for n in names if re.fullmatch(r'host clock \d{13}', n)), None)
-        zone = next((n for n in names if n.startswith('time zone ') and '/' in n), None)
+        # Any identifier but the sentinel. Requiring a `/` was a proxy for "a real zone name", and
+        # it is wrong on exactly the machine this most needs to run on: a hosted runner's clock is
+        # UTC, `TimeZone.getDefault().getID()` answers `UTC`, and there is no slash in it. The
+        # nightly failed here with `'host clock 1789615771305', None` -- the clock crossed, the zone
+        # crossed, and the claim rejected it for its spelling. What this is actually asserting is
+        # that the guest printed something instead of the `unavailable` its own screen falls back
+        # to, which is what `AboutScreen` renders when the host answered nothing.
+        zone = next((n for n in names
+                     if n.startswith('time zone ') and not n.endswith('unavailable')), None)
         conform('J1', clock is not None and zone is not None,
                 f'offered [{offered}]; {clock!r}, {zone!r}')
 

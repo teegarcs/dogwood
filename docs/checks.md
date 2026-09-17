@@ -132,6 +132,7 @@ which is a Gradle daemon and a webpack watcher holding a gigabyte for the durati
 
 | Drill | Claims | Run by | What it actually does |
 |---|---|---|---|
+| [`android-suite.sh`](../tools/conformance/android-suite.sh) | every Android claim below, in one run | `tier-c.yml` (android); by hand | the Android drill sequence as one shell script, so the nightly runs what a person can run. It exists because `android-emulator-runner` executes its `script:` input one line at a time, each in its own shell, so nothing a line assigns survives into the next — which sent every result to a path nothing could write and the job had never produced one |
 | [`run-android.sh`](../tools/conformance/run-android.sh) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | `run-all.sh`; `tier-c.yml` (android) | instrumented `UiAutomation` — the same accessibility service TalkBack uses — plus real network requests at a witness server |
 | [`a11y-drill/run.sh`](../tools/a11y-drill/README.md) | `D1`–`D5`, `D7`, `F1`, `F2`, `F4` | `run-all.sh`; `tier-c.yml` (iOS and web) | in-application walk of `UIAccessibility` with VoiceOver enabled, plus the iOS network drill |
 | [`run-web.sh`](../tools/conformance/run-web.sh) | `D1`–`D5`, `D7`, `J1`–`J4`, `A7`, `H4`, `H5`, `B1`, `B2`, `A4` | `run-all.sh`; `tier-c.yml` (iOS and web) | headless Chrome: `Accessibility.getFullAXTree`, plus the host services, a real code update, the kill switch, and the sidecar's detached Ed25519 signature checked against fixtures the build itself signed ([ADR-062](../adrs/layer-3/ADR-062-a-signed-web-sidecar.md)), and a guest that crashes on purpose so the frames can be read ([ADR-063](../adrs/layer-5/ADR-063-a-web-crash-carries-its-frames.md)) |
@@ -398,3 +399,18 @@ embed check, the reference-server check, the standalone check, and serving the w
 waits for is the same thing as no check, which this project has now demonstrated six times in other
 forms; a check that nobody runs is the same thing again, which is why each of those four says when
 it must be run rather than only that it exists.
+
+## Waiting longer on a slower machine
+
+Every deadline in the device drills was tuned on a development machine. A hosted runner renders a
+Compose canvas through a software rasteriser on two shared cores, and the first nightly run failed
+three claims on that alone: `M2` on iOS with `[20s] section=true, activated=true, ... -> null`, `M5`
+on web with `sheet=None`. In both the activation worked and the consequence had not arrived yet.
+
+`DOGWOOD_DRILL_PATIENCE` multiplies every wait. It is unset on a development machine, so a person
+still learns in fifteen seconds what a runner learns in forty-five; `tier-c.yml` sets it to `3` for
+the iOS and web job. It reaches the iOS drill as a launch argument (`--dogwood-patience`), because
+an application on a simulator does not inherit the shell's environment.
+
+A drill that is slow to fail is a drill people stop running, which is why this is a multiplier rather
+than three larger numbers.

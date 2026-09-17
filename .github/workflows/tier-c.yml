@@ -57,6 +57,17 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
 
+    env:
+      # Every wait inside the drills, stretched threefold. The first tier-C run failed three claims
+      # this way and only this way: `M2` on iOS with `[20s] section=true, activated=true, ... -> null`
+      # and `M5` on web with `sheet=None` -- an activation that worked and a consequence that had not
+      # arrived yet. A hosted runner renders a Compose canvas through a software rasteriser on two
+      # shared cores, and every number in those drills was tuned on a development machine.
+      #
+      # Set here rather than baked into the drills, so a person still learns in fifteen seconds what
+      # this learns in forty-five. A drill that is slow to fail is a drill people stop running.
+      DOGWOOD_DRILL_PATIENCE: "3"
+
     defaults:
       run:
         # `pipefail`, for the reason `conformance.yml` records: GitHub's default shell is `bash -e`,
@@ -456,48 +467,23 @@ jobs:
           emulator-options: >-
             -no-window -no-snapshot -noaudio -no-boot-anim
             -gpu swiftshader_indirect -camera-back none -camera-front none
-          # The same accumulate-then-fail shape as the macOS job, for the same reason: one red
-          # drill must not take the rest of the matrix down with it. `script` runs on the runner
-          # with the emulator booted and `adb` already pointed at it, which is exactly the
-          # condition every one of these scripts asserts.
-          script: |
-            set +e
-            status="$RUNNER_TEMP/status"
-            conf="$RUNNER_TEMP/conf"
-
-            adb wait-for-device
-            adb devices
-
-            tools/conformance/run-android.sh "$conf/android-a11y.conf"
-            echo "$? android accessibility (tools/conformance/run-android.sh)" >> "$status"
-
-            tools/skew-drill/run.sh
-            echo "$? android skew (tools/skew-drill/run.sh)" >> "$status"
-            cp tools/skew-drill/build/skew.conf "$conf/android-skew.conf" 2>/dev/null
-
-            tools/skew-drill/run-preflight.sh
-            echo "$? android pre-flight (tools/skew-drill/run-preflight.sh)" >> "$status"
-            cp tools/skew-drill/build/preflight.conf "$conf/android-preflight.conf" 2>/dev/null
-
-            # `B6`: a client built without the generated Material 3 tier, meeting a payload that
-            # declares it. Not `B3` again -- that is a client meeting a dictionary *version* it does
-            # not have, this is a client meeting a whole *segment* it has never heard of. It
-            # reinstalls the application twice, with `-PdogwoodMaterial3=false` and then without, so
-            # it runs after the drills that assume the ordinary build is installed.
-            tools/skew-drill/run-material-preflight.sh android
-            echo "$? android material pre-flight (run-material-preflight.sh)" >> "$status"
-            cp tools/skew-drill/build/material-preflight-android.conf \
-              "$conf/android-materialpreflight.conf" 2>/dev/null
-
-            tools/conformance/cross-version-mobile.sh android "$conf/android-crossversion.conf"
-            echo "$? android cross-version (cross-version-mobile.sh)" >> "$status"
-
-            tools/reference-server/quarantine-drill.sh "$conf/android-quarantine.conf"
-            echo "$? android quarantine (quarantine-drill.sh)" >> "$status"
-
-            cp tools/skew-drill/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
-            cp tools/conformance/build/*.log "$RUNNER_TEMP/log/" 2>/dev/null
-            exit 0
+          # **One line, calling a committed script, and that is not a style preference.** This
+          # action runs its `script` input **one line at a time, each in its own `sh -c`** -- which
+          # the first tier-C run proved rather than documented:
+          #
+          #     [command]/usr/bin/sh -c status="$RUNNER_TEMP/status"
+          #     [command]/usr/bin/sh -c conf="$RUNNER_TEMP/conf"
+          #
+          # Nothing a line assigns reaches the next one. `$conf` was empty everywhere it was used,
+          # so every result was written at the root of the filesystem and refused, and `set +e` did
+          # not survive either, so the first non-zero line ended the block. The emulator was healthy
+          # and the instrumented tests ran for seven minutes and passed, into a path nothing could
+          # write. The job had never produced a single result file.
+          #
+          # `tools/conformance/android-suite.sh` is one shell, and it is the sequence a person can
+          # run on a development machine -- which is the rule this file states at the top and could
+          # not follow while the sequence lived in YAML.
+          script: tools/conformance/android-suite.sh "$RUNNER_TEMP/conf" "$RUNNER_TEMP/status" "$RUNNER_TEMP/log"
 
       - name: Drop any result file that never named its client
         if: always()

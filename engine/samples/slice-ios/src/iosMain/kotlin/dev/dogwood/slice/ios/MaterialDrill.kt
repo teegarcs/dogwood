@@ -22,6 +22,7 @@ import platform.UIKit.UIAccessibilityScrollDirectionDown
 import platform.UIKit.UIAccessibilityScrollDirectionUp
 import platform.UIKit.UIAccessibilityIsVoiceOverRunning
 import platform.Foundation.NSDate
+import platform.Foundation.NSProcessInfo
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIView
 import platform.UIKit.accessibilityActivate
@@ -55,6 +56,21 @@ private val MATERIAL_SECTIONS = listOf(
  * until somebody noticed. A drill that hangs is worse than one that fails.
  */
 private var deadline: Double = Double.MAX_VALUE
+
+/**
+ * How long to wait for the payload to do something, as a multiple of what a development machine
+ * needs.
+ *
+ * Every wait here was tuned on a development machine, and on a hosted simulator `M2` failed with
+ * `[20s] section=true, activated=true, m3.buttons=0/0/0/0/0 -> null`: the section opened, the button
+ * was activated, and fifteen seconds was not enough for the payload's own witness to come back. A
+ * hosted runner renders this through a software rasteriser on shared cores and is simply slower.
+ *
+ * A multiplier rather than bigger numbers, because a development machine should not wait three times
+ * as long to learn the same thing. Passed as `--dogwood-patience <n>` beside the drill's own launch
+ * argument, which is how every other switch reaches this application.
+ */
+private var patience: Double = 1.0
 private var startedAt: Double = 0.0
 
 /**
@@ -138,7 +154,7 @@ private suspend fun reach(root: UIView, label: String): NSObject? {
 
 /** Waits for a witness to say something other than [was]: the consequence, not the activation. */
 private suspend fun awaitWitness(root: UIView, prefix: String, was: String?, attempts: Int = 60): String? {
-  repeat(attempts) {
+  repeat((attempts * patience).toInt().coerceAtLeast(1)) {
     if (outOfTime()) return null
     val now = witnessOf(root, prefix)
     if (now != null && now != was) return now
@@ -190,8 +206,16 @@ suspend fun runMaterialDrill(root: UIView): Int {
    */
   // Shorter than `tools/a11y-drill/run-material.sh` waits, so the result line is always printed
   // by the drill rather than cut off by the harness.
+  patience = NSProcessInfo.processInfo.arguments.map { it.toString() }
+    .let { arguments ->
+      val at = arguments.indexOf("--dogwood-patience")
+      arguments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toDoubleOrNull()
+    }
+    ?.coerceIn(1.0, 10.0) ?: 1.0
   startedAt = NSDate().timeIntervalSince1970
-  deadline = startedAt + 300.0
+  // The overall budget stretches with the per-wait patience, or a patient run would simply spend
+  // its extra seconds and then be cut off by the budget that was sized for an impatient one.
+  deadline = startedAt + 300.0 * patience
 
   var passed = 0
   var failed = 0
