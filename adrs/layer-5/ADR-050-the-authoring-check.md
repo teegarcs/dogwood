@@ -131,7 +131,9 @@ src/jsMain/kotlin/dev/dogwood/slice/FeedScreen.kt:60  animateFloatAsState — pe
     instead: Modifier.alpha(animate(target, spec)) — declare a target, the host runs the frames
 ```
 
-Twelve tests, and capability group **I** in the catalogue.
+Twelve tests, and capability group **I** in the catalogue. Thirty-five after the 2026-09-16
+amendment: twenty over the source list, ten over the classpath decision and its report, and five
+that run the fixture build.
 
 ### Watched to fail, 2026-09-16
 
