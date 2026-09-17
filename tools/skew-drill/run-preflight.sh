@@ -129,11 +129,41 @@ case "$declared" in
   *) echo "the served manifest declares no dictionary; nothing to refuse" >&2; exit 1 ;;
 esac
 
+# **Waited for, not slept through.** This was `sleep 18`, and on a hosted emulator that was not
+# enough: the drill read an empty screen and reported `the skewed screen rendered: []`, a product
+# failure that had not happened. A fixed sleep is a guess about a machine, and this repository runs
+# on two very different ones.
+#
+# So it waits for the consequence -- the application's own window having something in it -- and gives
+# up only at a deadline. On a quick machine it returns sooner than eighteen seconds; on a slow one it
+# waits as long as it needs. `DOGWOOD_DRILL_PATIENCE` stretches the deadline for a hosted runner.
+await_screen() { # deadline-seconds
+  local budget="${1:-40}"
+  # Integer-only arithmetic, and unset must mean one rather than a syntax error -- these drills run
+  # under `set -u`.
+  local factor="${DOGWOOD_DRILL_PATIENCE:-1}"
+  factor="${factor%%.*}"
+  case "$factor" in ''|*[!0-9]*) factor=1 ;; esac
+  [ "$factor" -ge 1 ] 2>/dev/null || factor=1
+  budget=$((budget * factor))
+  local waited=0
+  while [ "$waited" -lt "$budget" ]; do
+    if adb shell uiautomator dump /sdcard/dogwood-wait.xml >/dev/null 2>&1 &&
+       adb shell cat /sdcard/dogwood-wait.xml 2>/dev/null | grep -q 'text="[^"]\{2,\}"'; then
+      return 0
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+  echo "    (the screen was still empty after ${budget}s; grading it anyway)" >&2
+  return 1
+}
+
 echo "==> running the client, which was NOT reinstalled"
 adb logcat -c
 adb shell am force-stop dev.dogwood.slice.android
 adb shell am start -n dev.dogwood.slice.android/.TabsActivity --es entry about >/dev/null
-sleep 18
+await_screen 40
 
 python3 "$HERE/check_preflight.py" "$OUT"
 status=$?

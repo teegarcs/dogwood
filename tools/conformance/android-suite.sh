@@ -43,6 +43,19 @@ adb devices
 
 record() { # exit-code, description
   echo "$1 $2" >> "$STATUS"
+  # A red drill on a machine nobody can look at is a red drill nobody can diagnose. The first run
+  # here failed three drills with empty screens and one system message -- "Pixel Launcher isn't
+  # responding" -- and nothing said whether the application had crashed, never drawn, or drawn
+  # something else. So a failure takes the screen and the log with it.
+  if [ "$1" != "0" ] && [ -n "$LOGS" ]; then
+    local slug
+    slug="$(printf '%s' "$2" | tr -cs 'a-zA-Z0-9' '-' | cut -c1-40)"
+    adb shell uiautomator dump /sdcard/dogwood-failure.xml >/dev/null 2>&1 &&
+      adb shell cat /sdcard/dogwood-failure.xml > "$LOGS/screen-$slug.xml" 2>/dev/null
+    adb logcat -d -t 2000 > "$LOGS/logcat-$slug.txt" 2>/dev/null
+    adb shell dumpsys activity activities 2>/dev/null | head -60 > "$LOGS/activities-$slug.txt"
+    echo "    (failed; screen and log captured as $slug)" >&2
+  fi
 }
 
 cd "$ROOT"

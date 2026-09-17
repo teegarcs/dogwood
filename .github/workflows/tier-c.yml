@@ -382,6 +382,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
+    env:
+      # The same multiplier the iOS and web job sets, for the same reason and a slower machine still:
+      # a Compose application driven through `UiAutomation` on a hosted emulator with two shared
+      # cores and a software renderer. The first run here read empty screens and reported five
+      # claims as failures that had not happened. It reaches the instrumented tests as an
+      # instrumentation argument, because an application on a device inherits no shell environment.
+      DOGWOOD_DRILL_PATIENCE: "3"
+
     defaults:
       run:
         shell: bash -euo pipefail {0}

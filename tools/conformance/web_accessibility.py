@@ -25,12 +25,24 @@ control and the shared screen has one, deliberately, for exactly this reason.
 Emits the `CONF` grammar from `plans/conformance.md`.
 """
 import json
+import os
 import re
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.request
+
+# How long to wait for a page to do something, as a multiple of what a development machine needs.
+# `tier-c.yml` sets `DOGWOOD_DRILL_PATIENCE` for the hosted runners, where a Compose canvas renders
+# through a software rasteriser on two shared cores; unset, nothing here changes. See docs/checks.md.
+PATIENCE = float(os.environ.get('DOGWOOD_DRILL_PATIENCE', '1'))
+
+
+def patiently(seconds):
+    """A deadline in seconds, stretched by `DOGWOOD_DRILL_PATIENCE`."""
+    return seconds * PATIENCE
+
 
 sys.path.insert(0, __file__.rsplit('/', 2)[0] + '/web-ttff')
 from cdp import Devtools  # noqa: E402
@@ -231,9 +243,24 @@ def run(url, chrome, port):
         if not composed:
             print('CONF REFUSED the page never reported a first frame', flush=True)
             return 2
-        time.sleep(1.5)
+        # **Waited for, not slept through.** This was `time.sleep(1.5)` and then one read of the
+        # tree, and on a hosted runner `D1` failed with `looked for the guest's heading among 1
+        # names: ['Dogwood web slice']` -- only the page title, because the accessibility DOM had
+        # not been published yet. `D2` through `D5` then passed on the very next reads, so the
+        # guest was there; the drill had simply looked once, early.
+        #
+        # A first frame is not an accessibility tree. Compose publishes the tree separately and
+        # afterwards, so the thing to wait for is the tree having something in it other than the
+        # page's own title. A fixed sleep is a guess about a machine; this is the consequence
+        # itself, and it also returns sooner than 1.5 seconds on a machine that is quick.
+        nodes = []
+        tree_deadline = time.time() + patiently(20)
+        while time.time() < tree_deadline:
+            nodes = ax_nodes(devtools, session)
+            if len([n for n in nodes if n['name'] and n['role'] != 'RootWebArea']) > 1:
+                break
+            time.sleep(0.25)
 
-        nodes = ax_nodes(devtools, session)
         print(f'CONF NOTE {len(nodes)} accessibility nodes', flush=True)
         for node in nodes[:40]:
             print(f'CONF ELEMENT role={node["role"]!r} name={node["name"]!r}', flush=True)

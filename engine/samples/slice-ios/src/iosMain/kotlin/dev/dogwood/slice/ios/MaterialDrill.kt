@@ -163,6 +163,41 @@ private suspend fun awaitWitness(root: UIView, prefix: String, was: String?, att
   return null
 }
 
+/**
+ * Activates a control and waits for a consequence, **activating again** if none arrives.
+ *
+ * One activation and a long wait is not the same thing as this, and the difference was measured.
+ * On a hosted simulator `M2` -- the first claim in this drill that activates anything -- failed
+ * with `[50s] section=true, activated=true, m3.buttons=0/0/0/0/0 -> null` while `M3`, `M6` and `M7`
+ * all passed three seconds later. So the button reported that it had been activated, forty-five
+ * seconds of waiting changed nothing, and every activation *after* it worked immediately.
+ *
+ * That is not a slow payload, it is a first activation landing before the guest is listening, and
+ * no amount of extra waiting fixes it -- the tap is already gone. Acting again is what fixes it.
+ * `accessibilityActivate` returning true says the platform delivered the activation to the element;
+ * it says nothing about whether the payload was ready to hear it, which is exactly the proxy that
+ * AGENTS.md section 1.5 warns about. The witness is the consequence, so the witness decides.
+ */
+private suspend fun activateUntil(
+  root: UIView,
+  label: String,
+  prefix: String,
+  was: String?,
+  rounds: Int = 3,
+): Pair<Boolean, String?> {
+  var everActivated = false
+  repeat(rounds) {
+    if (outOfTime()) return everActivated to null
+    val activated = reach(root, label)?.accessibilityActivate() ?: false
+    everActivated = everActivated || activated
+    // A short wait per round rather than one long one, so a missed first activation costs a few
+    // seconds instead of the whole budget.
+    val now = awaitWitness(root, prefix, was, attempts = 20)
+    if (now != null) return everActivated to now
+  }
+  return everActivated to null
+}
+
 private suspend fun witnessAnywhere(root: UIView, prefix: String): String? {
   witnessOf(root, prefix)?.let { return it }
   scrollUntil(root) { witnessOf(root, prefix) != null }
@@ -245,8 +280,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
   // M2 -- a button is operable through VoiceOver and the payload's own state changes.
   val opened = openSection(root, "Buttons")
   val buttonsWere = witnessAnywhere(root, "m3.buttons=")
-  val activated = reach(root, "Filled")?.accessibilityActivate() ?: false
-  val buttonsNow = awaitWitness(root, "m3.buttons=", buttonsWere)
+  val (activated, buttonsNow) = activateUntil(root, "Filled", "m3.buttons=", buttonsWere)
   conform("M2", activated && buttonsNow != null, "section=$opened, activated=$activated, $buttonsWere -> $buttonsNow")
 
   // M6 -- an icon inside a Material component announces its description. The icon is segment 0's

@@ -33,25 +33,10 @@ import urllib.request
 sys.path.insert(0, __file__.rsplit('/', 2)[0] + '/web-ttff')
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from cdp import Devtools  # noqa: E402
-from web_accessibility import ax_nodes  # noqa: E402
+# `patiently` lives beside `ax_nodes` rather than being defined again here: two copies of a
+# timeout policy is two timeout policies. See docs/checks.md for what sets it and why.
+from web_accessibility import ax_nodes, patiently  # noqa: E402
 
-# How long to wait for a page to do something, as a multiple of what a development machine needs.
-#
-# Every deadline below was tuned on a development machine and three of them were too tight on a
-# hosted runner: the first tier-C run reported `M5` as `sheet=None` -- a sheet that had been asked
-# to open and had not finished -- and the iOS drill reported the same shape for `M2`. A hosted
-# runner is two shared cores rendering a WebAssembly Compose canvas through a software rasteriser,
-# and it is simply slower than the machine these numbers came from.
-#
-# A multiplier rather than bigger numbers, because a development machine should not wait three
-# times as long to learn the same thing, and a drill that is slow to fail is a drill people stop
-# running. `tier-c.yml` sets it; everywhere else it is 1 and nothing changes.
-PATIENCE = float(os.environ.get('DOGWOOD_DRILL_PATIENCE', '1'))
-
-
-def patiently(seconds):
-    """A deadline in seconds, stretched by `DOGWOOD_DRILL_PATIENCE`."""
-    return seconds * PATIENCE
 
 passed = failed = skipped = 0
 

@@ -229,8 +229,24 @@ class AccessibilityConformanceTest {
   }
 
   /** Waits for [label] to appear, which is how the consequence of an action is observed. */
+  /**
+   * How long to wait, as a multiple of what a development machine needs.
+   *
+   * Passed as an instrumentation argument because a hosted emulator is a different machine from the
+   * one every number here was tuned on: a Compose application driven through `UiAutomation`, on two
+   * shared cores with a software renderer. The first nightly run read an empty screen and reported
+   * `D1`, `D4`, `D5`, `J1` and `J3` as failures -- none of which had happened.
+   *
+   * Unset it is 1, so a development machine waits exactly what it always did.
+   */
+  private val patience: Double =
+    InstrumentationRegistry.getArguments().getString("dogwoodPatience")?.toDoubleOrNull()
+      ?.coerceIn(1.0, 10.0) ?: 1.0
+
+  private fun patiently(ms: Long): Long = (ms * patience).toLong()
+
   private fun awaitLabel(label: String, timeoutMs: Long = 8_000): Boolean {
-    val deadline = System.currentTimeMillis() + timeoutMs
+    val deadline = System.currentTimeMillis() + patiently(timeoutMs)
     while (System.currentTimeMillis() < deadline) {
       if (find(label) != null) return true
       Thread.sleep(150)
@@ -248,7 +264,7 @@ class AccessibilityConformanceTest {
    * check that asserts a schedule reports a product failure when the schedule slipped.
    */
   private fun awaitLabelMatching(timeoutMs: Long, predicate: (String) -> Boolean): String? {
-    val deadline = System.currentTimeMillis() + timeoutMs
+    val deadline = System.currentTimeMillis() + patiently(timeoutMs)
     while (System.currentTimeMillis() < deadline) {
       labels().firstOrNull(predicate)?.let { return it }
       Thread.sleep(200)
@@ -273,7 +289,7 @@ class AccessibilityConformanceTest {
     )
     device.wait(androidx.test.uiautomator.Until.hasObject(
       androidx.test.uiautomator.By.pkg(PACKAGE).depth(0),
-    ), 20_000)
+    ), patiently(20_000))
     // The guest is fetched over the network, so the screen takes a moment to exist.
     awaitLabel("Diagnostics", timeoutMs = 40_000)
   }
