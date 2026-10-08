@@ -123,7 +123,14 @@ xcrun simctl launch --console-pty booted dev.dogwood.slice.ios --dogwood-skew > 
 launcher=$!
 # Bounded by the clock rather than by the launcher's exit: `--console-pty` stays attached to a
 # running application, so waiting for it would wait forever.
-for _ in $(seq 1 45); do
+# **Scaled with the drill's own budget**, as `tools/a11y-drill/run.sh` is and this was not: on
+# 2026-10-08 the nightly reported "the client never reported" from here after ninety seconds,
+# with the patience multiplier stretching every wait inside the application to three times that.
+PATIENCE_WHOLE="${DOGWOOD_DRILL_PATIENCE:-1}"
+PATIENCE_WHOLE="${PATIENCE_WHOLE%%.*}"
+case "$PATIENCE_WHOLE" in ''|*[!0-9]*) PATIENCE_WHOLE=1 ;; esac
+[ "$PATIENCE_WHOLE" -ge 1 ] 2>/dev/null || PATIENCE_WHOLE=1
+for _ in $(seq 1 $((45 * PATIENCE_WHOLE))); do
   tr -d '\r' < "$LOG" 2>/dev/null | grep -q "^SKEW DONE\|^SKEW REFUSED" && break
   sleep 2
 done

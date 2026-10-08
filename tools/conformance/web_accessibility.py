@@ -228,7 +228,12 @@ def run(url, chrome, port):
         # The guest composes in a Worker and the host applies its batch; nothing exists to read
         # until that has happened.
         composed = False
-        for _ in range(240):
+        # Scaled, because this was the one wait in the file that was not: three nightly runs
+        # refused here with "the page never reported a first frame" after sixty seconds, while
+        # every claim behind it was scaled to one hundred and eighty. A refusal is a gap in the
+        # matrix, which is worse than a red cell, and all three were the hosted runner compiling
+        # fourteen megabytes of WebAssembly slowly rather than anything the page did.
+        for _ in range(int(patiently(240))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''
