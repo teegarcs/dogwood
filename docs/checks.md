@@ -414,3 +414,17 @@ an application on a simulator does not inherit the shell's environment.
 
 A drill that is slow to fail is a drill people stop running, which is why this is a multiplier rather
 than three larger numbers.
+
+**Where it was not applied, and what that cost.** Fifteen of twenty-one nightly runs between
+2026-09-17 and 2026-10-08 were red on one commit, and every cause was a wait the multiplier did not
+reach or a dialog it could not. On the web, the sixty-second first-frame wait in
+`web_accessibility.py`, `web_services.py` and the skew drill's `check_web.py` was fixed, and on three
+nights the fourteen megabytes of WebAssembly took longer than that to compose; the harness then
+*refused* rather than failed, which is a gap in the matrix rather than a red cell. On iOS, the skew
+and pre-flight drills' ninety-second wait for the client to report was fixed. On both mobile clients
+the Material drill tapped a section's chip once and waited a fixed fifteen seconds, and when the
+section switched late every claim in it blamed its own control. All of those now scale, and a
+section is opened until the catalogue's witness says it is open. On Android, six further nights
+were lost to a dialog nothing here had drawn -- "Pixel Launcher isn't responding", the hosted
+emulator's own home screen stalling under the first drill's install -- which `android-suite.sh`
+now hides with the platform's `hide_error_dialogs` setting and taps away if it was already up.

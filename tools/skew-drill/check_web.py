@@ -19,6 +19,7 @@ halves rather than picking the flattering one:
 Emits the `CONF` grammar so `tools/conformance/aggregate.py` reads this run like any other.
 """
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -58,8 +59,14 @@ def report(devtools, session):
         return None
 
 
+# `tier-c.yml` sets `DOGWOOD_DRILL_PATIENCE` for the hosted runner; the conformance harnesses read it
+# and this one did not, and on 2026-09-27 it refused with "the page never published a report" at a
+# fixed ninety seconds while the drills beside it waited for three times that.
+PATIENCE = float(os.environ.get('DOGWOOD_DRILL_PATIENCE', '1'))
+
+
 def await_report(devtools, session, key, seconds=90):
-    deadline = time.time() + seconds
+    deadline = time.time() + seconds * PATIENCE
     while time.time() < deadline:
         current = report(devtools, session)
         if current and current.get(key):

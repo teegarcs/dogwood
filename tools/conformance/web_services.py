@@ -31,7 +31,7 @@ import urllib.request
 
 sys.path.insert(0, __file__.rsplit('/', 2)[0] + '/web-ttff')
 from cdp import Devtools  # noqa: E402
-from web_accessibility import ax_nodes, scroll_through  # noqa: E402
+from web_accessibility import ax_nodes, patiently, scroll_through  # noqa: E402
 
 passed = failed = 0
 lines = []
@@ -85,7 +85,7 @@ def run(url, chrome, port):
         devtools.call('Page.navigate', {
             'url': f'{url}?manifest=dogwood-manifest-kotlin.json&entry=about'}, session)
         report = {}
-        for _ in range(240):
+        for _ in range(int(patiently(240))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''
@@ -135,7 +135,7 @@ def run(url, chrome, port):
         # ---------------------------------------------------------------------------------
         devtools.call('Page.navigate', {
             'url': f'{url}?manifest=dogwood-manifest-kotlin.json&entry=explore'}, session)
-        for _ in range(240):
+        for _ in range(int(patiently(240))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''
@@ -173,7 +173,7 @@ def run(url, chrome, port):
         # ---------------------------------------------------------------------------------
         devtools.call('Page.navigate', {
             'url': f'{url}?manifest=dogwood-manifest-kotlin.json&entry=app'}, session)
-        for _ in range(240):
+        for _ in range(int(patiently(240))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''
@@ -194,7 +194,7 @@ def run(url, chrome, port):
                 devtools.call('Runtime.callFunctionOn', {
                     'functionDeclaration': 'function() { this.click(); }', 'objectId': handle,
                 }, session)
-                for _ in range(40):
+                for _ in range(int(patiently(40))):
                     if any(n['name'] == 'Diagnostics' and n['role'] != 'button'
                            for n in ax_nodes(devtools, session)):
                         moved = True
@@ -208,7 +208,7 @@ def run(url, chrome, port):
             'expression': 'globalThis.__dogwoodCodeUpdate = true', 'returnByValue': True,
         }, session)
         updated = False
-        for _ in range(120):
+        for _ in range(int(patiently(120))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or '{}'
@@ -235,7 +235,7 @@ def run(url, chrome, port):
         devtools.call('Page.navigate', {
             'url': f'{url}?manifest=dogwood-manifest-disabled.json'}, session)
         refused = {}
-        for _ in range(120):
+        for _ in range(int(patiently(120))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''
@@ -271,7 +271,7 @@ def run(url, chrome, port):
         def load(query):
             """Navigates and returns the page's report, or {} if it never finished."""
             devtools.call('Page.navigate', {'url': f'{url}?{query}'}, session)
-            for _ in range(160):
+            for _ in range(int(patiently(160))):
                 raw = devtools.call('Runtime.evaluate', {
                     'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
                 }, session).get('result', {}).get('value') or ''
@@ -433,7 +433,7 @@ def run(url, chrome, port):
         crashed = load('manifest=dogwood-manifest-kotlin.json&entry=crash')
         crash_log = crashed.get('log', [])
         # Give the effect its delay plus the round trip; the screen composes well before it fails.
-        for _ in range(60):
+        for _ in range(int(patiently(60))):
             raw = devtools.call('Runtime.evaluate', {
                 'expression': 'globalThis.__dogwoodReport || ""', 'returnByValue': True,
             }, session).get('result', {}).get('value') or ''

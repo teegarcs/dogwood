@@ -274,7 +274,7 @@ class MaterialConformanceTest {
   }
 
   private fun awaitLabel(label: String, timeoutMs: Long = 20_000): Boolean {
-    val deadline = System.currentTimeMillis() + timeoutMs
+    val deadline = System.currentTimeMillis() + patiently(timeoutMs)
     while (System.currentTimeMillis() < deadline) {
       if (labels().any { it.contains(label) }) return true
       Thread.sleep(200)
@@ -291,15 +291,36 @@ class MaterialConformanceTest {
    * drill were about reaching a chip rather than about anything the tier does.
    */
   private fun openSection(label: String): Boolean {
-    val chip = reach(label) ?: return false
-    if (!act(chip)) return false
     val wanted = "m3.section=" + label.lowercase().replace(" ", "")
-    val deadline = System.currentTimeMillis() + 15_000
-    while (System.currentTimeMillis() < deadline) {
-      if (witness("m3.section=") == wanted) return true
-      Thread.sleep(200)
+    /*
+     * **Opened until the catalogue says so, not tapped once and waited for.**
+     *
+     * Six nightly runs between 2026-09-26 and 2026-10-08 failed `M5` with `[round 0: the menu never
+     * opened] [round 1: ...] [round 2: ...]` and `sheet shown=true`: the dropdown's anchor was not
+     * found in any of three rounds, and then the sheet, in the same section, opened at the first
+     * attempt. Forty-one seconds separate `M4`'s pass from that line -- this function's fixed
+     * fifteen seconds, which the patience multiplier never reached, plus three rounds of looking
+     * for a control that was not composed yet. The section had opened late, after the rounds had
+     * given up on it, and the claim blamed the menu.
+     *
+     * The shape is the one `M2` on iOS taught: a chip tapped before the payload is listening is a
+     * tap that is gone, and waiting longer does not bring it back. So the witness decides, the wait
+     * is scaled like every other wait here, the chip is tapped again if nothing arrived -- which is
+     * safe, because the picker's chips select rather than toggle -- and a caller can read the result
+     * rather than assume it.
+     */
+    repeat(3) { round ->
+      if (witnessAnywhere("m3.section=") == wanted) return true
+      val chip = reach(label) ?: return false
+      if (!act(chip)) return false
+      val deadline = System.currentTimeMillis() + patiently(5_000)
+      while (System.currentTimeMillis() < deadline) {
+        if (witness("m3.section=") == wanted) return true
+        Thread.sleep(200)
+      }
+      emit("CONF NOTE section $label: tapped its chip (round $round) and the catalogue did not switch")
     }
-    return false
+    return witnessAnywhere("m3.section=") == wanted
   }
 
   @Before
@@ -357,7 +378,7 @@ class MaterialConformanceTest {
     conform("M6", described.size >= 2, "icon-only controls announcing a description: $described")
 
     // M3 -- selection controls report their state and change it.
-    openSection("Selection")
+    val selectionOpened = openSection("Selection")
     val results = mutableListOf<String>()
     for ((prefix, control) in listOf(
       "m3.checkbox=" to "Send me the summary",
@@ -369,7 +390,7 @@ class MaterialConformanceTest {
       val acted = act(node)
       results += "$control: found=${node != null} acted=$acted $was -> ${awaitWitness(prefix, was)}"
     }
-    conform("M3", results.none { it.endsWith("null") }, results.toString())
+    conform("M3", results.none { it.endsWith("null") }, "section=$selectionOpened, $results")
 
     // M3-announced -- and what a screen reader is told about them.
     //
@@ -404,7 +425,7 @@ class MaterialConformanceTest {
     }
 
     // M4 -- a dialog opens, is announced, and confirms.
-    openSection("Dialogs")
+    val dialogsOpened = openSection("Dialogs")
     act(reach("Open alert"))
     val announced = awaitLabel("Cancel this booking?", timeoutMs = 15_000)
     var outcome: String? = null
@@ -415,11 +436,11 @@ class MaterialConformanceTest {
     conform(
       "M4",
       announced && outcome == "m3.dialog.outcome=confirmed",
-      "announced=$announced, outcome=$outcome, on screen: ${screen().take(160)}",
+      "section=$dialogsOpened, announced=$announced, outcome=$outcome, on screen: ${screen().take(160)}",
     )
 
     // M5 -- a sheet and a menu open and choose.
-    openSection("Sheets")
+    val sheetsOpened = openSection("Sheets")
     val menuWas = witnessAnywhere("m3.menu=")
     /*
      * Opened and chosen from until the witness moves, rather than once with a sleep between.
@@ -449,7 +470,15 @@ class MaterialConformanceTest {
        * is invisible, and failed on a hosted emulator where the first round is the slow one.
        */
       if (find("Business") == null) {
-        act(reach("Cabin class"))
+        val anchor = reach("Cabin class")
+        if (anchor == null) {
+          // Said as what it is. "The menu never opened" was this line's verdict on six nights when
+          // the anchor was not composed, and it sent the reader to the menu.
+          menuNotes += " [round $round: the anchor was not on screen]"
+          Thread.sleep(patiently(2_000))
+          return@repeat
+        }
+        act(anchor)
         awaitLabel("Business", timeoutMs = 5_000)
       }
       if (find("Business") == null) {
@@ -484,7 +513,7 @@ class MaterialConformanceTest {
     conform(
       "M5",
       chosen != null && sheetShown,
-      "menu=$chosen$menuNotes, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
+      "section=$sheetsOpened, menu=$chosen$menuNotes, sheet shown=$sheetShown, after closing=$sheetClosed (was $sheetWas)",
     )
 
     emit("CONF RESULT client=android passed=$passed failed=$failed skipped=$skipped")

@@ -243,15 +243,29 @@ private suspend fun witnessAnywhere(root: UIView, prefix: String): String? {
 private suspend fun openSection(root: UIView, label: String): Boolean {
   // The picker is three wrapped rows, so a chip is always composed and vertical scrolling is
   // the only thing between the drill and it. See `MaterialScreen.kt` for why it is not one row.
-  val chip = reach(root, label) ?: return false
-  if (!chip.accessibilityActivate()) return false
   val wanted = "m3.section=" + label.lowercase().replace(" ", "")
-  repeat(60) {
+  /*
+   * Activated until the catalogue's witness agrees, on the rule `activateUntil` states above: a
+   * first activation that lands before the payload is listening is gone, and this chip is the first
+   * activation after whatever the previous claim left on screen. Two nightly runs failed here with
+   * the section's own claims blaming their controls -- `M3` with every control `found=false` after
+   * 183 seconds, `M5` with `menu=null, sheet shown=false` -- and in both the section had simply not
+   * switched inside a fixed fifteen seconds the patience multiplier never reached. The chips select
+   * rather than toggle, so activating one again is safe.
+   */
+  repeat(3) { round ->
     if (outOfTime()) return false
-    if (witnessOf(root, "m3.section=") == wanted) return true
-    delay(250)
+    if (witnessAnywhere(root, "m3.section=") == wanted) return true
+    val chip = reach(root, label) ?: return false
+    if (!chip.accessibilityActivate()) return false
+    var attempts = (20 * patience).toInt().coerceAtLeast(1)
+    while (attempts-- > 0 && !outOfTime()) {
+      if (witnessOf(root, "m3.section=") == wanted) return true
+      delay(250)
+    }
+    println("A11Y NOTE section $label: activated its chip (round $round) and the catalogue did not switch")
   }
-  return false
+  return witnessAnywhere(root, "m3.section=") == wanted
 }
 
 /**
@@ -322,7 +336,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
   conform("M6", described.size >= 2, "icon-only controls announcing a description: $described")
 
   // M3 -- selection controls report their state and change it.
-  openSection(root, "Selection")
+  val selectionOpened = openSection(root, "Selection")
   val results = mutableListOf<String>()
   for ((prefix, control) in listOf(
     "m3.checkbox=" to "Send me the summary",
@@ -334,7 +348,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
     val acted = element?.accessibilityActivate() ?: false
     results += "$control: found=${element != null} acted=$acted $was -> ${awaitWitness(root, prefix, was)}"
   }
-  conform("M3", results.none { it.endsWith("null") }, results.toString())
+  conform("M3", results.none { it.endsWith("null") }, "section=$selectionOpened, $results")
 
   // M3-announced -- and what VoiceOver is told about them. On this platform a Compose toggle
   // publishes its state as an accessibility *value*, not as a trait, which is why this reads
@@ -408,12 +422,35 @@ suspend fun runMaterialDrill(root: UIView): Int {
    * empty, and tools/upstream-reports/README.md carries the observation.
    */
   // M5 -- a sheet and a menu open and choose.
-  openSection(root, "Sheets")
+  val sheetsOpened = openSection(root, "Sheets")
   val menuWas = witnessAnywhere(root, "m3.menu=")
-  reach(root, "Cabin class")?.accessibilityActivate()
-  delay(800)
-  elementNamed(root, "Business")?.accessibilityActivate()
-  val chosen = awaitWitness(root, "m3.menu=", menuWas)
+  // The item is waited for, not slept towards: `delay(800)` was a guess about how long a dropdown
+  // takes to compose, and the Android drill recorded what a guess costs under load. The anchor is
+  // a toggle, so it is activated only while the item is absent, and only the opening is retried.
+  var chosen: String? = null
+  var menuNotes = ""
+  repeat(3) { round ->
+    if (chosen != null || outOfTime()) return@repeat
+    if (elementNamed(root, "Business") == null) {
+      val anchor = reach(root, "Cabin class")
+      if (anchor == null) {
+        menuNotes += " [round $round: the anchor was not on screen]"
+        delay((2_000 * patience).toLong())
+        return@repeat
+      }
+      anchor.accessibilityActivate()
+      var attempts = (20 * patience).toInt().coerceAtLeast(1)
+      while (attempts-- > 0 && !outOfTime() && elementNamed(root, "Business") == null) delay(250)
+    }
+    val item = elementNamed(root, "Business")
+    if (item == null) {
+      menuNotes += " [round $round: the menu never opened]"
+      return@repeat
+    }
+    item.accessibilityActivate()
+    chosen = awaitWitness(root, "m3.menu=", menuWas)
+    if (chosen == null) menuNotes += " [round $round: chose, witness unmoved]"
+  }
 
   reach(root, "Open the sheet")?.accessibilityActivate()
   var sheetShown = false
@@ -426,7 +463,7 @@ suspend fun runMaterialDrill(root: UIView): Int {
     delay(250)
   }
   if (sheetShown) elementNamed(root, "Close the sheet")?.accessibilityActivate()
-  conform("M5", chosen != null && sheetShown, "menu=$chosen, sheet shown=$sheetShown")
+  conform("M5", chosen != null && sheetShown, "section=$sheetsOpened, menu=$chosen$menuNotes, sheet shown=$sheetShown")
 
   /*
    * M4 -- a dialog opens, is announced, and confirms.
